@@ -21,7 +21,9 @@ export function ModuleTabs({ showSubstituicoes }: ModuleTabsProps) {
   ) {
     tabs =
       perfilSlug === 'negociacao-propria'
-        ? PIPELINE_TABS.filter((item) => item.path === '/pipeline' || item.path === '/propostas')
+        ? PIPELINE_TABS.filter((item) =>
+            ['/pipeline', '/propostas', '/fechamentos'].includes(item.path),
+          )
         : PIPELINE_TABS
     label = 'Etapas do Pipeline Comercial'
   } else if (

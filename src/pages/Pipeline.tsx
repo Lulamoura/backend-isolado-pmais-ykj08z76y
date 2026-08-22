@@ -35,7 +35,7 @@ export default function Pipeline() {
   const { perfilSlug } = useIsSuperAdmin()
   const visibleStages =
     perfilSlug === 'negociacao-propria'
-      ? stages.filter((stage) => stage.path === '/propostas')
+      ? stages.filter((stage) => ['/propostas', '/fechamentos'].includes(stage.path))
       : stages
   return (
     <div className="space-y-6">

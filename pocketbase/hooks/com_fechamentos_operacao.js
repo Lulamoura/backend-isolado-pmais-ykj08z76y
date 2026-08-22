@@ -14,6 +14,7 @@
       function fechamentoPodeAcessar(user, perfil, negocio) {
         if (perfil === 'superadministrador') return true
         if (negocio.getString('responsavel_id') === user.id) return true
+        if (perfil === 'negociacao-propria') return false
         return (
           !!user.getString('equipe_id') &&
           negocio.getString('equipe_id') === user.getString('equipe_id')
@@ -118,11 +119,6 @@
     'POST',
     '/backend/v1/fechamentos/decidir',
     (e) => {
-      try {
-        var perfilRestrito = $app.findRecordById('com_perfis', e.auth.getString('perfil_id'))
-        if (perfilRestrito.getString('slug') === 'negociacao-propria')
-          return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
-      } catch (_) {}
       function fechamentoPerfil(user) {
         try {
           return $app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
@@ -133,6 +129,7 @@
       function fechamentoPodeAcessar(user, perfil, negocio) {
         if (perfil === 'superadministrador') return true
         if (negocio.getString('responsavel_id') === user.id) return true
+        if (perfil === 'negociacao-propria') return false
         return (
           !!user.getString('equipe_id') &&
           negocio.getString('equipe_id') === user.getString('equipe_id')

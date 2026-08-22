@@ -22,6 +22,7 @@ import {
   type ItemFechamento,
   type MotivoPerda,
 } from '@/services/fechamentos'
+import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 
 const motivos: Array<{ value: MotivoPerda; label: string }> = [
   { value: 'preco', label: 'Preço' },
@@ -32,6 +33,7 @@ const motivos: Array<{ value: MotivoPerda; label: string }> = [
 ]
 
 export default function Fechamentos() {
+  const { perfilSlug } = useIsSuperAdmin()
   const [itens, setItens] = useState<ItemFechamento[]>([])
   const [loading, setLoading] = useState(true)
   const [motivo, setMotivo] = useState<Record<string, MotivoPerda>>({})
@@ -215,9 +217,11 @@ export default function Fechamentos() {
                         ? `Recuperação em ${item.agenda.data_alvo}`
                         : 'Sem agenda de recuperação ativa'}
                     </p>
-                    <Button disabled={!item.agenda} onClick={() => void reativar(item)}>
-                      <RotateCcw className="mr-2 h-4 w-4" /> Reativar negócio
-                    </Button>
+                    {perfilSlug !== 'negociacao-propria' && (
+                      <Button disabled={!item.agenda} onClick={() => void reativar(item)}>
+                        <RotateCcw className="mr-2 h-4 w-4" /> Reativar negócio
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-slate-500">Negócio terminal preservado.</p>
