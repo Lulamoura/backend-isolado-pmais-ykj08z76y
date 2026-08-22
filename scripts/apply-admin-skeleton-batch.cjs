@@ -4,17 +4,8 @@ const path = require('node:path')
 
 const PROJECT_ID = 52022
 const PROJECT_UUID = '9bd690dc-fec2-4b18-88f1-11f6cc1329a5'
-const EXPECTED_FINGERPRINT = 'fafe313bd74ccb86f09dd7b77f3ba751f6112294c4608a8b37c3eef67667e0a5'
-const EXPECTED_PRE_MIGRATIONS = 11
-const BATCHES = {
-  'batch-1': [
-    'com_equipes',
-    'com_perfis',
-    'com_permissoes',
-    'com_perfil_permissoes',
-    'com_usuarios_equipes',
-  ],
-}
+const EXPECTED_FINGERPRINT = '4552a681f36569042b2d4c0c7301e085f8a0a36f6d9e439546e846e3ae7b6a55'
+const BATCH_SIZES = [5, 6, 6, 6, 6]
 
 const root = path.resolve(__dirname, '..')
 const reportPath = path.resolve(
@@ -43,8 +34,13 @@ function getJson(url) {
 async function main() {
   const batchName = process.argv[2]
   const confirmation = process.argv[3]
-  const names = BATCHES[batchName]
-  if (!names || confirmation !== 'APPLY-52022-BATCH-1') {
+  const batchIndex = Number(batchName?.match(/^batch-(\d+)$/)?.[1]) - 1
+  if (
+    !Number.isInteger(batchIndex) ||
+    batchIndex < 0 ||
+    batchIndex >= BATCH_SIZES.length ||
+    confirmation !== `APPLY-52022-${batchName.toUpperCase()}`
+  ) {
     throw new Error('explicit batch confirmation is required')
   }
 
@@ -52,10 +48,13 @@ async function main() {
   if (report.operationsFingerprint !== EXPECTED_FINGERPRINT) {
     throw new Error('dry-run fingerprint mismatch')
   }
-  const operations = report.operations.filter(
-    (operation) =>
-      operation.type === 'create_collection_skeleton' && names.includes(operation.collection),
+  const allOperations = report.operations.filter(
+    (operation) => operation.type === 'create_collection_skeleton',
   )
+  const start = BATCH_SIZES.slice(0, batchIndex).reduce((sum, size) => sum + size, 0)
+  const operations = allOperations.slice(start, start + BATCH_SIZES[batchIndex])
+  const names = operations.map((operation) => operation.collection)
+  const expectedBefore = allOperations.slice(0, start).map((operation) => operation.collection)
   if (operations.length !== names.length) throw new Error('batch operation mismatch')
 
   const pages = await getJson('http://127.0.0.1:19222/json/list')
@@ -87,7 +86,7 @@ async function main() {
   const expression = `
     (async () => {
       const projectId = ${PROJECT_ID};
-      const expectedPreMigrations = ${EXPECTED_PRE_MIGRATIONS};
+      const expectedBefore = ${JSON.stringify(expectedBefore)};
       const operations = ${JSON.stringify(operations)};
       const base = 'https://api.goskip.dev/v1/projects/' + projectId + '/integrations/skip-cloud';
       const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -120,11 +119,14 @@ async function main() {
         };
       }
       const before = await state();
-      if (before.collections.length !== 1 || before.collections[0].name !== 'users') {
+      const beforeNames = before.collections.map((item) => item.name).sort();
+      const wantedBefore = ['users', ...expectedBefore].sort();
+      if (JSON.stringify(beforeNames) !== JSON.stringify(wantedBefore)) {
         throw new Error('pre-state schema mismatch');
       }
-      if (before.migrations.length !== expectedPreMigrations) {
-        throw new Error('pre-state ledger mismatch: ' + before.migrations.length);
+      for (const collection of before.collections) {
+        const records = await request('/collections/' + encodeURIComponent(collection.id) + '/records?page=1&perPage=1');
+        if (!records.ok || records.body.totalItems !== 0) throw new Error(collection.name + ' is not empty');
       }
       const results = [];
       for (const operation of operations) {
@@ -160,6 +162,9 @@ async function main() {
         }
       }
       const after = await state();
+      const afterNames = after.collections.map((item) => item.name).sort();
+      const wantedAfter = ['users', ...expectedBefore, ...operations.map((item) => item.collection)].sort();
+      if (JSON.stringify(afterNames) !== JSON.stringify(wantedAfter)) throw new Error('post-state schema mismatch');
       return {
         projectId,
         batch: ${JSON.stringify(batchName)},

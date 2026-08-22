@@ -6979,16 +6979,6 @@ const STRUCTURAL_SEEDS = {
       valor_comparacao: 'desqualificado',
       valor_original: 'desqualificado',
     },
-    {
-      canonico_ref: '',
-      dimensao: '',
-      fim_vigencia: '',
-      id: 'b0tu1zgtrabf5lo',
-      inicio_vigencia: '',
-      validacao: '',
-      valor_comparacao: '',
-      valor_original: 'rbac-1786403285',
-    },
   ],
   com_calendario_feriados: [],
 }

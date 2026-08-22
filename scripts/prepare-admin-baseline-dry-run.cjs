@@ -263,7 +263,7 @@ if (updateCollections.length !== 1 || updateCollections[0].collection !== 'users
   fail('expected exactly one users update')
 }
 if (app.collections.size !== 30) fail('expected 30 final collections')
-if (totalSeeds !== 168 || totalSeeds !== expectedSeeds) fail('expected 168 structural seeds')
+if (totalSeeds !== 167 || totalSeeds !== expectedSeeds) fail('expected 167 structural seeds')
 if (app.records.has('users')) fail('users must remain empty')
 if (!collectionNames.has('com_qualificacao_historico')) fail('missing qualification history')
 if (app.normalizations.length !== 4) fail('expected four legacy user-reference normalizations')

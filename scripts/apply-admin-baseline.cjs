@@ -4,7 +4,7 @@ const path = require('node:path')
 
 const PROJECT_ID = 52060
 const PROJECT_UUID = '4cda40fc-53e0-40bf-baf1-5a56dbf12889'
-const EXPECTED_FINGERPRINT = 'fafe313bd74ccb86f09dd7b77f3ba751f6112294c4608a8b37c3eef67667e0a5'
+const EXPECTED_FINGERPRINT = '4552a681f36569042b2d4c0c7301e085f8a0a36f6d9e439546e846e3ae7b6a55'
 const API_BASE = `https://api.goskip.dev/v1/projects/${PROJECT_ID}/integrations/skip-cloud`
 const root = path.resolve(__dirname, '..')
 const reportPath = path.resolve(
@@ -90,7 +90,7 @@ async function main() {
     report.summary.createCollectionSkeletons !== 29 ||
     report.summary.applyCollectionDefinitions !== 29 ||
     report.summary.updateCollections !== 1 ||
-    report.summary.createRecords !== 168 ||
+    report.summary.createRecords !== 167 ||
     report.summary.expectedSchemaLedgerEvents !== 59
   ) {
     throw new Error('dry-run operation counts mismatch')
@@ -308,7 +308,7 @@ async function main() {
       insertedByCollection[operation.collection] =
         (insertedByCollection[operation.collection] || 0) + 1
       if ((index + 1) % 20 === 0 || index + 1 === recordOperations.length) {
-        console.log(`records ${index + 1}/168`)
+        console.log(`records ${index + 1}/167`)
       }
     }
 
@@ -327,7 +327,7 @@ async function main() {
       if (expected > 0) structuralRecords += result.totalItems
       else transactionalRecords += result.totalItems
     }
-    if (structuralRecords !== 168) await rollback('structural record total is not 168')
+    if (structuralRecords !== 167) await rollback('structural record total is not 167')
     if (transactionalRecords !== 0) await rollback('transactional record total is not zero')
     const finalMigrations = (await request('/migrations')).migrations
     if (finalMigrations.length !== report.summary.expectedSchemaLedgerEvents) {
@@ -341,7 +341,7 @@ async function main() {
       collections: 30,
       migrations: finalMigrations.length,
       users: 0,
-      structuralRecords: 168,
+      structuralRecords: 167,
       transactionalRecords: 0,
       seedCounts: expectedByCollection,
     }
