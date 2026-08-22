@@ -5,13 +5,15 @@ const vm = require('node:vm')
 const root = path.resolve(__dirname, '..')
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8')
 
-const migration0068 = read('pocketbase/migrations/0068_create_com_qualificacao_historico.js')
+const migration0068 = read(
+  'pocketbase/archive/legacy-migrations/0068_create_com_qualificacao_historico.js',
+)
 const migration0069 = read(
-  'pocketbase/migrations/0069_loosen_com_negocios_required_and_restrict_historico.js',
+  'pocketbase/archive/legacy-migrations/0069_loosen_com_negocios_required_and_restrict_historico.js',
 )
 const migration0079Path = path.join(
   root,
-  'pocketbase/migrations/0079_enforce_qualificacao_historico_rules.js',
+  'pocketbase/archive/legacy-migrations/0079_enforce_qualificacao_historico_rules.js',
 )
 const migration0079 = fs.existsSync(migration0079Path)
   ? fs.readFileSync(migration0079Path, 'utf8')

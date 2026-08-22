@@ -1,0 +1,31 @@
+{
+  "format": "pmais-clean-baseline-v1",
+  "generatedAt": "2026-08-22T19:59:49.674Z",
+  "sourceSnapshotManifestSha256": "00e62808a0c94e7a3a9c2b6473920a90b85d864f353ceffd1d86b35b699df76c",
+  "collections": {
+    "total": 30,
+    "created": 29,
+    "existingAuth": 1
+  },
+  "users": {
+    "imported": 0,
+    "extensionFields": ["perfil_id", "equipe_id", "ativo_comercial"]
+  },
+  "structuralSeeds": {
+    "com_equipes": 1,
+    "com_perfis": 8,
+    "com_permissoes": 42,
+    "com_perfil_permissoes": 91,
+    "com_parametros": 13,
+    "com_etapas": 6,
+    "com_alias_dimensoes": 7,
+    "com_calendario_feriados": 0
+  },
+  "transactionalSeeds": 0,
+  "safeguards": {
+    "requiresEmptyBackend": true,
+    "containsPasswordsOrTokens": false,
+    "containsUserRecords": false,
+    "containsTransactionalRecords": false
+  }
+}

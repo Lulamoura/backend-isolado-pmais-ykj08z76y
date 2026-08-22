@@ -1,6 +1,9 @@
 const fs = require('fs')
 const hook = fs.readFileSync('pocketbase/hooks/com_slas.js', 'utf8')
-const migration = fs.readFileSync('pocketbase/migrations/0077_create_com_calendario_sla.js', 'utf8')
+const migration = fs.readFileSync(
+  'pocketbase/archive/legacy-migrations/0077_create_com_calendario_sla.js',
+  'utf8',
+)
 const page = fs.readFileSync('src/pages/Slas.tsx', 'utf8')
 const service = fs.readFileSync('src/services/slas.ts', 'utf8')
 const app = fs.readFileSync('src/App.tsx', 'utf8')
