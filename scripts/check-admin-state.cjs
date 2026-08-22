@@ -54,11 +54,23 @@ async function main() {
   }
   const collections = (await request('/collections')).collections
   const migrations = (await request('/migrations')).migrations
+  const integration = process.argv.includes('--integration') ? await request('') : undefined
   const counts = {}
   for (const collection of collections) {
     counts[collection.name] = (await request(`/collections/${encodeURIComponent(collection.id)}/records?page=1&perPage=1`)).totalItems
   }
-  console.log(JSON.stringify({ names: collections.map((item) => item.name), migrations: migrations.length, counts }, null, 2))
+  const usersCollection = collections.find((item) => item.name === 'users')
+  const userItems = process.argv.includes('--users')
+    ? (await request(`/collections/${encodeURIComponent(usersCollection.id)}/records?page=1&perPage=100`)).items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        ativo_comercial: item.ativo_comercial,
+        verified: item.verified,
+        perfil_id: item.perfil_id,
+        equipe_id: item.equipe_id,
+      }))
+    : undefined
+  console.log(JSON.stringify({ names: collections.map((item) => item.name), migrations: migrations.length, counts, users: userItems, integration }, null, 2))
 }
 
 main().catch((error) => { console.error(error.message); process.exit(1) })
