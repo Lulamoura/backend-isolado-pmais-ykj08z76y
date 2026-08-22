@@ -5,11 +5,13 @@ const projectUuid = '9bd690dc-fec2-4b18-88f1-11f6cc1329a5'
 
 function getJson(url) {
   return new Promise((resolve, reject) =>
-    http.get(url, (response) => {
-      let data = ''
-      response.on('data', (chunk) => (data += chunk))
-      response.on('end', () => resolve(JSON.parse(data)))
-    }).on('error', reject),
+    http
+      .get(url, (response) => {
+        let data = ''
+        response.on('data', (chunk) => (data += chunk))
+        response.on('end', () => resolve(JSON.parse(data)))
+      })
+      .on('error', reject),
   )
 }
 
@@ -27,7 +29,10 @@ async function tokens() {
     pending.delete(message.id)
     message.error ? request.reject(new Error('CDP error')) : request.resolve(message.result)
   }
-  await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject })
+  await new Promise((resolve, reject) => {
+    ws.onopen = resolve
+    ws.onerror = reject
+  })
   const send = (method, params = {}) => {
     const requestId = ++id
     ws.send(JSON.stringify({ id: requestId, method, params }))
@@ -49,7 +54,8 @@ async function main() {
   const request = async (path) => {
     const response = await fetch(base + path, { headers, signal: AbortSignal.timeout(20000) })
     const body = await response.json()
-    if (!response.ok || body.error) throw new Error(`${path} failed ${response.status}: ${body.error || 'unknown'}`)
+    if (!response.ok || body.error)
+      throw new Error(`${path} failed ${response.status}: ${body.error || 'unknown'}`)
     return body
   }
   const collections = (await request('/collections')).collections
@@ -57,11 +63,17 @@ async function main() {
   const integration = process.argv.includes('--integration') ? await request('') : undefined
   const counts = {}
   for (const collection of collections) {
-    counts[collection.name] = (await request(`/collections/${encodeURIComponent(collection.id)}/records?page=1&perPage=1`)).totalItems
+    counts[collection.name] = (
+      await request(`/collections/${encodeURIComponent(collection.id)}/records?page=1&perPage=1`)
+    ).totalItems
   }
   const usersCollection = collections.find((item) => item.name === 'users')
   const userItems = process.argv.includes('--users')
-    ? (await request(`/collections/${encodeURIComponent(usersCollection.id)}/records?page=1&perPage=100`)).items.map((item) => ({
+    ? (
+        await request(
+          `/collections/${encodeURIComponent(usersCollection.id)}/records?page=1&perPage=100`,
+        )
+      ).items.map((item) => ({
         id: item.id,
         name: item.name,
         ativo_comercial: item.ativo_comercial,
@@ -70,7 +82,22 @@ async function main() {
         equipe_id: item.equipe_id,
       }))
     : undefined
-  console.log(JSON.stringify({ names: collections.map((item) => item.name), migrations: migrations.length, counts, users: userItems, integration }, null, 2))
+  console.log(
+    JSON.stringify(
+      {
+        names: collections.map((item) => item.name),
+        migrations: migrations.length,
+        counts,
+        users: userItems,
+        integration,
+      },
+      null,
+      2,
+    ),
+  )
 }
 
-main().catch((error) => { console.error(error.message); process.exit(1) })
+main().catch((error) => {
+  console.error(error.message)
+  process.exit(1)
+})
