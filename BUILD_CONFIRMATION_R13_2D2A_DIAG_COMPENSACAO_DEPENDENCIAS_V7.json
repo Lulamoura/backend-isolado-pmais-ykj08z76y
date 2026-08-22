@@ -1,0 +1,13 @@
+{
+  "invalid_record_id_filters_removed": true,
+  "only_dependency_guard": "com_ocorrencias_qualidade.execucao_id",
+  "dependency_guard_expected_count": 0,
+  "dependency_found_aborts_transaction": true,
+  "invented_reference_fields_used": false,
+  "strict_transactional_lock_preserved": true,
+  "same_transactional_lock_object_saved": true,
+  "compensation_executed": false,
+  "compensation_lock": "armed",
+  "deletion_executed": false,
+  "activecampaign_calls": 0
+}

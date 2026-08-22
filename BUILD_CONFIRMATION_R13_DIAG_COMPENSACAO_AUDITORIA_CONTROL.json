@@ -1,0 +1,20 @@
+{
+  "build_status": "READY",
+  "audit_version": "R13-DIAG-COMPENSACAO-AUDITORIA-20260812-v1",
+  "previous_frontend_bundle": "R13-DIAG-COMPENSACAO-AUDITORIA-FRONTEND-20260812-v3",
+  "new_frontend_bundle": "R13-DIAG-COMPENSACAO-AUDITORIA-FRONTEND-CONTROL-20260812-v4",
+  "backend_hook": "ac_diag_compensacao_auditoria",
+  "backend_route_method": "GET",
+  "backend_route_path": "/backend/v1/integracao/ac/diag-compensacao-auditoria",
+  "frontend_route_method": "GET",
+  "route": "/backend/v1/integracao/ac/diag-compensacao-auditoria",
+  "button_enabled": true,
+  "server_side_lock": "armed",
+  "audit_executed": false,
+  "deletion_executed": false,
+  "activecampaign_calls": 0,
+  "execution_enabled": true,
+  "read_only": true,
+  "authenticated": true,
+  "preview": "https://validacao-de-viabilidade-89fff--preview.goskip.app"
+}
