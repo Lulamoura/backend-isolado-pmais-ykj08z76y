@@ -18,6 +18,14 @@
 //  - demais regras sem alteração.
 migrate(
   (app) => {
+    function encontrarColecaoOpcional(app, nome) {
+      try {
+        return app.findCollectionByNameOrId(nome)
+      } catch (_) {
+        return null
+      }
+    }
+
     // ----------------------------------------------------------------
     // 1. com_negocios — afrouxar `required` (false) nos três campos.
     // ----------------------------------------------------------------
@@ -38,18 +46,28 @@ migrate(
     // 2. com_qualificacao_historico — list/view só superadministrador.
     //    create/update/delete PRESERVADOS (já server-side only).
     // ----------------------------------------------------------------
-    var hist = app.findCollectionByNameOrId('com_qualificacao_historico')
+    var hist = encontrarColecaoOpcional(app, 'com_qualificacao_historico')
 
     var SUPERADMIN_ONLY =
       "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'"
 
-    hist.listRule = SUPERADMIN_ONLY
-    hist.viewRule = SUPERADMIN_ONLY
-    // createRule / updateRule / deleteRule não tocados.
+    if (hist) {
+      hist.listRule = SUPERADMIN_ONLY
+      hist.viewRule = SUPERADMIN_ONLY
+      // createRule / updateRule / deleteRule não tocados.
 
-    app.save(hist)
+      app.save(hist)
+    }
   },
   (app) => {
+    function encontrarColecaoOpcional(app, nome) {
+      try {
+        return app.findCollectionByNameOrId(nome)
+      } catch (_) {
+        return null
+      }
+    }
+
     // ----------------------------------------------------------------
     // down() — restaura literalmente o estado do build 0.0.180.
     // ----------------------------------------------------------------
@@ -69,12 +87,14 @@ migrate(
     app.save(negocios)
 
     // 2. com_qualificacao_historico — list/view para qualquer autenticado.
-    var hist = app.findCollectionByNameOrId('com_qualificacao_historico')
+    var hist = encontrarColecaoOpcional(app, 'com_qualificacao_historico')
 
-    hist.listRule = "@request.auth.id != ''"
-    hist.viewRule = "@request.auth.id != ''"
-    // create/update/delete não tocados.
+    if (hist) {
+      hist.listRule = "@request.auth.id != ''"
+      hist.viewRule = "@request.auth.id != ''"
+      // create/update/delete não tocados.
 
-    app.save(hist)
+      app.save(hist)
+    }
   },
 )
