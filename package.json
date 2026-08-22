@@ -2,7 +2,7 @@
   "name": "skip-react-template",
   "description": "A frontend React Vite TypeScript Shadcn UI template for Skip projects",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.316",
   "type": "module",
   "scripts": {
     "start": "vite dev",
@@ -14,8 +14,10 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "preview": "vite preview",
-    "test": "echo \"there are no tests for this project\" && exit 0",
-    "test:watch": "echo \"there are no tests for this project\" && exit 0"
+    "test": "node scripts/test-sanitize-2d2b.cjs && node scripts/test-substituicoes-criar.cjs && node scripts/test-substituicoes-ajustar.cjs && node scripts/test-substituicoes-cancelar.cjs && node scripts/test-substituicoes-consultar.cjs && node scripts/test-fila-sem-cobertura.cjs && node scripts/test-quarentena-testes-dry-run.cjs",
+    "test:watch": "node scripts/test-sanitize-2d2b.cjs && node scripts/test-substituicoes-criar.cjs && node scripts/test-substituicoes-ajustar.cjs && node scripts/test-substituicoes-cancelar.cjs && node scripts/test-substituicoes-consultar.cjs && node scripts/test-fila-sem-cobertura.cjs",
+    "test:frontend": "vitest run",
+    "test:t62": "node scripts/test-t62-least-privilege.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -47,6 +49,7 @@
     "@radix-ui/react-toggle-group": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.10",
     "@tailwindcss/aspect-ratio": "^0.4.2",
+    "@testing-library/user-event": "14.6.4",
     "caniuse-lite": "^1.0.30001799",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -56,6 +59,7 @@
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "next-themes": "^0.4.6",
+    "pocketbase": "~0.26.9",
     "react": "^19.2.7",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.7",
@@ -71,11 +75,15 @@
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.20",
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
     "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.5.0",
+    "jsdom": "26.1.0",
     "lucide-react": "^0.577.0",
     "magic-string": "^0.30.21",
     "oxc-parser": "^0.137.0",
@@ -84,6 +92,7 @@
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.19",
     "typescript": "^6.0.3",
-    "vite": "8.0.16"
+    "vite": "8.0.16",
+    "vitest": "4.1.10"
   }
 }

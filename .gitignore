@@ -42,9 +42,13 @@ screenshot.png
 .eslintcache
 .oxlintcache
 
-# Environment variables
-.env*
-!.env
+# Environment variables — never track secrets locally.
+# All env values are managed via SKIP environment mechanism (set_env),
+# never committed to source control.
+.env
+.env.*
+.env.local
+.env.*.local
 
 # Linux kernel core dumps (e.g. when oxfmt or pnpm crash)
 core.[0-9]*

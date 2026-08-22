@@ -1,0 +1,12 @@
+{
+  "lock_missing_aborts": true,
+  "lock_fallback_creation_removed": true,
+  "strict_armed_equality_required": true,
+  "same_transactional_lock_object_saved": true,
+  "saved_lock_variable": "txLockRec",
+  "reference_filters_literal_and_complete": true,
+  "compensation_executed": false,
+  "compensation_lock": "armed",
+  "deletion_executed": false,
+  "activecampaign_calls": 0
+}

@@ -1,0 +1,89 @@
+{
+  "build_status": "READY",
+  "backend_version": "R13",
+  "bundle": "R13-UI-20260812-v2",
+  "version": "R13",
+  "route": "/backend/v1/integracao/ac/run-round-2d2a-r13",
+  "method": "POST",
+  "execution_enabled": true,
+  "server_side_lock": "armed",
+  "executed": false,
+  "button_enabled": false,
+  "button_label": "Full Round (R13)",
+  "frontend_r13_control": "PRESENT",
+  "activecampaign_calls": 0,
+  "preview": "https://validacao-de-viabilidade-89fff--preview.goskip.app",
+  "binding_verified": true,
+  "initial_state": "empty",
+  "session_storage_key": "ac_r13_evidence",
+  "server_side_lock_details": {
+    "armed": true,
+    "mechanism": "com_parametros key=ac_r13_execution_lock",
+    "persists_across_restarts": true,
+    "engaged_on_first_call": true,
+    "blocks_re_execution": true,
+    "applies_on_pass": true,
+    "applies_on_fail": true,
+    "applies_on_blocked": true,
+    "applies_on_error": true
+  },
+  "tests_included": [
+    "1_disabled_returns_503",
+    "2_wrong_method_get",
+    "3_invalid_content_type",
+    "4_empty_body",
+    "5_malformed_body",
+    "6_oversized_body",
+    "7_missing_signature",
+    "8_invalid_signature"
+  ],
+  "webhook_barrier": {
+    "layer": "R13_outermost_barrier",
+    "placement": "After webhook-disabled check and Content-Type/Content-Length checks, before any body parsing/validation/access for event processing",
+    "missing_signature_response": {
+      "status": 401,
+      "content_type": "application/json",
+      "body": "{\"error\":\"missing_signature\"}"
+    },
+    "invalid_signature_response": {
+      "status": 401,
+      "content_type": "application/json",
+      "body": "{\"error\":\"invalid_signature\"}"
+    },
+    "existing_signature_branch": "preserved unchanged — not reused or adjusted",
+    "read_order": "X-AC-Signature header checked first; raw body read only after header presence confirmed",
+    "no_throw": "Neither condition throws an exception nor falls through to the legacy handler"
+  },
+  "webhook_flag_final_state": "false",
+  "r11_lock_preserved": true,
+  "r12_lock_preserved": true,
+  "r11_lock_mechanism": "com_parametros key=ac_r11_execution_lock — untouched, remains consumed and permanently locked",
+  "r12_lock_mechanism": "com_parametros key=ac_r12_execution_lock — untouched, remains consumed and permanently locked",
+  "no_backend_changes": true,
+  "no_execution_performed": true,
+  "no_http_calls_during_build": true,
+  "untouched_scope": [
+    "migrations",
+    "rbac",
+    "business_collections",
+    "secrets",
+    "functional_payload",
+    "idempotency",
+    "rollback",
+    "R11_runner",
+    "R12_runner",
+    "R13_runner_backend"
+  ],
+  "preserved_behaviors": {
+    "counts": true,
+    "raw_http_capture": true,
+    "flag_set_false_in_finally": true,
+    "final_probe_503": true,
+    "zero_activecampaign_calls": true,
+    "preventive_compensation": true,
+    "single_execution_lock": true,
+    "copy_download_gated": true,
+    "full_response_no_truncation": true
+  },
+  "note": "R13 gate flipped from execution_enabled:false to execution_enabled:true on the backend. Frontend bundle R13-UI-20260812-v2 remains unchanged — button_enabled:false as served. Server-side single-execution lock remains armed. No HTTP calls performed. No execution. R11/R12 locks preserved."
+}

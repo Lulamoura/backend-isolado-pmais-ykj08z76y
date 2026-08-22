@@ -1,0 +1,19 @@
+{
+  "build_status": "READY",
+  "audit_version": "R13-DIAG-COMPENSACAO-AUDITORIA-20260812-v1",
+  "previous_frontend_bundle": "R13-DIAG-COMPENSACAO-AUDITORIA-FRONTEND-20260812-v2",
+  "new_frontend_bundle": "R13-DIAG-COMPENSACAO-AUDITORIA-FRONTEND-20260812-v3",
+  "backend_hook": "ac_diag_compensacao_auditoria",
+  "backend_route_method": "GET",
+  "backend_route_path": "/backend/v1/integracao/ac/diag-compensacao-auditoria",
+  "frontend_route_method_before_fix": "POST",
+  "frontend_route_method_after_fix": "GET",
+  "root_cause": "HTTP method mismatch — backend registered GET, frontend called POST. PocketBase returns 404 for unregistered method+path combinations.",
+  "route": "/backend/v1/integracao/ac/diag-compensacao-auditoria",
+  "execution_enabled": true,
+  "server_side_lock": "armed",
+  "audit_executed": false,
+  "deletion_executed": false,
+  "activecampaign_calls": 0,
+  "preview": "https://validacao-de-viabilidade-89fff--preview.goskip.app"
+}

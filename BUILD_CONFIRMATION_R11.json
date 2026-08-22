@@ -1,0 +1,25 @@
+{
+  "executed": false,
+  "button": "Full Round (R11)",
+  "route": "/backend/v1/integracao/ac/run-round-2d2a-r11",
+  "method": "POST",
+  "bundle_version": "R11-EXEC-20260811-v3",
+  "execution_enabled": true,
+  "binding_verified": true,
+  "initial_state": "empty",
+  "session_key": "comercial_2d2a_r11_http_response_raw",
+  "captured_from_success": "HTTP_RESPONSE",
+  "captured_from_error": "FETCH_ERROR",
+  "single_execution_per_session": true,
+  "server_side_lock": {
+    "armed": true,
+    "mechanism": "com_parametros key=ac_r11_execution_lock",
+    "persists_across_restarts": true,
+    "engaged_on_first_call": true,
+    "blocks_re_execution": true
+  },
+  "copy_download_condition": "captured_from === HTTP_RESPONSE && raw_response filled",
+  "file_prefix": "r11-http-response-",
+  "webhook_flag_final_state": "false",
+  "note": "R11 execution gate is ENABLED. Server-side single-execution lock is armed via com_parametros. The first authenticated POST will engage the lock and execute the full round; all subsequent calls return a non-executing locked response. No tests executed during deploy — executed:false until Lula manually clicks the button."
+}

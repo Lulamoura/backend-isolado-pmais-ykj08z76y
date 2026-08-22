@@ -1,0 +1,126 @@
+{
+  "build_status": "READY",
+  "sanitation_type": "classification_window_constant_correction",
+  "r14_scope_advanced": false,
+  "r14_label_analysis": {
+    "verdict": "R14 is only an improper bundle label — no functional R14 scope was advanced",
+    "evidence": [
+      "Hook ac_diag_consulta_dependencias.js is a read-only dependency query against com_ocorrencias_qualidade — no create/update/delete logic",
+      "No new collections, migrations, RBAC changes, webhook modifications, or runner changes were introduced under R14",
+      "The route uses a fixed server-side filter on a pre-existing execucao_id — no new functional capability",
+      "The lock is independent and read-only — no compensation, no deletion, no ActiveCampaign calls",
+      "The dependency query belongs to the 2D.2A/R13 diagnostic phase (same phase as diag-transport and diag-compensacao-auditoria)"
+    ],
+    "artifacts_reviewed": [
+      "pocketbase/hooks/ac_diag_consulta_dependencias.js",
+      "src/components/foundation/DiagConsultaDependenciasBlock.tsx"
+    ],
+    "corrected_nomenclature": "Artifacts republished under Porta 2D.2A/R13 with no functional change"
+  },
+  "corrected_versions": {
+    "backend_version": "R13-2D2A-DIAG-CONSULTA-DEPENDENCIAS-BACKEND-20260812-v2",
+    "frontend_version": "R13-2D2A-DIAG-CONSULTA-DEPENDENCIAS-FRONTEND-20260812-v2",
+    "previous_versions": {
+      "backend_v1": "R13/2D.2A-DIAG-CONSULTA-DEPENDENCIAS-20260812-v1",
+      "frontend_v1": "R13/2D.2A-DIAG-CONSULTA-DEPENDENCIAS-FRONTEND-20260812-v1"
+    }
+  },
+  "backend_hook": "ac_diag_consulta_dependencias",
+  "backend_route_method": "GET",
+  "backend_route_path": "/backend/v1/integracao/ac/diag-consulta-dependencias",
+  "fixed_server_side_filter": "execucao_id = \"62otoics23ul0vy\"",
+  "target_collection": "com_ocorrencias_qualidade",
+  "target_execucao_id": "62otoics23ul0vy",
+  "lock_key": "ac_diag_consulta_dependencias_lock",
+  "documentary_proof": {
+    "diagnostic_reference_timestamp": "2026-08-11T20:38:39.922Z",
+    "observed_created_min": "2026-08-11T20:38:39.948Z",
+    "observed_created_max": "2026-08-11T20:38:39.951Z",
+    "classification_window_start_utc": "2026-08-11T20:38:39.900Z",
+    "classification_window_end_utc": "2026-08-11T20:38:40.000Z",
+    "tolerance_rationale": "Observed created values fall ~26-29ms after the reference timestamp (2026-08-11T20:38:39.922Z). The 100ms window (39.900Z to 40.000Z) is the narrowest round envelope that contains all inventoried timestamps (reference 39.922Z, created min 39.948Z, created max 39.951Z). No arbitrary hours/day window is used.",
+    "window_source": "Computed from already-inventoried records and diagnostic timestamps — no data query performed",
+    "window_contains_all_inventoried_timestamps": true,
+    "window_scale": "millisecond (100ms)",
+    "arbitrary_broad_window_rejected": true
+  },
+  "classification_rules": {
+    "DIAGNOSTIC_OWNED": "execucao_id matches target AND origin matches diagnostic transport (activecampaign) AND created within classification window (2026-08-11T20:38:39.900Z to 2026-08-11T20:38:40.000Z) AND tipo/severidade/descricao consistent with diagnostic",
+    "PREEXISTENT": "created before classification window OR belongs to different origin",
+    "INCONCLUSIVE": "diagnostic ownership cannot be proven — NEVER presumed deletable",
+    "inconclusive_triggers_literal": [
+      "sistema_origem absent or empty",
+      "generic tipo or descricao (not consistent with diagnostic patterns)",
+      "missing or out-of-window timestamp (created outside 2026-08-11T20:38:39.900Z to 2026-08-11T20:38:40.000Z)",
+      "any divergent evidence that prevents proving all four DIAGNOSTIC_OWNED conditions simultaneously"
+    ],
+    "inconclusive_never_diagnostic_owned": true
+  },
+  "protection_confirmation": {
+    "classification_authorizes_no_deletion": true,
+    "preexistent_records_protected": true,
+    "inconclusive_records_protected": true,
+    "only_diagnostic_owned_may_be_considered_for_future_compensation": true,
+    "deletion_field_in_response": "deletable: false for ALL records",
+    "protection_rule": "Only DIAGNOSTIC_OWNED records may be considered for future compensation. PREEXISTENT and INCONCLUSIVE are expressly protected and non-deletable."
+  },
+  "functional_change_made": false,
+  "logic_changed": false,
+  "fixed_filter_changed": false,
+  "lock_changed": false,
+  "webhook_changed": false,
+  "runner_changed": false,
+  "rbac_changed": false,
+  "migrations_created": false,
+  "collections_altered": false,
+  "secrets_changed": false,
+  "integrations_changed": false,
+  "constant_only_change": {
+    "description": "Only classification window constants and metadata were edited — dynamic execucao record inicio/fim derivation replaced with fixed UTC constants derived from diagnostic evidence",
+    "fields_changed": [
+      "ROUTE_VERSION",
+      "DIAGNOSTIC_REFERENCE_TIMESTAMP (new constant)",
+      "OBSERVED_CREATED_MIN (new constant)",
+      "OBSERVED_CREATED_MAX (new constant)",
+      "CLASSIFICATION_WINDOW_START_UTC (new constant)",
+      "CLASSIFICATION_WINDOW_END_UTC (new constant)",
+      "TOLERANCE_RATIONALE (new constant)",
+      "temporal_correlation object fields (now reference constant window)",
+      "documentary_proof block added to response",
+      "inconclusive_triggers array added to response"
+    ],
+    "fields_unchanged": [
+      "Fixed server-side filter: execucao_id = \"62otoics23ul0vy\"",
+      "Authentication (superadmin check)",
+      "Independent one-shot lock mechanism",
+      "All classification rules (DIAGNOSTIC_OWNED, PREEXISTENT, INCONCLUSIVE)",
+      "Returned fields structure",
+      "deletable: false for all records"
+    ]
+  },
+  "sanitized_evidence": {
+    "no_records_created": true,
+    "no_records_updated": true,
+    "no_records_deleted": true,
+    "no_data_fetched": true,
+    "no_route_called": true,
+    "no_button_clicked": true,
+    "no_lock_consumed": true,
+    "no_activecampaign_calls": true
+  },
+  "blocked_scope": {
+    "r14_functional_scope": "BLOCKED",
+    "compensation": "BLOCKED",
+    "porta_2d_2b": "BLOCKED",
+    "porta_2e": "BLOCKED"
+  },
+  "readiness_state": {
+    "r14_scope_advanced": false,
+    "dependency_query_executed": false,
+    "dependency_query_lock": "armed",
+    "original_audit_lock": "consumed",
+    "deletion_executed": false,
+    "activecampaign_calls": 0
+  },
+  "preview": "https://validacao-de-viabilidade-89fff--preview.goskip.app"
+}
