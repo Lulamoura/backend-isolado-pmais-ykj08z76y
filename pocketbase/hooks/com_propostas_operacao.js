@@ -23,6 +23,7 @@
   function propostaPodeAcessar(user, perfil, negocio) {
     if (perfil === 'superadministrador') return true
     if (negocio.getString('responsavel_id') === user.id) return true
+    if (perfil === 'negociacao-propria') return false
     return (
       !!user.getString('equipe_id') &&
       negocio.getString('equipe_id') === user.getString('equipe_id')
@@ -93,6 +94,7 @@
       function propostaPodeAcessar(user, perfil, negocio) {
         if (perfil === 'superadministrador') return true
         if (negocio.getString('responsavel_id') === user.id) return true
+        if (perfil === 'negociacao-propria') return false
         return (
           !!user.getString('equipe_id') &&
           negocio.getString('equipe_id') === user.getString('equipe_id')
@@ -216,6 +218,7 @@
       function propostaPodeAcessar(user, perfil, negocio) {
         if (perfil === 'superadministrador') return true
         if (negocio.getString('responsavel_id') === user.id) return true
+        if (perfil === 'negociacao-propria') return false
         return (
           !!user.getString('equipe_id') &&
           negocio.getString('equipe_id') === user.getString('equipe_id')

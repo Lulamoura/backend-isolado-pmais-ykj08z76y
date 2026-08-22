@@ -72,9 +72,10 @@ routerAdd(
       filtro = "inativo = false && resultado = ''"
     if (p !== 'superadministrador') {
       var equipe = ator.getString('equipe_id')
-      filtro += equipe
-        ? " && (responsavel_id='" + ator.id + "' || equipe_id='" + equipe + "')"
-        : " && responsavel_id='" + ator.id + "'"
+      filtro +=
+        p !== 'negociacao-propria' && equipe
+          ? " && (responsavel_id='" + ator.id + "' || equipe_id='" + equipe + "')"
+          : " && responsavel_id='" + ator.id + "'"
     }
     var cfg = {
       lead: inteiro('sla.lead_dias_uteis', 1),

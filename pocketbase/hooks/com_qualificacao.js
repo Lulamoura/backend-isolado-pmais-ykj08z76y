@@ -26,6 +26,7 @@ routerAdd(
       var perfilId = ator.getString('perfil_id')
       if (perfilId) perfil = $app.findRecordById('com_perfis', perfilId).getString('slug')
     } catch (_) {}
+    if (perfil === 'negociacao-propria') return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
     var filtro = "qualificacao = 'pendente' && inativo = false"
     if (perfil !== 'superadministrador') {
       var equipeId = ator.getString('equipe_id')

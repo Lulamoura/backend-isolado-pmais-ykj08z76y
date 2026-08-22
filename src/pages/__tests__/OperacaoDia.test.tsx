@@ -6,16 +6,21 @@ const listarFilaAtividades = vi.hoisted(() => vi.fn())
 const listarSlas = vi.hoisted(() => vi.fn())
 const listarOrdensExecucao = vi.hoisted(() => vi.fn())
 const listarFechamentos = vi.hoisted(() => vi.fn())
+const perfil = vi.hoisted(() => ({ slug: 'gestor-comercial' }))
 
 vi.mock('@/services/atividades', () => ({ listarFilaAtividades }))
 vi.mock('@/services/slas', () => ({ listarSlas }))
 vi.mock('@/services/ordens-execucao', () => ({ listarOrdensExecucao }))
 vi.mock('@/services/fechamentos', () => ({ listarFechamentos }))
+vi.mock('@/hooks/use-is-superadmin', () => ({
+  useIsSuperAdmin: () => ({ perfilSlug: perfil.slug, loading: false, isSuperAdmin: false }),
+}))
 
 import OperacaoDia from '@/pages/OperacaoDia'
 
 beforeEach(() => {
   vi.clearAllMocks()
+  perfil.slug = 'gestor-comercial'
   listarFilaAtividades.mockResolvedValue({
     itens: [{ situacao: 'sem_proxima_acao' }, { situacao: 'vencida' }, { situacao: 'programada' }],
   })
@@ -57,5 +62,18 @@ describe('Operação do Dia', () => {
 
     expect(await screen.findByText('Resumo parcialmente disponível')).toBeInTheDocument()
     expect(screen.getByText('1 sem ação · 1 vencida(s)')).toBeInTheDocument()
+  })
+
+  it('não consulta nem apresenta ordens de execução ao perfil de negociação própria', async () => {
+    perfil.slug = 'negociacao-propria'
+    render(
+      <MemoryRouter>
+        <OperacaoDia />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('1 sem ação · 1 vencida(s)')).toBeInTheDocument()
+    expect(listarOrdensExecucao).not.toHaveBeenCalled()
+    expect(screen.queryByText('Ganhos aguardando OE')).not.toBeInTheDocument()
   })
 })

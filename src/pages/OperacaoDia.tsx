@@ -16,6 +16,7 @@ import { listarFilaAtividades } from '@/services/atividades'
 import { listarFechamentos } from '@/services/fechamentos'
 import { listarOrdensExecucao } from '@/services/ordens-execucao'
 import { listarSlas } from '@/services/slas'
+import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 
 type OperationSummary = {
   semProximaAcao: number
@@ -36,6 +37,7 @@ const EMPTY: OperationSummary = {
 }
 
 export default function OperacaoDia() {
+  const { perfilSlug } = useIsSuperAdmin()
   const [summary, setSummary] = useState(EMPTY)
   const [loading, setLoading] = useState(true)
   const [partialError, setPartialError] = useState(false)
@@ -47,7 +49,9 @@ export default function OperacaoDia() {
     Promise.allSettled([
       listarFilaAtividades('todas'),
       listarSlas(),
-      listarOrdensExecucao(),
+      perfilSlug === 'negociacao-propria'
+        ? Promise.resolve({ itens: [], responsaveis_envio: [] })
+        : listarOrdensExecucao(),
       listarFechamentos(),
     ]).then((results) => {
       if (!active) return
@@ -85,7 +89,7 @@ export default function OperacaoDia() {
     return () => {
       active = false
     }
-  }, [reloadKey])
+  }, [perfilSlug, reloadKey])
 
   const cards = [
     {
@@ -120,7 +124,7 @@ export default function OperacaoDia() {
       icon: Trophy,
       tone: 'text-emerald-700 bg-emerald-50',
     },
-  ]
+  ].filter((card) => perfilSlug !== 'negociacao-propria' || card.path !== '/ordens-execucao')
 
   return (
     <div className="space-y-6">

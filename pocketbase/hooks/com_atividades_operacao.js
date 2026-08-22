@@ -35,9 +35,10 @@ routerAdd(
     var filtro = "inativo = false && resultado = ''"
     if (perfil !== 'superadministrador') {
       var equipe = ator.getString('equipe_id')
-      filtro += equipe
-        ? " && (responsavel_id = '" + ator.id + "' || equipe_id = '" + equipe + "')"
-        : " && responsavel_id = '" + ator.id + "'"
+      filtro +=
+        perfil !== 'negociacao-propria' && equipe
+          ? " && (responsavel_id = '" + ator.id + "' || equipe_id = '" + equipe + "')"
+          : " && responsavel_id = '" + ator.id + "'"
     }
     var negocios = $app.findRecordsByFilter('com_negocios', filtro, 'titulo', 500, 0)
     var agora = new Date().toISOString()
@@ -107,11 +108,6 @@ routerAdd(
   'POST',
   '/backend/v1/atividades/registrar',
   (e) => {
-    try {
-      var perfilRestrito = $app.findRecordById('com_perfis', e.auth.getString('perfil_id'))
-      if (perfilRestrito.getString('slug') === 'negociacao-propria')
-        return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
-    } catch (_) {}
     function perfilDoAtor(ator, app) {
       try {
         var id = ator.getString('perfil_id')
@@ -123,6 +119,7 @@ routerAdd(
     function podeAcessar(ator, perfil, negocio) {
       if (perfil === 'superadministrador') return true
       if (negocio.getString('responsavel_id') === ator.id) return true
+      if (perfil === 'negociacao-propria') return false
       var equipe = ator.getString('equipe_id')
       return !!equipe && negocio.getString('equipe_id') === equipe
     }

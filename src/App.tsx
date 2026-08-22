@@ -42,7 +42,7 @@ function AdministrationRoute({ children }: { children: React.ReactNode }) {
   return allowed ? children : <NotFound />
 }
 
-function FullPipelineRoute({ children }: { children: React.ReactNode }) {
+function RestrictedProfileRoute({ children }: { children: React.ReactNode }) {
   const { perfilSlug, loading } = useIsSuperAdmin()
   if (loading) return null
   return perfilSlug === 'negociacao-propria' ? <NotFound /> : children
@@ -96,9 +96,9 @@ const App = () => (
                 path="/qualificacao"
                 element={
                   <ProtectedRoute>
-                    <FullPipelineRoute>
+                    <RestrictedProfileRoute>
                       <Qualificacoes />
-                    </FullPipelineRoute>
+                    </RestrictedProfileRoute>
                   </ProtectedRoute>
                 }
               />
@@ -130,9 +130,7 @@ const App = () => (
                 path="/fechamentos"
                 element={
                   <ProtectedRoute>
-                    <FullPipelineRoute>
-                      <Fechamentos />
-                    </FullPipelineRoute>
+                    <Fechamentos />
                   </ProtectedRoute>
                 }
               />
@@ -140,9 +138,9 @@ const App = () => (
                 path="/ordens-execucao"
                 element={
                   <ProtectedRoute>
-                    <FullPipelineRoute>
+                    <RestrictedProfileRoute>
                       <OrdensExecucao />
-                    </FullPipelineRoute>
+                    </RestrictedProfileRoute>
                   </ProtectedRoute>
                 }
               />

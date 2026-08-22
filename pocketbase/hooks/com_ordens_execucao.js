@@ -30,6 +30,7 @@
       if (!ator || !ator.getBool('ativo_comercial'))
         return e.forbiddenError('Usuario comercial necessario')
       var perfil = oePerfil($app, ator),
+        bloqueado = perfil === 'negociacao-propria',
         negocios = $app.findRecordsByFilter(
           'com_negocios',
           "resultado='ganho' && inativo=false",
@@ -38,6 +39,7 @@
           0,
         ),
         itens = []
+      if (bloqueado) return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
       for (var i = 0; i < negocios.length; i++) {
         var negocio = negocios[i]
         if (!oePodeAcessar(ator, perfil, negocio)) continue
