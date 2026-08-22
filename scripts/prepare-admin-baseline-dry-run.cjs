@@ -71,6 +71,23 @@ function collectionPayload(collection) {
   }
 }
 
+function skeletonPayload(payload) {
+  const relationFields = payload.fields.filter((field) => field.type === 'relation')
+  const relationNames = relationFields.map((field) => field.name)
+  return {
+    ...payload,
+    listRule: null,
+    viewRule: null,
+    createRule: null,
+    updateRule: null,
+    deleteRule: null,
+    fields: payload.fields.filter((field) => field.type !== 'relation'),
+    indexes: (payload.indexes || []).filter(
+      (index) => !relationNames.some((name) => index.includes(name)),
+    ),
+  }
+}
+
 class CaptureApp {
   constructor() {
     this.collections = new Map([
@@ -267,7 +284,37 @@ for (const name of forbiddenCollections) {
   if ((seedCounts[name] || 0) !== 0) fail(`transactional/user seed found in ${name}`)
 }
 
-const serializedOperations = app.operations.map((operation, index) => ({
+const twoPassOperations = [
+  ...createCollections.map((operation) => ({
+    type: 'create_collection_skeleton',
+    collection: operation.collection,
+    payload: skeletonPayload(operation.payload),
+  })),
+  ...createCollections.map((operation) => ({
+    type: 'apply_collection_definition',
+    collection: operation.collection,
+    payload: operation.payload,
+  })),
+  ...updateCollections,
+  ...createRecords,
+]
+
+for (const operation of twoPassOperations.filter(
+  (candidate) => candidate.type === 'create_collection_skeleton',
+)) {
+  if (operation.payload.fields.some((field) => field.type === 'relation')) {
+    fail(`relation leaked into skeleton ${operation.collection}`)
+  }
+  if (
+    ['listRule', 'viewRule', 'createRule', 'updateRule', 'deleteRule'].some(
+      (key) => operation.payload[key] !== null,
+    )
+  ) {
+    fail(`rule leaked into skeleton ${operation.collection}`)
+  }
+}
+
+const serializedOperations = twoPassOperations.map((operation, index) => ({
   sequence: index + 1,
   ...operation,
   fingerprint: sha256(stableJson(operation)),
@@ -293,12 +340,14 @@ const report = {
   },
   summary: {
     operations: serializedOperations.length,
-    createCollections: createCollections.length,
+    createCollectionSkeletons: createCollections.length,
+    applyCollectionDefinitions: createCollections.length,
     updateCollections: updateCollections.length,
     createRecords: createRecords.length,
     finalCollections: app.collections.size,
     seedCounts,
     normalizations: app.normalizations.length,
+    expectedSchemaLedgerEvents: 59,
   },
   normalizations: app.normalizations,
   operationsFingerprint: sha256(stableJson(serializedOperations)),
