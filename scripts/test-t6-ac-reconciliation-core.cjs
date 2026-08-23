@@ -19,6 +19,26 @@ const first = planReconciliation({ events: [event('1', 1)], localByExternalKey: 
 assert.equal(first.counts.create, 1)
 assert.match(first.fingerprint, /^[a-f0-9]{64}$/)
 
+const reorderedEvent = {
+  links: { owner_code: 'Vendedor 1', contact_id: '20', company_id: '10' },
+  data: { title: 'Negócio 1' },
+  correlation_id: 'teste-t6-ac',
+  source_version: '1',
+  occurred_at: '2026-08-23T12:00:00.000Z',
+  action: 'upsert',
+  entity_id: '1',
+  entity_type: 'business',
+  source: 'activecampaign',
+  event_id: 'ac:business:1:1',
+  schema_version: '1',
+}
+const reordered = planReconciliation({
+  events: [reorderedEvent],
+  localByExternalKey: {},
+  cursor: 'c0',
+})
+assert.equal(reordered.fingerprint, first.fingerprint)
+
 const applied = executePlan({ plan: first, fingerprint: first.fingerprint, state: {} })
 assert.equal(applied.applied, true)
 assert.equal(applied.state['business:1'].source_version, '1')
@@ -106,4 +126,4 @@ assert.equal(recovered.counts.create, 1)
 const invalid = planReconciliation({ events: [{ event_id: 'incompleto' }] })
 assert.equal(invalid.counts.error, 1)
 
-console.log('PASS T6.AC reconciliation core 13/13')
+console.log('PASS T6.AC reconciliation core 14/14')
