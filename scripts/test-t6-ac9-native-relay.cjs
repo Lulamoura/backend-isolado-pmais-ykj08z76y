@@ -4,6 +4,11 @@ const path = require('node:path')
 const root = path.resolve(__dirname, '..')
 const relay = fs.readFileSync(path.join(root, 'pocketbase/hooks/ac_native_relay.js'), 'utf8')
 const controls = fs.readFileSync(path.join(root, 'pocketbase/hooks/ac_runtime_controls.js'), 'utf8')
+const webhook = fs.readFileSync(path.join(root, 'pocketbase/hooks/ac_webhook.js'), 'utf8')
+const reconciler = fs.readFileSync(
+  path.join(root, 'pocketbase/hooks/com_ac_reconciliacao.js'),
+  'utf8',
+)
 
 const checks = [
   ['relay possui rota exclusiva', relay.includes("'/backend/v1/integracao/ac/relay-v1'")],
@@ -28,6 +33,30 @@ const checks = [
   [
     'relay usa campos comerciais canônicos',
     relay.includes("customByLabel['Responsável']") && relay.includes("customByLabel['Modalidade']"),
+  ],
+  [
+    'webhook preserva o valor inteiro em centavos',
+    webhook.includes("target.set('valor', Math.round(Number(event.data.value_cents || 0)))") &&
+      !webhook.includes("target.set('valor', Number(event.data.value_cents || 0) / 100)"),
+  ],
+  [
+    'reconciliação preserva o valor inteiro em centavos',
+    reconciler.includes("target.set('valor', Math.round(Number(ev.data.value_cents || 0)))") &&
+      !reconciler.includes("target.set('valor', Number(ev.data.value_cents || 0) / 100)"),
+  ],
+  [
+    'webhook normaliza modalidades do ActiveCampaign',
+    webhook.includes("modality === 'serv. recorrente'") &&
+      webhook.includes("modality === 'serv. eventual'") &&
+      webhook.includes("modality === 'eventos'") &&
+      webhook.includes("throw new Error('MODALIDADE_AC_INVALIDA')"),
+  ],
+  [
+    'reconciliação normaliza modalidades do ActiveCampaign',
+    reconciler.includes("modality === 'serv. recorrente'") &&
+      reconciler.includes("modality === 'serv. eventual'") &&
+      reconciler.includes("modality === 'eventos'") &&
+      reconciler.includes("throw new Error('MODALIDADE_AC_INVALIDA')"),
   ],
   ['relay não usa proprietário técnico como fallback', !relay.includes('String(deal.owner')],
   ['relay encaminha somente ao envelope V1', relay.includes("'/backend/v1/integracao/ac/webhook'")],

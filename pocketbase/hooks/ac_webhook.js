@@ -226,7 +226,7 @@ routerAdd(
           target.set('empresa_id', company.getString('record_id'))
           target.set('contato_principal_id', contact.getString('record_id'))
           target.set('responsavel_id', owner.getString('record_id'))
-          target.set('valor', Number(event.data.value_cents || 0) / 100)
+          target.set('valor', Math.round(Number(event.data.value_cents || 0)))
           if (dealStatus === '0') {
             var alias = tx.findFirstRecordByFilter(
               'com_alias_dimensoes',
@@ -244,7 +244,18 @@ routerAdd(
           target.set('origem_canal', 'activecampaign')
           target.set('prospectivo', false)
           target.set('inativo', event.action === 'archive')
-          if (event.data.modality) target.set('modalidade', clean(event.data.modality, 120))
+          if (event.data.modality) {
+            var modality = clean(event.data.modality, 120).toLowerCase()
+            if (modality === 'serv. recorrente' || modality === 'recorrente')
+              target.set('modalidade', 'recorrente')
+            else if (
+              modality === 'serv. eventual' ||
+              modality === 'eventos' ||
+              modality === 'pontual'
+            )
+              target.set('modalidade', 'pontual')
+            else throw new Error('MODALIDADE_AC_INVALIDA')
+          }
         }
         tx.save(target)
         if (!binding) {
