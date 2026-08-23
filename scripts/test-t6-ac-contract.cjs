@@ -159,7 +159,16 @@ const checks = [
       runtimeControls.includes("slug !== 'superadministrador'") &&
       runtimeControls.includes('if (current)') &&
       runtimeControls.includes("['ac_webhook_enabled', 'false'") &&
-      runtimeControls.includes("['ac_synthetic_preview_enabled', 'false'"),
+      runtimeControls.includes("['ac_synthetic_preview_enabled', 'false'") &&
+      runtimeControls.includes("'UNINITIALIZED'"),
+  ],
+  [
+    'cursor não inicializado bloqueia incremental sem bloquear pré-carga ou sintético',
+    reconciliationHook.includes("requestedMode === 'incremental' && cursor === 'UNINITIALIZED'") &&
+      reconciliationHook.includes("error: 'PRE_CARGA_INICIAL_PENDENTE'") &&
+      reconciliationHook.includes(
+        "requestedMode === 'initial_open_negotiation' || requestedMode === 'synthetic'",
+      ),
   ],
   [
     'modelo bloqueia propostas e atividades reais na pré-operação',

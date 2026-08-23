@@ -43,7 +43,9 @@ routerAdd(
       )
       if (cursorRec.getBool('ativo')) cursor = cursorRec.getString('valor')
     } catch (_) {}
-    if (requestedMode === 'initial_open_negotiation') cursor = ''
+    if (requestedMode === 'initial_open_negotiation' || requestedMode === 'synthetic') cursor = ''
+    if (requestedMode === 'incremental' && cursor === 'UNINITIALIZED')
+      return e.json(409, { error: 'PRE_CARGA_INICIAL_PENDENTE' })
     var correlation =
       'ac-rec-' + $security.sha256(requestedMode + '|' + (cursor || 'initial')).substring(0, 20)
     var events = []
