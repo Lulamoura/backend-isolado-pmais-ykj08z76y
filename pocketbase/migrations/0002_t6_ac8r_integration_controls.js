@@ -7,7 +7,11 @@ migrate(
     const controls = [
       ['ac_webhook_enabled', 'false', 'Webhook ActiveCampaign V1 (desligado por padrão)'],
       ['ac_reconciliation_enabled', 'false', 'Reconciliação ActiveCampaign (desligada por padrão)'],
-      ['ac_reconciliation_cursor', '', 'Cursor confirmado da reconciliação ActiveCampaign'],
+      [
+        'ac_reconciliation_cursor',
+        'UNINITIALIZED',
+        'Cursor confirmado da reconciliação ActiveCampaign',
+      ],
       ['ac_synthetic_preview_enabled', 'false', 'Canal sintético T6.AC.8 (desligado por padrão)'],
       [
         'ac_preoperation_read_only',

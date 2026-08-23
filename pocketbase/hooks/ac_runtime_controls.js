@@ -24,7 +24,11 @@ routerAdd(
     var controls = [
       ['ac_webhook_enabled', 'false', 'Webhook ActiveCampaign V1 (desligado por padrao)'],
       ['ac_reconciliation_enabled', 'false', 'Reconciliacao ActiveCampaign (desligada por padrao)'],
-      ['ac_reconciliation_cursor', '', 'Cursor confirmado da reconciliacao ActiveCampaign'],
+      [
+        'ac_reconciliation_cursor',
+        'UNINITIALIZED',
+        'Cursor confirmado da reconciliacao ActiveCampaign',
+      ],
       ['ac_synthetic_preview_enabled', 'false', 'Canal sintetico T6.AC.8 (desligado por padrao)'],
       [
         'ac_preoperation_read_only',
