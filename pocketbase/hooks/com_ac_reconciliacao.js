@@ -6,6 +6,20 @@ routerAdd(
   'POST',
   '/backend/v1/integracao/ac/reconciliacao/simular',
   function (e) {
+    function canonicalize(value) {
+      if (value === null || typeof value !== 'object') return JSON.stringify(value)
+      if (Array.isArray(value)) {
+        var items = []
+        for (var item = 0; item < value.length; item++) items.push(canonicalize(value[item]))
+        return '[' + items.join(',') + ']'
+      }
+      var keys = Object.keys(value).sort()
+      var parts = []
+      for (var key = 0; key < keys.length; key++)
+        parts.push(JSON.stringify(keys[key]) + ':' + canonicalize(value[keys[key]]))
+      return '{' + parts.join(',') + '}'
+    }
+
     var actor = e.auth
     if (!actor) return e.unauthorizedError('Autenticacao necessaria')
     var slug = ''
@@ -359,7 +373,9 @@ routerAdd(
       cursor_to: maxSeen || cursor || null,
       actions: actions,
     }
-    var fingerprint = $security.sha256(JSON.stringify(planCore))
+    // A revalidação trafega por HTTP, que pode reorganizar as chaves dos objetos.
+    // O fingerprint precisa representar o conteúdo, não a ordem incidental do JSON.
+    var fingerprint = $security.sha256(canonicalize(planCore))
     var expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
     var execCol = $app.findCollectionByNameOrId('com_execucoes_sincronizacao')
     var dry = new Record(execCol)

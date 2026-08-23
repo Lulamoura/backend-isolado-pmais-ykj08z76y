@@ -115,7 +115,10 @@ const checks = [
   [
     'execução refaz leitura antes da transação',
     reconciliationHook.includes('revalidation_of') &&
-      reconciliationHook.includes('recheck.json.fingerprint !== body.fingerprint'),
+      reconciliationHook.includes('recheck.json.fingerprint !== body.fingerprint') &&
+      reconciliationHook.includes('function canonicalize(value)') &&
+      reconciliationHook.includes('$security.sha256(canonicalize(planCore))') &&
+      !reconciliationHook.includes('$security.sha256(JSON.stringify(planCore))'),
   ],
   [
     'execução comercial e cursor usam transação única',
