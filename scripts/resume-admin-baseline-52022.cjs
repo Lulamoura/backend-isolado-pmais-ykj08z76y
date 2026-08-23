@@ -6,17 +6,25 @@ const PROJECT_ID = 52022
 const PROJECT_UUID = '9bd690dc-fec2-4b18-88f1-11f6cc1329a5'
 const EXPECTED_FINGERPRINT = '4552a681f36569042b2d4c0c7301e085f8a0a36f6d9e439546e846e3ae7b6a55'
 const root = path.resolve(__dirname, '..')
-const reportPath = path.resolve(root, '../../output/aplicacao-comercial-pmais/t62-r2-admin-baseline-dry-run.json')
-const journalPath = path.resolve(root, '../../output/aplicacao-comercial-pmais/t62-r2-admin-baseline-resume-52022.json')
+const reportPath = path.resolve(
+  root,
+  '../../output/aplicacao-comercial-pmais/t62-r2-admin-baseline-dry-run.json',
+)
+const journalPath = path.resolve(
+  root,
+  '../../output/aplicacao-comercial-pmais/t62-r2-admin-baseline-resume-52022.json',
+)
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 function getJson(url) {
   return new Promise((resolve, reject) =>
-    http.get(url, (response) => {
-      let data = ''
-      response.on('data', (chunk) => (data += chunk))
-      response.on('end', () => resolve(JSON.parse(data)))
-    }).on('error', reject),
+    http
+      .get(url, (response) => {
+        let data = ''
+        response.on('data', (chunk) => (data += chunk))
+        response.on('end', () => resolve(JSON.parse(data)))
+      })
+      .on('error', reject),
   )
 }
 
@@ -34,7 +42,10 @@ async function browserTokens() {
     pending.delete(message.id)
     message.error ? request.reject(new Error('CDP error')) : request.resolve(message.result)
   }
-  await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject })
+  await new Promise((resolve, reject) => {
+    ws.onopen = resolve
+    ws.onerror = reject
+  })
   const send = (method, params = {}) => {
     const requestId = ++id
     ws.send(JSON.stringify({ id: requestId, method, params }))
@@ -73,10 +84,16 @@ async function main() {
         })
         const text = await response.text()
         let body = null
-        try { body = text ? JSON.parse(text) : null } catch { body = { raw: text.slice(0, 300) } }
+        try {
+          body = text ? JSON.parse(text) : null
+        } catch {
+          body = { raw: text.slice(0, 300) }
+        }
         if (response.ok && !body?.error) return body
         if (response.status !== 404 && response.status < 500) {
-          throw new Error(`${options.method || 'GET'} ${relative} failed ${response.status}: ${body?.error || body?.raw || 'unknown'}`)
+          throw new Error(
+            `${options.method || 'GET'} ${relative} failed ${response.status}: ${body?.error || body?.raw || 'unknown'}`,
+          )
         }
       } catch (error) {
         if (attempt === 5) throw error
@@ -114,21 +131,29 @@ async function main() {
     }
     await sleep(1200)
     current = await collections()
-    if (!current.some((item) => item.name === operation.collection)) throw new Error(`skeleton missing: ${operation.collection}`)
+    if (!current.some((item) => item.name === operation.collection))
+      throw new Error(`skeleton missing: ${operation.collection}`)
     if ((index + 1) % 6 === 0 || index + 1 === skeletons.length) {
-      journal.checkpoints.push({ phase: 'skeletons', completed: index + 1, at: new Date().toISOString() })
+      journal.checkpoints.push({
+        phase: 'skeletons',
+        completed: index + 1,
+        at: new Date().toISOString(),
+      })
       save()
       console.log(`skeletons ${index + 1}/29`)
     }
   }
 
-  const definitions = report.operations.filter((item) => item.type === 'apply_collection_definition')
+  const definitions = report.operations.filter(
+    (item) => item.type === 'apply_collection_definition',
+  )
   for (const [index, operation] of definitions.entries()) {
     const current = await collections()
     const collection = current.find((item) => item.name === operation.collection)
     if (!collection) throw new Error(`definition target missing: ${operation.collection}`)
     await request(`/collections/${encodeURIComponent(collection.id)}`, {
-      method: 'PATCH', body: JSON.stringify(operation.payload),
+      method: 'PATCH',
+      body: JSON.stringify(operation.payload),
     })
     await sleep(1200)
     const fresh = (await collections()).find((item) => item.name === operation.collection)
@@ -136,29 +161,43 @@ async function main() {
       throw new Error(`definition verification failed: ${operation.collection}`)
     }
     if ((index + 1) % 5 === 0 || index + 1 === definitions.length) {
-      journal.checkpoints.push({ phase: 'definitions', completed: index + 1, at: new Date().toISOString() })
+      journal.checkpoints.push({
+        phase: 'definitions',
+        completed: index + 1,
+        at: new Date().toISOString(),
+      })
       save()
       console.log(`definitions ${index + 1}/29`)
     }
   }
 
-  const usersOperation = report.operations.find((item) => item.type === 'update_collection' && item.collection === 'users')
+  const usersOperation = report.operations.find(
+    (item) => item.type === 'update_collection' && item.collection === 'users',
+  )
   let current = await collections()
   const users = current.find((item) => item.name === 'users')
   const commercialNames = ['perfil_id', 'equipe_id', 'ativo_comercial']
-  const extensionFields = usersOperation.payload.fields.filter((field) => commercialNames.includes(field.name))
+  const extensionFields = usersOperation.payload.fields.filter((field) =>
+    commercialNames.includes(field.name),
+  )
   const present = new Set(users.fields.map((field) => field.name))
   if (!commercialNames.every((name) => present.has(name))) {
     const payload = {
       ...users,
-      fields: [...users.fields.filter((field) => !commercialNames.includes(field.name)), ...extensionFields],
+      fields: [
+        ...users.fields.filter((field) => !commercialNames.includes(field.name)),
+        ...extensionFields,
+      ],
       listRule: usersOperation.payload.listRule,
       viewRule: usersOperation.payload.viewRule,
       createRule: usersOperation.payload.createRule,
       updateRule: usersOperation.payload.updateRule,
       deleteRule: usersOperation.payload.deleteRule,
     }
-    await request(`/collections/${encodeURIComponent(users.id)}`, { method: 'PATCH', body: JSON.stringify(payload) })
+    await request(`/collections/${encodeURIComponent(users.id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
   }
   current = await collections()
   const freshUsers = current.find((item) => item.name === 'users')
@@ -171,14 +210,19 @@ async function main() {
 
   if (current.length !== 30) throw new Error(`schema count mismatch: ${current.length}`)
   const history = current.find((item) => item.name === 'com_qualificacao_historico')
-  if (!history?.listRule?.includes("slug = 'superadministrador'") || !history?.viewRule?.includes("slug = 'superadministrador'")) {
+  if (
+    !history?.listRule?.includes("slug = 'superadministrador'") ||
+    !history?.viewRule?.includes("slug = 'superadministrador'")
+  ) {
     throw new Error('qualification history rules mismatch')
   }
 
   const recordOperations = report.operations.filter((item) => item.type === 'create_record')
   const knownIds = new Map()
   for (const collection of current) {
-    const response = await request(`/collections/${encodeURIComponent(collection.id)}/records?page=1&perPage=500`)
+    const response = await request(
+      `/collections/${encodeURIComponent(collection.id)}/records?page=1&perPage=500`,
+    )
     knownIds.set(collection.name, new Set(response.items.map((item) => item.id)))
   }
   for (const [index, operation] of recordOperations.entries()) {
@@ -187,17 +231,24 @@ async function main() {
     if (!ids.has(operation.payload.id)) {
       try {
         await request(`/collections/${encodeURIComponent(collection.id)}/records`, {
-          method: 'POST', body: JSON.stringify(operation.payload),
+          method: 'POST',
+          body: JSON.stringify(operation.payload),
         })
       } catch (error) {
-        const response = await request(`/collections/${encodeURIComponent(collection.id)}/records?page=1&perPage=500`)
+        const response = await request(
+          `/collections/${encodeURIComponent(collection.id)}/records?page=1&perPage=500`,
+        )
         if (!response.items.some((item) => item.id === operation.payload.id)) throw error
       }
       ids.add(operation.payload.id)
     }
     await sleep(350)
     if ((index + 1) % 20 === 0 || index + 1 === recordOperations.length) {
-      journal.checkpoints.push({ phase: 'records', completed: index + 1, at: new Date().toISOString() })
+      journal.checkpoints.push({
+        phase: 'records',
+        completed: index + 1,
+        at: new Date().toISOString(),
+      })
       save()
       console.log(`records ${index + 1}/167`)
     }
@@ -207,20 +258,33 @@ async function main() {
   const counts = {}
   let total = 0
   for (const collection of current) {
-    const response = await request(`/collections/${encodeURIComponent(collection.id)}/records?page=1&perPage=1`)
+    const response = await request(
+      `/collections/${encodeURIComponent(collection.id)}/records?page=1&perPage=1`,
+    )
     counts[collection.name] = response.totalItems
     total += response.totalItems
   }
   for (const [name, expected] of Object.entries(report.summary.seedCounts)) {
-    if (counts[name] !== expected) throw new Error(`count mismatch ${name}: ${counts[name]} != ${expected}`)
+    if (counts[name] !== expected)
+      throw new Error(`count mismatch ${name}: ${counts[name]} != ${expected}`)
   }
-  if (counts.users !== 0 || total !== 167) throw new Error(`final record totals mismatch: users=${counts.users}, total=${total}`)
+  if (counts.users !== 0 || total !== 167)
+    throw new Error(`final record totals mismatch: users=${counts.users}, total=${total}`)
   const migrations = (await request('/migrations')).migrations
   journal.status = 'complete'
   journal.finishedAt = new Date().toISOString()
-  journal.summary = { collections: current.length, migrations: migrations.length, users: counts.users, totalRecords: total, counts }
+  journal.summary = {
+    collections: current.length,
+    migrations: migrations.length,
+    users: counts.users,
+    totalRecords: total,
+    counts,
+  }
   save()
   console.log(JSON.stringify(journal.summary))
 }
 
-main().catch((error) => { console.error(error.message); process.exit(1) })
+main().catch((error) => {
+  console.error(error.message)
+  process.exit(1)
+})
