@@ -200,7 +200,7 @@ routerAdd(
           )
           var owner = tx.findFirstRecordByFilter(
             'com_vinculos_externos',
-            "sistema_origem='activecampaign' && external_type='owner' && external_id='" +
+            "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
               links.owner_code +
               "'",
           )

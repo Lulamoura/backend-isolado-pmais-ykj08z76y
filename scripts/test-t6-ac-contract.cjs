@@ -26,6 +26,10 @@ const migration = fs.readFileSync(
   'utf8',
 )
 const synthetic = fs.readFileSync(path.join(root, 'pocketbase/hooks/ac_synthetic_v1.js'), 'utf8')
+const runtimeControls = fs.readFileSync(
+  path.join(root, 'pocketbase/hooks/ac_runtime_controls.js'),
+  'utf8',
+)
 const preoperationGuard = fs.readFileSync(
   path.join(root, 'pocketbase/hooks/com_preoperacao_guard.js'),
   'utf8',
@@ -141,6 +145,22 @@ const checks = [
     ),
   ],
   ['API direta de negócio fica fechada', migration.includes('negocios.updateRule = null')],
+  [
+    'responsável usa o tipo canônico business_owner',
+    webhook.includes("external_type='business_owner'") &&
+      (reconciliationHook.match(/external_type='business_owner'/g) || []).length === 2 &&
+      !webhook.includes("external_type='owner'") &&
+      !reconciliationHook.includes("external_type='owner'"),
+  ],
+  [
+    'controles possuem materialização runtime idempotente e autenticada',
+    runtimeControls.includes('/backend/v1/integracao/ac/configuracao/materializar') &&
+      runtimeControls.includes("body.confirmation !== 'MATERIALIZAR CONTROLES AC'") &&
+      runtimeControls.includes("slug !== 'superadministrador'") &&
+      runtimeControls.includes('if (current)') &&
+      runtimeControls.includes("['ac_webhook_enabled', 'false'") &&
+      runtimeControls.includes("['ac_synthetic_preview_enabled', 'false'"),
+  ],
   [
     'modelo bloqueia propostas e atividades reais na pré-operação',
     preoperationGuard.includes('Cada callback é autocontido') &&
