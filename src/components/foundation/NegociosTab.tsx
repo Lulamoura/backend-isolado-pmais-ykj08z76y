@@ -14,6 +14,7 @@ import { criarOportunidade, mapEntradaError, novaChaveEntrada } from '@/services
 import { getEquipes } from '@/services/foundation'
 import { getActiveUsers } from '@/services/users'
 import { useAuth } from '@/hooks/use-auth'
+import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import {
   ETAPA_OPTIONS,
   RESULTADO_OPTIONS,
@@ -53,6 +54,7 @@ import type { RecordModel } from 'pocketbase'
 
 export function NegociosTab() {
   const { user } = useAuth()
+  const { isSuperAdmin, loading: loadingSuperAdmin } = useIsSuperAdmin()
   const [records, setRecords] = useState<RecordModel[]>([])
   const [empresas, setEmpresas] = useState<RecordModel[]>([])
   const [equipes, setEquipes] = useState<RecordModel[]>([])
@@ -174,6 +176,14 @@ export function NegociosTab() {
           await updateNegocio(editing.id, data)
         }
       } else {
+        if (justificativa.trim().length < 20) {
+          setErrors({
+            justificativa:
+              'Informe ao menos 20 caracteres explicando a contingência fora do ActiveCampaign.',
+          })
+          return
+        }
+        if (!confirm('Confirma a criação excepcional fora do ActiveCampaign?')) return
         await criarOportunidade({
           titulo: form.titulo,
           empresa_id: form.empresa_id,
@@ -191,6 +201,8 @@ export function NegociosTab() {
           proxima_acao: form.proxima_acao || undefined,
           proxima_acao_em: form.proxima_acao_em || undefined,
           descricao: form.descricao || undefined,
+          justificativa_contingencia: justificativa.trim(),
+          confirmacao_contingencia: 'CRIAR FORA DO ACTIVECAMPAIGN',
           command_idempotency_key: novaChaveEntrada(),
         })
       }
@@ -223,12 +235,14 @@ export function NegociosTab() {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">Negócios</h2>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openNew} size="sm">
-              <Plus className="h-4 w-4 mr-1" />
-              Adicionar
-            </Button>
-          </DialogTrigger>
+          {isSuperAdmin && !loadingSuperAdmin ? (
+            <DialogTrigger asChild>
+              <Button onClick={openNew} size="sm">
+                <Plus className="h-4 w-4 mr-1" />
+                Adicionar em contingência
+              </Button>
+            </DialogTrigger>
+          ) : null}
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{editing ? 'Editar Negócio' : 'Novo Negócio'}</DialogTitle>
@@ -477,6 +491,19 @@ export function NegociosTab() {
                 </div>
               )}
               {errors.entrada && <p className="text-sm text-red-500">{errors.entrada}</p>}
+              {!editing && isSuperAdmin ? (
+                <div>
+                  <Label>Justificativa da contingência *</Label>
+                  <Textarea
+                    value={justificativa}
+                    onChange={(e) => setJustificativa(e.target.value)}
+                    placeholder="Explique por que esta oportunidade não pôde nascer no ActiveCampaign."
+                  />
+                  {errors.justificativa && (
+                    <p className="text-sm text-red-500">{errors.justificativa}</p>
+                  )}
+                </div>
+              ) : null}
               <Button onClick={submit} className="w-full">
                 Salvar
               </Button>
