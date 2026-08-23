@@ -246,6 +246,21 @@ routerAdd(
             perfilTx = txApp.findRecordById('com_perfis', perfilTxId).getString('slug')
         } catch (_) {}
         var negocio = txApp.findRecordById('com_negocios', body.negocio_id)
+        try {
+          var preop = txApp.findFirstRecordByData(
+            'com_parametros',
+            'chave',
+            'ac_preoperation_read_only',
+          )
+          if (
+            preop.getBool('ativo') &&
+            preop.getString('valor') === 'true' &&
+            negocio.getString('origem_canal') === 'activecampaign'
+          )
+            throw new Error('PREOPERACAO_SOMENTE_LEITURA')
+        } catch (preopError) {
+          if (String(preopError).indexOf('PREOPERACAO_SOMENTE_LEITURA') !== -1) throw preopError
+        }
         if (!podeAcessar(usuarioTx, perfilTx, negocio)) throw new Error('FORBIDDEN')
         if (negocio.getString('updated') !== body.updated_esperado) throw new Error('STALE_WRITE')
         var anteriorEstado = negocio.getString('qualificacao') || 'pendente'

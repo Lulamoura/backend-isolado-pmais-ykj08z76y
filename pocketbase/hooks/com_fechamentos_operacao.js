@@ -220,6 +220,19 @@
         return e.notFoundError('NEGOCIO_NAO_ENCONTRADO')
       }
       var perfil = fechamentoPerfil(ator)
+      try {
+        var preop = $app.findFirstRecordByData(
+          'com_parametros',
+          'chave',
+          'ac_preoperation_read_only',
+        )
+        if (
+          preop.getBool('ativo') &&
+          preop.getString('valor') === 'true' &&
+          negocio.getString('origem_canal') === 'activecampaign'
+        )
+          return e.json(423, { error: 'PREOPERACAO_SOMENTE_LEITURA' })
+      } catch (_) {}
       if (!fechamentoPodeAcessar(ator, perfil, negocio)) return e.forbiddenError('FORA_DO_ESCOPO')
       if (negocio.getString('resultado')) return e.badRequestError('NEGOCIO_TERMINAL_IMUTAVEL')
       if (body.updated_esperado !== negocio.getString('updated'))
@@ -387,6 +400,19 @@
       } catch (_) {}
       var original = $app.findRecordById('com_negocios', body.negocio_perdido_id),
         perfil = fechamentoPerfil(ator)
+      try {
+        var preopReativacao = $app.findFirstRecordByData(
+          'com_parametros',
+          'chave',
+          'ac_preoperation_read_only',
+        )
+        if (
+          preopReativacao.getBool('ativo') &&
+          preopReativacao.getString('valor') === 'true' &&
+          original.getString('origem_canal') === 'activecampaign'
+        )
+          return e.json(423, { error: 'PREOPERACAO_SOMENTE_LEITURA' })
+      } catch (_) {}
       if (!fechamentoPodeAcessar(ator, perfil, original)) return e.forbiddenError('FORA_DO_ESCOPO')
       if (original.getString('resultado') !== 'perdido')
         return e.badRequestError('NEGOCIO_TERMINAL_IMUTAVEL')

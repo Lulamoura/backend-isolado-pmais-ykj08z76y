@@ -17,12 +17,12 @@ export function ActiveCampaignReconciliationCard() {
   const [simulation, setSimulation] = useState<ReconciliationSimulation | null>(null)
   const [execution, setExecution] = useState<ReconciliationExecution | null>(null)
 
-  const simulate = async () => {
+  const simulate = async (mode: 'incremental' | 'initial_open_negotiation') => {
     setLoading('simulate')
     setSimulation(null)
     setExecution(null)
     try {
-      const result = await simulateActiveCampaignReconciliation()
+      const result = await simulateActiveCampaignReconciliation(mode)
       setSimulation(result)
       toast.success('Simulação concluída sem escrita comercial.')
     } catch {
@@ -65,13 +65,24 @@ export function ActiveCampaignReconciliationCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={simulate} disabled={loading !== null}>
+          <Button
+            variant="outline"
+            onClick={() => simulate('incremental')}
+            disabled={loading !== null}
+          >
             {loading === 'simulate' ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <ShieldCheck className="h-4 w-4" />
             )}
             Simular
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => simulate('initial_open_negotiation')}
+            disabled={loading !== null}
+          >
+            <ShieldCheck className="h-4 w-4" /> Simular pré-carga aberta/Negociação
           </Button>
           <Button onClick={execute} disabled={loading !== null || !simulation?.can_execute}>
             {loading === 'execute' ? (
@@ -92,6 +103,7 @@ export function ActiveCampaignReconciliationCard() {
             )}
             <AlertTitle>Fingerprint {simulation.fingerprint.slice(0, 12)}…</AlertTitle>
             <AlertDescription>
+              Modo: {simulation.mode === 'initial_open_negotiation' ? 'pré-carga' : 'incremental'}.{' '}
               Criar: {counts.create}; atualizar: {counts.update}; sem mudança: {counts.unchanged};
               obsoletos: {counts.stale}; conflitos: {counts.conflict}; erros: {counts.error}.
               {simulation.can_execute

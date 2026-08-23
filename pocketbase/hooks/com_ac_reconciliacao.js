@@ -22,9 +22,17 @@ routerAdd(
     } catch (_) {}
     if (!enabled) return e.json(503, { error: 'RECONCILIACAO_DESABILITADA', enabled: false })
 
+    var requestBody = {}
+    try {
+      requestBody = e.requestInfo().body || {}
+    } catch (_) {}
+    var requestedMode = requestBody.mode || 'incremental'
+    if (['incremental', 'initial_open_negotiation', 'synthetic'].indexOf(requestedMode) === -1)
+      return e.json(400, { error: 'MODO_RECONCILIACAO_INVALIDO' })
     var apiUrl = String($secrets.get('AC_API_URL') || '').replace(/\/$/, '')
     var apiKey = $secrets.get('AC_API_KEY') || ''
-    if (!apiUrl || !apiKey) return e.json(500, { error: 'CONFIGURACAO_AC_AUSENTE' })
+    if (requestedMode !== 'synthetic' && (!apiUrl || !apiKey))
+      return e.json(500, { error: 'CONFIGURACAO_AC_AUSENTE' })
 
     var cursor = ''
     try {
@@ -35,7 +43,9 @@ routerAdd(
       )
       if (cursorRec.getBool('ativo')) cursor = cursorRec.getString('valor')
     } catch (_) {}
-    var correlation = 'ac-rec-' + $security.sha256(cursor || 'initial').substring(0, 20)
+    if (requestedMode === 'initial_open_negotiation') cursor = ''
+    var correlation =
+      'ac-rec-' + $security.sha256(requestedMode + '|' + (cursor || 'initial')).substring(0, 20)
     var events = []
     var maxSeen = cursor
 
@@ -75,7 +85,7 @@ routerAdd(
       function list(path, key, supportsUpdatedFilter, extra) {
         var rows = [],
           limit = 50
-        for (var page = 0; page < 20; page++) {
+        for (var page = 0; page < 100; page++) {
           var suffix = '?limit=' + limit + '&offset=' + page * limit
           if (cursor && supportsUpdatedFilter)
             suffix += '&filters[updated_after]=' + encodeURIComponent(cursor)
@@ -87,9 +97,114 @@ routerAdd(
         }
         throw new Error('AC_PAGINACAO_EXCEDE_LIMITE')
       }
-      var accounts = list('/api/3/accounts', 'accounts', false, '')
-      var contacts = list('/api/3/contacts', 'contacts', true, '&orders[id]=ASC')
-      var deals = list('/api/3/deals', 'deals', true, '')
+      if (requestedMode === 'synthetic') {
+        var syntheticEnabled = false
+        try {
+          var syntheticFlag = $app.findFirstRecordByData(
+            'com_parametros',
+            'chave',
+            'ac_synthetic_preview_enabled',
+          )
+          syntheticEnabled =
+            syntheticFlag.getBool('ativo') && syntheticFlag.getString('valor') === 'true'
+        } catch (_) {}
+        if (!syntheticEnabled) throw new Error('CANAL_SINTETICO_DESABILITADO')
+        var syntheticEvents = requestBody.synthetic_events || []
+        if (
+          !Array.isArray(syntheticEvents) ||
+          syntheticEvents.length < 1 ||
+          syntheticEvents.length > 20
+        )
+          throw new Error('LOTE_SINTETICO_INVALIDO')
+        for (var se = 0; se < syntheticEvents.length; se++) {
+          if (
+            String(syntheticEvents[se].event_id || '').indexOf('test:') !== 0 ||
+            String(syntheticEvents[se].correlation_id || '').indexOf('t6-ac8-') !== 0 ||
+            JSON.stringify(syntheticEvents[se]).indexOf('[TESTE]') === -1
+          )
+            throw new Error('EVENTO_SINTETICO_FORA_DO_ESCOPO')
+          events.push(syntheticEvents[se])
+          version(syntheticEvents[se].source_version)
+        }
+      }
+      var stageCanonicalById = {}
+      var allStages =
+        requestedMode === 'synthetic' ? [] : list('/api/3/dealStages', 'dealStages', false, '')
+      for (var asm = 0; asm < allStages.length; asm++) {
+        var allStageTitle = String(allStages[asm].title || '').toLowerCase()
+        if (allStageTitle === 'prospects')
+          stageCanonicalById[String(allStages[asm].id)] = 'prospects'
+        if (allStageTitle === 'produção proposta' || allStageTitle === 'produção de proposta')
+          stageCanonicalById[String(allStages[asm].id)] = 'producao_proposta'
+        if (allStageTitle === 'negociação')
+          stageCanonicalById[String(allStages[asm].id)] = 'negociacao'
+      }
+      var accounts =
+        requestedMode === 'synthetic' ? [] : list('/api/3/accounts', 'accounts', false, '')
+      var contacts =
+        requestedMode === 'synthetic'
+          ? []
+          : list('/api/3/contacts', 'contacts', true, '&orders[id]=ASC')
+      var deals = requestedMode === 'synthetic' ? [] : list('/api/3/deals', 'deals', true, '')
+      var customByDeal = {}
+      if (requestedMode === 'initial_open_negotiation') {
+        var groups = list('/api/3/dealGroups', 'dealGroups', false, '')
+        var stages = allStages
+        var pipelineId = '',
+          negotiationStageId = ''
+        for (var gi = 0; gi < groups.length; gi++)
+          if (groups[gi].title === 'Propostas Qualificadas') pipelineId = String(groups[gi].id)
+        for (var si = 0; si < stages.length; si++)
+          if (
+            String(stages[si].group) === pipelineId &&
+            String(stages[si].title).toLowerCase() === 'negociação'
+          )
+            negotiationStageId = String(stages[si].id)
+        for (var smi = 0; smi < stages.length; smi++) {
+          var stageTitle = String(stages[smi].title || '').toLowerCase()
+          if (stageTitle === 'prospects') stageCanonicalById[String(stages[smi].id)] = 'prospects'
+          if (stageTitle === 'produção proposta' || stageTitle === 'produção de proposta')
+            stageCanonicalById[String(stages[smi].id)] = 'producao_proposta'
+          if (stageTitle === 'negociação') stageCanonicalById[String(stages[smi].id)] = 'negociacao'
+        }
+        if (!pipelineId || !negotiationStageId) throw new Error('ESCOPO_PRE_CARGA_NAO_MAPEADO')
+        var selectedDeals = []
+        for (var di = 0; di < deals.length; di++)
+          if (
+            String(deals[di].group) === pipelineId &&
+            String(deals[di].status) === '0' &&
+            String(deals[di].stage) === negotiationStageId
+          )
+            selectedDeals.push(deals[di])
+        deals = selectedDeals
+        var selectedContacts = {},
+          selectedAccounts = {},
+          selectedDealIds = {}
+        for (var sd = 0; sd < deals.length; sd++) {
+          selectedDealIds[String(deals[sd].id)] = true
+          selectedContacts[String(deals[sd].contact || '')] = true
+          selectedAccounts[String(deals[sd].account || deals[sd].organization || '')] = true
+        }
+        accounts = accounts.filter(function (row) {
+          return selectedAccounts[String(row.id)] === true
+        })
+        contacts = contacts.filter(function (row) {
+          return selectedContacts[String(row.id)] === true
+        })
+        var customMeta = list('/api/3/dealCustomFieldMeta', 'dealCustomFieldMeta', false, '')
+        var fieldLabels = {}
+        for (var cm = 0; cm < customMeta.length; cm++)
+          fieldLabels[String(customMeta[cm].id)] = customMeta[cm].fieldLabel || ''
+        var customRows = list('/api/3/dealCustomFieldData', 'dealCustomFieldData', false, '')
+        for (var cr = 0; cr < customRows.length; cr++) {
+          var customDealId = String(customRows[cr].dealId || '')
+          if (!selectedDealIds[customDealId]) continue
+          if (!customByDeal[customDealId]) customByDeal[customDealId] = {}
+          customByDeal[customDealId][fieldLabels[String(customRows[cr].customFieldId)]] = String(
+            customRows[cr].fieldValue || '',
+          ).trim()
+        }
+      }
       for (var a = 0; a < accounts.length; a++)
         add(
           'company',
@@ -113,7 +228,8 @@ routerAdd(
           { company_id: String(contacts[c].account || contacts[c].organization || '') },
           contacts[c].isDisabled === true,
         )
-      for (var d = 0; d < deals.length; d++)
+      for (var d = 0; d < deals.length; d++) {
+        var customFields = customByDeal[String(deals[d].id)] || {}
         add(
           'business',
           deals[d].id,
@@ -121,16 +237,21 @@ routerAdd(
           {
             title: deals[d].title || '',
             value_cents: Number(deals[d].value || 0),
-            stage: String(deals[d].stage || ''),
+            stage: stageCanonicalById[String(deals[d].stage)] || String(deals[d].stage || ''),
             status: String(deals[d].status || '0'),
+            modality: customFields['Modalidade'] || '',
+            next_action_at: customFields['Data de Ação'] || deals[d].nextdate || '',
+            initial_load_scope:
+              requestedMode === 'initial_open_negotiation' ? 'open_negotiation' : '',
           },
           {
             company_id: String(deals[d].account || deals[d].organization || ''),
             contact_id: String(deals[d].contact || ''),
-            owner_code: String(deals[d].owner || ''),
+            owner_code: customFields['Responsável'] || String(deals[d].owner || ''),
           },
           deals[d].isDisabled === true,
         )
+      }
     } catch (fetchError) {
       return e.json(502, { error: 'CONSULTA_AC_FALHOU', detail: String(fetchError).slice(0, 120) })
     }
@@ -170,6 +291,8 @@ routerAdd(
           var previousEvents = $app.findRecordsByFilter(
             'com_eventos_integracao',
             "sistema_origem='activecampaign' && external_id='" +
+              ev.entity_type +
+              ':' +
               ev.entity_id +
               "' && status='processed' && (evento_tipo='" +
               ev.entity_type +
@@ -229,6 +352,7 @@ routerAdd(
       actions.push({ kind: kind, event: ev, idempotency_key: key })
     }
     var planCore = {
+      mode: requestedMode,
       cursor_from: cursor || null,
       cursor_to: maxSeen || cursor || null,
       actions: actions,
@@ -247,6 +371,7 @@ routerAdd(
         expires_at: expiresAt,
         counts: counts,
         plan: { cursor_from: planCore.cursor_from, cursor_to: planCore.cursor_to },
+        mode: requestedMode,
       }).slice(0, 4000),
     )
     dry.set('inicio', new Date().toISOString())
@@ -289,6 +414,7 @@ routerAdd(
       cursor_to: planCore.cursor_to,
       expires_at: expiresAt,
       counts: counts,
+      mode: requestedMode,
       can_execute: !blocked,
     })
   },
@@ -367,7 +493,11 @@ routerAdd(
         url: pbUrl + '/backend/v1/integracao/ac/reconciliacao/simular',
         method: 'POST',
         headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'incremental', revalidation_of: dry.id }),
+        body: JSON.stringify({
+          mode: stored.mode || 'incremental',
+          synthetic_events: body.synthetic_events || [],
+          revalidation_of: dry.id,
+        }),
         timeout: 60,
       })
       if (recheck.statusCode !== 200 || !recheck.json)
@@ -518,7 +648,7 @@ routerAdd(
           var eventRecord = new Record(tx.findCollectionByNameOrId('com_eventos_integracao'))
           eventRecord.set('sistema_origem', 'activecampaign')
           eventRecord.set('evento_tipo', ev.entity_type + '_' + ev.action)
-          eventRecord.set('external_id', ev.entity_id)
+          eventRecord.set('external_id', ev.entity_type + ':' + ev.entity_id)
           eventRecord.set('idempotency_key', action.idempotency_key)
           eventRecord.set(
             'payload',
@@ -544,6 +674,7 @@ routerAdd(
           cursor_to: stored.plan.cursor_to,
           expires_at: stored.expires_at,
           counts: stored.counts,
+          mode: stored.mode || 'incremental',
           can_execute: true,
           status: 'completed',
           replay: false,
@@ -590,6 +721,7 @@ routerAdd(
       cursor_to: stored.plan.cursor_to,
       expires_at: stored.expires_at,
       counts: stored.counts,
+      mode: stored.mode || 'incremental',
       can_execute: true,
       status: 'completed',
       replay: false,

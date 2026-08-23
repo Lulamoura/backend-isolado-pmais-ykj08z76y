@@ -11,6 +11,7 @@ routerAdd(
       var perfilRestrito = $app.findRecordById('com_perfis', e.auth.getString('perfil_id'))
       perfilEntrada = perfilRestrito.getString('slug')
     } catch (_) {}
+    if (perfilEntrada === 'negociacao-propria') return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
     if (perfilEntrada !== 'superadministrador')
       return e.json(403, {
         error: 'ENTRADA_MANUAL_BLOQUEADA',

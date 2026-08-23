@@ -10,6 +10,7 @@ export interface ReconciliationCounts {
 }
 
 export interface ReconciliationSimulation {
+  mode: 'incremental' | 'initial_open_negotiation' | 'synthetic'
   dry_run_id: string
   fingerprint: string
   cursor_from: string | null
@@ -25,10 +26,12 @@ export interface ReconciliationExecution extends ReconciliationSimulation {
   replay: boolean
 }
 
-export const simulateActiveCampaignReconciliation = () =>
+export const simulateActiveCampaignReconciliation = (
+  mode: 'incremental' | 'initial_open_negotiation' = 'incremental',
+) =>
   pb.send<ReconciliationSimulation>('/backend/v1/integracao/ac/reconciliacao/simular', {
     method: 'POST',
-    body: JSON.stringify({ mode: 'incremental' }),
+    body: JSON.stringify({ mode }),
     headers: { 'Content-Type': 'application/json' },
   })
 

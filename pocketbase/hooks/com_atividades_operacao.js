@@ -262,6 +262,21 @@ routerAdd(
         var negocio = null
         if (op === 'planejar') {
           negocio = tx.findRecordById('com_negocios', body.negocio_id)
+          try {
+            var preop = tx.findFirstRecordByData(
+              'com_parametros',
+              'chave',
+              'ac_preoperation_read_only',
+            )
+            if (
+              preop.getBool('ativo') &&
+              preop.getString('valor') === 'true' &&
+              negocio.getString('origem_canal') === 'activecampaign'
+            )
+              throw new Error('PREOPERACAO_SOMENTE_LEITURA')
+          } catch (preopError) {
+            if (String(preopError).indexOf('PREOPERACAO_SOMENTE_LEITURA') !== -1) throw preopError
+          }
           if (!podeAcessar(usuario, perfil, negocio)) throw new Error('FORBIDDEN')
           if (negocio.getBool('inativo') || negocio.getString('resultado'))
             throw new Error('NEGOCIO_FECHADO')
@@ -282,6 +297,22 @@ routerAdd(
         } else {
           atividade = tx.findRecordById('com_atividades', body.atividade_id)
           negocio = tx.findRecordById('com_negocios', atividade.getString('negocio_id'))
+          try {
+            var preopAtividade = tx.findFirstRecordByData(
+              'com_parametros',
+              'chave',
+              'ac_preoperation_read_only',
+            )
+            if (
+              preopAtividade.getBool('ativo') &&
+              preopAtividade.getString('valor') === 'true' &&
+              negocio.getString('origem_canal') === 'activecampaign'
+            )
+              throw new Error('PREOPERACAO_SOMENTE_LEITURA')
+          } catch (preopAtividadeError) {
+            if (String(preopAtividadeError).indexOf('PREOPERACAO_SOMENTE_LEITURA') !== -1)
+              throw preopAtividadeError
+          }
           if (!podeAcessar(usuario, perfil, negocio)) throw new Error('FORBIDDEN')
           if (atividade.getString('updated') !== body.updated_esperado)
             throw new Error('STALE_WRITE')
