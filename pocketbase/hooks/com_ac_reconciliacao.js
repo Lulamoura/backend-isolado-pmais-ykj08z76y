@@ -661,7 +661,9 @@ routerAdd(
             }
             target.set('inativo', ev.action === 'archive')
             if (ev.data.modality) {
-              var modality = String(ev.data.modality || '').trim().toLowerCase()
+              var modality = String(ev.data.modality || '')
+                .trim()
+                .toLowerCase()
               if (modality === 'serv. recorrente' || modality === 'recorrente')
                 target.set('modalidade', 'recorrente')
               else if (
