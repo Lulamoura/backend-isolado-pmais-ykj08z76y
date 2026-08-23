@@ -15,6 +15,7 @@ import { DiagCompensacaoAuditEvidenceBlock } from '@/components/foundation/DiagC
 import { DiagCompensacaoDependenciasBlock } from '@/components/foundation/DiagCompensacaoDependenciasBlock'
 import { DiagTransportEvidenceBlock } from '@/components/foundation/DiagTransportEvidenceBlock'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
+import { ActiveCampaignReconciliationCard } from '@/components/foundation/ActiveCampaignReconciliationCard'
 
 export default function Foundation() {
   const { isSuperAdmin, loading: loadingSuperAdmin } = useIsSuperAdmin()
@@ -70,6 +71,7 @@ export default function Foundation() {
             <DiagConsultaDependenciasBlock />
             {isSuperAdmin && !loadingSuperAdmin ? (
               <>
+                <ActiveCampaignReconciliationCard />
                 <Porta2D2BAuditBlock />
                 <Porta2D2BEvidenceQueryBlock />
               </>

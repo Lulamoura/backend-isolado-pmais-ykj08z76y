@@ -17,6 +17,8 @@ export interface EntradaPayload {
   proxima_acao?: string
   proxima_acao_em?: string
   descricao?: string
+  justificativa_contingencia: string
+  confirmacao_contingencia: 'CRIAR FORA DO ACTIVECAMPAIGN'
   command_idempotency_key: string
 }
 

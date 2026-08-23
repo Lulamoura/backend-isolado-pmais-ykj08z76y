@@ -3,11 +3,19 @@ routerAdd(
   'POST',
   '/backend/v1/negocios/entrada',
   (e) => {
+    // T6.AC — enquanto o ActiveCampaign for a fonte oficial, a entrada manual
+    // não integra o fluxo operacional. Somente o Superadministrador pode usar
+    // a contingência, que será endurecida com justificativa/auditoria no pacote.
+    var perfilEntrada = ''
     try {
       var perfilRestrito = $app.findRecordById('com_perfis', e.auth.getString('perfil_id'))
-      if (perfilRestrito.getString('slug') === 'negociacao-propria')
-        return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
+      perfilEntrada = perfilRestrito.getString('slug')
     } catch (_) {}
+    if (perfilEntrada !== 'superadministrador')
+      return e.json(403, {
+        error: 'ENTRADA_MANUAL_BLOQUEADA',
+        message: 'O ActiveCampaign e a fonte oficial de novas oportunidades',
+      })
     function canonicalize(obj) {
       if (obj === null || obj === undefined) return 'null'
       if (typeof obj !== 'object') return JSON.stringify(obj)
@@ -51,6 +59,8 @@ routerAdd(
       'proxima_acao',
       'proxima_acao_em',
       'descricao',
+      'justificativa_contingencia',
+      'confirmacao_contingencia',
       'command_idempotency_key',
     ]
     var keys = Object.keys(body || {})
@@ -63,6 +73,15 @@ routerAdd(
         : body.modo === 'pendente'
           ? 'pendente'
           : ''
+    var justificativaContingencia = txt(body.justificativa_contingencia, 1000)
+    if (
+      justificativaContingencia.length < 20 ||
+      body.confirmacao_contingencia !== 'CRIAR FORA DO ACTIVECAMPAIGN'
+    )
+      return e.json(400, {
+        error: 'CONTINGENCIA_NAO_CONFIRMADA',
+        message: 'Justificativa e confirmacao literal sao obrigatorias',
+      })
     if (
       !modo ||
       !txt(body.titulo, 300) ||
@@ -217,6 +236,7 @@ routerAdd(
         a.set('evidencia_estruturada', evidencia)
         a.set('escopo', 'comando')
         a.set('origem', 'server-side')
+        a.set('justificativa', justificativaContingencia)
         a.set('sequencia', 1)
         tx.save(a)
         resposta = {
