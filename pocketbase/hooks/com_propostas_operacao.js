@@ -34,13 +34,6 @@
     )
   }
 
-  function propostaPodeExecutar(app, user, tipo) {
-    var perfil = propostaPerfil(app, user)
-    if (perfil === 'superadministrador') return true
-    if (perfil === 'negociacao-propria') return false
-    return true
-  }
-
   function propostaAuditoria(
     app,
     ator,
@@ -256,6 +249,12 @@
           !!user.getString('equipe_id') &&
           negocio.getString('equipe_id') === user.getString('equipe_id')
         )
+      }
+      function propostaPodeExecutar(app, user, tipo) {
+        var perfil = propostaPerfil(app, user)
+        if (perfil === 'superadministrador') return true
+        if (perfil === 'negociacao-propria') return false
+        return true
       }
       function propostaEventos(app, versaoId) {
         var eventos = []
