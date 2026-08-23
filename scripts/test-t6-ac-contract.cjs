@@ -171,6 +171,26 @@ const checks = [
       ),
   ],
   [
+    'gate sintético é transacional, auditado, idempotente e exclusivo do SuperAdmin',
+    runtimeControls.includes('/backend/v1/integracao/ac/configuracao/gate-sintetico') &&
+      runtimeControls.includes("slug !== 'superadministrador'") &&
+      runtimeControls.includes("'ABRIR GATE SINTETICO T6.AC.8'") &&
+      runtimeControls.includes("'FECHAR GATE SINTETICO T6.AC.8'") &&
+      runtimeControls.includes("commandKey.indexOf('t6-ac8-gate-')") &&
+      runtimeControls.includes("$security.sha256('synthetic-gate|' + commandKey)") &&
+      runtimeControls.includes("'synthetic_gate_open'") &&
+      runtimeControls.includes("'synthetic_gate_close'") &&
+      runtimeControls.includes('$app.runInTransaction'),
+  ],
+  [
+    'fechamento do gate desliga os três canais e restaura cursor inicial',
+    runtimeControls.includes("webhook.set('valor', enabled ? 'true' : 'false')") &&
+      runtimeControls.includes("reconciliation.set('valor', enabled ? 'true' : 'false')") &&
+      runtimeControls.includes("synthetic.set('valor', enabled ? 'true' : 'false')") &&
+      runtimeControls.includes("if (!enabled) cursor.set('valor', 'UNINITIALIZED')") &&
+      runtimeControls.includes("cursor.getString('valor') !== 'UNINITIALIZED'"),
+  ],
+  [
     'modelo bloqueia propostas e atividades reais na pré-operação',
     preoperationGuard.includes('Cada callback é autocontido') &&
       (preoperationGuard.match(/function guard\(record\)/g) || []).length === 2 &&
