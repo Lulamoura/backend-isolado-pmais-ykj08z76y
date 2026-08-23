@@ -180,6 +180,19 @@
         return e.notFoundError('NEGOCIO_NAO_ENCONTRADO')
       }
       var perfil = oePerfil($app, ator)
+      try {
+        var preop = $app.findFirstRecordByData(
+          'com_parametros',
+          'chave',
+          'ac_preoperation_read_only',
+        )
+        if (
+          preop.getBool('ativo') &&
+          preop.getString('valor') === 'true' &&
+          negocio.getString('origem_canal') === 'activecampaign'
+        )
+          return e.json(423, { error: 'PREOPERACAO_SOMENTE_LEITURA' })
+      } catch (_) {}
       if (!oePodeAcessar(ator, perfil, negocio)) return e.forbiddenError('FORA_DO_ESCOPO')
       if (negocio.getString('resultado') !== 'ganho')
         return e.json(409, { error: 'NEGOCIO_NAO_GANHO' })

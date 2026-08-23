@@ -79,6 +79,15 @@ Qualquer falha reverte alterações comerciais e não avança versão/cursor.
 
 ## Reconciliação manual
 
+### Pré-carga oficial
+
+- o recorte é calculado no momento do dry-run, sem quantidade fixa;
+- inclui somente o pipeline `Propostas Qualificadas`, `status=aberto` e etapa `Negociação`;
+- responsável vem do campo personalizado `Responsável` (`Vendedor N`), nunca do proprietário técnico `Comercial PMais`;
+- empresa, contato, valor, modalidade e próxima ação são conferidos antes da execução;
+- valor zero/R$ 0,01, responsável desconhecido e vínculo ausente geram quarentena;
+- ganho, perda, Prospect e qualquer outra etapa ficam fora da carga inicial.
+
 ### Simular
 
 - Superadministrador autenticado;
@@ -102,6 +111,15 @@ Qualquer falha reverte alterações comerciais e não avança versão/cursor.
 - Interface não apresenta a ação para esses perfis.
 - Superadministrador: somente contingência, com justificativa, confirmação e auditoria; fora do fluxo normal.
 - Treinamento cria `[TESTE]` pelo envelope/relay sintético, não por digitação dupla.
+
+## Pré-operação e treinamento
+
+- registros reais pré-carregados usam `origem_canal=activecampaign` e ficam somente leitura enquanto `ac_preoperation_read_only=true`;
+- a API direta de atualização de `com_negocios` permanece fechada; mutações passam exclusivamente por comandos auditados;
+- o webhook e a reconciliação podem atualizar o espelho a partir da fonte oficial;
+- participantes usam a carteira real para leitura, filtros e dashboard;
+- exercícios mutantes usam apenas eventos `test:` com marcador `[TESTE]` e correlação `t6-ac8-*`;
+- a liberação operacional exige gate específico no go-live.
 
 ## Arquivamento e ausência
 

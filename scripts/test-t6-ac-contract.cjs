@@ -21,6 +21,21 @@ const reconciliationUi = fs.readFileSync(
   path.join(root, 'src/components/foundation/ActiveCampaignReconciliationCard.tsx'),
   'utf8',
 )
+const migration = fs.readFileSync(
+  path.join(root, 'pocketbase/migrations/0002_t6_ac8r_integration_controls.js'),
+  'utf8',
+)
+const synthetic = fs.readFileSync(path.join(root, 'pocketbase/hooks/ac_synthetic_v1.js'), 'utf8')
+const preoperationGuard = fs.readFileSync(
+  path.join(root, 'pocketbase/hooks/com_preoperacao_guard.js'),
+  'utf8',
+)
+const mutationHooks = [
+  'com_qualificacao.js',
+  'com_atividades_operacao.js',
+  'com_fechamentos_operacao.js',
+  'com_ordens_execucao.js',
+].map((name) => fs.readFileSync(path.join(root, 'pocketbase/hooks', name), 'utf8'))
 
 const checks = [
   ['contrato define event_id', contract.includes('"event_id"')],
@@ -41,7 +56,34 @@ const checks = [
     negociosUi.includes('isSuperAdmin && !loadingSuperAdmin') &&
       negociosUi.includes('Adicionar em contingência'),
   ],
-  ['webhook continua desligado por padrão', webhook.includes('var WEBHOOK_ENABLED = false')],
+  [
+    'webhook V1 continua desligado por parâmetro',
+    webhook.includes("paramTrue('ac_webhook_enabled')") &&
+      migration.includes("['ac_webhook_enabled', 'false'") &&
+      webhook.includes("$security.sha256('activecampaign|' + event.event_id)"),
+  ],
+  [
+    'webhook V1 trata replay, obsolescência, conflito e transação',
+    webhook.includes('replay: true') &&
+      webhook.includes('stale: true') &&
+      webhook.includes('VERSAO_CONFLITANTE') &&
+      webhook.includes('$app.runInTransaction'),
+  ],
+  [
+    'parâmetros de integração nascem inertes',
+    migration.includes("['ac_reconciliation_enabled', 'false'") &&
+      migration.includes("['ac_synthetic_preview_enabled', 'false'") &&
+      migration.includes("'ac_preoperation_read_only'") &&
+      migration.includes("'true'"),
+  ],
+  [
+    'canal sintético é restrito e atravessa webhook assinado',
+    synthetic.includes("slug !== 'superadministrador'") &&
+      synthetic.includes("indexOf('test:')") &&
+      synthetic.includes("indexOf('[TESTE]')") &&
+      synthetic.includes("'/backend/v1/integracao/ac/webhook'") &&
+      synthetic.includes('$security.hs256(serialized, secret)'),
+  ],
   [
     'reconciliação é inerte por padrão e restrita ao SuperAdmin',
     reconciliationHook.includes('ac_reconciliation_enabled') &&
@@ -82,6 +124,31 @@ const checks = [
     reconciliationUi.includes('Simular') &&
       reconciliationUi.includes('Executar plano simulado') &&
       reconciliationUi.includes('!simulation?.can_execute'),
+  ],
+  [
+    'pré-carga filtra aberto + Negociação e usa Responsável comercial',
+    reconciliationHook.includes("requestedMode === 'initial_open_negotiation'") &&
+      reconciliationHook.includes("String(deals[di].status) === '0'") &&
+      reconciliationHook.includes("toLowerCase() === 'negociação'") &&
+      reconciliationHook.includes("customFields['Responsável']"),
+  ],
+  [
+    'pré-operação bloqueia comandos mutantes sobre importados reais',
+    mutationHooks.every(
+      (source) =>
+        source.includes('ac_preoperation_read_only') &&
+        source.includes("origem_canal') === 'activecampaign'"),
+    ),
+  ],
+  ['API direta de negócio fica fechada', migration.includes('negocios.updateRule = null')],
+  [
+    'modelo bloqueia propostas e atividades reais na pré-operação',
+    preoperationGuard.includes('Cada callback é autocontido') &&
+      (preoperationGuard.match(/function guard\(record\)/g) || []).length === 2 &&
+      preoperationGuard.includes("'com_propostas'") &&
+      preoperationGuard.includes("'com_proposta_versoes'") &&
+      preoperationGuard.includes("'com_atividades'") &&
+      preoperationGuard.includes('PREOPERACAO_SOMENTE_LEITURA'),
   ],
 ]
 
