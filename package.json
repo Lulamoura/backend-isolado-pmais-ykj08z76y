@@ -17,7 +17,8 @@
     "test": "node scripts/test-sanitize-2d2b.cjs && node scripts/test-substituicoes-criar.cjs && node scripts/test-substituicoes-ajustar.cjs && node scripts/test-substituicoes-cancelar.cjs && node scripts/test-substituicoes-consultar.cjs && node scripts/test-fila-sem-cobertura.cjs && node scripts/test-quarentena-testes-dry-run.cjs",
     "test:watch": "node scripts/test-sanitize-2d2b.cjs && node scripts/test-substituicoes-criar.cjs && node scripts/test-substituicoes-ajustar.cjs && node scripts/test-substituicoes-cancelar.cjs && node scripts/test-substituicoes-consultar.cjs && node scripts/test-fila-sem-cobertura.cjs",
     "test:frontend": "vitest run",
-    "test:t62": "node scripts/test-t62-least-privilege.cjs"
+    "test:t62": "node scripts/test-t62-least-privilege.cjs",
+    "test:t6ac8r": "node scripts/test-t6-ac-contract.cjs && node scripts/test-t6-ac-reconciliation-core.cjs && node scripts/test-t6-ac8r-preload.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
