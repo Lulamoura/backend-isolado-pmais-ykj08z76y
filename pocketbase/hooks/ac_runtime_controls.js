@@ -204,3 +204,137 @@ routerAdd(
   $apis.requireAuth('users'),
   $apis.bodyLimit(1024),
 )
+
+// T6.AC.9 — abre e fecha somente o webhook real. A reconciliacao e o canal
+// sintetico permanecem desligados; o fechamento tambem restaura o cursor
+// inicial para oferecer rollback deterministico em uma unica transacao.
+routerAdd(
+  'POST',
+  '/backend/v1/integracao/ac/configuracao/webhook-real',
+  function (e) {
+    var actor = e.auth
+    if (!actor || !actor.getBool('ativo_comercial'))
+      return e.unauthorizedError('Autenticacao necessaria')
+    var slug = ''
+    try {
+      slug = $app.findRecordById('com_perfis', actor.getString('perfil_id')).getString('slug')
+    } catch (_) {}
+    if (slug !== 'superadministrador') return e.forbiddenError('SuperAdmin necessario')
+
+    var body = {}
+    try {
+      body = e.requestInfo().body || {}
+    } catch (_) {}
+    var allowed = { action: true, confirmation: true, command_idempotency_key: true }
+    var keys = Object.keys(body)
+    for (var i = 0; i < keys.length; i++)
+      if (!allowed[keys[i]]) return e.json(400, { error: 'CAMPO_NAO_PERMITIDO' })
+    var action = String(body.action || '')
+    var expected =
+      action === 'open'
+        ? 'ATIVAR WEBHOOK REAL T6.AC.9'
+        : action === 'close'
+          ? 'DESATIVAR WEBHOOK REAL T6.AC.9'
+          : ''
+    var commandKey = String(body.command_idempotency_key || '')
+    if (
+      !expected ||
+      body.confirmation !== expected ||
+      commandKey.indexOf('t6-ac9-webhook-') !== 0 ||
+      commandKey.length > 128
+    )
+      return e.json(400, { error: 'CONFIRMACAO_INVALIDA' })
+
+    var idempotencyKey = $security.sha256('real-webhook-gate|' + commandKey)
+    var repeated = null
+    try {
+      repeated = $app.findFirstRecordByData(
+        'com_eventos_integracao',
+        'idempotency_key',
+        idempotencyKey,
+      )
+    } catch (_) {}
+    if (repeated) {
+      var replayPayload = {}
+      try {
+        replayPayload = JSON.parse(repeated.getString('payload') || '{}')
+      } catch (_) {}
+      replayPayload.replay = true
+      replayPayload.status = 'replayed'
+      return e.json(200, replayPayload)
+    }
+
+    var result = null,
+      transactionError = ''
+    try {
+      $app.runInTransaction(function (tx) {
+        var webhook = tx.findFirstRecordByData('com_parametros', 'chave', 'ac_webhook_enabled')
+        var reconciliation = tx.findFirstRecordByData(
+          'com_parametros',
+          'chave',
+          'ac_reconciliation_enabled',
+        )
+        var synthetic = tx.findFirstRecordByData(
+          'com_parametros',
+          'chave',
+          'ac_synthetic_preview_enabled',
+        )
+        var cursor = tx.findFirstRecordByData('com_parametros', 'chave', 'ac_reconciliation_cursor')
+        if (
+          action === 'open' &&
+          (reconciliation.getString('valor') !== 'false' ||
+            synthetic.getString('valor') !== 'false' ||
+            cursor.getString('valor') !== 'UNINITIALIZED')
+        )
+          throw new Error('CONTROLES_FORA_DO_ESTADO_SEGURO')
+
+        var enabled = action === 'open'
+        webhook.set('valor', enabled ? 'true' : 'false')
+        reconciliation.set('valor', 'false')
+        synthetic.set('valor', 'false')
+        cursor.set('valor', 'UNINITIALIZED')
+        tx.save(webhook)
+        tx.save(reconciliation)
+        tx.save(synthetic)
+        tx.save(cursor)
+
+        result = {
+          action: action,
+          status: 'completed',
+          replay: false,
+          webhook_enabled: enabled,
+          reconciliation_enabled: false,
+          synthetic_gate_enabled: false,
+          cursor: 'UNINITIALIZED',
+        }
+        var audit = new Record(tx.findCollectionByNameOrId('com_eventos_integracao'))
+        audit.set('sistema_origem', 'activecampaign')
+        audit.set('evento_tipo', enabled ? 'real_webhook_open' : 'real_webhook_close')
+        audit.set('external_id', 't6-ac9-real-webhook')
+        audit.set('idempotency_key', idempotencyKey)
+        audit.set(
+          'payload',
+          JSON.stringify({
+            action: action,
+            status: 'completed',
+            replay: false,
+            webhook_enabled: enabled,
+            reconciliation_enabled: false,
+            synthetic_gate_enabled: false,
+            cursor: 'UNINITIALIZED',
+            actor_id: actor.id,
+          }).slice(0, 4000),
+        )
+        audit.set('status', 'processed')
+        tx.save(audit)
+      })
+    } catch (error) {
+      transactionError = String(error).slice(0, 200)
+    }
+    if (transactionError)
+      return e.json(409, { error: 'WEBHOOK_REAL_REVERTIDO', detail: transactionError })
+    return e.json(200, result)
+  },
+  $apis.requireAuth('users'),
+  $apis.bodyLimit(1024),
+)
