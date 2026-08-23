@@ -204,13 +204,9 @@ routerAdd(
               links.owner_code +
               "'",
           )
-          var alias = tx.findFirstRecordByFilter(
-            'com_alias_dimensoes',
-            "dimensao='etapa' && valor_original='" + clean(event.data.stage, 120) + "'",
-          )
-          var canonicalStage = tx
-            .findRecordById('com_etapas', alias.getString('canonico_ref'))
-            .getString('codigo')
+          var dealStatus = String(event.data.status)
+          if (dealStatus !== '0' && dealStatus !== '1' && dealStatus !== '2')
+            throw new Error('STATUS_AC_INVALIDO')
           if (binding) {
             var snapshot = new Record(tx.findCollectionByNameOrId('com_snapshots_negocio'))
             snapshot.set('negocio_id', target.id)
@@ -230,13 +226,21 @@ routerAdd(
           target.set('empresa_id', company.getString('record_id'))
           target.set('contato_principal_id', contact.getString('record_id'))
           target.set('responsavel_id', owner.getString('record_id'))
-          target.set('etapa', canonicalStage)
           target.set('valor', Number(event.data.value_cents || 0) / 100)
-          var statusMap = { 0: 'aberto', 1: 'ganho', 2: 'perdido' }
-          target.set(
-            'status',
-            statusMap[String(event.data.status)] || clean(event.data.status, 30) || 'aberto',
-          )
+          if (dealStatus === '0') {
+            var alias = tx.findFirstRecordByFilter(
+              'com_alias_dimensoes',
+              "dimensao='etapa' && valor_original='" + clean(event.data.stage, 120) + "'",
+            )
+            var canonicalStage = tx
+              .findRecordById('com_etapas', alias.getString('canonico_ref'))
+              .getString('codigo')
+            target.set('etapa', canonicalStage)
+            target.set('resultado', '')
+          } else {
+            target.set('etapa', '')
+            target.set('resultado', dealStatus === '1' ? 'ganho' : 'perdido')
+          }
           target.set('origem_canal', 'activecampaign')
           target.set('prospectivo', false)
           target.set('inativo', event.action === 'archive')

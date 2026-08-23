@@ -621,20 +621,28 @@ routerAdd(
                 ev.links.owner_code +
                 "'",
             )
-            var alias = tx.findFirstRecordByFilter(
-              'com_alias_dimensoes',
-              "dimensao='etapa' && valor_original='" + ev.data.stage + "'",
-            )
-            var canonicalStage = tx
-              .findRecordById('com_etapas', alias.getString('canonico_ref'))
-              .getString('codigo')
+            var dealStatus = String(ev.data.status)
+            if (dealStatus !== '0' && dealStatus !== '1' && dealStatus !== '2')
+              throw new Error('STATUS_AC_INVALIDO')
             target.set('titulo', ev.data.title || 'Negocio importado')
             target.set('empresa_id', company.getString('record_id'))
             target.set('contato_principal_id', contact.getString('record_id'))
             target.set('responsavel_id', owner.getString('record_id'))
-            target.set('etapa', canonicalStage)
             target.set('valor', Number(ev.data.value_cents || 0) / 100)
-            target.set('status', 'aberto')
+            if (dealStatus === '0') {
+              var alias = tx.findFirstRecordByFilter(
+                'com_alias_dimensoes',
+                "dimensao='etapa' && valor_original='" + ev.data.stage + "'",
+              )
+              var canonicalStage = tx
+                .findRecordById('com_etapas', alias.getString('canonico_ref'))
+                .getString('codigo')
+              target.set('etapa', canonicalStage)
+              target.set('resultado', '')
+            } else {
+              target.set('etapa', '')
+              target.set('resultado', dealStatus === '1' ? 'ganho' : 'perdido')
+            }
             target.set('inativo', ev.action === 'archive')
           }
           tx.save(target)

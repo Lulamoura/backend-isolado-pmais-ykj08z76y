@@ -153,6 +153,17 @@ const checks = [
       !reconciliationHook.includes("external_type='owner'"),
   ],
   [
+    'negócios AC usam etapa durante negociação e resultado no fechamento',
+    webhook.includes("dealStatus === '0'") &&
+      webhook.includes("target.set('resultado', dealStatus === '1' ? 'ganho' : 'perdido')") &&
+      reconciliationHook.includes("dealStatus === '0'") &&
+      reconciliationHook.includes(
+        "target.set('resultado', dealStatus === '1' ? 'ganho' : 'perdido')",
+      ) &&
+      !webhook.includes("target.set(\n            'status'") &&
+      !reconciliationHook.includes("target.set('status', 'aberto')"),
+  ],
+  [
     'controles possuem materialização runtime idempotente e autenticada',
     runtimeControls.includes('/backend/v1/integracao/ac/configuracao/materializar') &&
       runtimeControls.includes("body.confirmation !== 'MATERIALIZAR CONTROLES AC'") &&
