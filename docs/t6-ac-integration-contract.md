@@ -5,26 +5,26 @@ Autoridade na fase 1: ActiveCampaign para identidade/captação e estado espelha
 
 ## Entidades e chaves
 
-| Entidade | Chave externa | Registro canônico | Regra |
-|---|---|---|---|
-| Empresa | `organization.id` | `com_empresas` | Um vínculo externo único; ausência de ID gera ocorrência e nenhuma escrita |
-| Contato | `contact.id` | `com_contatos` | Um vínculo externo único; e-mail não substitui a chave externa |
-| Negócio | `deal.id` | `com_negocios` | Um vínculo externo único; exige empresa, contato e responsável resolvidos ou ocorrência bloqueante |
-| Responsável | código `Vendedor N` | `users` | Resolve por `com_vinculos_externos`; `Vendedor 3`/desconhecido nunca é inferido |
+| Entidade    | Chave externa       | Registro canônico | Regra                                                                                              |
+| ----------- | ------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| Empresa     | `organization.id`   | `com_empresas`    | Um vínculo externo único; ausência de ID gera ocorrência e nenhuma escrita                         |
+| Contato     | `contact.id`        | `com_contatos`    | Um vínculo externo único; e-mail não substitui a chave externa                                     |
+| Negócio     | `deal.id`           | `com_negocios`    | Um vínculo externo único; exige empresa, contato e responsável resolvidos ou ocorrência bloqueante |
+| Responsável | código `Vendedor N` | `users`           | Resolve por `com_vinculos_externos`; `Vendedor 3`/desconhecido nunca é inferido                    |
 
 ## Autoridade por campo
 
-| Grupo | ActiveCampaign | Aplicativo | Conflito |
-|---|---|---|---|
-| IDs externos | Autoridade | Somente vínculo | AC prevalece; vínculo é imutável sem ação administrativa |
-| Nome da empresa e contato | Autoridade enquanto AC oficial | Espelho normalizado | Divergência volta a ser corrigida no AC |
-| E-mail e telefone | Autoridade enquanto AC oficial | Espelho normalizado | Valor vazio explícito exige evento versionado; ausência não apaga |
-| Título, origem, captado por, modalidade | Autoridade de entrada | Espelho normalizado | Alias ausente gera ocorrência |
-| Responsável inicial | Autoridade via `Vendedor N` | Espelho pelo usuário mapeado | Não mapeado bloqueia negócio |
-| Etapa importada | Autoridade de entrada/paralelo | Normalização canônica | Etapa desconhecida gera ocorrência e não avança |
-| Qualificação, atividades e próxima ação | Não reescrever automaticamente | Autoridade do aplicativo | Evento AC não apaga trilha operacional |
-| Propostas/versões | Referência do estado legado/paralelo | Autoridade operacional do aplicativo | Mudança incompatível gera ocorrência |
-| Ganho/perda/OE | Sinal comparativo enquanto AC oficial | Autoridade transacional do aplicativo após comando válido | Divergência não é resolvida silenciosamente |
+| Grupo                                   | ActiveCampaign                        | Aplicativo                                                | Conflito                                                          |
+| --------------------------------------- | ------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------- |
+| IDs externos                            | Autoridade                            | Somente vínculo                                           | AC prevalece; vínculo é imutável sem ação administrativa          |
+| Nome da empresa e contato               | Autoridade enquanto AC oficial        | Espelho normalizado                                       | Divergência volta a ser corrigida no AC                           |
+| E-mail e telefone                       | Autoridade enquanto AC oficial        | Espelho normalizado                                       | Valor vazio explícito exige evento versionado; ausência não apaga |
+| Título, origem, captado por, modalidade | Autoridade de entrada                 | Espelho normalizado                                       | Alias ausente gera ocorrência                                     |
+| Responsável inicial                     | Autoridade via `Vendedor N`           | Espelho pelo usuário mapeado                              | Não mapeado bloqueia negócio                                      |
+| Etapa importada                         | Autoridade de entrada/paralelo        | Normalização canônica                                     | Etapa desconhecida gera ocorrência e não avança                   |
+| Qualificação, atividades e próxima ação | Não reescrever automaticamente        | Autoridade do aplicativo                                  | Evento AC não apaga trilha operacional                            |
+| Propostas/versões                       | Referência do estado legado/paralelo  | Autoridade operacional do aplicativo                      | Mudança incompatível gera ocorrência                              |
+| Ganho/perda/OE                          | Sinal comparativo enquanto AC oficial | Autoridade transacional do aplicativo após comando válido | Divergência não é resolvida silenciosamente                       |
 
 ## Envelope canônico assinado
 

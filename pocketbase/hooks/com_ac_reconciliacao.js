@@ -17,15 +17,10 @@ routerAdd(
 
     var enabled = false
     try {
-      var flag = $app.findFirstRecordByData(
-        'com_parametros',
-        'chave',
-        'ac_reconciliation_enabled',
-      )
+      var flag = $app.findFirstRecordByData('com_parametros', 'chave', 'ac_reconciliation_enabled')
       enabled = flag.getBool('ativo') && flag.getString('valor') === 'true'
     } catch (_) {}
-    if (!enabled)
-      return e.json(503, { error: 'RECONCILIACAO_DESABILITADA', enabled: false })
+    if (!enabled) return e.json(503, { error: 'RECONCILIACAO_DESABILITADA', enabled: false })
 
     var apiUrl = String($secrets.get('AC_API_URL') || '').replace(/\/$/, '')
     var apiKey = $secrets.get('AC_API_KEY') || ''
@@ -233,7 +228,11 @@ routerAdd(
       counts[kind]++
       actions.push({ kind: kind, event: ev, idempotency_key: key })
     }
-    var planCore = { cursor_from: cursor || null, cursor_to: maxSeen || cursor || null, actions: actions }
+    var planCore = {
+      cursor_from: cursor || null,
+      cursor_to: maxSeen || cursor || null,
+      actions: actions,
+    }
     var fingerprint = $security.sha256(JSON.stringify(planCore))
     var expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
     var execCol = $app.findCollectionByNameOrId('com_execucoes_sincronizacao')
@@ -414,7 +413,9 @@ routerAdd(
         executionId = exec.id
         var plannedRecords = tx.findRecordsByFilter(
           'com_eventos_integracao',
-          "evento_tipo='reconciliation_plan_item' && external_id='" + dry.id + "' && status='planned'",
+          "evento_tipo='reconciliation_plan_item' && external_id='" +
+            dry.id +
+            "' && status='planned'",
           'created',
           1000,
           0,
