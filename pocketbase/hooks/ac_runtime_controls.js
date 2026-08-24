@@ -75,6 +75,134 @@ routerAdd(
   $apis.bodyLimit(1024),
 )
 
+// Gate operacional da carga oficial e das reconciliacoes manuais auditadas.
+// Habilita somente a reconciliacao; preserva o webhook e, no fechamento,
+// preserva o cursor confirmado pela ultima execucao bem-sucedida.
+routerAdd(
+  'POST',
+  '/backend/v1/integracao/ac/configuracao/reconciliacao-real',
+  function (e) {
+    var actor = e.auth
+    if (!actor || !actor.getBool('ativo_comercial'))
+      return e.unauthorizedError('Autenticacao necessaria')
+    var slug = ''
+    try {
+      slug = $app.findRecordById('com_perfis', actor.getString('perfil_id')).getString('slug')
+    } catch (_) {}
+    if (slug !== 'superadministrador') return e.forbiddenError('SuperAdmin necessario')
+
+    var body = {}
+    try {
+      body = e.requestInfo().body || {}
+    } catch (_) {}
+    var allowed = { action: true, confirmation: true, command_idempotency_key: true }
+    var keys = Object.keys(body)
+    for (var i = 0; i < keys.length; i++)
+      if (!allowed[keys[i]]) return e.json(400, { error: 'CAMPO_NAO_PERMITIDO' })
+    var action = String(body.action || '')
+    var expected =
+      action === 'open'
+        ? 'ATIVAR RECONCILIACAO REAL ACTIVECAMPAIGN'
+        : action === 'close'
+          ? 'DESATIVAR RECONCILIACAO REAL ACTIVECAMPAIGN'
+          : ''
+    var commandKey = String(body.command_idempotency_key || '')
+    if (
+      !expected ||
+      body.confirmation !== expected ||
+      commandKey.indexOf('t6-ac-reconciliation-') !== 0 ||
+      commandKey.length > 128
+    )
+      return e.json(400, { error: 'CONFIRMACAO_INVALIDA' })
+
+    var idempotencyKey = $security.sha256('real-reconciliation-gate|' + commandKey)
+    var repeated = null
+    try {
+      repeated = $app.findFirstRecordByData(
+        'com_eventos_integracao',
+        'idempotency_key',
+        idempotencyKey,
+      )
+    } catch (_) {}
+    if (repeated) {
+      var replayPayload = {}
+      try {
+        replayPayload = JSON.parse(repeated.getString('payload') || '{}')
+      } catch (_) {}
+      replayPayload.replay = true
+      replayPayload.status = 'replayed'
+      return e.json(200, replayPayload)
+    }
+
+    var result = null,
+      transactionError = ''
+    try {
+      $app.runInTransaction(function (tx) {
+        var webhook = tx.findFirstRecordByData('com_parametros', 'chave', 'ac_webhook_enabled')
+        var reconciliation = tx.findFirstRecordByData(
+          'com_parametros',
+          'chave',
+          'ac_reconciliation_enabled',
+        )
+        var synthetic = tx.findFirstRecordByData(
+          'com_parametros',
+          'chave',
+          'ac_synthetic_preview_enabled',
+        )
+        var cursor = tx.findFirstRecordByData('com_parametros', 'chave', 'ac_reconciliation_cursor')
+        if (synthetic.getString('valor') !== 'false')
+          throw new Error('GATE_SINTETICO_ATIVO')
+
+        var enabled = action === 'open'
+        reconciliation.set('valor', enabled ? 'true' : 'false')
+        synthetic.set('valor', 'false')
+        tx.save(reconciliation)
+        tx.save(synthetic)
+
+        result = {
+          action: action,
+          status: 'completed',
+          replay: false,
+          webhook_enabled: webhook.getString('valor') === 'true',
+          reconciliation_enabled: enabled,
+          synthetic_gate_enabled: false,
+          cursor: cursor.getString('valor'),
+        }
+        var audit = new Record(tx.findCollectionByNameOrId('com_eventos_integracao'))
+        audit.set('sistema_origem', 'activecampaign')
+        audit.set(
+          'evento_tipo',
+          enabled ? 'real_reconciliation_gate_open' : 'real_reconciliation_gate_close',
+        )
+        audit.set('external_id', 't6-ac-real-reconciliation')
+        audit.set('idempotency_key', idempotencyKey)
+        audit.set(
+          'payload',
+          JSON.stringify({
+            action: result.action,
+            status: result.status,
+            replay: result.replay,
+            webhook_enabled: result.webhook_enabled,
+            reconciliation_enabled: result.reconciliation_enabled,
+            synthetic_gate_enabled: result.synthetic_gate_enabled,
+            cursor: result.cursor,
+            actor_id: actor.id,
+          }).slice(0, 4000),
+        )
+        audit.set('status', 'processed')
+        tx.save(audit)
+      })
+    } catch (error) {
+      transactionError = String(error).slice(0, 200)
+    }
+    if (transactionError)
+      return e.json(409, { error: 'RECONCILIACAO_REAL_REVERTIDA', detail: transactionError })
+    return e.json(200, result)
+  },
+  $apis.requireAuth('users'),
+  $apis.bodyLimit(1024),
+)
+
 // T6.AC.8 — abre e fecha exclusivamente o gate sintetico de homologacao.
 // A rota nao habilita carga real: o modo incremental continua bloqueado pelo
 // cursor UNINITIALIZED e o fechamento restaura esse sentinela na mesma

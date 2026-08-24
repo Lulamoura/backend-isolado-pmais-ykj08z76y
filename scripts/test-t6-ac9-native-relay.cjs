@@ -91,6 +91,26 @@ const checks = [
     'gate real é idempotente',
     controls.includes("$security.sha256('real-webhook-gate|' + commandKey)"),
   ],
+  [
+    'gate de reconciliação real possui rota própria',
+    controls.includes("'/backend/v1/integracao/ac/configuracao/reconciliacao-real'"),
+  ],
+  [
+    'gate de reconciliação preserva webhook e cursor',
+    controls.includes("webhook_enabled: webhook.getString('valor') === 'true'") &&
+      controls.includes("cursor: cursor.getString('valor')"),
+  ],
+  [
+    'gate de reconciliação mantém canal sintético desligado',
+    controls.includes("throw new Error('GATE_SINTETICO_ATIVO')") &&
+      controls.includes("synthetic.set('valor', 'false')"),
+  ],
+  [
+    'gate de reconciliação é auditado e idempotente',
+    controls.includes("$security.sha256('real-reconciliation-gate|' + commandKey)") &&
+      controls.includes("'real_reconciliation_gate_open'") &&
+      controls.includes("'real_reconciliation_gate_close'"),
+  ],
 ]
 
 let passed = 0
