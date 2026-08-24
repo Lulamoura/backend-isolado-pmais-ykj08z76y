@@ -149,6 +149,8 @@
             titulo: n.getString('titulo'),
             etapa: n.getString('etapa'),
             resultado: n.getString('resultado') || null,
+            fechamento_motivo: n.getString('fechamento_motivo') || null,
+            fechamento_data: n.getString('fechamento_data') || null,
             responsavel_id: n.getString('responsavel_id') || null,
             updated: n.getString('updated'),
             data_periodo:

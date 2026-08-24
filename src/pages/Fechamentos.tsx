@@ -19,6 +19,7 @@ import {
   listarFechamentos,
   novaChaveFechamento,
   reativarFechamento,
+  motivoPerdaLabel,
   type ItemFechamento,
   type MotivoPerda,
 } from '@/services/fechamentos'
@@ -284,6 +285,19 @@ export default function Fechamentos() {
                   </>
                 ) : item.negocio.resultado === 'perdido' ? (
                   <div className="space-y-3">
+                    <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
+                      <p className="font-medium">
+                        Proposta perdida — {motivoPerdaLabel(item.negocio.fechamento_motivo)}
+                      </p>
+                      <p className="mt-1 text-xs text-rose-700">
+                        Decisão registrada em{' '}
+                        {item.negocio.fechamento_data
+                          ? new Date(item.negocio.fechamento_data).toLocaleDateString('pt-BR', {
+                              timeZone: 'UTC',
+                            })
+                          : 'data não informada'}
+                      </p>
+                    </div>
                     <p className="text-sm text-slate-600">
                       {item.agenda
                         ? `Recuperação em ${item.agenda.data_alvo}`

@@ -37,6 +37,19 @@ routerAdd(
       var text = String(value || '').trim()
       return text.length <= max ? text : ''
     }
+    function canonicalLossReason(value) {
+      var normalized = clean(value, 120).toLowerCase().replace(/\s+/g, ' ')
+      var aliases = {
+        'preço': 'preco',
+        preco: 'preco',
+        'fechou com outra empresa': 'fechou_com_outra_empresa',
+        'perdeu contato': 'perdeu_contato',
+        desistiu: 'desistiu',
+        'não atendido': 'nao_atendido',
+        'nao atendido': 'nao_atendido',
+      }
+      return aliases[normalized] || ''
+    }
     function validate(event) {
       var required = [
         'schema_version',
@@ -242,6 +255,8 @@ routerAdd(
             target.set('etapa', canonicalStage)
             target.set('resultado', '')
             target.set('qualificacao', canonicalStage === 'prospects' ? 'pendente' : 'qualificada')
+            target.set('fechamento_motivo', '')
+            target.set('fechamento_data', '')
           } else {
             target.set('etapa', '')
             target.set(
@@ -249,6 +264,10 @@ routerAdd(
               dealStatus === '1' ? 'ganho' : isProspect ? 'desqualificado' : 'perdido',
             )
             if (isProspect) target.set('qualificacao', 'desqualificada')
+            if (dealStatus === '2' && !isProspect) {
+              target.set('fechamento_motivo', canonicalLossReason(event.data.loss_reason))
+              if (event.data.closed_at) target.set('fechamento_data', event.data.closed_at)
+            }
           }
           target.set('origem_canal', 'activecampaign')
           target.set('crm_created_at', event.data.crm_created_at || '')

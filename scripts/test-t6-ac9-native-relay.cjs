@@ -46,6 +46,17 @@ const checks = [
       /target\.set\(\s*'fonte_prospeccao'/.test(reconciler),
   ],
   [
+    'relay e reconciliação transportam motivo e data da perda',
+    relay.includes("customByLabel['Motivo Perda']") &&
+      relay.includes("customByLabel['Data_Cancelamento']") &&
+      reconciler.includes("customFields['Motivo Perda']") &&
+      reconciler.includes("customFields['Data_Cancelamento']") &&
+      webhook.includes("target.set('fechamento_motivo'") &&
+      webhook.includes("target.set('fechamento_data'") &&
+      reconciler.includes("target.set('fechamento_motivo'") &&
+      reconciler.includes("target.set('fechamento_data'"),
+  ],
+  [
     'webhook preserva o valor inteiro em centavos',
     webhook.includes("target.set('valor', Math.round(Number(event.data.value_cents || 0)))") &&
       !webhook.includes("target.set('valor', Number(event.data.value_cents || 0) / 100)"),

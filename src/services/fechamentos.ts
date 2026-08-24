@@ -8,12 +8,25 @@ export type MotivoPerda =
   | 'desistiu'
   | 'nao_atendido'
 
+const motivoPerdaLabels: Record<MotivoPerda, string> = {
+  preco: 'Preço',
+  fechou_com_outra_empresa: 'Fechou com outra empresa',
+  perdeu_contato: 'Perdeu contato',
+  desistiu: 'Desistiu',
+  nao_atendido: 'Não atendido',
+}
+
+export const motivoPerdaLabel = (value: MotivoPerda | null) =>
+  value ? motivoPerdaLabels[value] || 'Não informado' : 'Não informado'
+
 export interface ItemFechamento {
   negocio: {
     id: string
     titulo: string
     etapa: string
     resultado: string | null
+    fechamento_motivo: MotivoPerda | null
+    fechamento_data: string | null
     responsavel_id: string | null
     updated: string
     data_periodo: string | null
