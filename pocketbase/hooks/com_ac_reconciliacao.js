@@ -156,12 +156,17 @@ routerAdd(
           stageCanonicalById[String(allStages[asm].id)] = 'negociacao'
       }
       var accounts =
-        requestedMode === 'synthetic' ? [] : list('/api/3/accounts', 'accounts', false, '')
+        requestedMode === 'synthetic' || requestedMode === 'initial_open_negotiation'
+          ? []
+          : list('/api/3/accounts', 'accounts', false, '')
       var contacts =
-        requestedMode === 'synthetic'
+        requestedMode === 'synthetic' || requestedMode === 'initial_open_negotiation'
           ? []
           : list('/api/3/contacts', 'contacts', true, '&orders[id]=ASC')
-      var deals = requestedMode === 'synthetic' ? [] : list('/api/3/deals', 'deals', true, '')
+      var deals =
+        requestedMode === 'synthetic' || requestedMode === 'initial_open_negotiation'
+          ? []
+          : list('/api/3/deals', 'deals', true, '')
       var customByDeal = {}
       if (requestedMode === 'initial_open_negotiation') {
         var groups = list('/api/3/dealGroups', 'dealGroups', false, '')
@@ -184,6 +189,16 @@ routerAdd(
           if (stageTitle === 'negociação') stageCanonicalById[String(stages[smi].id)] = 'negociacao'
         }
         if (!pipelineId || !negotiationStageId) throw new Error('ESCOPO_PRE_CARGA_NAO_MAPEADO')
+        deals = list(
+          '/api/3/deals',
+          'deals',
+          true,
+          '&filters[group]=' +
+            encodeURIComponent(pipelineId) +
+            '&filters[stage]=' +
+            encodeURIComponent(negotiationStageId) +
+            '&filters[status]=0',
+        )
         var selectedDeals = []
         for (var di = 0; di < deals.length; di++)
           if (
@@ -201,17 +216,39 @@ routerAdd(
           selectedContacts[String(deals[sd].contact || '')] = true
           selectedAccounts[String(deals[sd].account || deals[sd].organization || '')] = true
         }
-        accounts = accounts.filter(function (row) {
-          return selectedAccounts[String(row.id)] === true
-        })
-        contacts = contacts.filter(function (row) {
-          return selectedContacts[String(row.id)] === true
-        })
+        var selectedAccountIds = Object.keys(selectedAccounts)
+        for (var sai = 0; sai < selectedAccountIds.length; sai++) {
+          if (!selectedAccountIds[sai]) continue
+          var accountResponse = call(
+            '/api/3/accounts/' + encodeURIComponent(selectedAccountIds[sai]),
+          )
+          if (!accountResponse.account) throw new Error('AC_EMPRESA_AUSENTE')
+          accounts.push(accountResponse.account)
+        }
+        var selectedContactIds = Object.keys(selectedContacts)
+        for (var sci = 0; sci < selectedContactIds.length; sci++) {
+          if (!selectedContactIds[sci]) continue
+          var contactResponse = call(
+            '/api/3/contacts/' + encodeURIComponent(selectedContactIds[sci]),
+          )
+          if (!contactResponse.contact) throw new Error('AC_CONTATO_AUSENTE')
+          contacts.push(contactResponse.contact)
+        }
         var customMeta = list('/api/3/dealCustomFieldMeta', 'dealCustomFieldMeta', false, '')
         var fieldLabels = {}
         for (var cm = 0; cm < customMeta.length; cm++)
           fieldLabels[String(customMeta[cm].id)] = customMeta[cm].fieldLabel || ''
-        var customRows = list('/api/3/dealCustomFieldData', 'dealCustomFieldData', false, '')
+        var customRows = []
+        for (var sdi = 0; sdi < deals.length; sdi++) {
+          var selectedCustomRows = list(
+            '/api/3/dealCustomFieldData',
+            'dealCustomFieldData',
+            false,
+            '&filters[dealId]=' + encodeURIComponent(String(deals[sdi].id)),
+          )
+          for (var scr = 0; scr < selectedCustomRows.length; scr++)
+            customRows.push(selectedCustomRows[scr])
+        }
         for (var cr = 0; cr < customRows.length; cr++) {
           var customDealId = String(customRows[cr].dealId || '')
           if (!selectedDealIds[customDealId]) continue
