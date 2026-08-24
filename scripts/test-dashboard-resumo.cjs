@@ -103,6 +103,7 @@ assert(
     fim: '2026-12-31',
     equipe_id: 'abc123def456ghi',
     responsavel_id: 'xyz123def456abc',
+    modalidade: 'pontual',
     incluir_inativos: 'true',
   }).valido === true,
 )
@@ -142,6 +143,8 @@ var resumo = x.agregarNegocios([
     resultado: '',
     status: '',
     qualificacao: 'pendente',
+    etapa: 'prospects',
+    modalidade: '',
     valor: 0,
     origem_canal: '',
     responsavel_id: '',
@@ -150,6 +153,8 @@ var resumo = x.agregarNegocios([
     resultado: 'ganho',
     status: '',
     qualificacao: 'qualificada',
+    etapa: 'negociacao',
+    modalidade: 'pontual',
     valor: 10001,
     origem_canal: 'site',
     responsavel_id: 'u1',
@@ -158,6 +163,8 @@ var resumo = x.agregarNegocios([
     resultado: 'perdido',
     status: '',
     qualificacao: 'qualificada',
+    etapa: 'negociacao',
+    modalidade: 'recorrente',
     valor: 20001,
     origem_canal: 'evento',
     responsavel_id: 'u2',
@@ -167,6 +174,8 @@ var resumo = x.agregarNegocios([
     resultado: 'desqualificado',
     status: '',
     qualificacao: 'desqualificada',
+    etapa: 'prospects',
+    modalidade: 'pontual',
     valor: 1,
     origem_canal: '',
     responsavel_id: '',
@@ -196,10 +205,7 @@ assert(
 )
 assert('E10 calcula cobertura de origem', resumo.cobertura.origem.percentual === 50)
 assert('E11 calcula cobertura de responsável', resumo.cobertura.responsavel.percentual === 50)
-assert(
-  'E12 marca modalidade indisponível',
-  resumo.cobertura.modalidade.status === 'indisponivel_no_modelo_canonico_atual',
-)
+assert('E12 calcula cobertura de modalidade', resumo.cobertura.modalidade.percentual === 75)
 assert(
   'E13 conversão qualitativa usa somente valor ganho sobre decisões comerciais',
   resumo.conversoes.qualitativa_percentual === 33.33 &&
@@ -209,6 +215,18 @@ assert(
   'E14 perdas por motivo não misturam desqualificações',
   same(resumo.perdas_por_motivo, [{ motivo: 'Preço', quantidade: 1, valor_centavos: 20001 }]),
 )
+assert(
+  'E15 negócios fora de Prospect são qualificados mesmo sem marcação legada',
+  x.agregarNegocios([{ etapa: 'negociacao', qualificacao: '', valor: 100, modalidade: 'pontual' }])
+    .qualificacao.qualificadas === 1,
+)
+assert(
+  'E16 totaliza quantidade e valor por modalidade',
+  same(resumo.modalidades, [
+    { modalidade: 'recorrente', quantidade: 1, valor_centavos: 20001 },
+    { modalidade: 'pontual', quantidade: 2, valor_centavos: 10001 },
+  ]),
+)
 
 var filtro = x.comporFiltro(
   {
@@ -216,6 +234,7 @@ var filtro = x.comporFiltro(
     fim: '2026-08-31',
     equipe_id: '',
     responsavel_id: '',
+    modalidade: 'recorrente',
     incluir_inativos: false,
   },
   'equipe',
@@ -238,6 +257,7 @@ assert(
     .comporFiltro({ incluir_inativos: true }, 'proprios', 'abc123def456ghi', [])
     .indexOf("responsavel_id = 'abc123def456ghi'") !== -1,
 )
+assert('F6 filtro limita modalidade', filtro.indexOf("modalidade = 'recorrente'") !== -1)
 assert(
   'F6 equipe vazia falha fechada',
   x

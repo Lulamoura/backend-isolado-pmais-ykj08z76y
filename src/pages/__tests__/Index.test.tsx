@@ -22,7 +22,7 @@ const dashboardResponse = {
     data_civil: 'America/Recife',
     campo: 'created',
   },
-  filtros: { equipe_id: null, responsavel_id: null, incluir_inativos: false },
+  filtros: { equipe_id: null, responsavel_id: null, modalidade: null, incluir_inativos: false },
   escopo: 'todos',
   resumo: {
     total: 7,
@@ -58,6 +58,10 @@ const dashboardResponse = {
       },
     },
     perdas_por_motivo: [{ motivo: 'preco', quantidade: 1, valor_centavos: 50000 }],
+    modalidades: [
+      { modalidade: 'pontual', quantidade: 4, valor_centavos: 200000 },
+      { modalidade: 'recorrente', quantidade: 3, valor_centavos: 100000 },
+    ],
   },
   avisos: ['Conversão de propostas permanece indisponível.'],
 }
@@ -107,6 +111,15 @@ describe('Dashboard V1', () => {
     const perdas = screen.getByLabelText('Motivos das perdas comerciais')
     expect(within(perdas).getByText('Preço')).toBeInTheDocument()
     expect(within(perdas).getByText('R$ 500,00')).toBeInTheDocument()
+  })
+
+  it('mostra quantidade e valor por modalidade', () => {
+    render(<Index />)
+
+    const modalidades = screen.getByText('Negócios por modalidade').closest('[class*="rounded"]')!
+    expect(within(modalidades).getByText('Pontual')).toBeInTheDocument()
+    expect(within(modalidades).getByText('4 · R$ 2.000,00')).toBeInTheDocument()
+    expect(within(modalidades).getByText('Recorrente')).toBeInTheDocument()
   })
 
   it('aplica período personalizado somente após submissão', () => {
