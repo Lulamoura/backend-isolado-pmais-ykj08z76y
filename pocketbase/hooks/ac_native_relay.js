@@ -73,9 +73,9 @@ routerAdd(
       var sourceVersion = clean(modified, 80) || new Date(0).toISOString()
       return {
         schema_version: '1',
-        context_revision: type === 'business' ? '2' : '1',
+        context_revision: type === 'business' ? '3' : '1',
         event_id:
-          'ac:' + type + ':' + id + ':' + sourceVersion + (type === 'business' ? ':ctx2' : ''),
+          'ac:' + type + ':' + id + ':' + sourceVersion + (type === 'business' ? ':ctx3' : ''),
         source: 'activecampaign',
         entity_type: type,
         entity_id: String(id),

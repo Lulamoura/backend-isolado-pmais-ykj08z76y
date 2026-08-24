@@ -84,7 +84,7 @@ routerAdd(
       var sourceVersion = version(modified)
       events.push({
         schema_version: '1',
-        context_revision: entityType === 'business' ? '2' : '1',
+        context_revision: entityType === 'business' ? '3' : '1',
         event_id:
           'ac:' +
           entityType +
@@ -92,7 +92,7 @@ routerAdd(
           entityId +
           ':' +
           sourceVersion +
-          (entityType === 'business' ? ':ctx2' : ''),
+          (entityType === 'business' ? ':ctx3' : ''),
         source: 'activecampaign',
         entity_type: entityType,
         entity_id: String(entityId),

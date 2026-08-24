@@ -57,6 +57,13 @@ const checks = [
       reconciler.includes("target.set('fechamento_data'"),
   ],
   [
+    'novo contexto comercial reprocessa negócios já sincronizados sem duplicação',
+    relay.includes("context_revision: type === 'business' ? '3' : '1'") &&
+      relay.includes("type === 'business' ? ':ctx3' : ''") &&
+      reconciler.includes("context_revision: entityType === 'business' ? '3' : '1'") &&
+      reconciler.includes("entityType === 'business' ? ':ctx3' : ''"),
+  ],
+  [
     'webhook preserva o valor inteiro em centavos',
     webhook.includes("target.set('valor', Math.round(Number(event.data.value_cents || 0)))") &&
       !webhook.includes("target.set('valor', Number(event.data.value_cents || 0) / 100)"),
