@@ -41,11 +41,7 @@ routerAdd(
         return { valido: false, erro: 'VALIDATION' }
       if (q.responsavel_id !== undefined && !isRecordId(q.responsavel_id))
         return { valido: false, erro: 'VALIDATION' }
-      if (
-        q.modalidade !== undefined &&
-        q.modalidade !== 'pontual' &&
-        q.modalidade !== 'recorrente'
-      )
+      if (q.modalidade !== undefined && q.modalidade !== 'pontual' && q.modalidade !== 'recorrente')
         return { valido: false, erro: 'VALIDATION' }
       if (
         q.incluir_inativos !== undefined &&
