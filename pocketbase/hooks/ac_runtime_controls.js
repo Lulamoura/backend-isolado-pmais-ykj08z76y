@@ -150,8 +150,7 @@ routerAdd(
           'ac_synthetic_preview_enabled',
         )
         var cursor = tx.findFirstRecordByData('com_parametros', 'chave', 'ac_reconciliation_cursor')
-        if (synthetic.getString('valor') !== 'false')
-          throw new Error('GATE_SINTETICO_ATIVO')
+        if (synthetic.getString('valor') !== 'false') throw new Error('GATE_SINTETICO_ATIVO')
 
         var enabled = action === 'open'
         reconciliation.set('valor', enabled ? 'true' : 'false')
