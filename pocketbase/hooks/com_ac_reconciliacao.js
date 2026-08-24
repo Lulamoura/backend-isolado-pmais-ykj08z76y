@@ -167,7 +167,8 @@ routerAdd(
         requestedMode === 'synthetic' || requestedMode === 'initial_open_negotiation'
           ? []
           : list('/api/3/deals', 'deals', true, '')
-      var customByDeal = {}
+      var customByDeal = {},
+        initialCompanyByContact = {}
       if (requestedMode === 'initial_open_negotiation') {
         var groups = list('/api/3/dealGroups', 'dealGroups', false, '')
         var stages = allStages
@@ -212,9 +213,13 @@ routerAdd(
           selectedAccounts = {},
           selectedDealIds = {}
         for (var sd = 0; sd < deals.length; sd++) {
+          var selectedContactId = String(deals[sd].contact || '')
+          var selectedAccountId = String(deals[sd].account || deals[sd].organization || '')
           selectedDealIds[String(deals[sd].id)] = true
-          selectedContacts[String(deals[sd].contact || '')] = true
-          selectedAccounts[String(deals[sd].account || deals[sd].organization || '')] = true
+          selectedContacts[selectedContactId] = true
+          selectedAccounts[selectedAccountId] = true
+          if (selectedContactId && selectedAccountId)
+            initialCompanyByContact[selectedContactId] = selectedAccountId
         }
         var selectedAccountIds = Object.keys(selectedAccounts)
         for (var sai = 0; sai < selectedAccountIds.length; sai++) {
@@ -278,7 +283,11 @@ routerAdd(
             email: contacts[c].email || '',
             phone: contacts[c].phone || '',
           },
-          { company_id: String(contacts[c].account || contacts[c].organization || '') },
+          {
+            company_id:
+              initialCompanyByContact[String(contacts[c].id)] ||
+              String(contacts[c].account || contacts[c].organization || ''),
+          },
           contacts[c].isDisabled === true,
         )
       for (var d = 0; d < deals.length; d++) {
