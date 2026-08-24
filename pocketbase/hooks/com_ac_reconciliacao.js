@@ -86,7 +86,12 @@ routerAdd(
         schema_version: '1',
         context_revision: entityType === 'business' ? '2' : '1',
         event_id:
-          'ac:' + entityType + ':' + entityId + ':' + sourceVersion +
+          'ac:' +
+          entityType +
+          ':' +
+          entityId +
+          ':' +
+          sourceVersion +
           (entityType === 'business' ? ':ctx2' : ''),
         source: 'activecampaign',
         entity_type: entityType,
@@ -703,8 +708,18 @@ routerAdd(
             target.set('crm_created_at', ev.data.crm_created_at || '')
             target.set('crm_updated_at', ev.data.crm_updated_at || '')
             target.set('proxima_acao_em', ev.data.next_action_at || '')
-            target.set('fase_crm', String(ev.data.phase || '').trim().slice(0, 160))
-            target.set('fonte_prospeccao', String(ev.data.source || '').trim().slice(0, 200))
+            target.set(
+              'fase_crm',
+              String(ev.data.phase || '')
+                .trim()
+                .slice(0, 160),
+            )
+            target.set(
+              'fonte_prospeccao',
+              String(ev.data.source || '')
+                .trim()
+                .slice(0, 200),
+            )
             if (dealStatus === '0') {
               var alias = tx.findFirstRecordByFilter(
                 'com_alias_dimensoes',

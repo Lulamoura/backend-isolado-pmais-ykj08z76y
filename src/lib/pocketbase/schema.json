@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-08-22T20:16:19.438Z",
+  "generatedAt": "2026-08-24T17:13:13.377Z",
   "collections": [
     {
       "name": "users",
       "type": "auth",
       "apiRules": {
-        "list": "id = @request.auth.id",
-        "view": "id = @request.auth.id",
-        "create": "",
-        "update": "id = @request.auth.id",
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != '' && (@request.auth.id = id || @request.auth.perfil_id.slug = 'superadministrador')",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
         "delete": "id = @request.auth.id"
       },
       "fields": [
@@ -29,19 +29,3099 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "perfil_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_perfis"
+        },
+        {
+          "name": "equipe_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_equipes"
+        },
+        {
+          "name": "ativo_comercial",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
         "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
+      ]
+    },
+    {
+      "name": "com_equipes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_equipes_slug ON com_equipes (slug)",
+        "CREATE INDEX idx_com_equipes_ativo ON com_equipes (ativo)"
+      ]
+    },
+    {
+      "name": "com_perfis",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_perfis_slug ON com_perfis (slug)",
+        "CREATE INDEX idx_com_perfis_ativo ON com_perfis (ativo)"
+      ]
+    },
+    {
+      "name": "com_permissoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "recurso",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "acao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_permissoes_slug ON com_permissoes (slug)",
+        "CREATE INDEX idx_com_permissoes_recurso_acao ON com_permissoes (recurso, acao)"
+      ]
+    },
+    {
+      "name": "com_perfil_permissoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "perfil_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_perfis"
+        },
+        {
+          "name": "permissao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_permissoes"
+        },
+        {
+          "name": "escopo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "proprios",
+            "equipe",
+            "todos"
+          ]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_perfil_permissoes_perfil_permissao ON com_perfil_permissoes (perfil_id, permissao_id)",
+        "CREATE INDEX idx_com_perfil_permissoes_escopo ON com_perfil_permissoes (escopo)"
+      ]
+    },
+    {
+      "name": "com_usuarios_equipes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "usuario_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "equipe_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_equipes"
+        },
+        {
+          "name": "perfil_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_perfis"
+        },
+        {
+          "name": "escopo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "proprios",
+            "equipe",
+            "todos"
+          ]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inicio_vigencia",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fim_vigencia",
+          "type": "date",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_usuarios_equipes_equipe ON com_usuarios_equipes (equipe_id)",
+        "CREATE INDEX `idx_com_usuarios_equipes_ativo` ON `com_usuarios_equipes` (ativo)",
+        "CREATE INDEX `idx_com_usuarios_equipes_usuario_ativo` ON `com_usuarios_equipes` (usuario_id, ativo)",
+        "CREATE UNIQUE INDEX `idx_com_usuarios_equipes_usuario_equipe_perfil` ON `com_usuarios_equipes` (usuario_id, equipe_id, perfil_id)"
+      ]
+    },
+    {
+      "name": "com_parametros",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != ''",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "chave",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "versao",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "regra_validacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inicio_vigencia",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fim_vigencia",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "data_hora",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_parametros_chave ON com_parametros (chave)",
+        "CREATE INDEX idx_com_parametros_ativo ON com_parametros (ativo)"
+      ]
+    },
+    {
+      "name": "com_empresas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'aprovador' || @request.auth.perfil_id.slug = 'leitura-executiva' || (@request.auth.perfil_id.slug = 'gestor-comercial' && (responsavel_id = @request.auth.id || (@request.auth.equipe_id != '' && equipe_id = @request.auth.equipe_id))) || ((@request.auth.perfil_id.slug = 'operador-comercial' || @request.auth.perfil_id.slug = 'prospeccao') && responsavel_id = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || responsavel_id = @request.auth.id || (@request.auth.equipe_id != '' && equipe_id = @request.auth.equipe_id))",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && (responsavel_id = @request.auth.id || (@request.auth.equipe_id != '' && equipe_id = @request.auth.equipe_id))",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "ativo",
+            "inativo",
+            "prospecto"
+          ]
+        },
+        {
+          "name": "equipe_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_equipes"
+        },
+        {
+          "name": "responsavel_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "endereco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_empresas_status ON com_empresas (status)",
+        "CREATE INDEX idx_com_empresas_equipe ON com_empresas (equipe_id)",
+        "CREATE INDEX idx_com_empresas_responsavel ON com_empresas (responsavel_id)",
+        "CREATE INDEX idx_com_empresas_created ON com_empresas (created)"
+      ]
+    },
+    {
+      "name": "com_negocios",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && inativo != true && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'aprovador' || @request.auth.perfil_id.slug = 'leitura-executiva' || (@request.auth.perfil_id.slug = 'gestor-comercial' && (responsavel_id = @request.auth.id || (@request.auth.equipe_id != '' && equipe_id = @request.auth.equipe_id))) || ((@request.auth.perfil_id.slug = 'operador-comercial' || @request.auth.perfil_id.slug = 'prospeccao') && responsavel_id = @request.auth.id))",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || responsavel_id = @request.auth.id || (@request.auth.equipe_id != '' && equipe_id = @request.auth.equipe_id))",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && (responsavel_id = @request.auth.id || (@request.auth.equipe_id != '' && equipe_id = @request.auth.equipe_id))",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_empresas"
+        },
+        {
+          "name": "equipe_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_equipes"
+        },
+        {
+          "name": "responsavel_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "etapa",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "prospects",
+            "producao_proposta",
+            "negociacao"
+          ]
+        },
+        {
+          "name": "resultado",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "ganho",
+            "perdido",
+            "desqualificado"
+          ]
+        },
+        {
+          "name": "inativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "ganho",
+            "perdido"
+          ]
+        },
+        {
+          "name": "contato_principal_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_contatos"
+        },
+        {
+          "name": "tipo_entrada",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "pendente",
+            "pre_qualificada"
+          ]
+        },
+        {
+          "name": "qualificacao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "pendente",
+            "qualificada",
+            "desqualificada"
+          ]
+        },
+        {
+          "name": "origem_canal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "captador_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "negocio_original_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_negocios"
+        },
+        {
+          "name": "fechamento_motivo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "preco",
+            "fechou_com_outra_empresa",
+            "perdeu_contato",
+            "desistiu",
+            "nao_atendido"
+          ]
+        },
+        {
+          "name": "fechamento_data",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fechamento_valor_efetivo_centavos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "oe_numero",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "oe_data_envio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "oe_responsavel_envio_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "prospectivo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "modalidade",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "pontual",
+            "recorrente"
+          ]
+        },
+        {
+          "name": "necessidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "localizacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dimensao_estimada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_cliente",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "crm_created_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "crm_updated_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "proxima_acao_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fase_crm",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fonte_prospeccao",
+          "type": "text",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_negocios_status ON com_negocios (status)",
+        "CREATE INDEX idx_com_negocios_equipe ON com_negocios (equipe_id)",
+        "CREATE INDEX idx_com_negocios_responsavel ON com_negocios (responsavel_id)",
+        "CREATE INDEX idx_com_negocios_empresa ON com_negocios (empresa_id)",
+        "CREATE INDEX idx_com_negocios_created ON com_negocios (created)",
+        "CREATE INDEX `idx_com_negocios_etapa` ON `com_negocios` (etapa)",
+        "CREATE INDEX `idx_com_negocios_resultado` ON `com_negocios` (resultado)",
+        "CREATE INDEX `idx_com_negocios_inativo` ON `com_negocios` (inativo)"
+      ]
+    },
+    {
+      "name": "com_negocio_historico",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'operador-comercial' || @request.auth.perfil_id.slug = 'prospeccao' || @request.auth.perfil_id.slug = 'aprovador' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'operador-comercial' || @request.auth.perfil_id.slug = 'prospeccao' || @request.auth.perfil_id.slug = 'aprovador' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "create": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'operador-comercial' || @request.auth.perfil_id.slug = 'prospeccao')",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "negocio_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_negocios"
+        },
+        {
+          "name": "usuario_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "responsavel_anterior_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "responsavel_novo_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem_alteracao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "etapa_anterior",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "prospects",
+            "producao_proposta",
+            "negociacao"
+          ]
+        },
+        {
+          "name": "etapa_novo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "prospects",
+            "producao_proposta",
+            "negociacao"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_negocio_historico_negocio ON com_negocio_historico (negocio_id)",
+        "CREATE INDEX idx_com_negocio_historico_created ON com_negocio_historico (created)"
+      ]
+    },
+    {
+      "name": "com_auditoria",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'aprovador' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'aprovador' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "create": "@request.auth.id != '' && @request.auth.id = ''",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "collection_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "record_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "usuario_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "acao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "create",
+            "update",
+            "inactivate",
+            "delete"
+          ]
+        },
+        {
+          "name": "valor_anterior",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_novo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem_alteracao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "perfil",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "escopo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "comando",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "command_idempotency_key",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "transacao_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sequencia",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evento_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "snapshot_hash",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "snapshot_hash_versao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "retifica_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_auditoria"
+        },
+        {
+          "name": "evidencia_estruturada",
+          "type": "json",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_auditoria_collection_record ON com_auditoria (collection_name, record_id)",
+        "CREATE INDEX idx_com_auditoria_created ON com_auditoria (created)",
+        "CREATE INDEX `idx_com_auditoria_comando` ON `com_auditoria` (comando)",
+        "CREATE INDEX `idx_com_auditoria_command_key` ON `com_auditoria` (command_idempotency_key)",
+        "CREATE INDEX `idx_com_auditoria_correlation_id` ON `com_auditoria` (correlation_id)",
+        "CREATE INDEX `idx_com_auditoria_transacao_id` ON `com_auditoria` (transacao_id)",
+        "CREATE INDEX `idx_com_auditoria_usuario_id` ON `com_auditoria` (usuario_id)",
+        "CREATE INDEX `idx_com_auditoria_evento_em` ON `com_auditoria` (evento_em)",
+        "CREATE INDEX `idx_com_auditoria_retifica_id` ON `com_auditoria` (retifica_id)"
+      ]
+    },
+    {
+      "name": "com_parametros_versoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "parametro_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_parametros"
+        },
+        {
+          "name": "chave",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "regra_validacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "versao",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "inicio_vigencia",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fim_vigencia",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_parametros_versoes_parametro ON com_parametros_versoes (parametro_id)",
+        "CREATE INDEX idx_com_parametros_versoes_versao ON com_parametros_versoes (parametro_id, versao)"
+      ]
+    },
+    {
+      "name": "com_contatos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "create": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "update": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_empresas"
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_contatos_empresa ON com_contatos (empresa_id)",
+        "CREATE INDEX idx_com_contatos_ativo ON com_contatos (ativo)"
+      ]
+    },
+    {
+      "name": "com_etapas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "create": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "update": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial')",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "external_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativa",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inicio_vigencia",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fim_vigencia",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_etapas_external_id ON com_etapas (external_id)",
+        "CREATE INDEX idx_com_etapas_codigo ON com_etapas (codigo)"
+      ]
+    },
+    {
+      "name": "com_alias_dimensoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "create": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "update": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial')",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "dimensao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_original",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_comparacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "canonico_ref",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_etapas"
+        },
+        {
+          "name": "validacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inicio_vigencia",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fim_vigencia",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_alias_dimensoes_dimensao ON com_alias_dimensoes (dimensao)",
+        "CREATE INDEX idx_com_alias_dimensoes_valor_original ON com_alias_dimensoes (valor_original)"
+      ]
+    },
+    {
+      "name": "com_vinculos_externos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "create": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "update": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial')",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "sistema_origem",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "collection_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "record_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "external_type",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "external_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_vinculos_externos_origem_type_id ON com_vinculos_externos (sistema_origem, external_type, external_id)",
+        "CREATE INDEX idx_com_vinculos_externos_collection_record ON com_vinculos_externos (collection_name, record_id)"
+      ]
+    },
+    {
+      "name": "com_execucoes_sincronizacao",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "create": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "update": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "sistema_origem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payload",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "erro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inicio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fim",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_execucoes_sincronizacao_status ON com_execucoes_sincronizacao (status)",
+        "CREATE INDEX idx_com_execucoes_sincronizacao_origem ON com_execucoes_sincronizacao (sistema_origem)"
+      ]
+    },
+    {
+      "name": "com_eventos_integracao",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "create": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "update": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "sistema_origem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evento_tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "external_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payload",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "idempotency_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_eventos_integracao_idempotency ON com_eventos_integracao (idempotency_key)",
+        "CREATE INDEX idx_com_eventos_integracao_origem ON com_eventos_integracao (sistema_origem)",
+        "CREATE INDEX idx_com_eventos_integracao_status ON com_eventos_integracao (status)"
+      ]
+    },
+    {
+      "name": "com_snapshots_negocio",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "create": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "negocio_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_negocios"
+        },
+        {
+          "name": "snapshot",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_snapshots_negocio_negocio ON com_snapshots_negocio (negocio_id)",
+        "CREATE INDEX idx_com_snapshots_negocio_origem ON com_snapshots_negocio (origem)"
+      ]
+    },
+    {
+      "name": "com_ocorrencias_qualidade",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "create": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'integracao')",
+        "update": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "execucao_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_execucoes_sincronizacao"
+        },
+        {
+          "name": "tipo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "severidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resolvida",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_ocorrencias_qualidade_execucao ON com_ocorrencias_qualidade (execucao_id)",
+        "CREATE INDEX idx_com_ocorrencias_qualidade_severidade ON com_ocorrencias_qualidade (severidade)"
+      ]
+    },
+    {
+      "name": "com_execucoes_porta_2d2b",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "runner_version",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "correlation_key",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "started_at",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "finished_at",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "counts_before",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "counts_after",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "flag_before",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "flag_final",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prova_zero_chamadas_externas",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "versao_commit",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "decisao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "allowed_internal_calls",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "blocked_external_attempts",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "activecampaign_calls",
+          "type": "number",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_execucoes_porta_2d2b_id ON com_execucoes_porta_2d2b (id)",
+        "CREATE INDEX idx_com_execucoes_porta_2d2b_correlation_key ON com_execucoes_porta_2d2b (correlation_key)"
+      ]
+    },
+    {
+      "name": "com_etapas_porta_2d2b",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "execucao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_execucoes_porta_2d2b"
+        },
+        {
+          "name": "ordem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metodo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rota_sanitizada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "started_at",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "finished_at",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "http_status_real",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "http_status_esperado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "counts_antes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "counts_depois",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deltas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ids_correlacao_sanitizados",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sha256_corpo_bruto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resposta_sanitizada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "erro_real",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "resposta_truncated",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resposta_original_length",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "raw_body_sanitized",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "raw_body_sanitized_sha256",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "raw_body_size",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sanitized",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "raw_body_original_sha256",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contrato",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contrato_ok",
+          "type": "bool",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_etapas_porta_2d2b_id ON com_etapas_porta_2d2b (id)",
+        "CREATE INDEX idx_com_etapas_porta_2d2b_execucao_id ON com_etapas_porta_2d2b (execucao_id)",
+        "CREATE INDEX idx_com_etapas_porta_2d2b_ordem ON com_etapas_porta_2d2b (ordem)",
+        "CREATE UNIQUE INDEX `idx_com_etapas_porta_2d2b_execucao_ordem` ON `com_etapas_porta_2d2b` (execucao_id, ordem)"
+      ]
+    },
+    {
+      "name": "com_idempotencia",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "create": "@request.auth.id != '' && @request.auth.id = ''",
+        "update": "@request.auth.id != '' && @request.auth.id = ''",
+        "delete": "@request.auth.id != '' && @request.auth.id = ''"
+      },
+      "fields": [
+        {
+          "name": "command_idempotency_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "comando",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ator_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "payload_hash",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "executando",
+            "concluido",
+            "rejeitado",
+            "abandonado"
+          ]
+        },
+        {
+          "name": "codigo_retorno",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultado",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "registros_afetados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "executor_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "lease_ate",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tentativa",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "claim_version",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "inicio_em",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "conclusao_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_idempotencia_unique_identity ON com_idempotencia (ator_id, comando, command_idempotency_key)",
+        "CREATE INDEX idx_com_idempotencia_key ON com_idempotencia (command_idempotency_key)",
+        "CREATE INDEX idx_com_idempotencia_estado_lease ON com_idempotencia (estado, lease_ate)",
+        "CREATE INDEX idx_com_idempotencia_id_claim ON com_idempotencia (id, claim_version)"
+      ]
+    },
+    {
+      "name": "com_qualificacao_historico",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "create": "@request.auth.id != '' && @request.auth.id = ''",
+        "update": "@request.auth.id != '' && @request.auth.id = ''",
+        "delete": "@request.auth.id != '' && @request.auth.id = ''"
+      },
+      "fields": [
+        {
+          "name": "negocio_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_negocios"
+        },
+        {
+          "name": "idempotency_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "estado_anterior",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "pendente",
+            "qualificada",
+            "desqualificada"
+          ]
+        },
+        {
+          "name": "estado_novo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "pendente",
+            "qualificada",
+            "desqualificada"
+          ]
+        },
+        {
+          "name": "tipo_entrada",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "pendente",
+            "pre_qualificada"
+          ]
+        },
+        {
+          "name": "motivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "origem",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "manual",
+            "entrada_pre_qualificada",
+            "reavaliacao",
+            "reativacao",
+            "integracao",
+            "sistema"
+          ]
+        },
+        {
+          "name": "justificativa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_hora_efetiva",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_qualificacao_historico_idempotency_key ON com_qualificacao_historico (idempotency_key)",
+        "CREATE INDEX idx_com_qualificacao_historico_negocio_created ON com_qualificacao_historico (negocio_id, created)",
+        "CREATE INDEX idx_com_qualificacao_historico_negocio_estado ON com_qualificacao_historico (negocio_id, estado_novo)",
+        "CREATE INDEX idx_com_qualificacao_historico_autor ON com_qualificacao_historico (autor_id)",
+        "CREATE INDEX idx_com_qualificacao_historico_data ON com_qualificacao_historico (data_hora_efetiva)"
+      ]
+    },
+    {
+      "name": "com_propostas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "create": "@request.auth.id != '' && @request.auth.id = ''",
+        "update": "@request.auth.id != '' && @request.auth.id = ''",
+        "delete": "@request.auth.id != '' && @request.auth.id = ''"
+      },
+      "fields": [
+        {
+          "name": "negocio_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_negocios"
+        },
+        {
+          "name": "identificador",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "autor_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "ativa",
+            "arquivada",
+            "cancelada"
+          ]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_propostas_negocio_status ON com_propostas (negocio_id, status)"
+      ]
+    },
+    {
+      "name": "com_proposta_versoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "create": "@request.auth.id != '' && @request.auth.id = ''",
+        "update": "@request.auth.id != '' && @request.auth.id = ''",
+        "delete": "@request.auth.id != '' && @request.auth.id = ''"
+      },
+      "fields": [
+        {
+          "name": "proposta_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_propostas"
+        },
+        {
+          "name": "numero",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "rascunho",
+            "enviada",
+            "aceita",
+            "recusada",
+            "cancelada"
+          ]
+        },
+        {
+          "name": "modalidade",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "pontual",
+            "recorrente"
+          ]
+        },
+        {
+          "name": "valor_total_centavos",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_mensal_centavos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "enviada_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destinatario",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "canal_envio",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "email",
+            "provelo",
+            "whatsapp",
+            "presencial"
+          ]
+        },
+        {
+          "name": "validade",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documento_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_envio_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "creation_idempotency_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "leitura_estado",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "nao_rastreavel",
+            "nao_lida",
+            "lida"
+          ]
+        },
+        {
+          "name": "primeira_leitura_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultima_leitura_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "decisao_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_evidencia_decisao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "assinatura",
+            "aceite_formal_corporativo",
+            "aceite_formal_provelo",
+            "pedido_compra",
+            "equivalente_formal"
+          ]
+        },
+        {
+          "name": "evidencia_decisao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_proposta_versoes_idempotency ON com_proposta_versoes (creation_idempotency_key)",
+        "CREATE UNIQUE INDEX idx_com_proposta_versoes_proposta_numero ON com_proposta_versoes (proposta_id, numero)",
+        "CREATE UNIQUE INDEX idx_com_proposta_versoes_proposta_aceita ON com_proposta_versoes (proposta_id) WHERE estado = 'aceita'",
+        "CREATE INDEX idx_com_proposta_versoes_proposta_numero_idx ON com_proposta_versoes (proposta_id, numero)",
+        "CREATE INDEX idx_com_proposta_versoes_estado ON com_proposta_versoes (estado)"
+      ]
+    },
+    {
+      "name": "com_atividades",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "create": "@request.auth.id != '' && @request.auth.id = ''",
+        "update": "@request.auth.id != '' && @request.auth.id = ''",
+        "delete": "@request.auth.id != '' && @request.auth.id = ''"
+      },
+      "fields": [
+        {
+          "name": "negocio_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_negocios"
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "tentativa_contato",
+            "reuniao",
+            "visita",
+            "envio_proposta",
+            "acompanhamento_proposta",
+            "aceite_verbal_pendente",
+            "decisao_combinada",
+            "tarefa_interna"
+          ]
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "responsavel_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "canal",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "telefone",
+            "email",
+            "whatsapp",
+            "presencial",
+            "video"
+          ]
+        },
+        {
+          "name": "estado",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "planejada",
+            "realizada",
+            "cancelada"
+          ]
+        },
+        {
+          "name": "planejada_para",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "realizada_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resultado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "proposta_versao_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_proposta_versoes"
+        },
+        {
+          "name": "justificativa_cancelamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "creation_idempotency_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "atividade_origem_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_atividades"
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_atividades_idempotency ON com_atividades (creation_idempotency_key)",
+        "CREATE INDEX idx_com_atividades_negocio_planejada ON com_atividades (negocio_id, planejada_para)",
+        "CREATE INDEX idx_com_atividades_responsavel_estado ON com_atividades (responsavel_id, estado)",
+        "CREATE INDEX idx_com_atividades_estado_planejada ON com_atividades (estado, planejada_para)"
+      ]
+    },
+    {
+      "name": "com_recuperacao_agendas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "create": "@request.auth.id != '' && @request.auth.id = ''",
+        "update": "@request.auth.id != '' && @request.auth.id = ''",
+        "delete": "@request.auth.id != '' && @request.auth.id = ''"
+      },
+      "fields": [
+        {
+          "name": "negocio_perdido_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_negocios"
+        },
+        {
+          "name": "data_alvo",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "antecedencia_dias",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "contexto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "estado",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "ativa",
+            "concluida_por_reativacao",
+            "adiada",
+            "descartada"
+          ]
+        },
+        {
+          "name": "motivo_adiamento_descarte",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "negocio_novo_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_negocios"
+        },
+        {
+          "name": "autor_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "creation_idempotency_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "agenda_origem_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_recuperacao_agendas"
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_recuperacao_agendas_idempotency ON com_recuperacao_agendas (creation_idempotency_key)",
+        "CREATE UNIQUE INDEX idx_com_recuperacao_agendas_unica_ativa ON com_recuperacao_agendas (negocio_perdido_id) WHERE estado = 'ativa'",
+        "CREATE INDEX idx_com_recuperacao_agendas_responsavel_estado ON com_recuperacao_agendas (responsavel_id, estado)",
+        "CREATE INDEX idx_com_recuperacao_agendas_data_alvo ON com_recuperacao_agendas (data_alvo)"
+      ]
+    },
+    {
+      "name": "com_substituicoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "view": "@request.auth.id != '' && @request.auth.perfil_id.slug = 'superadministrador'",
+        "create": "@request.auth.id != '' && @request.auth.id = ''",
+        "update": "@request.auth.id != '' && @request.auth.id = ''",
+        "delete": "@request.auth.id != '' && @request.auth.id = ''"
+      },
+      "fields": [
+        {
+          "name": "titular_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "substituto_principal_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "substituto_reserva_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_fim",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo_cobertura",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "integral",
+            "por_negocios"
+          ]
+        },
+        {
+          "name": "negocios_cobertos",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_negocios"
+        },
+        {
+          "name": "motivo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "ferias",
+            "licenca",
+            "falta"
+          ]
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cancelada_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "justificativa_cancelamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "creation_idempotency_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_substituicoes_idempotency ON com_substituicoes (creation_idempotency_key)",
+        "CREATE INDEX idx_com_substituicoes_titular_periodo ON com_substituicoes (titular_id, data_inicio, data_fim)",
+        "CREATE INDEX idx_com_substituicoes_substituto_principal ON com_substituicoes (substituto_principal_id)",
+        "CREATE INDEX idx_com_substituicoes_substituto_reserva ON com_substituicoes (substituto_reserva_id)",
+        "CREATE INDEX idx_com_substituicoes_data_inicio ON com_substituicoes (data_inicio)"
+      ]
+    },
+    {
+      "name": "com_calendario_feriados",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_calendario_feriados_data ON com_calendario_feriados (data)"
       ]
     }
   ]

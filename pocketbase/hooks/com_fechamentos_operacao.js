@@ -36,20 +36,31 @@
         function relacionado(collection, id, fields) {
           if (!id) return null
           try {
-            var record = $app.findRecordById(collection, id), result = { id: record.id }
+            var record = $app.findRecordById(collection, id),
+              result = { id: record.id }
             for (var ri = 0; ri < fields.length; ri++)
               result[fields[ri]] = record.getString(fields[ri]) || null
             return result
-          } catch (_) { return null }
+          } catch (_) {
+            return null
+          }
         }
         var somenteLeitura = false
         try {
-          var parametro = $app.findFirstRecordByData('com_parametros', 'chave', 'ac_preoperation_read_only')
+          var parametro = $app.findFirstRecordByData(
+            'com_parametros',
+            'chave',
+            'ac_preoperation_read_only',
+          )
           somenteLeitura = parametro.getBool('ativo') && parametro.getString('valor') === 'true'
         } catch (_) {}
         return {
           empresa: relacionado('com_empresas', negocio.getString('empresa_id'), ['nome']),
-          contato: relacionado('com_contatos', negocio.getString('contato_principal_id'), ['nome', 'email', 'telefone']),
+          contato: relacionado('com_contatos', negocio.getString('contato_principal_id'), [
+            'nome',
+            'email',
+            'telefone',
+          ]),
           responsavel: relacionado('users', negocio.getString('responsavel_id'), ['name']),
           valor_centavos: Number(negocio.get('valor') || 0),
           modalidade: negocio.getString('modalidade') || null,

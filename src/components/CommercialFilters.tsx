@@ -1,15 +1,12 @@
-import { Input } from "@/components/ui/input";
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import type {
-  CommercialContext,
-  CommercialSort,
-} from "@/lib/commercial-context";
+} from '@/components/ui/select'
+import type { CommercialContext, CommercialSort } from '@/lib/commercial-context'
 
 export function CommercialFilters({
   contexts,
@@ -22,23 +19,21 @@ export function CommercialFilters({
   onStatus,
   onSort,
 }: {
-  contexts: CommercialContext[];
-  search: string;
-  owner: string;
-  status: string;
-  sort: CommercialSort;
-  onSearch: (value: string) => void;
-  onOwner: (value: string) => void;
-  onStatus: (value: string) => void;
-  onSort: (value: CommercialSort) => void;
+  contexts: CommercialContext[]
+  search: string
+  owner: string
+  status: string
+  sort: CommercialSort
+  onSearch: (value: string) => void
+  onOwner: (value: string) => void
+  onStatus: (value: string) => void
+  onSort: (value: CommercialSort) => void
 }) {
   const owners = Array.from(
     new Map(
-      contexts
-        .filter((c) => c.responsavel)
-        .map((c) => [c.responsavel!.id, c.responsavel!]),
+      contexts.filter((c) => c.responsavel).map((c) => [c.responsavel!.id, c.responsavel!]),
     ).values(),
-  ).sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR"));
+  ).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'))
   return (
     <div className="grid gap-3 rounded-lg border bg-card p-4 md:grid-cols-4">
       <Input
@@ -46,10 +41,7 @@ export function CommercialFilters({
         onChange={(e) => onSearch(e.target.value)}
         placeholder="Buscar negócio, empresa ou contato"
       />
-      <Select
-        value={owner || "todos"}
-        onValueChange={(v) => onOwner(v === "todos" ? "" : v)}
-      >
+      <Select value={owner || 'todos'} onValueChange={(v) => onOwner(v === 'todos' ? '' : v)}>
         <SelectTrigger>
           <SelectValue placeholder="Responsável" />
         </SelectTrigger>
@@ -57,15 +49,12 @@ export function CommercialFilters({
           <SelectItem value="todos">Todos os responsáveis</SelectItem>
           {owners.map((o) => (
             <SelectItem key={o.id} value={o.id}>
-              {o.name || "Sem nome"}
+              {o.name || 'Sem nome'}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      <Select
-        value={status || "todas"}
-        onValueChange={(v) => onStatus(v === "todas" ? "" : v)}
-      >
+      <Select value={status || 'todas'} onValueChange={(v) => onStatus(v === 'todas' ? '' : v)}>
         <SelectTrigger>
           <SelectValue placeholder="Próxima ação" />
         </SelectTrigger>
@@ -89,5 +78,5 @@ export function CommercialFilters({
         </SelectContent>
       </Select>
     </div>
-  );
+  )
 }
