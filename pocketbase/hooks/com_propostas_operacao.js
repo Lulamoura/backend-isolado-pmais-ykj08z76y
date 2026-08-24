@@ -8,17 +8,13 @@
     var keys = Object.keys(obj).sort(),
       parts = []
     for (var i = 0; i < keys.length; i++)
-      parts.push(
-        JSON.stringify(keys[i]) + ':' + propostaCanonicalize(obj[keys[i]]),
-      )
+      parts.push(JSON.stringify(keys[i]) + ':' + propostaCanonicalize(obj[keys[i]]))
     return '{' + parts.join(',') + '}'
   }
 
   function propostaPerfil(app, user) {
     try {
-      return app
-        .findRecordById('com_perfis', user.getString('perfil_id'))
-        .getString('slug')
+      return app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
     } catch (_) {
       return ''
     }
@@ -34,16 +30,7 @@
     )
   }
 
-  function propostaAuditoria(
-    app,
-    ator,
-    perfil,
-    comando,
-    versao,
-    chave,
-    justificativa,
-    evidencia,
-  ) {
+  function propostaAuditoria(app, ator, perfil, comando, versao, chave, justificativa, evidencia) {
     var a = new Record(app.findCollectionByNameOrId('com_auditoria'))
     a.set('collection_name', 'com_proposta_versoes')
     a.set('record_id', versao.id)
@@ -78,8 +65,7 @@
           id: rows[i].id,
           tipo: rows[i].getString('comando').replace('proposta_', ''),
           autor_id: rows[i].getString('usuario_id'),
-          data_hora:
-            rows[i].getString('evento_em') || rows[i].getString('created'),
+          data_hora: rows[i].getString('evento_em') || rows[i].getString('created'),
           justificativa: rows[i].getString('justificativa') || null,
           evidencia: rows[i].get('evidencia_estruturada') || {},
         })
@@ -93,9 +79,7 @@
     (e) => {
       function propostaPerfil(app, user) {
         try {
-          return app
-            .findRecordById('com_perfis', user.getString('perfil_id'))
-            .getString('slug')
+          return app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
         } catch (_) {
           return ''
         }
@@ -124,8 +108,7 @@
               id: rows[j].id,
               tipo: rows[j].getString('comando').replace('proposta_', ''),
               autor_id: rows[j].getString('usuario_id'),
-              data_hora:
-                rows[j].getString('evento_em') || rows[j].getString('created'),
+              data_hora: rows[j].getString('evento_em') || rows[j].getString('created'),
               justificativa: rows[j].getString('justificativa') || null,
               evidencia: rows[j].get('evidencia_estruturada') || {},
             })
@@ -136,11 +119,14 @@
         function relacionado(collection, id, fields) {
           if (!id) return null
           try {
-            var record = app.findRecordById(collection, id), result = { id: record.id }
+            var record = app.findRecordById(collection, id),
+              result = { id: record.id }
             for (var ri = 0; ri < fields.length; ri++)
               result[fields[ri]] = record.getString(fields[ri]) || null
             return result
-          } catch (_) { return null }
+          } catch (_) {
+            return null
+          }
         }
         var somenteLeitura = false
         // O ID externo é referência operacional obrigatória nos cards do pipeline.
@@ -156,13 +142,21 @@
             .getString('external_id')
         } catch (_) {}
         try {
-          var parametro = app.findFirstRecordByData('com_parametros', 'chave', 'ac_preoperation_read_only')
+          var parametro = app.findFirstRecordByData(
+            'com_parametros',
+            'chave',
+            'ac_preoperation_read_only',
+          )
           somenteLeitura = parametro.getBool('ativo') && parametro.getString('valor') === 'true'
         } catch (_) {}
         return {
           external_id: externalId,
           empresa: relacionado('com_empresas', negocio.getString('empresa_id'), ['nome']),
-          contato: relacionado('com_contatos', negocio.getString('contato_principal_id'), ['nome', 'email', 'telefone']),
+          contato: relacionado('com_contatos', negocio.getString('contato_principal_id'), [
+            'nome',
+            'email',
+            'telefone',
+          ]),
           responsavel: relacionado('users', negocio.getString('responsavel_id'), ['name']),
           valor_centavos: Number(negocio.get('valor') || 0),
           modalidade: negocio.getString('modalidade') || null,
@@ -193,18 +187,10 @@
             proposta = null,
             versao = null,
             eventos = []
-          if (
-            ['producao_proposta', 'negociacao'].indexOf(n.getString('etapa')) <
-            0
-          )
-            continue
+          if (['producao_proposta', 'negociacao'].indexOf(n.getString('etapa')) < 0) continue
           if (!propostaPodeAcessar(ator, perfil, n)) continue
           try {
-            proposta = $app.findFirstRecordByData(
-              'com_propostas',
-              'negocio_id',
-              n.id,
-            )
+            proposta = $app.findFirstRecordByData('com_propostas', 'negocio_id', n.id)
             var versoes = $app.findRecordsByFilter(
               'com_proposta_versoes',
               "proposta_id='" + proposta.id + "'",
@@ -236,9 +222,7 @@
                     estado: versao.getString('estado'),
                     modalidade: versao.getString('modalidade'),
                     valor_total_centavos: versao.getInt('valor_total_centavos'),
-                    valor_mensal_centavos: versao.getInt(
-                      'valor_mensal_centavos',
-                    ),
+                    valor_mensal_centavos: versao.getInt('valor_mensal_centavos'),
                     destinatario: versao.getString('destinatario') || null,
                     canal_envio: versao.getString('canal_envio') || null,
                     updated: versao.getString('updated'),
@@ -270,18 +254,12 @@
         var keys = Object.keys(obj).sort(),
           parts = []
         for (var ci = 0; ci < keys.length; ci++)
-          parts.push(
-            JSON.stringify(keys[ci]) +
-              ':' +
-              propostaCanonicalize(obj[keys[ci]]),
-          )
+          parts.push(JSON.stringify(keys[ci]) + ':' + propostaCanonicalize(obj[keys[ci]]))
         return '{' + parts.join(',') + '}'
       }
       function propostaPerfil(app, user) {
         try {
-          return app
-            .findRecordById('com_perfis', user.getString('perfil_id'))
-            .getString('slug')
+          return app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
         } catch (_) {
           return ''
         }
@@ -341,10 +319,7 @@
         a.set('escopo', 'proposta')
         a.set('origem', 'server-side')
         a.set('evidencia_estruturada', evidencia)
-        a.set(
-          'snapshot_hash',
-          $security.sha256(propostaCanonicalize(evidencia)),
-        )
+        a.set('snapshot_hash', $security.sha256(propostaCanonicalize(evidencia)))
         a.set('snapshot_hash_versao', '1')
         app.save(a)
         return a
@@ -376,9 +351,7 @@
       if (
         body.tipo === 'emitir' &&
         (!String(body.destinatario || '').trim() ||
-          ['email', 'provelo', 'whatsapp', 'presencial'].indexOf(
-            body.canal_envio,
-          ) < 0)
+          ['email', 'provelo', 'whatsapp', 'presencial'].indexOf(body.canal_envio) < 0)
       )
         return e.json(400, { error: 'DADOS_EMISSAO_OBRIGATORIOS' })
       if (
@@ -421,8 +394,7 @@
         )
       } catch (_) {}
       if (known.length) {
-        if (known[0].getString('payload_hash') !== hash)
-          return e.json(409, { error: 'CONFLICT' })
+        if (known[0].getString('payload_hash') !== hash) return e.json(409, { error: 'CONFLICT' })
         if (known[0].getString('estado') !== 'concluido')
           return e.json(409, { error: 'CONCORRENTE' })
         var replay = {}
@@ -463,16 +435,11 @@
           var user = tx.findRecordById('users', ator.id),
             perfilTx = propostaPerfil(tx, user)
           var negocio = tx.findRecordById('com_negocios', body.negocio_id)
-          if (!propostaPodeAcessar(user, perfilTx, negocio))
-            throw new Error('FORBIDDEN')
+          if (!propostaPodeAcessar(user, perfilTx, negocio)) throw new Error('FORBIDDEN')
           var proposta = null,
             versao = null
           try {
-            proposta = tx.findFirstRecordByData(
-              'com_propostas',
-              'negocio_id',
-              negocio.id,
-            )
+            proposta = tx.findFirstRecordByData('com_propostas', 'negocio_id', negocio.id)
             var vv = tx.findRecordsByFilter(
               'com_proposta_versoes',
               "proposta_id='" + proposta.id + "'",
@@ -494,22 +461,14 @@
             proposta.set('status', 'ativa')
             tx.save(proposta)
             etapaFalha = 'preparar_versao'
-            versao = new Record(
-              tx.findCollectionByNameOrId('com_proposta_versoes'),
-            )
+            versao = new Record(tx.findCollectionByNameOrId('com_proposta_versoes'))
             versao.set('proposta_id', proposta.id)
             versao.set('numero', 1)
             versao.set('estado', 'rascunho')
             versao.set('modalidade', body.modalidade)
-            versao.set(
-              'valor_total_centavos',
-              Number(body.valor_total_centavos),
-            )
+            versao.set('valor_total_centavos', Number(body.valor_total_centavos))
             if (body.valor_mensal_centavos)
-              versao.set(
-                'valor_mensal_centavos',
-                Number(body.valor_mensal_centavos),
-              )
+              versao.set('valor_mensal_centavos', Number(body.valor_mensal_centavos))
             versao.set('creation_idempotency_key', body.command_idempotency_key)
             versao.set('leitura_estado', 'nao_rastreavel')
             tx.save(versao)
@@ -521,10 +480,7 @@
               aprovada = eventos.some(function (x) {
                 return x.tipo === 'aprovada'
               })
-            if (
-              body.tipo === 'aprovar' &&
-              versao.getString('estado') !== 'rascunho'
-            )
+            if (body.tipo === 'aprovar' && versao.getString('estado') !== 'rascunho')
               throw new Error('TRANSICAO_INVALIDA')
             if (body.tipo === 'emitir') {
               if (versao.getString('estado') !== 'rascunho' || !aprovada)
@@ -538,24 +494,18 @@
             }
             if (
               body.tipo === 'visualizar' &&
-              ['enviada', 'aceita', 'recusada'].indexOf(
-                versao.getString('estado'),
-              ) < 0
+              ['enviada', 'aceita', 'recusada'].indexOf(versao.getString('estado')) < 0
             )
               throw new Error('EMISSAO_OBRIGATORIA')
             if (body.tipo === 'decidir') {
-              if (versao.getString('estado') !== 'enviada')
-                throw new Error('EMISSAO_OBRIGATORIA')
+              if (versao.getString('estado') !== 'enviada') throw new Error('EMISSAO_OBRIGATORIA')
               versao.set('estado', body.decisao)
               versao.set('decisao_em', new Date())
               versao.set(
                 'tipo_evidencia_decisao',
                 body.tipo_evidencia_decisao || 'equivalente_formal',
               )
-              versao.set(
-                'evidencia_decisao',
-                String(body.evidencia_decisao).trim(),
-              )
+              versao.set('evidencia_decisao', String(body.evidencia_decisao).trim())
               tx.save(versao)
             }
           }
@@ -609,10 +559,8 @@
       } catch (err) {
         erro = String(err)
       }
-      if (erro.indexOf('STALE_WRITE') >= 0)
-        return e.json(409, { error: 'STALE_WRITE' })
-      if (erro.indexOf('FORBIDDEN') >= 0)
-        return e.json(403, { error: 'FORBIDDEN' })
+      if (erro.indexOf('STALE_WRITE') >= 0) return e.json(409, { error: 'STALE_WRITE' })
+      if (erro.indexOf('FORBIDDEN') >= 0) return e.json(403, { error: 'FORBIDDEN' })
       if (erro.indexOf('APROVACAO_OBRIGATORIA') >= 0)
         return e.json(409, { error: 'APROVACAO_OBRIGATORIA' })
       if (erro.indexOf('EMISSAO_OBRIGATORIA') >= 0)
