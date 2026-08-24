@@ -146,6 +146,8 @@ const checks = [
       reconciliationHook.includes(
         "'&filters[dealId]=' + encodeURIComponent(String(deals[sdi].id))",
       ) &&
+      reconciliationHook.includes('initialCompanyByContact[selectedContactId] = selectedAccountId') &&
+      reconciliationHook.includes('initialCompanyByContact[String(contacts[c].id)]') &&
       reconciliationHook.includes("customFields['Responsável']"),
   ],
   [
