@@ -2,6 +2,7 @@ import pb from '@/lib/pocketbase/client'
 
 export interface QualificacaoPendente {
   id: string
+  external_id: string | null
   titulo: string
   descricao: string | null
   origem_canal: string | null

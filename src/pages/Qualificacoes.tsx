@@ -131,11 +131,16 @@ export default function Qualificacoes() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle className="text-base">{item.titulo}</CardTitle>
+                    {item.external_id && (
+                      <p className="mt-1 text-xs font-medium text-muted-foreground">
+                        Negócio AC #{item.external_id}
+                      </p>
+                    )}
                     <CardDescription>
                       {item.empresa?.nome ?? 'Empresa não informada'}
                     </CardDescription>
                   </div>
-                  <Badge variant="secondary">Pendente</Badge>
+                  <Badge variant="secondary">Qualificação pendente</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

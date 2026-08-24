@@ -1,4 +1,5 @@
 export interface CommercialContext {
+  external_id: string | null
   empresa: { id: string; nome: string | null } | null
   contato: {
     id: string
@@ -50,7 +51,7 @@ export const formatMoney = (cents: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100)
 
 export interface ContextualItem {
-  negocio: { titulo: string }
+  negocio: { titulo: string; data_periodo?: string | null }
   contexto: CommercialContext
 }
 
@@ -60,6 +61,8 @@ export const filterAndSortCommercial = <T extends ContextualItem>(
   owner: string,
   status: string,
   sort: CommercialSort,
+  periodStart = '',
+  periodEnd = '',
 ) => {
   const term = search.trim().toLocaleLowerCase('pt-BR')
   return items
@@ -69,10 +72,14 @@ export const filterAndSortCommercial = <T extends ContextualItem>(
         .filter(Boolean)
         .join(' ')
         .toLocaleLowerCase('pt-BR')
+      const periodDate = validDate(item.negocio.data_periodo || c.crm_created_at)
+      const dateKey = periodDate?.toISOString().slice(0, 10) || ''
       return (
         (!term || haystack.includes(term)) &&
         (!owner || c.responsavel?.id === owner) &&
-        (!status || actionStatus(c.proxima_acao_em) === status)
+        (!status || actionStatus(c.proxima_acao_em) === status) &&
+        (!periodStart || (dateKey && dateKey >= periodStart)) &&
+        (!periodEnd || (dateKey && dateKey <= periodEnd))
       )
     })
     .sort((a, b) => {

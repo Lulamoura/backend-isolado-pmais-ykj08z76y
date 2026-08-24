@@ -170,15 +170,21 @@ const checks = [
       !reconciliationHook.includes("external_type='owner'"),
   ],
   [
-    'negócios AC usam etapa durante negociação e resultado no fechamento',
+    'negócios AC usam etapa durante negociação e distinguem desqualificação de perda',
     webhook.includes("dealStatus === '0'") &&
-      webhook.includes("target.set('resultado', dealStatus === '1' ? 'ganho' : 'perdido')") &&
+    webhook.includes("isProspect ? 'desqualificado' : 'perdido'") &&
       reconciliationHook.includes("dealStatus === '0'") &&
-      reconciliationHook.includes(
-        "target.set('resultado', dealStatus === '1' ? 'ganho' : 'perdido')",
-      ) &&
+      reconciliationHook.includes("? 'desqualificado'") &&
       !webhook.includes("target.set(\n            'status'") &&
       !reconciliationHook.includes("target.set('status', 'aberto')"),
+  ],
+  [
+    'prospect após o corte aceita ausência de responsável sem importar estoque histórico',
+    webhook.includes("var isProspect = String(event.data.stage || '') === 'prospects'") &&
+      webhook.includes('(!isProspect && !links.owner_code)') &&
+      reconciliationHook.includes('2026-08-24T03:00:00.000Z') &&
+      reconciliationHook.includes("canonicalStage === 'prospects'") &&
+      reconciliationHook.includes('(!eventIsProspect && !ev.links.owner_code)'),
   ],
   [
     'controles possuem materialização runtime idempotente e autenticada',

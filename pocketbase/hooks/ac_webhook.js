@@ -185,7 +185,8 @@ routerAdd(
           }
         } else {
           var links = event.links || {}
-          if (!links.company_id || !links.contact_id || !links.owner_code)
+          var isProspect = String(event.data.stage || '') === 'prospects'
+          if (!links.company_id || !links.contact_id || (!isProspect && !links.owner_code))
             throw new Error('VINCULOS_OBRIGATORIOS_AUSENTES')
           var company = tx.findFirstRecordByFilter(
             'com_vinculos_externos',
@@ -199,12 +200,14 @@ routerAdd(
               links.contact_id +
               "'",
           )
-          var owner = tx.findFirstRecordByFilter(
-            'com_vinculos_externos',
-            "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
-              links.owner_code +
-              "'",
-          )
+          var owner = null
+          if (links.owner_code)
+            owner = tx.findFirstRecordByFilter(
+              'com_vinculos_externos',
+              "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
+                links.owner_code +
+                "'",
+            )
           var dealStatus = String(event.data.status)
           if (dealStatus !== '0' && dealStatus !== '1' && dealStatus !== '2')
             throw new Error('STATUS_AC_INVALIDO')
@@ -226,7 +229,7 @@ routerAdd(
           target.set('titulo', clean(event.data.title, 300) || 'Negocio importado')
           target.set('empresa_id', company.getString('record_id'))
           target.set('contato_principal_id', contact.getString('record_id'))
-          target.set('responsavel_id', owner.getString('record_id'))
+          target.set('responsavel_id', owner ? owner.getString('record_id') : '')
           target.set('valor', Math.round(Number(event.data.value_cents || 0)))
           if (dealStatus === '0') {
             var alias = tx.findFirstRecordByFilter(
@@ -238,9 +241,14 @@ routerAdd(
               .getString('codigo')
             target.set('etapa', canonicalStage)
             target.set('resultado', '')
+            target.set('qualificacao', canonicalStage === 'prospects' ? 'pendente' : 'qualificada')
           } else {
             target.set('etapa', '')
-            target.set('resultado', dealStatus === '1' ? 'ganho' : 'perdido')
+            target.set(
+              'resultado',
+              dealStatus === '1' ? 'ganho' : isProspect ? 'desqualificado' : 'perdido',
+            )
+            if (isProspect) target.set('qualificacao', 'desqualificada')
           }
           target.set('origem_canal', 'activecampaign')
           target.set('crm_created_at', event.data.crm_created_at || '')

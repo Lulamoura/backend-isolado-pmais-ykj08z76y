@@ -16,6 +16,7 @@ export interface ItemFechamento {
     resultado: string | null
     responsavel_id: string | null
     updated: string
+    data_periodo: string | null
   }
   proposta_emitida: boolean
   proposta_aceita: boolean

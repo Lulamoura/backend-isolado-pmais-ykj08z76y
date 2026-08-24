@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ClipboardCheck, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -29,6 +29,10 @@ export default function OrdensExecucao() {
   const [numero, setNumero] = useState<Record<string, string>>({})
   const [dataEnvio, setDataEnvio] = useState<Record<string, string>>({})
   const [responsavel, setResponsavel] = useState<Record<string, string>>({})
+  const hoje = new Date().toISOString().slice(0, 10)
+  const inicioPadrao = new Date(Date.now() - 89 * 86_400_000).toISOString().slice(0, 10)
+  const [periodoInicio, setPeriodoInicio] = useState(inicioPadrao)
+  const [periodoFim, setPeriodoFim] = useState(hoje)
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -43,6 +47,14 @@ export default function OrdensExecucao() {
     }
   }, [])
   useEffect(() => void carregar(), [carregar])
+  const itensVisiveis = useMemo(
+    () =>
+      itens.filter((item) => {
+        const data = item.negocio.data_periodo?.slice(0, 10) || ''
+        return (!periodoInicio || data >= periodoInicio) && (!periodoFim || data <= periodoFim)
+      }),
+    [itens, periodoInicio, periodoFim],
+  )
 
   const registrar = async (item: ItemOE) => {
     try {
@@ -73,8 +85,24 @@ export default function OrdensExecucao() {
           <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
         </Button>
       </div>
+      <div className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-2">
+        <Input
+          type="date"
+          aria-label="Período inicial"
+          value={periodoInicio}
+          max={periodoFim}
+          onChange={(e) => setPeriodoInicio(e.target.value)}
+        />
+        <Input
+          type="date"
+          aria-label="Período final"
+          value={periodoFim}
+          min={periodoInicio}
+          onChange={(e) => setPeriodoFim(e.target.value)}
+        />
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
-        {itens.map((item) => {
+        {itensVisiveis.map((item) => {
           const concluida = item.estado_operacional === 'em_processo_de_entrega'
           return (
             <Card key={item.negocio.id}>
@@ -82,6 +110,11 @@ export default function OrdensExecucao() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle className="text-base">{item.negocio.titulo}</CardTitle>
+                    {item.negocio.external_id && (
+                      <p className="mt-1 text-xs font-medium text-muted-foreground">
+                        Negócio AC #{item.negocio.external_id}
+                      </p>
+                    )}
                     <CardDescription>Negócio ganho</CardDescription>
                   </div>
                   <Badge variant={concluida ? 'default' : 'secondary'}>

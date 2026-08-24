@@ -32,8 +32,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 const RECIFE_TIME_ZONE = 'America/Recife'
+const LOSS_COLORS = ['#1d4ed8', '#0f766e', '#b45309', '#be123c', '#6d28d9', '#475569']
 
 function configuredDefaultPeriodDays(): number {
   const configured = Number(import.meta.env.VITE_DASHBOARD_DEFAULT_PERIOD_DAYS ?? 90)
@@ -232,6 +234,7 @@ export default function Index() {
   }
 
   const resumo = data?.resumo
+  const perdasPorMotivo = resumo?.perdas_por_motivo ?? []
 
   return (
     <main className="container mx-auto max-w-7xl space-y-5 px-4 py-5 animate-fade-in sm:py-6">
@@ -447,6 +450,12 @@ export default function Index() {
             icon={Target}
           />
           <MetricCard
+            title="Conversão qualitativa"
+            value={formatPercent(resumo.conversoes.qualitativa_percentual ?? null)}
+            detail={`${formatCurrency(resumo.valores.ganho_centavos)} ganhos de ${formatCurrency(resumo.conversoes.decisoes_valor_centavos ?? 0)} em decisões`}
+            icon={CircleDollarSign}
+          />
+          <MetricCard
             title="Taxa de qualificação"
             value={formatPercent(resumo.conversoes.qualificacao_percentual)}
             detail={`${resumo.qualificacao.qualificadas} qualificados`}
@@ -547,6 +556,85 @@ export default function Index() {
               ]}
             />
           </div>
+
+          <Card aria-label="Motivos das perdas comerciais">
+            <CardHeader className="space-y-1 pb-3">
+              <CardTitle className="text-base text-slate-900">
+                Motivos das perdas comerciais
+              </CardTitle>
+              <p className="text-xs text-slate-500">
+                Propostas perdidas no período, sem misturar desqualificações.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {perdasPorMotivo.length === 0 ? (
+                <p className="py-12 text-center text-sm text-slate-500">
+                  Nenhuma proposta perdida no período selecionado.
+                </p>
+              ) : (
+                <div className="grid gap-5 lg:grid-cols-[minmax(18rem,0.8fr)_minmax(20rem,1.2fr)] lg:items-center">
+                  <div className="h-72" aria-label="Gráfico de distribuição dos motivos de perda">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={perdasPorMotivo}
+                          dataKey="quantidade"
+                          nameKey="motivo"
+                          innerRadius={62}
+                          outerRadius={102}
+                          paddingAngle={2}
+                        >
+                          {perdasPorMotivo.map((item, index) => (
+                            <Cell
+                              key={item.motivo}
+                              fill={LOSS_COLORS[index % LOSS_COLORS.length]}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number | string | undefined) => [
+                            `${Number(value ?? 0)} negócio(s)`,
+                            'Quantidade',
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ul className="space-y-2">
+                    {perdasPorMotivo.map((item, index) => {
+                      const total = perdasPorMotivo.reduce((sum, loss) => sum + loss.quantidade, 0)
+                      const percentual = total ? (item.quantidade / total) * 100 : 0
+                      return (
+                        <li
+                          key={item.motivo}
+                          className="flex items-center justify-between gap-4 rounded-lg border p-3"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span
+                              className="h-3 w-3 shrink-0 rounded-full"
+                              style={{ backgroundColor: LOSS_COLORS[index % LOSS_COLORS.length] }}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate text-sm font-medium text-slate-800">
+                              {item.motivo}
+                            </span>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-semibold text-slate-950">
+                              {item.quantidade} · {formatPercent(percentual)}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {formatCurrency(item.valor_centavos)}
+                            </p>
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </section>
       ) : null}
 

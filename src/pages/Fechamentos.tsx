@@ -47,6 +47,8 @@ export default function Fechamentos() {
   const [responsavel, setResponsavel] = useState('')
   const [situacaoAcao, setSituacaoAcao] = useState('')
   const [ordenacao, setOrdenacao] = useState<CommercialSort>('proxima_acao')
+  const [periodoInicio, setPeriodoInicio] = useState('')
+  const [periodoFim, setPeriodoFim] = useState('')
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -60,8 +62,17 @@ export default function Fechamentos() {
   }, [])
   useEffect(() => void carregar(), [carregar])
   const itensVisiveis = useMemo(
-    () => filterAndSortCommercial(itens, busca, responsavel, situacaoAcao, ordenacao),
-    [itens, busca, responsavel, situacaoAcao, ordenacao],
+    () =>
+      filterAndSortCommercial(
+        itens,
+        busca,
+        responsavel,
+        situacaoAcao,
+        ordenacao,
+        periodoInicio,
+        periodoFim,
+      ),
+    [itens, busca, responsavel, situacaoAcao, ordenacao, periodoInicio, periodoFim],
   )
 
   const ganhar = async (item: ItemFechamento) => {
@@ -135,6 +146,10 @@ export default function Fechamentos() {
         onOwner={setResponsavel}
         onStatus={setSituacaoAcao}
         onSort={setOrdenacao}
+        periodStart={periodoInicio}
+        periodEnd={periodoFim}
+        onPeriodStart={setPeriodoInicio}
+        onPeriodEnd={setPeriodoFim}
       />
       <div className="grid gap-4 md:grid-cols-2">
         {itensVisiveis.map((item) => {

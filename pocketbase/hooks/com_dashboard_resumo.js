@@ -101,6 +101,8 @@ routerAdd(
         },
         conversoes: {
           global_percentual: null,
+          qualitativa_percentual: null,
+          decisoes_valor_centavos: 0,
           qualificacao_percentual: null,
           propostas_percentual: null,
           propostas_status: 'indisponivel_sem_evento_comprovado',
@@ -115,8 +117,10 @@ routerAdd(
             status: 'indisponivel_no_modelo_canonico_atual',
           },
         },
+        perdas_por_motivo: [],
       }
       var ganhosPrecificados = 0
+      var perdasPorMotivo = {}
       for (var i = 0; i < items.length; i++) {
         var n = items[i]
         out.total++
@@ -125,6 +129,17 @@ routerAdd(
         else if (situacao === 'perdido') out.situacao.perdidos++
         else if (situacao === 'desqualificado') out.situacao.desqualificados++
         else out.situacao.abertos++
+        var motivoPerda = ''
+        if (situacao === 'perdido') {
+          motivoPerda = String(n.fechamento_motivo || '').trim() || 'Não informado'
+          if (!perdasPorMotivo[motivoPerda])
+            perdasPorMotivo[motivoPerda] = {
+              motivo: motivoPerda,
+              quantidade: 0,
+              valor_centavos: 0,
+            }
+          perdasPorMotivo[motivoPerda].quantidade++
+        }
 
         if (n.qualificacao === 'qualificada') out.qualificacao.qualificadas++
         else if (n.qualificacao === 'desqualificada') out.qualificacao.desqualificadas++
@@ -142,7 +157,10 @@ routerAdd(
             out.valores.ganho_centavos += valor
             ganhosPrecificados++
           }
-          if (situacao === 'perdido') out.valores.perdido_centavos += valor
+          if (situacao === 'perdido') {
+            out.valores.perdido_centavos += valor
+            perdasPorMotivo[motivoPerda].valor_centavos += valor
+          }
         }
 
         if (n.origem_canal) out.cobertura.origem.preenchidos++
@@ -166,10 +184,23 @@ routerAdd(
         out.situacao.ganhos,
         out.situacao.ganhos + out.situacao.perdidos + out.situacao.desqualificados,
       )
+      out.conversoes.decisoes_valor_centavos =
+        out.valores.ganho_centavos + out.valores.perdido_centavos
+      out.conversoes.qualitativa_percentual = percentual(
+        out.valores.ganho_centavos,
+        out.conversoes.decisoes_valor_centavos,
+      )
       out.conversoes.qualificacao_percentual = percentual(
         out.qualificacao.qualificadas,
         out.qualificacao.qualificadas + out.qualificacao.desqualificadas,
       )
+      out.perdas_por_motivo = Object.keys(perdasPorMotivo)
+        .map(function (key) {
+          return perdasPorMotivo[key]
+        })
+        .sort(function (a, b) {
+          return b.quantidade - a.quantidade
+        })
       return out
     }
 
@@ -273,6 +304,7 @@ routerAdd(
           qualificacao: batch[ri].getString('qualificacao'),
           origem_canal: batch[ri].getString('origem_canal'),
           responsavel_id: batch[ri].getString('responsavel_id'),
+          fechamento_motivo: batch[ri].getString('fechamento_motivo'),
         })
       }
       if (batch.length < batchSize) break
