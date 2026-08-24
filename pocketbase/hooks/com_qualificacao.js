@@ -27,12 +27,13 @@ routerAdd(
       if (perfilId) perfil = $app.findRecordById('com_perfis', perfilId).getString('slug')
     } catch (_) {}
     if (perfil === 'negociacao-propria') return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
-    var filtro = "qualificacao = 'pendente' && inativo = false"
+    var filtro =
+      "qualificacao = 'pendente' && etapa = 'prospects' && inativo = false && crm_created_at >= '2026-08-24 03:00:00.000Z'"
     if (perfil !== 'superadministrador') {
       var equipeId = ator.getString('equipe_id')
       filtro += equipeId
-        ? " && (responsavel_id = '" + ator.id + "' || equipe_id = '" + equipeId + "')"
-        : " && responsavel_id = '" + ator.id + "'"
+        ? " && (responsavel_id = '' || responsavel_id = '" + ator.id + "' || equipe_id = '" + equipeId + "')"
+        : " && (responsavel_id = '' || responsavel_id = '" + ator.id + "')"
     }
 
     var registros = $app.findRecordsByFilter(
@@ -57,8 +58,18 @@ routerAdd(
         var ur = $app.findRecordById('users', r.getString('responsavel_id'))
         responsavel = { id: ur.id, nome: ur.getString('name') || ur.getString('email') }
       } catch (_) {}
+      var externalId = null
+      try {
+        externalId = $app
+          .findFirstRecordByFilter(
+            'com_vinculos_externos',
+            "sistema_origem='activecampaign' && external_type='business' && record_id='" + r.id + "'",
+          )
+          .getString('external_id')
+      } catch (_) {}
       itens.push({
         id: r.id,
+        external_id: externalId,
         titulo: r.getString('titulo'),
         descricao: r.getString('descricao') || null,
         origem_canal: r.getString('origem_canal') || null,
@@ -98,6 +109,12 @@ routerAdd(
     }
     function podeAcessar(ator, perfil, negocio) {
       if (perfil === 'superadministrador') return true
+      if (
+        negocio.getString('etapa') === 'prospects' &&
+        !negocio.getString('responsavel_id') &&
+        negocio.getString('crm_created_at') >= '2026-08-24 03:00:00.000Z'
+      )
+        return perfil !== 'negociacao-propria'
       if (negocio.getString('responsavel_id') === ator.id) return true
       var equipe = ator.getString('equipe_id')
       return !!equipe && negocio.getString('equipe_id') === equipe

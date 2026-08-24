@@ -41,6 +41,8 @@ const dashboardResponse = {
     },
     conversoes: {
       global_percentual: 50,
+      qualitativa_percentual: 66.67,
+      decisoes_valor_centavos: 150000,
       qualificacao_percentual: 80,
       propostas_percentual: null,
       propostas_status: 'indisponivel_sem_evento_comprovado',
@@ -55,6 +57,7 @@ const dashboardResponse = {
         status: 'indisponivel_no_modelo_canonico_atual',
       },
     },
+    perdas_por_motivo: [{ motivo: 'Preço', quantidade: 1, valor_centavos: 50000 }],
   },
   avisos: ['Conversão de propostas permanece indisponível.'],
 }
@@ -93,8 +96,17 @@ describe('Dashboard V1', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('R$ 2.000,00')).toBeInTheDocument()
     expect(screen.getByText('50%')).toBeInTheDocument()
+    expect(screen.getByText('66,67%')).toBeInTheDocument()
     expect(screen.getByText('71,43%')).toBeInTheDocument()
     expect(screen.queryByText('Conversão de propostas', { exact: true })).not.toBeInTheDocument()
+  })
+
+  it('mostra os motivos das perdas sem misturar desqualificações', () => {
+    render(<Index />)
+
+    const perdas = screen.getByLabelText('Motivos das perdas comerciais')
+    expect(within(perdas).getByText('Preço')).toBeInTheDocument()
+    expect(within(perdas).getByText('R$ 500,00')).toBeInTheDocument()
   })
 
   it('aplica período personalizado somente após submissão', () => {

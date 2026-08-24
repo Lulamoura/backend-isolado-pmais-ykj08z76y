@@ -43,6 +43,17 @@
       for (var i = 0; i < negocios.length; i++) {
         var negocio = negocios[i]
         if (!oePodeAcessar(ator, perfil, negocio)) continue
+        var externalId = null
+        try {
+          externalId = $app
+            .findFirstRecordByFilter(
+              'com_vinculos_externos',
+              "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+                negocio.id +
+                "'",
+            )
+            .getString('external_id')
+        } catch (_) {}
         var responsavelEnvio = null
         try {
           var usuario = $app.findRecordById('users', negocio.getString('oe_responsavel_envio_id'))
@@ -55,6 +66,11 @@
             responsavel_id: negocio.getString('responsavel_id') || null,
             equipe_id: negocio.getString('equipe_id') || null,
             updated: negocio.getString('updated'),
+            external_id: externalId,
+            data_periodo:
+              negocio.getString('oe_data_envio') ||
+              negocio.getString('fechamento_data') ||
+              negocio.getString('updated'),
           },
           estado_operacional: oeEstado(negocio),
           oe: negocio.getString('oe_numero')

@@ -30,6 +30,8 @@ export default function Propostas() {
   const [responsavel, setResponsavel] = useState('')
   const [situacaoAcao, setSituacaoAcao] = useState('')
   const [ordenacao, setOrdenacao] = useState<CommercialSort>('proxima_acao')
+  const [periodoInicio, setPeriodoInicio] = useState('')
+  const [periodoFim, setPeriodoFim] = useState('')
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
@@ -42,8 +44,17 @@ export default function Propostas() {
   }, [])
   useEffect(() => void carregar(), [carregar])
   const itensVisiveis = useMemo(
-    () => filterAndSortCommercial(itens, busca, responsavel, situacaoAcao, ordenacao),
-    [itens, busca, responsavel, situacaoAcao, ordenacao],
+    () =>
+      filterAndSortCommercial(
+        itens,
+        busca,
+        responsavel,
+        situacaoAcao,
+        ordenacao,
+        periodoInicio,
+        periodoFim,
+      ),
+    [itens, busca, responsavel, situacaoAcao, ordenacao, periodoInicio, periodoFim],
   )
   const executar = async (item: ItemProposta, tipo: EventoProposta) => {
     const p = item.proposta,
@@ -100,6 +111,10 @@ export default function Propostas() {
         onOwner={setResponsavel}
         onStatus={setSituacaoAcao}
         onSort={setOrdenacao}
+        periodStart={periodoInicio}
+        periodEnd={periodoFim}
+        onPeriodStart={setPeriodoInicio}
+        onPeriodEnd={setPeriodoFim}
       />
       <div className="grid gap-4 md:grid-cols-2">
         {itensVisiveis.map((item) => {
@@ -111,10 +126,15 @@ export default function Propostas() {
                   <div>
                     <CardTitle className="text-base">{item.negocio.titulo}</CardTitle>
                     <CardDescription>
-                      {p?.identificador ?? 'Sem proposta preparada'}
+                      {p?.identificador ?? 'Proposta originada no CRM'}
                     </CardDescription>
                   </div>
-                  <Badge variant="secondary">{p?.estado ?? 'Proposta ainda não criada'}</Badge>
+                  <Badge variant="secondary">
+                    {p?.estado ??
+                      (item.negocio.etapa === 'negociacao'
+                        ? 'Proposta em negociação'
+                        : 'Proposta em produção')}
+                  </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

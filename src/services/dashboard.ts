@@ -34,6 +34,8 @@ export interface DashboardResumo {
   }
   conversoes: {
     global_percentual: number | null
+    qualitativa_percentual: number | null
+    decisoes_valor_centavos: number
     qualificacao_percentual: number | null
     propostas_percentual: number | null
     propostas_status: string
@@ -43,6 +45,7 @@ export interface DashboardResumo {
     responsavel: DashboardCobertura
     modalidade: DashboardCobertura & { status: string }
   }
+  perdas_por_motivo: Array<{ motivo: string; quantidade: number; valor_centavos: number }>
 }
 
 export interface DashboardCobertura {

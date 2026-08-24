@@ -18,6 +18,10 @@ export function CommercialFilters({
   onOwner,
   onStatus,
   onSort,
+  periodStart,
+  periodEnd,
+  onPeriodStart,
+  onPeriodEnd,
 }: {
   contexts: CommercialContext[]
   search: string
@@ -28,6 +32,10 @@ export function CommercialFilters({
   onOwner: (value: string) => void
   onStatus: (value: string) => void
   onSort: (value: CommercialSort) => void
+  periodStart: string
+  periodEnd: string
+  onPeriodStart: (value: string) => void
+  onPeriodEnd: (value: string) => void
 }) {
   const owners = Array.from(
     new Map(
@@ -35,7 +43,7 @@ export function CommercialFilters({
     ).values(),
   ).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'))
   return (
-    <div className="grid gap-3 rounded-lg border bg-card p-4 md:grid-cols-4">
+    <div className="grid gap-3 rounded-lg border bg-card p-4 md:grid-cols-3 xl:grid-cols-6">
       <Input
         value={search}
         onChange={(e) => onSearch(e.target.value)}
@@ -77,6 +85,20 @@ export function CommercialFilters({
           <SelectItem value="atualizado">Atualizado recentemente</SelectItem>
         </SelectContent>
       </Select>
+      <Input
+        type="date"
+        aria-label="Período inicial"
+        value={periodStart}
+        max={periodEnd || undefined}
+        onChange={(e) => onPeriodStart(e.target.value)}
+      />
+      <Input
+        type="date"
+        aria-label="Período final"
+        value={periodEnd}
+        min={periodStart || undefined}
+        onChange={(e) => onPeriodEnd(e.target.value)}
+      />
     </div>
   )
 }

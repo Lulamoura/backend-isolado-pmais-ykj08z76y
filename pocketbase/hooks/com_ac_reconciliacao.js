@@ -300,6 +300,12 @@ routerAdd(
         )
       for (var d = 0; d < deals.length; d++) {
         var customFields = customByDeal[String(deals[d].id)] || {}
+        var dealStage = stageCanonicalById[String(deals[d].stage)] || String(deals[d].stage || '')
+        if (
+          dealStage === 'prospects' &&
+          (!deals[d].cdate || Date.parse(deals[d].cdate) < Date.parse('2026-08-24T03:00:00.000Z'))
+        )
+          continue
         add(
           'business',
           deals[d].id,
@@ -307,7 +313,7 @@ routerAdd(
           {
             title: deals[d].title || '',
             value_cents: Number(deals[d].value || 0),
-            stage: stageCanonicalById[String(deals[d].stage)] || String(deals[d].stage || ''),
+            stage: dealStage,
             status: String(deals[d].status || '0'),
             modality: customFields['Modalidade'] || '',
             next_action_at: customFields['Data de Ação'] || deals[d].nextdate || '',
@@ -393,7 +399,9 @@ routerAdd(
         }
       }
       if (ev.entity_type === 'business') {
-        if (!ev.links.company_id || !ev.links.contact_id || !ev.links.owner_code) kind = 'error'
+        var eventIsProspect = String(ev.data.stage || '') === 'prospects'
+        if (!ev.links.company_id || !ev.links.contact_id || (!eventIsProspect && !ev.links.owner_code))
+          kind = 'error'
         try {
           if (!incomingCompanies[ev.links.company_id])
             $app.findFirstRecordByFilter(
@@ -409,12 +417,13 @@ routerAdd(
                 ev.links.contact_id +
                 "'",
             )
-          $app.findFirstRecordByFilter(
-            'com_vinculos_externos',
-            "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
-              ev.links.owner_code +
-              "'",
-          )
+          if (ev.links.owner_code)
+            $app.findFirstRecordByFilter(
+              'com_vinculos_externos',
+              "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
+                ev.links.owner_code +
+                "'",
+            )
           $app.findFirstRecordByFilter(
             'com_alias_dimensoes',
             "dimensao='etapa' && valor_original='" + ev.data.stage + "'",
@@ -690,19 +699,21 @@ routerAdd(
                 ev.links.contact_id +
                 "'",
             )
-            var owner = tx.findFirstRecordByFilter(
-              'com_vinculos_externos',
-              "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
-                ev.links.owner_code +
-                "'",
-            )
+            var owner = null
+            if (ev.links.owner_code)
+              owner = tx.findFirstRecordByFilter(
+                'com_vinculos_externos',
+                "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
+                  ev.links.owner_code +
+                  "'",
+              )
             var dealStatus = String(ev.data.status)
             if (dealStatus !== '0' && dealStatus !== '1' && dealStatus !== '2')
               throw new Error('STATUS_AC_INVALIDO')
             target.set('titulo', ev.data.title || 'Negocio importado')
             target.set('empresa_id', company.getString('record_id'))
             target.set('contato_principal_id', contact.getString('record_id'))
-            target.set('responsavel_id', owner.getString('record_id'))
+            target.set('responsavel_id', owner ? owner.getString('record_id') : '')
             target.set('valor', Math.round(Number(ev.data.value_cents || 0)))
             target.set('origem_canal', 'activecampaign')
             target.set('crm_created_at', ev.data.crm_created_at || '')
@@ -730,9 +741,19 @@ routerAdd(
                 .getString('codigo')
               target.set('etapa', canonicalStage)
               target.set('resultado', '')
+              target.set('qualificacao', canonicalStage === 'prospects' ? 'pendente' : 'qualificada')
             } else {
               target.set('etapa', '')
-              target.set('resultado', dealStatus === '1' ? 'ganho' : 'perdido')
+              target.set(
+                'resultado',
+                dealStatus === '1'
+                  ? 'ganho'
+                  : String(ev.data.stage || '') === 'prospects'
+                    ? 'desqualificado'
+                    : 'perdido',
+              )
+              if (String(ev.data.stage || '') === 'prospects')
+                target.set('qualificacao', 'desqualificada')
             }
             target.set('inativo', ev.action === 'archive')
             if (ev.data.modality) {

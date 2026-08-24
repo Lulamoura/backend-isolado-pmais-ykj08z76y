@@ -30,6 +30,11 @@ export function CommercialContextCard({
   ].filter(Boolean)
   return (
     <div className="space-y-3 text-sm">
+      {contexto.external_id && (
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Negócio AC #{contexto.external_id}
+        </p>
+      )}
       <div className="grid gap-2 sm:grid-cols-2">
         <p className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />

@@ -12,6 +12,8 @@ export interface ItemOE {
     responsavel_id: string | null
     equipe_id: string | null
     updated: string
+    external_id: string | null
+    data_periodo: string | null
   }
   estado_operacional: 'aguardando_oe' | 'em_processo_de_entrega'
   oe: null | {

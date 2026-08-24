@@ -46,6 +46,17 @@
           }
         }
         var somenteLeitura = false
+        var externalId = null
+        try {
+          externalId = $app
+            .findFirstRecordByFilter(
+              'com_vinculos_externos',
+              "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+                negocio.id +
+                "'",
+            )
+            .getString('external_id')
+        } catch (_) {}
         try {
           var parametro = $app.findFirstRecordByData(
             'com_parametros',
@@ -55,6 +66,7 @@
           somenteLeitura = parametro.getBool('ativo') && parametro.getString('valor') === 'true'
         } catch (_) {}
         return {
+          external_id: externalId,
           empresa: relacionado('com_empresas', negocio.getString('empresa_id'), ['nome']),
           contato: relacionado('com_contatos', negocio.getString('contato_principal_id'), [
             'nome',
@@ -129,6 +141,8 @@
                 tentativas[tentativas.length - 1].getString('realizada_em'),
               )
             : 0
+        if (!n.getString('resultado') && !emitida) continue
+        if (n.getString('resultado') === 'desqualificado') continue
         itens.push({
           negocio: {
             id: n.id,
@@ -137,6 +151,8 @@
             resultado: n.getString('resultado') || null,
             responsavel_id: n.getString('responsavel_id') || null,
             updated: n.getString('updated'),
+            data_periodo:
+              n.getString('fechamento_data') || n.getString('crm_updated_at') || n.getString('updated'),
           },
           proposta_emitida: emitida,
           proposta_aceita: aceita,

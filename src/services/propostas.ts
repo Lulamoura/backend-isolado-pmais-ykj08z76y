@@ -3,7 +3,13 @@ import type { CommercialContext } from '@/lib/commercial-context'
 
 export type EventoProposta = 'preparar' | 'aprovar' | 'emitir' | 'visualizar' | 'decidir'
 export interface ItemProposta {
-  negocio: { id: string; titulo: string; etapa: string; updated: string }
+  negocio: {
+    id: string
+    titulo: string
+    etapa: string
+    updated: string
+    data_periodo: string | null
+  }
   contexto: CommercialContext
   proposta: null | {
     id: string

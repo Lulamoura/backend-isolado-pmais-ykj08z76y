@@ -143,11 +143,23 @@
           } catch (_) { return null }
         }
         var somenteLeitura = false
+        var externalId = null
+        try {
+          externalId = app
+            .findFirstRecordByFilter(
+              'com_vinculos_externos',
+              "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+                negocio.id +
+                "'",
+            )
+            .getString('external_id')
+        } catch (_) {}
         try {
           var parametro = app.findFirstRecordByData('com_parametros', 'chave', 'ac_preoperation_read_only')
           somenteLeitura = parametro.getBool('ativo') && parametro.getString('valor') === 'true'
         } catch (_) {}
         return {
+          external_id: externalId,
           empresa: relacionado('com_empresas', negocio.getString('empresa_id'), ['nome']),
           contato: relacionado('com_contatos', negocio.getString('contato_principal_id'), ['nome', 'email', 'telefone']),
           responsavel: relacionado('users', negocio.getString('responsavel_id'), ['name']),
@@ -210,6 +222,7 @@
               titulo: n.getString('titulo'),
               etapa: n.getString('etapa'),
               updated: n.getString('updated'),
+              data_periodo: n.getString('crm_created_at') || n.getString('created'),
             },
             contexto: propostaContexto($app, n),
             proposta:

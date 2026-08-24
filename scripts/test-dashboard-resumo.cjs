@@ -161,6 +161,7 @@ var resumo = x.agregarNegocios([
     valor: 20001,
     origem_canal: 'evento',
     responsavel_id: 'u2',
+    fechamento_motivo: 'Preço',
   },
   {
     resultado: 'desqualificado',
@@ -198,6 +199,17 @@ assert('E11 calcula cobertura de responsável', resumo.cobertura.responsavel.per
 assert(
   'E12 marca modalidade indisponível',
   resumo.cobertura.modalidade.status === 'indisponivel_no_modelo_canonico_atual',
+)
+assert(
+  'E13 conversão qualitativa usa somente valor ganho sobre decisões comerciais',
+  resumo.conversoes.qualitativa_percentual === 33.33 &&
+    resumo.conversoes.decisoes_valor_centavos === 30002,
+)
+assert(
+  'E14 perdas por motivo não misturam desqualificações',
+  same(resumo.perdas_por_motivo, [
+    { motivo: 'Preço', quantidade: 1, valor_centavos: 20001 },
+  ]),
 )
 
 var filtro = x.comporFiltro(

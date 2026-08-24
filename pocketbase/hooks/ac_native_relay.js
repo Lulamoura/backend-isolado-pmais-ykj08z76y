@@ -182,8 +182,6 @@ routerAdd(
       return e.json(502, { error: 'CONSULTA_AC_FALHOU', detail: String(fetchError).slice(0, 120) })
     }
 
-    var ownerCode = clean(customByLabel['Responsável'], 120)
-    if (!ownerCode) return e.json(422, { error: 'RESPONSAVEL_COMERCIAL_AUSENTE' })
     var stageTitle = clean(stage.title, 120).toLowerCase()
     var canonicalStage = ''
     if (stageTitle === 'prospects') canonicalStage = 'prospects'
@@ -192,6 +190,20 @@ routerAdd(
     if (stageTitle === 'negociação') canonicalStage = 'negociacao'
     if (String(deal.status) === '0' && !canonicalStage)
       return e.json(422, { error: 'ETAPA_NAO_MAPEADA' })
+    var prospectCutoff = Date.parse('2026-08-24T03:00:00.000Z')
+    if (
+      canonicalStage === 'prospects' &&
+      (!deal.cdate || Date.parse(deal.cdate) < prospectCutoff)
+    )
+      return e.json(200, {
+        received: true,
+        ignored: true,
+        reason: 'PROSPECT_ANTERIOR_AO_CORTE',
+        deal_id: dealId,
+      })
+    var ownerCode = clean(customByLabel['Responsável'], 120)
+    if (canonicalStage !== 'prospects' && !ownerCode)
+      return e.json(422, { error: 'RESPONSAVEL_COMERCIAL_AUSENTE' })
 
     var correlation = 'ac-native-' + dealId + '-' + String(deal.mdate || deal.cdate || Date.now())
     correlation = correlation.replace(/[^a-zA-Z0-9._:-]/g, '-').slice(0, 120)
@@ -231,6 +243,7 @@ routerAdd(
         crm_updated_at: deal.mdate || deal.cdate || '',
         phase: customByLabel['Fase'] || '',
         source: customByLabel['Fonte de Prospecção'] || '',
+        prospect_cutoff_applied: canonicalStage === 'prospects',
       },
       {
         company_id: String(account.id),
