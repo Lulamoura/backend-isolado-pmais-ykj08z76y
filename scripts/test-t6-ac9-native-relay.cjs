@@ -35,6 +35,17 @@ const checks = [
     relay.includes("customByLabel['Responsável']") && relay.includes("customByLabel['Modalidade']"),
   ],
   [
+    'relay e reconciliação preservam contexto gerencial do CRM',
+    relay.includes('crm_created_at') &&
+      relay.includes("customByLabel['Fase']") &&
+      relay.includes("customByLabel['Fonte de Prospecção']") &&
+      reconciler.includes("customFields['Fase']") &&
+      reconciler.includes("customFields['Fonte de Prospecção']") &&
+      webhook.includes("target.set('proxima_acao_em'") &&
+      webhook.includes("target.set('fase_crm'") &&
+      reconciler.includes("target.set('fonte_prospeccao'"),
+  ],
+  [
     'webhook preserva o valor inteiro em centavos',
     webhook.includes("target.set('valor', Math.round(Number(event.data.value_cents || 0)))") &&
       !webhook.includes("target.set('valor', Number(event.data.value_cents || 0) / 100)"),

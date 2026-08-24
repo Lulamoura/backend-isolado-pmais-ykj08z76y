@@ -84,7 +84,10 @@ routerAdd(
       var sourceVersion = version(modified)
       events.push({
         schema_version: '1',
-        event_id: 'ac:' + entityType + ':' + entityId + ':' + sourceVersion,
+        context_revision: entityType === 'business' ? '2' : '1',
+        event_id:
+          'ac:' + entityType + ':' + entityId + ':' + sourceVersion +
+          (entityType === 'business' ? ':ctx2' : ''),
         source: 'activecampaign',
         entity_type: entityType,
         entity_id: String(entityId),
@@ -303,6 +306,10 @@ routerAdd(
             status: String(deals[d].status || '0'),
             modality: customFields['Modalidade'] || '',
             next_action_at: customFields['Data de Ação'] || deals[d].nextdate || '',
+            crm_created_at: deals[d].cdate || '',
+            crm_updated_at: deals[d].mdate || deals[d].cdate || '',
+            phase: customFields['Fase'] || '',
+            source: customFields['Fonte de Prospecção'] || '',
             initial_load_scope:
               requestedMode === 'initial_open_negotiation' ? 'open_negotiation' : '',
           },
@@ -371,7 +378,8 @@ routerAdd(
             if (String(ev.source_version) < String(previous.source_version || '')) kind = 'stale'
             else if (
               String(ev.source_version) === String(previous.source_version || '') &&
-              incomingHash !== previous.event_hash
+              incomingHash !== previous.event_hash &&
+              Number(ev.context_revision || 1) <= Number(previous.context_revision || 1)
             )
               kind = 'conflict'
           }
@@ -692,6 +700,11 @@ routerAdd(
             target.set('responsavel_id', owner.getString('record_id'))
             target.set('valor', Math.round(Number(ev.data.value_cents || 0)))
             target.set('origem_canal', 'activecampaign')
+            target.set('crm_created_at', ev.data.crm_created_at || '')
+            target.set('crm_updated_at', ev.data.crm_updated_at || '')
+            target.set('proxima_acao_em', ev.data.next_action_at || '')
+            target.set('fase_crm', String(ev.data.phase || '').trim().slice(0, 160))
+            target.set('fonte_prospeccao', String(ev.data.source || '').trim().slice(0, 200))
             if (dealStatus === '0') {
               var alias = tx.findFirstRecordByFilter(
                 'com_alias_dimensoes',
@@ -742,6 +755,7 @@ routerAdd(
             JSON.stringify({
               event_id: ev.event_id,
               source_version: ev.source_version,
+              context_revision: ev.context_revision || '1',
               event_hash: $security.sha256(JSON.stringify(ev)),
             }).slice(0, 4000),
           )
