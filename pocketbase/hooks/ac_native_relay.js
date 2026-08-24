@@ -240,6 +240,8 @@ routerAdd(
         crm_updated_at: deal.mdate || deal.cdate || '',
         phase: customByLabel['Fase'] || '',
         source: customByLabel['Fonte de Prospecção'] || '',
+        loss_reason: customByLabel['Motivo Perda'] || '',
+        closed_at: customByLabel['Data_Cancelamento'] || '',
         prospect_cutoff_applied: canonicalStage === 'prospects',
       },
       {

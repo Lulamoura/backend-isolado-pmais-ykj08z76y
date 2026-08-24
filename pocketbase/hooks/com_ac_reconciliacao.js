@@ -321,6 +321,8 @@ routerAdd(
             crm_updated_at: deals[d].mdate || deals[d].cdate || '',
             phase: customFields['Fase'] || '',
             source: customFields['Fonte de Prospecção'] || '',
+            loss_reason: customFields['Motivo Perda'] || '',
+            closed_at: customFields['Data_Cancelamento'] || '',
             initial_load_scope:
               requestedMode === 'initial_open_negotiation' ? 'open_negotiation' : '',
           },
@@ -516,6 +518,19 @@ routerAdd(
   'POST',
   '/backend/v1/integracao/ac/reconciliacao/executar',
   function (e) {
+    function canonicalLossReason(value) {
+      var normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, ' ')
+      var aliases = {
+        'preço': 'preco',
+        preco: 'preco',
+        'fechou com outra empresa': 'fechou_com_outra_empresa',
+        'perdeu contato': 'perdeu_contato',
+        desistiu: 'desistiu',
+        'não atendido': 'nao_atendido',
+        'nao atendido': 'nao_atendido',
+      }
+      return aliases[normalized] || ''
+    }
     var actor = e.auth
     if (!actor) return e.unauthorizedError('Autenticacao necessaria')
     var slug = ''
@@ -749,6 +764,8 @@ routerAdd(
                 'qualificacao',
                 canonicalStage === 'prospects' ? 'pendente' : 'qualificada',
               )
+              target.set('fechamento_motivo', '')
+              target.set('fechamento_data', '')
             } else {
               target.set('etapa', '')
               target.set(
@@ -761,6 +778,10 @@ routerAdd(
               )
               if (String(ev.data.stage || '') === 'prospects')
                 target.set('qualificacao', 'desqualificada')
+              if (dealStatus === '2' && String(ev.data.stage || '') !== 'prospects') {
+                target.set('fechamento_motivo', canonicalLossReason(ev.data.loss_reason))
+                if (ev.data.closed_at) target.set('fechamento_data', ev.data.closed_at)
+              }
             }
             target.set('inativo', ev.action === 'archive')
             if (ev.data.modality) {
