@@ -143,6 +143,7 @@
           } catch (_) { return null }
         }
         var somenteLeitura = false
+        // O ID externo é referência operacional obrigatória nos cards do pipeline.
         var externalId = null
         try {
           externalId = app
