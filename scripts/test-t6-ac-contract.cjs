@@ -172,7 +172,7 @@ const checks = [
   [
     'negócios AC usam etapa durante negociação e distinguem desqualificação de perda',
     webhook.includes("dealStatus === '0'") &&
-    webhook.includes("isProspect ? 'desqualificado' : 'perdido'") &&
+      webhook.includes("isProspect ? 'desqualificado' : 'perdido'") &&
       reconciliationHook.includes("dealStatus === '0'") &&
       reconciliationHook.includes("? 'desqualificado'") &&
       !webhook.includes("target.set(\n            'status'") &&

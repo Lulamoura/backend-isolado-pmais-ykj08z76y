@@ -207,9 +207,7 @@ assert(
 )
 assert(
   'E14 perdas por motivo não misturam desqualificações',
-  same(resumo.perdas_por_motivo, [
-    { motivo: 'Preço', quantidade: 1, valor_centavos: 20001 },
-  ]),
+  same(resumo.perdas_por_motivo, [{ motivo: 'Preço', quantidade: 1, valor_centavos: 20001 }]),
 )
 
 var filtro = x.comporFiltro(

@@ -32,7 +32,11 @@ routerAdd(
     if (perfil !== 'superadministrador') {
       var equipeId = ator.getString('equipe_id')
       filtro += equipeId
-        ? " && (responsavel_id = '' || responsavel_id = '" + ator.id + "' || equipe_id = '" + equipeId + "')"
+        ? " && (responsavel_id = '' || responsavel_id = '" +
+          ator.id +
+          "' || equipe_id = '" +
+          equipeId +
+          "')"
         : " && (responsavel_id = '' || responsavel_id = '" + ator.id + "')"
     }
 
@@ -63,7 +67,9 @@ routerAdd(
         externalId = $app
           .findFirstRecordByFilter(
             'com_vinculos_externos',
-            "sistema_origem='activecampaign' && external_type='business' && record_id='" + r.id + "'",
+            "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+              r.id +
+              "'",
           )
           .getString('external_id')
       } catch (_) {}

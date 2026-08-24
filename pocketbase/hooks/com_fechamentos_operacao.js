@@ -152,7 +152,9 @@
             responsavel_id: n.getString('responsavel_id') || null,
             updated: n.getString('updated'),
             data_periodo:
-              n.getString('fechamento_data') || n.getString('crm_updated_at') || n.getString('updated'),
+              n.getString('fechamento_data') ||
+              n.getString('crm_updated_at') ||
+              n.getString('updated'),
           },
           proposta_emitida: emitida,
           proposta_aceita: aceita,

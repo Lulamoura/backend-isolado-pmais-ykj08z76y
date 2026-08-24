@@ -191,10 +191,7 @@ routerAdd(
     if (String(deal.status) === '0' && !canonicalStage)
       return e.json(422, { error: 'ETAPA_NAO_MAPEADA' })
     var prospectCutoff = Date.parse('2026-08-24T03:00:00.000Z')
-    if (
-      canonicalStage === 'prospects' &&
-      (!deal.cdate || Date.parse(deal.cdate) < prospectCutoff)
-    )
+    if (canonicalStage === 'prospects' && (!deal.cdate || Date.parse(deal.cdate) < prospectCutoff))
       return e.json(200, {
         received: true,
         ignored: true,

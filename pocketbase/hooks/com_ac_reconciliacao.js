@@ -400,7 +400,11 @@ routerAdd(
       }
       if (ev.entity_type === 'business') {
         var eventIsProspect = String(ev.data.stage || '') === 'prospects'
-        if (!ev.links.company_id || !ev.links.contact_id || (!eventIsProspect && !ev.links.owner_code))
+        if (
+          !ev.links.company_id ||
+          !ev.links.contact_id ||
+          (!eventIsProspect && !ev.links.owner_code)
+        )
           kind = 'error'
         try {
           if (!incomingCompanies[ev.links.company_id])
@@ -741,7 +745,10 @@ routerAdd(
                 .getString('codigo')
               target.set('etapa', canonicalStage)
               target.set('resultado', '')
-              target.set('qualificacao', canonicalStage === 'prospects' ? 'pendente' : 'qualificada')
+              target.set(
+                'qualificacao',
+                canonicalStage === 'prospects' ? 'pendente' : 'qualificada',
+              )
             } else {
               target.set('etapa', '')
               target.set(
