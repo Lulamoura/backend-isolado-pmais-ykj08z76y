@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { CommercialContextCard } from '@/components/CommercialContextCard'
+import { formatDate } from '@/lib/commercial-context'
 import {
   Select,
   SelectContent,
@@ -123,6 +125,22 @@ export default function OrdensExecucao() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <CommercialContextCard
+                  contexto={item.contexto}
+                  etapa="ganho"
+                  showNextAction={false}
+                  showReadOnlyNotice={false}
+                />
+                <div className="rounded-md border bg-slate-50 p-3 text-sm">
+                  <p className="font-medium text-slate-900">
+                    Ganho registrado em {formatDate(item.negocio.fechamento_data)}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {concluida
+                      ? 'OE registrada; acompanhe abaixo o envio para execução.'
+                      : 'Próxima providência: registrar a referência da OE, a data e o responsável pelo envio.'}
+                  </p>
+                </div>
                 {concluida && item.oe ? (
                   <dl className="grid gap-2 text-sm text-slate-600">
                     <div>

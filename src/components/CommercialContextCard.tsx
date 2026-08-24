@@ -17,15 +17,19 @@ const stageLabels: Record<string, string> = {
 export function CommercialContextCard({
   contexto,
   etapa,
+  showNextAction = true,
+  showReadOnlyNotice = true,
 }: {
   contexto: CommercialContext
   etapa: string
+  showNextAction?: boolean
+  showReadOnlyNotice?: boolean
 }) {
   const status = actionStatus(contexto.proxima_acao_em)
   const age = ageInDays(contexto.crm_created_at)
   const alerts = [
-    status === 'vencida' ? 'Próxima ação vencida' : '',
-    status === 'ausente' ? 'Sem próxima ação' : '',
+    showNextAction && status === 'vencida' ? 'Próxima ação vencida' : '',
+    showNextAction && status === 'ausente' ? 'Sem próxima ação' : '',
     !contexto.responsavel ? 'Sem responsável' : '',
   ].filter(Boolean)
   return (
@@ -55,25 +59,32 @@ export function CommercialContextCard({
         {contexto.modalidade && <Badge variant="outline">{contexto.modalidade}</Badge>}
         {age !== null && <Badge variant="secondary">{age} dia(s) de vida</Badge>}
       </div>
-      <div className="rounded-md border bg-muted/30 p-3">
-        <p className="flex items-center gap-2 font-medium">
-          <CalendarClock className="h-4 w-4" />
-          Próxima ação: {formatDate(contexto.proxima_acao_em)}
+      {showNextAction ? (
+        <div className="rounded-md border bg-muted/30 p-3">
+          <p className="flex items-center gap-2 font-medium">
+            <CalendarClock className="h-4 w-4" />
+            Próxima ação: {formatDate(contexto.proxima_acao_em)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Situação: {status} · CRM atualizado em {formatDate(contexto.crm_updated_at)}
+          </p>
+          {contexto.fonte_prospeccao && (
+            <p className="mt-1 text-xs text-muted-foreground">Fonte: {contexto.fonte_prospeccao}</p>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          CRM atualizado em {formatDate(contexto.crm_updated_at)}
+          {contexto.fonte_prospeccao ? ` · Fonte: ${contexto.fonte_prospeccao}` : ''}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Situação: {status} · CRM atualizado em {formatDate(contexto.crm_updated_at)}
-        </p>
-        {contexto.fonte_prospeccao && (
-          <p className="mt-1 text-xs text-muted-foreground">Fonte: {contexto.fonte_prospeccao}</p>
-        )}
-      </div>
+      )}
       {alerts.length > 0 && (
         <div className="flex items-start gap-2 text-xs font-medium text-amber-700">
           <AlertTriangle className="mt-0.5 h-4 w-4" />
           {alerts.join(' · ')}
         </div>
       )}
-      {contexto.somente_leitura && (
+      {showReadOnlyNotice && contexto.somente_leitura && (
         <p className="text-xs text-muted-foreground">
           Base real em somente leitura durante a pré-operação.
         </p>

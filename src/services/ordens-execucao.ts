@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import type { CommercialContext } from '@/lib/commercial-context'
 
 export interface ResponsavelOE {
   id: string
@@ -13,8 +14,10 @@ export interface ItemOE {
     equipe_id: string | null
     updated: string
     external_id: string | null
+    fechamento_data: string | null
     data_periodo: string | null
   }
+  contexto: CommercialContext
   estado_operacional: 'aguardando_oe' | 'em_processo_de_entrega'
   oe: null | {
     numero: string

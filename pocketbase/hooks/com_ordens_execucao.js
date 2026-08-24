@@ -26,6 +26,18 @@
           ? 'em_processo_de_entrega'
           : 'aguardando_oe'
       }
+      function relacionado(collection, id, fields) {
+        if (!id) return null
+        try {
+          var record = $app.findRecordById(collection, id),
+            result = { id: record.id }
+          for (var ri = 0; ri < fields.length; ri++)
+            result[fields[ri]] = record.getString(fields[ri]) || null
+          return result
+        } catch (_) {
+          return null
+        }
+      }
       var ator = e.auth
       if (!ator || !ator.getBool('ativo_comercial'))
         return e.forbiddenError('Usuario comercial necessario')
@@ -67,10 +79,30 @@
             equipe_id: negocio.getString('equipe_id') || null,
             updated: negocio.getString('updated'),
             external_id: externalId,
+            fechamento_data: negocio.getString('fechamento_data') || null,
             data_periodo:
               negocio.getString('oe_data_envio') ||
               negocio.getString('fechamento_data') ||
               negocio.getString('updated'),
+          },
+          contexto: {
+            external_id: externalId,
+            empresa: relacionado('com_empresas', negocio.getString('empresa_id'), ['nome']),
+            contato: relacionado('com_contatos', negocio.getString('contato_principal_id'), [
+              'nome',
+              'email',
+              'telefone',
+            ]),
+            responsavel: relacionado('users', negocio.getString('responsavel_id'), ['name']),
+            valor_centavos: Number(negocio.get('valor') || 0),
+            modalidade: negocio.getString('modalidade') || null,
+            fase_crm: negocio.getString('fase_crm') || null,
+            crm_created_at: negocio.getString('crm_created_at') || null,
+            crm_updated_at: negocio.getString('crm_updated_at') || null,
+            proxima_acao_em: negocio.getString('proxima_acao_em') || null,
+            fonte_prospeccao: negocio.getString('fonte_prospeccao') || null,
+            origem_canal: negocio.getString('origem_canal') || null,
+            somente_leitura: false,
           },
           estado_operacional: oeEstado(negocio),
           oe: negocio.getString('oe_numero')
