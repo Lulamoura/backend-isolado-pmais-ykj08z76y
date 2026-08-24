@@ -80,6 +80,43 @@ routerAdd(
 // preserva o cursor confirmado pela ultima execucao bem-sucedida.
 routerAdd(
   'POST',
+  '/backend/v1/integracao/ac/configuracao/modalidades',
+  function (e) {
+    var actor = e.auth
+    if (!actor || !actor.getBool('ativo_comercial'))
+      return e.unauthorizedError('Autenticacao necessaria')
+    var slug = ''
+    try {
+      slug = $app.findRecordById('com_perfis', actor.getString('perfil_id')).getString('slug')
+    } catch (_) {}
+    if (slug !== 'superadministrador') return e.forbiddenError('SuperAdmin necessario')
+
+    var body = {}
+    try {
+      body = e.requestInfo().body || {}
+    } catch (_) {}
+    if (body.confirmation !== 'APLICAR MODALIDADES COMERCIAIS ACTIVECAMPAIGN')
+      return e.json(400, { error: 'CONFIRMACAO_INVALIDA' })
+
+    var values = ['recorrente', 'evento', 'serv_eventual']
+    try {
+      for (var i = 0; i < 2; i++) {
+        var collectionName = i === 0 ? 'com_negocios' : 'com_proposta_versoes'
+        var collection = $app.findCollectionByNameOrId(collectionName)
+        collection.fields.getByName('modalidade').values = values
+        $app.save(collection)
+      }
+    } catch (error) {
+      return e.json(409, { error: 'MODALIDADES_NAO_APLICADAS', detail: String(error).slice(0, 160) })
+    }
+    return e.json(200, { status: 'completed', modalidades: values })
+  },
+  $apis.requireAuth('users'),
+  $apis.bodyLimit(1024),
+)
+
+routerAdd(
+  'POST',
   '/backend/v1/integracao/ac/configuracao/reconciliacao-real',
   function (e) {
     var actor = e.auth
