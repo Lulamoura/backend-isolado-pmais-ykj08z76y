@@ -14,6 +14,11 @@ const stageLabels: Record<string, string> = {
   negociacao: 'Negociação',
 }
 
+const commercialLabel = (value: string) => {
+  const normalized = value.replace(/_/g, ' ').trim()
+  return normalized ? normalized.charAt(0).toLocaleUpperCase('pt-BR') + normalized.slice(1) : value
+}
+
 export function CommercialContextCard({
   contexto,
   etapa,
@@ -56,7 +61,9 @@ export function CommercialContextCard({
       </div>
       <div className="flex flex-wrap gap-2">
         <Badge variant="outline">{contexto.fase_crm || stageLabels[etapa] || etapa}</Badge>
-        {contexto.modalidade && <Badge variant="outline">{contexto.modalidade}</Badge>}
+        {contexto.modalidade && (
+          <Badge variant="outline">{commercialLabel(contexto.modalidade)}</Badge>
+        )}
         {age !== null && <Badge variant="secondary">{age} dia(s) de vida</Badge>}
       </div>
       {showNextAction ? (

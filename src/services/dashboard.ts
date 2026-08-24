@@ -5,6 +5,7 @@ export interface DashboardResumoParams {
   fim?: string
   equipe_id?: string
   responsavel_id?: string
+  modalidade?: 'pontual' | 'recorrente'
   incluir_inativos?: boolean
 }
 
@@ -46,6 +47,7 @@ export interface DashboardResumo {
     modalidade: DashboardCobertura & { status: string }
   }
   perdas_por_motivo: Array<{ motivo: string; quantidade: number; valor_centavos: number }>
+  modalidades: Array<{ modalidade: string; quantidade: number; valor_centavos: number }>
 }
 
 export interface DashboardCobertura {
@@ -64,6 +66,7 @@ export interface DashboardResumoResponse {
   filtros: {
     equipe_id: string | null
     responsavel_id: string | null
+    modalidade: string | null
     incluir_inativos: boolean
   }
   escopo: 'proprios' | 'equipe' | 'todos'
@@ -78,6 +81,7 @@ function toQueryParams(params: DashboardResumoParams): Record<string, string> {
   if (params.fim !== undefined) query.fim = params.fim
   if (params.equipe_id !== undefined) query.equipe_id = params.equipe_id
   if (params.responsavel_id !== undefined) query.responsavel_id = params.responsavel_id
+  if (params.modalidade !== undefined) query.modalidade = params.modalidade
   if (params.incluir_inativos !== undefined) {
     query.incluir_inativos = String(params.incluir_inativos)
   }

@@ -27,7 +27,7 @@ routerAdd(
     }
 
     function validarQuery(query) {
-      var allow = ['inicio', 'fim', 'equipe_id', 'responsavel_id', 'incluir_inativos']
+      var allow = ['inicio', 'fim', 'equipe_id', 'responsavel_id', 'modalidade', 'incluir_inativos']
       var q = query || {}
       var keys = Object.keys(q)
       for (var i = 0; i < keys.length; i++) {
@@ -42,6 +42,12 @@ routerAdd(
       if (q.responsavel_id !== undefined && !isRecordId(q.responsavel_id))
         return { valido: false, erro: 'VALIDATION' }
       if (
+        q.modalidade !== undefined &&
+        q.modalidade !== 'pontual' &&
+        q.modalidade !== 'recorrente'
+      )
+        return { valido: false, erro: 'VALIDATION' }
+      if (
         q.incluir_inativos !== undefined &&
         q.incluir_inativos !== 'true' &&
         q.incluir_inativos !== 'false'
@@ -54,6 +60,7 @@ routerAdd(
           fim: q.fim || '',
           equipe_id: q.equipe_id || '',
           responsavel_id: q.responsavel_id || '',
+          modalidade: q.modalidade || '',
           incluir_inativos: q.incluir_inativos === 'true',
         },
       }
@@ -110,17 +117,14 @@ routerAdd(
         cobertura: {
           origem: { preenchidos: 0, total: 0, percentual: null },
           responsavel: { preenchidos: 0, total: 0, percentual: null },
-          modalidade: {
-            preenchidos: 0,
-            total: 0,
-            percentual: null,
-            status: 'indisponivel_no_modelo_canonico_atual',
-          },
+          modalidade: { preenchidos: 0, total: 0, percentual: null, status: 'disponivel' },
         },
         perdas_por_motivo: [],
+        modalidades: [],
       }
       var ganhosPrecificados = 0
       var perdasPorMotivo = {}
+      var modalidades = {}
       for (var i = 0; i < items.length; i++) {
         var n = items[i]
         out.total++
@@ -141,9 +145,23 @@ routerAdd(
           perdasPorMotivo[motivoPerda].quantidade++
         }
 
-        if (n.qualificacao === 'qualificada') out.qualificacao.qualificadas++
-        else if (n.qualificacao === 'desqualificada') out.qualificacao.desqualificadas++
+        if (n.qualificacao === 'desqualificada' || situacao === 'desqualificado')
+          out.qualificacao.desqualificadas++
+        else if (n.qualificacao === 'qualificada' || n.etapa !== 'prospects')
+          out.qualificacao.qualificadas++
         else out.qualificacao.pendentes++
+
+        var modalidade = String(n.modalidade || '').trim()
+        if (modalidade) {
+          out.cobertura.modalidade.preenchidos++
+          if (!modalidades[modalidade])
+            modalidades[modalidade] = {
+              modalidade: modalidade,
+              quantidade: 0,
+              valor_centavos: 0,
+            }
+          modalidades[modalidade].quantidade++
+        }
 
         var valor = Number(n.valor)
         if (!isFinite(valor) || valor < 0) valor = 0
@@ -152,6 +170,7 @@ routerAdd(
         if (valor > 1) {
           out.valores.negocios_precificados++
           out.valores.total_precificado_centavos += valor
+          if (modalidade) modalidades[modalidade].valor_centavos += valor
           if (situacao === 'aberto') out.valores.carteira_aberta_centavos += valor
           if (situacao === 'ganho') {
             out.valores.ganho_centavos += valor
@@ -172,6 +191,10 @@ routerAdd(
       out.cobertura.origem.percentual = percentual(out.cobertura.origem.preenchidos, out.total)
       out.cobertura.responsavel.percentual = percentual(
         out.cobertura.responsavel.preenchidos,
+        out.total,
+      )
+      out.cobertura.modalidade.percentual = percentual(
+        out.cobertura.modalidade.preenchidos,
         out.total,
       )
       out.valores.ticket_medio_precificado_centavos = out.valores.negocios_precificados
@@ -201,6 +224,13 @@ routerAdd(
         .sort(function (a, b) {
           return b.quantidade - a.quantidade
         })
+      out.modalidades = Object.keys(modalidades)
+        .map(function (key) {
+          return modalidades[key]
+        })
+        .sort(function (a, b) {
+          return b.valor_centavos - a.valor_centavos
+        })
       return out
     }
 
@@ -211,6 +241,7 @@ routerAdd(
       if (params.fim) parts.push("created < '" + civilStartUtc(nextCivilDate(params.fim)) + "'")
       if (params.equipe_id) parts.push("equipe_id = '" + params.equipe_id + "'")
       if (params.responsavel_id) parts.push("responsavel_id = '" + params.responsavel_id + "'")
+      if (params.modalidade) parts.push("modalidade = '" + params.modalidade + "'")
       if (scope === 'proprios') parts.push("responsavel_id = '" + actorId + "'")
       if (scope === 'equipe') {
         var ors = []
@@ -302,6 +333,8 @@ routerAdd(
           status: batch[ri].getString('status'),
           resultado: batch[ri].getString('resultado'),
           qualificacao: batch[ri].getString('qualificacao'),
+          etapa: batch[ri].getString('etapa'),
+          modalidade: batch[ri].getString('modalidade'),
           origem_canal: batch[ri].getString('origem_canal'),
           responsavel_id: batch[ri].getString('responsavel_id'),
           fechamento_motivo: batch[ri].getString('fechamento_motivo'),
@@ -322,6 +355,7 @@ routerAdd(
       filtros: {
         equipe_id: validated.params.equipe_id || null,
         responsavel_id: validated.params.responsavel_id || null,
+        modalidade: validated.params.modalidade || null,
         incluir_inativos: validated.params.incluir_inativos,
       },
       escopo: scope,
@@ -329,7 +363,6 @@ routerAdd(
       avisos: [
         'Valores monetarios estao em centavos; zero e um centavo nao entram nas somas.',
         'Conversao de propostas permanece indisponivel sem evento comprovado de proposta emitida.',
-        'Modalidade permanece indisponivel no modelo canonico atual; nenhum valor foi inferido.',
       ],
     })
 

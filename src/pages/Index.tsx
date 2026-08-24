@@ -169,10 +169,11 @@ export default function Index() {
   const [draftFilters, setDraftFilters] = useState({
     equipe_id: 'todos',
     responsavel_id: 'todos',
+    modalidade: 'todas',
     incluir_inativos: false,
   })
   const [filters, setFilters] = useState<
-    Pick<DashboardResumoParams, 'equipe_id' | 'responsavel_id' | 'incluir_inativos'>
+    Pick<DashboardResumoParams, 'equipe_id' | 'responsavel_id' | 'modalidade' | 'incluir_inativos'>
   >({})
   const [filterOptions, setFilterOptions] = useState({
     equipes: [] as Array<{ id: string; nome: string }>,
@@ -225,12 +226,20 @@ export default function Index() {
       ...(draftFilters.responsavel_id === 'todos'
         ? {}
         : { responsavel_id: draftFilters.responsavel_id }),
+      ...(draftFilters.modalidade === 'todas'
+        ? {}
+        : { modalidade: draftFilters.modalidade as 'pontual' | 'recorrente' }),
       ...(draftFilters.incluir_inativos ? { incluir_inativos: true } : {}),
     })
   }
 
   function clearFilters() {
-    setDraftFilters({ equipe_id: 'todos', responsavel_id: 'todos', incluir_inativos: false })
+    setDraftFilters({
+      equipe_id: 'todos',
+      responsavel_id: 'todos',
+      modalidade: 'todas',
+      incluir_inativos: false,
+    })
     setFilters({})
   }
 
@@ -317,13 +326,13 @@ export default function Index() {
             </CardTitle>
           </div>
           <p className="text-xs text-slate-500">
-            Refine os indicadores por equipe, responsável e situação cadastral.
+            Refine os indicadores por equipe, responsável, modalidade e situação cadastral.
           </p>
         </CardHeader>
         <CardContent>
           <form
             onSubmit={applyFilters}
-            className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_auto_auto] xl:items-end"
+            className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_0.8fr_auto_auto] xl:items-end"
           >
             <div className="space-y-1.5">
               <Label htmlFor="dashboard-equipe">Equipe</Label>
@@ -343,6 +352,25 @@ export default function Index() {
                       {equipe.nome}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="dashboard-modalidade">Modalidade</Label>
+              <Select
+                value={draftFilters.modalidade}
+                onValueChange={(value) =>
+                  setDraftFilters((current) => ({ ...current, modalidade: value }))
+                }
+              >
+                <SelectTrigger id="dashboard-modalidade" aria-label="Modalidade">
+                  <SelectValue placeholder="Todas as modalidades" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas as modalidades</SelectItem>
+                  <SelectItem value="pontual">Pontual</SelectItem>
+                  <SelectItem value="recorrente">Recorrente</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -533,6 +561,20 @@ export default function Index() {
                       : formatCurrency(resumo.valores.ticket_medio_ganho_centavos),
                 },
               ]}
+            />
+            <DetailCard
+              title="Negócios por modalidade"
+              description="Quantidade e valor total dos negócios no período selecionado."
+              icon={BriefcaseBusiness}
+              items={resumo.modalidades.map((item) => ({
+                label:
+                  item.modalidade === 'recorrente'
+                    ? 'Recorrente'
+                    : item.modalidade === 'pontual'
+                      ? 'Pontual'
+                      : item.modalidade.replace(/_/g, ' '),
+                value: `${item.quantidade} · ${formatCurrency(item.valor_centavos)}`,
+              }))}
             />
             <DetailCard
               title="Qualidade dos dados"
