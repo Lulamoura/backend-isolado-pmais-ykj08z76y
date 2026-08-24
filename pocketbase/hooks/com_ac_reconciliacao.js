@@ -519,9 +519,12 @@ routerAdd(
   '/backend/v1/integracao/ac/reconciliacao/executar',
   function (e) {
     function canonicalLossReason(value) {
-      var normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, ' ')
+      var normalized = String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
       var aliases = {
-        'preço': 'preco',
+        preço: 'preco',
         preco: 'preco',
         'fechou com outra empresa': 'fechou_com_outra_empresa',
         'perdeu contato': 'perdeu_contato',
