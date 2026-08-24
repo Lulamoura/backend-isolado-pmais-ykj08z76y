@@ -16,8 +16,8 @@ const motivoPerdaLabels: Record<MotivoPerda, string> = {
   nao_atendido: 'Não atendido',
 }
 
-export const motivoPerdaLabel = (value: MotivoPerda | null) =>
-  value ? motivoPerdaLabels[value] || 'Não informado' : 'Não informado'
+export const motivoPerdaLabel = (value: string | null) =>
+  value ? motivoPerdaLabels[value as MotivoPerda] || value : 'Não informado'
 
 export interface ItemFechamento {
   negocio: {

@@ -57,7 +57,7 @@ const dashboardResponse = {
         status: 'indisponivel_no_modelo_canonico_atual',
       },
     },
-    perdas_por_motivo: [{ motivo: 'Preço', quantidade: 1, valor_centavos: 50000 }],
+    perdas_por_motivo: [{ motivo: 'preco', quantidade: 1, valor_centavos: 50000 }],
   },
   avisos: ['Conversão de propostas permanece indisponível.'],
 }
