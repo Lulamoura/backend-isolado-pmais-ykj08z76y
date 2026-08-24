@@ -137,6 +137,15 @@ const checks = [
     reconciliationHook.includes("requestedMode === 'initial_open_negotiation'") &&
       reconciliationHook.includes("String(deals[di].status) === '0'") &&
       reconciliationHook.includes("toLowerCase() === 'negociação'") &&
+      reconciliationHook.includes(
+        "'/api/3/accounts/' + encodeURIComponent(selectedAccountIds[sai])",
+      ) &&
+      reconciliationHook.includes(
+        "'/api/3/contacts/' + encodeURIComponent(selectedContactIds[sci])",
+      ) &&
+      reconciliationHook.includes(
+        "'&filters[dealId]=' + encodeURIComponent(String(deals[sdi].id))",
+      ) &&
       reconciliationHook.includes("customFields['Responsável']"),
   ],
   [
