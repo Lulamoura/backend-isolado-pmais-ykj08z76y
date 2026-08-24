@@ -35,7 +35,7 @@ import { Switch } from '@/components/ui/switch'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 const RECIFE_TIME_ZONE = 'America/Recife'
-const LOSS_COLORS = ['#1d4ed8', '#0f766e', '#b45309', '#be123c', '#6d28d9', '#475569']
+const LOSS_COLORS = ['#8b5cf6', '#6366f1', '#06b6d4', '#f59e0b', '#ec4899', '#64748b']
 
 function configuredDefaultPeriodDays(): number {
   const configured = Number(import.meta.env.VITE_DASHBOARD_DEFAULT_PERIOD_DAYS ?? 90)
@@ -94,7 +94,7 @@ function MetricCard({ title, value, detail, icon: Icon }: MetricCardProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-slate-600">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-blue-700" aria-hidden="true" />
+        <Icon className="h-4 w-4 text-violet-600" aria-hidden="true" />
       </CardHeader>
       <CardContent>
         <p className="text-2xl font-bold tracking-tight text-slate-950">{value}</p>
@@ -121,7 +121,7 @@ function DetailCard({ title, description, items, icon: Icon }: DetailCardProps) 
     <Card aria-label={title}>
       <CardHeader className="space-y-1 pb-3">
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-blue-700" aria-hidden="true" />
+          <Icon className="h-4 w-4 text-violet-600" aria-hidden="true" />
           <CardTitle className="text-base text-slate-900">{title}</CardTitle>
         </div>
         <p className="text-xs text-slate-500">{description}</p>
@@ -238,39 +238,36 @@ export default function Index() {
 
   return (
     <main className="container mx-auto max-w-7xl space-y-5 px-4 py-5 animate-fade-in sm:py-6">
-      <section className="rounded-2xl border border-blue-800/60 bg-gradient-to-r from-blue-950 via-blue-900 to-blue-700 p-5 text-white shadow-lg sm:p-6">
+      <section className="rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-5 text-white shadow-lg sm:p-6">
         <div className="grid gap-4 md:grid-cols-[minmax(13rem,0.7fr)_minmax(28rem,1.3fr)] md:items-end">
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap gap-2">
-              <Badge variant="outline" className="border-blue-400/40 bg-blue-400/10 text-blue-200">
+              <Badge variant="outline" className="border-white/30 bg-white/10 text-white">
                 Dashboard V1
               </Badge>
               {data?.escopo && (
-                <Badge
-                  variant="outline"
-                  className="border-slate-400/40 bg-slate-400/10 text-slate-200"
-                >
+                <Badge variant="outline" className="border-white/20 bg-black/10 text-violet-100">
                   Escopo: {data.escopo}
                 </Badge>
               )}
             </div>
             <h1 className="text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
               Visão comercial
-              <span className="mt-0.5 block text-lg font-semibold text-blue-100 sm:text-xl">
+              <span className="mt-0.5 block text-lg font-semibold text-violet-100 sm:text-xl">
                 de {user?.name || 'Usuário'}
               </span>
             </h1>
-            <p className="mt-2 max-w-xl text-sm leading-snug text-blue-100/85">
+            <p className="mt-2 max-w-xl text-sm leading-snug text-violet-100/90">
               Indicadores do modelo canônico PMais, com datas civis de Recife e valores em reais.
             </p>
           </div>
 
           <form
             onSubmit={applyPeriod}
-            className="grid gap-3 rounded-xl border border-white/15 bg-blue-950/35 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+            className="grid gap-3 rounded-xl border border-white/20 bg-black/15 p-3 backdrop-blur-sm sm:grid-cols-[1fr_1fr_auto] sm:items-end"
           >
             <div className="space-y-1.5">
-              <Label htmlFor="dashboard-inicio" className="text-xs text-slate-200">
+              <Label htmlFor="dashboard-inicio" className="text-xs text-violet-100">
                 Início
               </Label>
               <Input
@@ -281,11 +278,11 @@ export default function Index() {
                 onChange={(event) =>
                   setDraftPeriod((current) => ({ ...current, inicio: event.target.value }))
                 }
-                className="border-white/25 bg-blue-950/55 text-white"
+                className="border-white/30 bg-white/10 text-white placeholder:text-violet-200"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="dashboard-fim" className="text-xs text-slate-200">
+              <Label htmlFor="dashboard-fim" className="text-xs text-violet-100">
                 Fim
               </Label>
               <Input
@@ -296,10 +293,14 @@ export default function Index() {
                 onChange={(event) =>
                   setDraftPeriod((current) => ({ ...current, fim: event.target.value }))
                 }
-                className="border-white/25 bg-blue-950/55 text-white"
+                className="border-white/30 bg-white/10 text-white placeholder:text-violet-200"
               />
             </div>
-            <Button type="submit" disabled={loading || draftPeriod.inicio > draftPeriod.fim}>
+            <Button
+              type="submit"
+              disabled={loading || draftPeriod.inicio > draftPeriod.fim}
+              className="bg-white text-violet-900 hover:bg-violet-50 font-medium"
+            >
               Aplicar período
             </Button>
           </form>
@@ -309,7 +310,7 @@ export default function Index() {
       <Card aria-labelledby="dashboard-filters-title">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-blue-700" aria-hidden="true" />
+            <Users className="h-4 w-4 text-violet-600" aria-hidden="true" />
             <CardTitle id="dashboard-filters-title" className="text-base text-slate-900">
               Filtros de gestão
             </CardTitle>

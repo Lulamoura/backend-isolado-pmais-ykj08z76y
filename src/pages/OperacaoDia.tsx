@@ -114,7 +114,7 @@ export default function OperacaoDia() {
       detail: 'Handoff comercial pendente',
       path: '/ordens-execucao',
       icon: ClipboardCheck,
-      tone: 'text-indigo-700 bg-indigo-50',
+      tone: 'text-violet-700 bg-violet-50',
     },
     {
       title: 'Oportunidades para recuperar',
@@ -128,19 +128,19 @@ export default function OperacaoDia() {
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-end justify-between gap-4 rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 p-6 text-white shadow-lg">
+      <section className="flex flex-wrap items-end justify-between gap-4 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-6 text-white shadow-lg">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-indigo-300">
+          <p className="text-sm font-semibold uppercase tracking-wide text-violet-100">
             Prioridades e exceções
           </p>
           <h2 className="mt-1 text-3xl font-extrabold tracking-tight">Operação do Dia</h2>
-          <p className="mt-2 max-w-2xl text-sm text-slate-300">
+          <p className="mt-2 max-w-2xl text-sm text-violet-100/90">
             Comece pelos itens que exigem ação. Cada cartão abre a fila operacional correspondente.
           </p>
         </div>
         <Button
           variant="secondary"
-          className="gap-2"
+          className="gap-2 bg-white text-violet-900 hover:bg-violet-50 font-medium"
           disabled={loading}
           onClick={() => setReloadKey((value) => value + 1)}
         >
@@ -164,7 +164,7 @@ export default function OperacaoDia() {
           const Icon = card.icon
           return (
             <Link key={card.title} to={card.path}>
-              <Card className="h-full transition hover:border-indigo-300 hover:shadow-md">
+              <Card className="h-full transition hover:border-violet-300 hover:shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-600">{card.title}</CardTitle>
                   <span className={`rounded-lg p-2 ${card.tone}`}>
@@ -195,7 +195,7 @@ export default function OperacaoDia() {
               </p>
             </div>
           </div>
-          <Link to="/propostas" className="text-sm font-semibold text-indigo-700 hover:underline">
+          <Link to="/propostas" className="text-sm font-semibold text-violet-700 hover:underline">
             Ver propostas emitidas
           </Link>
         </CardContent>

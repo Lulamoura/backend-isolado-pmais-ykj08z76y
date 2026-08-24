@@ -40,7 +40,7 @@ export default function Pipeline() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
+        <p className="text-sm font-semibold uppercase tracking-wide text-violet-600">
           Jornada comercial
         </p>
         <h2 className="text-2xl font-bold tracking-tight text-slate-950">Pipeline Comercial</h2>
@@ -53,14 +53,14 @@ export default function Pipeline() {
           const Icon = stage.icon
           return (
             <Link key={stage.path} to={stage.path} className="group">
-              <Card className="h-full transition hover:border-indigo-300 hover:shadow-md">
+              <Card className="h-full transition hover:border-violet-300 hover:shadow-md">
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
                     <Icon aria-hidden="true" className="h-5 w-5" />
                   </span>
                   <div>
                     <p className="text-xs font-semibold text-slate-400">ETAPA {index + 1}</p>
-                    <CardTitle className="text-lg group-hover:text-indigo-700">
+                    <CardTitle className="text-lg group-hover:text-violet-700">
                       {stage.title}
                     </CardTitle>
                   </div>

@@ -105,13 +105,16 @@ function LayoutContent() {
 
   return (
     <>
-      <Sidebar collapsible="icon" className="border-r border-slate-800 bg-slate-900 text-slate-100">
-        <SidebarHeader className="border-b border-slate-800 bg-slate-900 p-0">
+      <Sidebar
+        collapsible="icon"
+        className="border-r border-slate-700/60 bg-slate-800 text-slate-100"
+      >
+        <SidebarHeader className="border-b border-slate-700/60 bg-slate-800 p-0">
           <Link
             to="/"
             className="flex items-center gap-3 overflow-hidden p-3.5 group-data-[collapsible=icon]:p-1"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md">
               <Building2 aria-hidden="true" className="h-5 w-5" />
             </span>
             <span className="min-w-0 group-data-[collapsible=icon]:hidden">
@@ -123,7 +126,7 @@ function LayoutContent() {
           </Link>
         </SidebarHeader>
 
-        <SidebarContent className="bg-slate-900 p-2">
+        <SidebarContent className="bg-slate-800 p-2">
           <nav aria-label="Navegação principal">
             <SidebarMenu>
               {navigation.map((item) => {
@@ -136,12 +139,11 @@ function LayoutContent() {
                       asChild
                       isActive={active}
                       tooltip={item.label}
-                      style={active ? { backgroundColor: '#4f46e5', color: '#ffffff' } : undefined}
                       className={cn(
                         'h-10 gap-3 px-3 text-sm font-medium',
                         active
-                          ? '!bg-indigo-600 font-semibold !text-white shadow-sm hover:!bg-indigo-500 hover:!text-white'
-                          : 'text-slate-300 hover:bg-slate-800 hover:text-white',
+                          ? '!bg-violet-600 font-semibold !text-white shadow-sm hover:!bg-violet-500 hover:!text-white'
+                          : 'text-slate-300 hover:bg-slate-700/70 hover:text-white',
                       )}
                     >
                       <Link
@@ -160,7 +162,7 @@ function LayoutContent() {
                         {active && (
                           <ChevronRight
                             aria-hidden="true"
-                            className="ml-auto h-4 w-4 text-indigo-200 group-data-[collapsible=icon]:hidden"
+                            className="ml-auto h-4 w-4 text-violet-200 group-data-[collapsible=icon]:hidden"
                           />
                         )}
                       </Link>
@@ -172,11 +174,11 @@ function LayoutContent() {
           </nav>
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-slate-800 bg-slate-950/50 p-3 group-data-[collapsible=icon]:p-1.5">
+        <SidebarFooter className="border-t border-slate-700/60 bg-slate-900/40 p-3 group-data-[collapsible=icon]:p-1.5">
           <div className="flex items-center justify-between gap-2 overflow-hidden">
             <div className="flex min-w-0 items-center gap-3">
-              <Avatar className="h-9 w-9 shrink-0 border border-indigo-500 bg-indigo-700 text-white">
-                <AvatarFallback className="bg-indigo-700 text-xs font-bold text-white">
+              <Avatar className="h-9 w-9 shrink-0 border border-violet-400/40 bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
+                <AvatarFallback className="bg-gradient-to-br from-violet-600 to-indigo-600 text-xs font-bold text-white">
                   {userInitials}
                 </AvatarFallback>
               </Avatar>
@@ -192,7 +194,7 @@ function LayoutContent() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setChangePasswordOpen(true)}
-                className="h-8 w-8 text-slate-400 hover:bg-slate-800 hover:text-indigo-400"
+                className="h-8 w-8 text-slate-400 hover:bg-slate-700/70 hover:text-violet-300"
                 aria-label="Alterar minha senha"
                 title="Alterar minha senha"
               >
@@ -202,7 +204,7 @@ function LayoutContent() {
                 variant="ghost"
                 size="icon"
                 onClick={handleLogout}
-                className="h-8 w-8 text-slate-400 hover:bg-slate-800 hover:text-rose-400"
+                className="h-8 w-8 text-slate-400 hover:bg-slate-700/70 hover:text-rose-400"
                 aria-label="Sair do sistema"
                 title="Sair do sistema"
               >
@@ -228,8 +230,8 @@ function LayoutContent() {
           </div>
 
           <div className="hidden items-center gap-2 sm:flex">
-            <Avatar className="h-8 w-8 bg-indigo-700 text-white">
-              <AvatarFallback className="bg-indigo-700 text-xs font-bold text-white">
+            <Avatar className="h-8 w-8 bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
+              <AvatarFallback className="bg-gradient-to-br from-violet-600 to-indigo-600 text-xs font-bold text-white">
                 {userInitials}
               </AvatarFallback>
             </Avatar>
@@ -240,7 +242,7 @@ function LayoutContent() {
               variant="ghost"
               size="icon"
               onClick={() => setChangePasswordOpen(true)}
-              className="h-8 w-8 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600"
+              className="h-8 w-8 text-slate-500 hover:bg-violet-50 hover:text-violet-600"
               aria-label="Alterar minha senha"
               title="Alterar minha senha"
             >

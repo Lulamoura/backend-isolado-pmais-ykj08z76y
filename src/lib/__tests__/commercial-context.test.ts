@@ -7,6 +7,7 @@ import {
 } from '@/lib/commercial-context'
 
 const context = (overrides: Partial<CommercialContext> = {}): CommercialContext => ({
+  external_id: '123',
   empresa: { id: 'e1', nome: 'Empresa Alfa' },
   contato: { id: 'c1', nome: 'Maria', email: null, telefone: null },
   responsavel: { id: 'u1', name: 'Vendedor 1' },

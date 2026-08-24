@@ -42,7 +42,7 @@ export default function Login() {
       <Card className="w-full max-w-md animate-fade-in-up">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
-            <div className="rounded-full bg-slate-900 p-3">
+            <div className="rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 p-3 shadow-md">
               <Building2 className="h-6 w-6 text-white" />
             </div>
           </div>
