@@ -41,9 +41,9 @@ const checks = [
       relay.includes("customByLabel['Fonte de Prospecção']") &&
       reconciler.includes("customFields['Fase']") &&
       reconciler.includes("customFields['Fonte de Prospecção']") &&
-      webhook.includes("target.set('proxima_acao_em'") &&
-      webhook.includes("target.set('fase_crm'") &&
-      reconciler.includes("target.set('fonte_prospeccao'"),
+      /target\.set\(\s*'proxima_acao_em'/.test(webhook) &&
+      /target\.set\(\s*'fase_crm'/.test(webhook) &&
+      /target\.set\(\s*'fonte_prospeccao'/.test(reconciler),
   ],
   [
     'webhook preserva o valor inteiro em centavos',
