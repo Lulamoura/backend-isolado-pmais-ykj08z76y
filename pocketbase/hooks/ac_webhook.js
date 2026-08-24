@@ -40,7 +40,7 @@ routerAdd(
     function canonicalLossReason(value) {
       var normalized = clean(value, 120).toLowerCase().replace(/\s+/g, ' ')
       var aliases = {
-        'preço': 'preco',
+        preço: 'preco',
         preco: 'preco',
         'fechou com outra empresa': 'fechou_com_outra_empresa',
         'perdeu contato': 'perdeu_contato',
