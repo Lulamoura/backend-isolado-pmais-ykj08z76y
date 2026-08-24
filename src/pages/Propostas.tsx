@@ -67,7 +67,7 @@ export default function Propostas() {
       justificativa: `Operação comercial: ${tipo}`,
     }
     if (tipo === 'preparar') {
-      body.modalidade = 'pontual'
+      body.modalidade = item.contexto.modalidade
       body.valor_total_centavos = Math.round(Number(entrada) * 100)
     }
     if (tipo === 'emitir') {
@@ -138,7 +138,11 @@ export default function Propostas() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <CommercialContextCard contexto={item.contexto} etapa={item.negocio.etapa} />
+                <CommercialContextCard
+                  contexto={item.contexto}
+                  etapa={item.negocio.etapa}
+                  showReadOnlyNotice={false}
+                />
                 {p && (
                   <div className="text-sm">
                     <p>
@@ -218,12 +222,6 @@ export default function Propostas() {
                       </Button>
                     )}
                   </div>
-                )}
-                {(somenteNegociacao || item.contexto.somente_leitura) && (
-                  <p className="text-sm text-muted-foreground">
-                    Acompanhamento somente leitura. As atividades e os alertas deste negócio ficam
-                    disponíveis na Operação do Dia.
-                  </p>
                 )}
                 {p && (
                   <p className="text-xs text-muted-foreground">

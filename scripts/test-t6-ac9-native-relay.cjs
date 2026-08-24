@@ -58,10 +58,10 @@ const checks = [
   ],
   [
     'novo contexto comercial reprocessa negócios já sincronizados sem duplicação',
-    relay.includes("context_revision: type === 'business' ? '3' : '1'") &&
-      relay.includes("type === 'business' ? ':ctx3' : ''") &&
-      reconciler.includes("context_revision: entityType === 'business' ? '3' : '1'") &&
-      reconciler.includes("entityType === 'business' ? ':ctx3' : ''"),
+    relay.includes("context_revision: type === 'business' ? '4' : '1'") &&
+      relay.includes("type === 'business' ? ':ctx4' : ''") &&
+      reconciler.includes("context_revision: entityType === 'business' ? '4' : '1'") &&
+      reconciler.includes("entityType === 'business' ? ':ctx4' : ''"),
   ],
   [
     'webhook preserva o valor inteiro em centavos',
@@ -78,6 +78,8 @@ const checks = [
     webhook.includes("modality === 'serv. recorrente'") &&
       webhook.includes("modality === 'serv. eventual'") &&
       webhook.includes("modality === 'eventos'") &&
+      webhook.includes("target.set('modalidade', 'evento')") &&
+      webhook.includes("target.set('modalidade', 'serv_eventual')") &&
       webhook.includes("throw new Error('MODALIDADE_AC_INVALIDA')"),
   ],
   [
@@ -85,6 +87,8 @@ const checks = [
     reconciler.includes("modality === 'serv. recorrente'") &&
       reconciler.includes("modality === 'serv. eventual'") &&
       reconciler.includes("modality === 'eventos'") &&
+      reconciler.includes("target.set('modalidade', 'evento')") &&
+      reconciler.includes("target.set('modalidade', 'serv_eventual')") &&
       reconciler.includes("throw new Error('MODALIDADE_AC_INVALIDA')"),
   ],
   ['relay não usa proprietário técnico como fallback', !relay.includes('String(deal.owner')],

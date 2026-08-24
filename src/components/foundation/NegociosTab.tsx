@@ -433,8 +433,9 @@ export function NegociosTab() {
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="pontual">Pontual</SelectItem>
                             <SelectItem value="recorrente">Recorrente</SelectItem>
+                            <SelectItem value="evento">Evento</SelectItem>
+                            <SelectItem value="serv_eventual">Serv. Eventual</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

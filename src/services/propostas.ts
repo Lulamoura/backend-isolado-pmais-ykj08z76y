@@ -17,7 +17,7 @@ export interface ItemProposta {
     versao_id: string
     numero: number
     estado: 'rascunho' | 'enviada' | 'aceita' | 'recusada' | 'cancelada'
-    modalidade: 'pontual' | 'recorrente'
+    modalidade: 'recorrente' | 'evento' | 'serv_eventual'
     valor_total_centavos: number
     valor_mensal_centavos: number
     destinatario: string | null
