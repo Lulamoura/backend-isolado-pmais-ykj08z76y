@@ -645,6 +645,7 @@ routerAdd(
             target.set('contato_principal_id', contact.getString('record_id'))
             target.set('responsavel_id', owner.getString('record_id'))
             target.set('valor', Math.round(Number(ev.data.value_cents || 0)))
+            target.set('origem_canal', 'activecampaign')
             if (dealStatus === '0') {
               var alias = tx.findFirstRecordByFilter(
                 'com_alias_dimensoes',

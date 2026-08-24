@@ -141,11 +141,12 @@ const checks = [
   ],
   [
     'pré-operação bloqueia comandos mutantes sobre importados reais',
-    mutationHooks.every(
-      (source) =>
-        source.includes('ac_preoperation_read_only') &&
-        source.includes("origem_canal') === 'activecampaign'"),
-    ),
+    reconciliationHook.includes("target.set('origem_canal', 'activecampaign')") &&
+      mutationHooks.every(
+        (source) =>
+          source.includes('ac_preoperation_read_only') &&
+          source.includes("origem_canal') === 'activecampaign'"),
+      ),
   ],
   ['API direta de negócio fica fechada', migration.includes('negocios.updateRule = null')],
   [
