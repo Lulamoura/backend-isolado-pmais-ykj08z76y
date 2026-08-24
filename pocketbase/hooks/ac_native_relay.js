@@ -73,7 +73,9 @@ routerAdd(
       var sourceVersion = clean(modified, 80) || new Date(0).toISOString()
       return {
         schema_version: '1',
-        event_id: 'ac:' + type + ':' + id + ':' + sourceVersion,
+        context_revision: type === 'business' ? '2' : '1',
+        event_id:
+          'ac:' + type + ':' + id + ':' + sourceVersion + (type === 'business' ? ':ctx2' : ''),
         source: 'activecampaign',
         entity_type: type,
         entity_id: String(id),
@@ -225,6 +227,10 @@ routerAdd(
         status: String(deal.status || '0'),
         modality: customByLabel['Modalidade'] || '',
         next_action_at: customByLabel['Data de Ação'] || deal.nextdate || '',
+        crm_created_at: deal.cdate || '',
+        crm_updated_at: deal.mdate || deal.cdate || '',
+        phase: customByLabel['Fase'] || '',
+        source: customByLabel['Fonte de Prospecção'] || '',
       },
       {
         company_id: String(account.id),

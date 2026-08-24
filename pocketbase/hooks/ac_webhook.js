@@ -132,7 +132,8 @@ routerAdd(
         return e.json(200, { received: true, replay: false, stale: true, event_id: event.event_id })
       if (
         String(event.source_version) === String(previousPayload.source_version || '') &&
-        previousPayload.event_hash !== eventHash
+        previousPayload.event_hash !== eventHash &&
+        Number(event.context_revision || 1) <= Number(previousPayload.context_revision || 1)
       )
         return e.json(409, { error: 'VERSAO_CONFLITANTE', event_id: event.event_id })
     }
@@ -242,6 +243,11 @@ routerAdd(
             target.set('resultado', dealStatus === '1' ? 'ganho' : 'perdido')
           }
           target.set('origem_canal', 'activecampaign')
+          target.set('crm_created_at', event.data.crm_created_at || '')
+          target.set('crm_updated_at', event.data.crm_updated_at || '')
+          target.set('proxima_acao_em', event.data.next_action_at || '')
+          target.set('fase_crm', clean(event.data.phase, 160))
+          target.set('fonte_prospeccao', clean(event.data.source, 200))
           target.set('prospectivo', false)
           target.set('inativo', event.action === 'archive')
           if (event.data.modality) {
@@ -277,6 +283,7 @@ routerAdd(
           JSON.stringify({
             event_id: event.event_id,
             source_version: event.source_version,
+            context_revision: event.context_revision || '1',
             event_hash: eventHash,
             record_id: target.id,
             correlation_id: event.correlation_id,
