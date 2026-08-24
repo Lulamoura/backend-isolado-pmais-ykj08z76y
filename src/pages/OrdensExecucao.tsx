@@ -1,62 +1,73 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ClipboardCheck, RefreshCw } from 'lucide-react'
-import { toast } from 'sonner'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ClipboardCheck, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { CommercialContextCard } from '@/components/CommercialContextCard'
-import { formatDate } from '@/lib/commercial-context'
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CommercialContextCard } from "@/components/CommercialContextCard";
+import { formatDate } from "@/lib/commercial-context";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   listarOrdensExecucao,
   novaChaveOE,
   registrarOrdemExecucao,
   type ItemOE,
   type ResponsavelOE,
-} from '@/services/ordens-execucao'
+} from "@/services/ordens-execucao";
 
 export default function OrdensExecucao() {
-  const [itens, setItens] = useState<ItemOE[]>([])
-  const [responsaveis, setResponsaveis] = useState<ResponsavelOE[]>([])
-  const [loading, setLoading] = useState(true)
-  const [numero, setNumero] = useState<Record<string, string>>({})
-  const [dataEnvio, setDataEnvio] = useState<Record<string, string>>({})
-  const [responsavel, setResponsavel] = useState<Record<string, string>>({})
-  const hoje = new Date().toISOString().slice(0, 10)
-  const inicioPadrao = new Date(Date.now() - 89 * 86_400_000).toISOString().slice(0, 10)
-  const [periodoInicio, setPeriodoInicio] = useState(inicioPadrao)
-  const [periodoFim, setPeriodoFim] = useState(hoje)
+  const [itens, setItens] = useState<ItemOE[]>([]);
+  const [responsaveis, setResponsaveis] = useState<ResponsavelOE[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [numero, setNumero] = useState<Record<string, string>>({});
+  const [dataEnvio, setDataEnvio] = useState<Record<string, string>>({});
+  const [responsavel, setResponsavel] = useState<Record<string, string>>({});
+  const hoje = new Date().toISOString().slice(0, 10);
+  const inicioPadrao = new Date(Date.now() - 89 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const [periodoInicio, setPeriodoInicio] = useState(inicioPadrao);
+  const [periodoFim, setPeriodoFim] = useState(hoje);
 
   const carregar = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const resposta = await listarOrdensExecucao()
-      setItens(resposta.itens)
-      setResponsaveis(resposta.responsaveis_envio)
+      const resposta = await listarOrdensExecucao();
+      setItens(resposta.itens);
+      setResponsaveis(resposta.responsaveis_envio);
     } catch (_) {
-      toast.error('Não foi possível carregar as Ordens de Execução.')
+      toast.error("Não foi possível carregar as Ordens de Execução.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
-  useEffect(() => void carregar(), [carregar])
+  }, []);
+  useEffect(() => void carregar(), [carregar]);
   const itensVisiveis = useMemo(
     () =>
       itens.filter((item) => {
-        const data = item.negocio.data_periodo?.slice(0, 10) || ''
-        return (!periodoInicio || data >= periodoInicio) && (!periodoFim || data <= periodoFim)
+        const data = item.negocio.data_periodo?.slice(0, 10) || "";
+        return (
+          (!periodoInicio || data >= periodoInicio) &&
+          (!periodoFim || data <= periodoFim)
+        );
       }),
     [itens, periodoInicio, periodoFim],
-  )
+  );
 
   const registrar = async (item: ItemOE) => {
     try {
@@ -67,23 +78,31 @@ export default function OrdensExecucao() {
         oe_responsavel_envio_id: responsavel[item.negocio.id],
         updated_esperado: item.negocio.updated,
         command_idempotency_key: novaChaveOE(item.negocio.id),
-        justificativa: 'Registro da referência da OE pelo Comercial',
-      })
-      toast.success('Ordem de Execução registrada.')
-      await carregar()
+        justificativa: "Registro da referência da OE pelo Comercial",
+      });
+      toast.success("Ordem de Execução registrada.");
+      await carregar();
     } catch (_) {
-      toast.error('A Ordem de Execução não pôde ser registrada.')
+      toast.error("A Ordem de Execução não pôde ser registrada.");
     }
-  }
+  };
 
   return (
     <div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Ordens de Execução</h1>
-          <p className="text-sm text-slate-500">Referência do ERP após o ganho comercial</p>
+          <h1 className="text-2xl font-bold text-slate-900">
+            Ordens de Execução
+          </h1>
+          <p className="text-sm text-slate-500">
+            Referência do ERP após o ganho comercial
+          </p>
         </div>
-        <Button variant="outline" onClick={() => void carregar()} disabled={loading}>
+        <Button
+          variant="outline"
+          onClick={() => void carregar()}
+          disabled={loading}
+        >
           <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
         </Button>
       </div>
@@ -105,13 +124,16 @@ export default function OrdensExecucao() {
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {itensVisiveis.map((item) => {
-          const concluida = item.estado_operacional === 'em_processo_de_entrega'
+          const concluida =
+            item.estado_operacional === "em_processo_de_entrega";
           return (
             <Card key={item.negocio.id}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <CardTitle className="text-base">{item.negocio.titulo}</CardTitle>
+                    <CardTitle className="text-base">
+                      {item.negocio.titulo}
+                    </CardTitle>
                     {item.negocio.external_id && (
                       <p className="mt-1 text-xs font-medium text-muted-foreground">
                         Negócio AC #{item.negocio.external_id}
@@ -119,8 +141,8 @@ export default function OrdensExecucao() {
                     )}
                     <CardDescription>Negócio ganho</CardDescription>
                   </div>
-                  <Badge variant={concluida ? 'default' : 'secondary'}>
-                    {concluida ? 'Em processo de entrega' : 'Aguardando OE'}
+                  <Badge variant={concluida ? "default" : "secondary"}>
+                    {concluida ? "Em processo de entrega" : "Aguardando OE"}
                   </Badge>
                 </div>
               </CardHeader>
@@ -133,27 +155,39 @@ export default function OrdensExecucao() {
                 />
                 <div className="rounded-md border bg-slate-50 p-3 text-sm">
                   <p className="font-medium text-slate-900">
-                    Ganho registrado em {formatDate(item.negocio.fechamento_data)}
+                    Decisão registrada no CRM em{" "}
+                    {formatDate(
+                      item.negocio.fechamento_data ||
+                        item.contexto.crm_updated_at,
+                    )}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
                     {concluida
-                      ? 'OE registrada; acompanhe abaixo o envio para execução.'
-                      : 'Próxima providência: registrar a referência da OE, a data e o responsável pelo envio.'}
+                      ? "OE registrada; acompanhe abaixo o envio para execução."
+                      : "Próxima providência: registrar a referência da OE, a data e o responsável pelo envio."}
                   </p>
                 </div>
                 {concluida && item.oe ? (
                   <dl className="grid gap-2 text-sm text-slate-600">
                     <div>
-                      <dt className="font-medium text-slate-900">Número da OE</dt>
+                      <dt className="font-medium text-slate-900">
+                        Número da OE
+                      </dt>
                       <dd>{item.oe.numero}</dd>
                     </div>
                     <div>
-                      <dt className="font-medium text-slate-900">Data de envio</dt>
+                      <dt className="font-medium text-slate-900">
+                        Data de envio
+                      </dt>
                       <dd>{item.oe.data_envio}</dd>
                     </div>
                     <div>
-                      <dt className="font-medium text-slate-900">Responsável pelo envio</dt>
-                      <dd>{item.oe.responsavel_envio?.name || 'Não identificado'}</dd>
+                      <dt className="font-medium text-slate-900">
+                        Responsável pelo envio
+                      </dt>
+                      <dd>
+                        {item.oe.responsavel_envio?.name || "Não identificado"}
+                      </dd>
                     </div>
                   </dl>
                 ) : (
@@ -162,7 +196,7 @@ export default function OrdensExecucao() {
                       <div className="space-y-2">
                         <Label>Número da OE</Label>
                         <Input
-                          value={numero[item.negocio.id] || ''}
+                          value={numero[item.negocio.id] || ""}
                           onChange={(event) =>
                             setNumero((atual) => ({
                               ...atual,
@@ -175,7 +209,7 @@ export default function OrdensExecucao() {
                         <Label>Data de envio</Label>
                         <Input
                           type="date"
-                          value={dataEnvio[item.negocio.id] || ''}
+                          value={dataEnvio[item.negocio.id] || ""}
                           onChange={(event) =>
                             setDataEnvio((atual) => ({
                               ...atual,
@@ -190,7 +224,10 @@ export default function OrdensExecucao() {
                       <Select
                         value={responsavel[item.negocio.id]}
                         onValueChange={(value) =>
-                          setResponsavel((atual) => ({ ...atual, [item.negocio.id]: value }))
+                          setResponsavel((atual) => ({
+                            ...atual,
+                            [item.negocio.id]: value,
+                          }))
                         }
                       >
                         <SelectTrigger>
@@ -219,9 +256,9 @@ export default function OrdensExecucao() {
                 )}
               </CardContent>
             </Card>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }
