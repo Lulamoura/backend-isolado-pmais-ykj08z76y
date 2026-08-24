@@ -107,7 +107,10 @@ routerAdd(
         $app.save(collection)
       }
     } catch (error) {
-      return e.json(409, { error: 'MODALIDADES_NAO_APLICADAS', detail: String(error).slice(0, 160) })
+      return e.json(409, {
+        error: 'MODALIDADES_NAO_APLICADAS',
+        detail: String(error).slice(0, 160),
+      })
     }
     return e.json(200, { status: 'completed', modalidades: values })
   },
