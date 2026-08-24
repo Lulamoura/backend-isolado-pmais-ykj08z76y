@@ -129,6 +129,12 @@ const checks = [
     controls.includes("'/backend/v1/integracao/ac/configuracao/reconciliacao-real'"),
   ],
   [
+    'catálogo de modalidades possui materialização administrativa controlada',
+    controls.includes("'/backend/v1/integracao/ac/configuracao/modalidades'") &&
+      controls.includes("'APLICAR MODALIDADES COMERCIAIS ACTIVECAMPAIGN'") &&
+      controls.includes("['recorrente', 'evento', 'serv_eventual']"),
+  ],
+  [
     'gate de reconciliação preserva webhook e cursor',
     controls.includes("webhook_enabled: webhook.getString('valor') === 'true'") &&
       controls.includes("cursor: cursor.getString('valor')"),
