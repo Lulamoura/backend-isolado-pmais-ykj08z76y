@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useDashboardResumo } from '@/hooks/use-dashboard'
 import { getEquipes } from '@/services/foundation'
 import { getUsers } from '@/services/users'
+import { motivoPerdaLabel } from '@/services/fechamentos'
 import type { DashboardResumoParams } from '@/services/dashboard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -617,7 +618,7 @@ export default function Index() {
                               aria-hidden="true"
                             />
                             <span className="truncate text-sm font-medium text-slate-800">
-                              {item.motivo}
+                              {motivoPerdaLabel(item.motivo)}
                             </span>
                           </div>
                           <div className="shrink-0 text-right">
