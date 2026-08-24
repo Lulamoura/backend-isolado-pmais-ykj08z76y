@@ -5,7 +5,7 @@ export interface DashboardResumoParams {
   fim?: string
   equipe_id?: string
   responsavel_id?: string
-  modalidade?: 'pontual' | 'recorrente'
+  modalidade?: 'recorrente' | 'evento' | 'serv_eventual'
   incluir_inativos?: boolean
 }
 

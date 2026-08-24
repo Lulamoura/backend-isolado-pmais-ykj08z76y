@@ -15,6 +15,7 @@ const stageLabels: Record<string, string> = {
 }
 
 const commercialLabel = (value: string) => {
+  if (value === 'serv_eventual') return 'Serv. Eventual'
   const normalized = value.replace(/_/g, ' ').trim()
   return normalized ? normalized.charAt(0).toLocaleUpperCase('pt-BR') + normalized.slice(1) : value
 }

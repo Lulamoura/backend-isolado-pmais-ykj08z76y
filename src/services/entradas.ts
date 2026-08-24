@@ -9,7 +9,7 @@ export interface EntradaPayload {
   captador_id?: string
   origem_canal: string
   modo: 'pendente' | 'pre_qualificada'
-  modalidade?: 'pontual' | 'recorrente'
+  modalidade?: 'recorrente' | 'evento' | 'serv_eventual'
   necessidade?: string
   localizacao?: string
   dimensao_estimada?: string

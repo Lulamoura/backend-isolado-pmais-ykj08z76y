@@ -84,7 +84,7 @@ routerAdd(
       var sourceVersion = version(modified)
       events.push({
         schema_version: '1',
-        context_revision: entityType === 'business' ? '3' : '1',
+        context_revision: entityType === 'business' ? '4' : '1',
         event_id:
           'ac:' +
           entityType +
@@ -92,7 +92,7 @@ routerAdd(
           entityId +
           ':' +
           sourceVersion +
-          (entityType === 'business' ? ':ctx3' : ''),
+          (entityType === 'business' ? ':ctx4' : ''),
         source: 'activecampaign',
         entity_type: entityType,
         entity_id: String(entityId),
@@ -793,12 +793,10 @@ routerAdd(
                 .toLowerCase()
               if (modality === 'serv. recorrente' || modality === 'recorrente')
                 target.set('modalidade', 'recorrente')
-              else if (
-                modality === 'serv. eventual' ||
-                modality === 'eventos' ||
-                modality === 'pontual'
-              )
-                target.set('modalidade', 'pontual')
+              else if (modality === 'evento' || modality === 'eventos')
+                target.set('modalidade', 'evento')
+              else if (modality === 'serv. eventual' || modality === 'serv eventual')
+                target.set('modalidade', 'serv_eventual')
               else throw new Error('MODALIDADE_AC_INVALIDA')
             }
           }

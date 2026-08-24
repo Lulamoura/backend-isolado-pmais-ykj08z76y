@@ -228,7 +228,9 @@ export default function Index() {
         : { responsavel_id: draftFilters.responsavel_id }),
       ...(draftFilters.modalidade === 'todas'
         ? {}
-        : { modalidade: draftFilters.modalidade as 'pontual' | 'recorrente' }),
+        : {
+            modalidade: draftFilters.modalidade as 'recorrente' | 'evento' | 'serv_eventual',
+          }),
       ...(draftFilters.incluir_inativos ? { incluir_inativos: true } : {}),
     })
   }
@@ -369,8 +371,9 @@ export default function Index() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todas">Todas as modalidades</SelectItem>
-                  <SelectItem value="pontual">Pontual</SelectItem>
                   <SelectItem value="recorrente">Recorrente</SelectItem>
+                  <SelectItem value="evento">Evento</SelectItem>
+                  <SelectItem value="serv_eventual">Serv. Eventual</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -570,9 +573,11 @@ export default function Index() {
                 label:
                   item.modalidade === 'recorrente'
                     ? 'Recorrente'
-                    : item.modalidade === 'pontual'
-                      ? 'Pontual'
-                      : item.modalidade.replace(/_/g, ' '),
+                    : item.modalidade === 'evento'
+                      ? 'Evento'
+                      : item.modalidade === 'serv_eventual'
+                        ? 'Serv. Eventual'
+                        : item.modalidade.replace(/_/g, ' '),
                 value: `${item.quantidade} · ${formatCurrency(item.valor_centavos)}`,
               }))}
             />

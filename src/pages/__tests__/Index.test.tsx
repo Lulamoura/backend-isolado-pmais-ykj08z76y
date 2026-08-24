@@ -59,8 +59,9 @@ const dashboardResponse = {
     },
     perdas_por_motivo: [{ motivo: 'preco', quantidade: 1, valor_centavos: 50000 }],
     modalidades: [
-      { modalidade: 'pontual', quantidade: 4, valor_centavos: 200000 },
       { modalidade: 'recorrente', quantidade: 3, valor_centavos: 100000 },
+      { modalidade: 'evento', quantidade: 2, valor_centavos: 120000 },
+      { modalidade: 'serv_eventual', quantidade: 2, valor_centavos: 80000 },
     ],
   },
   avisos: ['Conversão de propostas permanece indisponível.'],
@@ -117,9 +118,9 @@ describe('Dashboard V1', () => {
     render(<Index />)
 
     const modalidades = screen.getByText('Negócios por modalidade').closest('[class*="rounded"]')!
-    expect(within(modalidades).getByText('Pontual')).toBeInTheDocument()
-    expect(within(modalidades).getByText('4 · R$ 2.000,00')).toBeInTheDocument()
     expect(within(modalidades).getByText('Recorrente')).toBeInTheDocument()
+    expect(within(modalidades).getByText('Evento')).toBeInTheDocument()
+    expect(within(modalidades).getByText('Serv. Eventual')).toBeInTheDocument()
   })
 
   it('aplica período personalizado somente após submissão', () => {

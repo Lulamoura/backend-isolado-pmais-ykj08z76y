@@ -98,7 +98,7 @@ routerAdd(
       })
     var minimoPre =
       rid(body.contato_principal_id) &&
-      (body.modalidade === 'pontual' || body.modalidade === 'recorrente') &&
+      ['recorrente', 'evento', 'serv_eventual'].indexOf(body.modalidade) >= 0 &&
       txt(body.necessidade, 2000) &&
       txt(body.dimensao_estimada, 300) &&
       body.prazo_cliente &&

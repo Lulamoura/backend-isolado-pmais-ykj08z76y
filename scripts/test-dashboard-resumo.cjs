@@ -103,7 +103,7 @@ assert(
     fim: '2026-12-31',
     equipe_id: 'abc123def456ghi',
     responsavel_id: 'xyz123def456abc',
-    modalidade: 'pontual',
+    modalidade: 'evento',
     incluir_inativos: 'true',
   }).valido === true,
 )
@@ -154,7 +154,7 @@ var resumo = x.agregarNegocios([
     status: '',
     qualificacao: 'qualificada',
     etapa: 'negociacao',
-    modalidade: 'pontual',
+    modalidade: 'evento',
     valor: 10001,
     origem_canal: 'site',
     responsavel_id: 'u1',
@@ -175,7 +175,7 @@ var resumo = x.agregarNegocios([
     status: '',
     qualificacao: 'desqualificada',
     etapa: 'prospects',
-    modalidade: 'pontual',
+    modalidade: 'serv_eventual',
     valor: 1,
     origem_canal: '',
     responsavel_id: '',
@@ -217,14 +217,15 @@ assert(
 )
 assert(
   'E15 negócios fora de Prospect são qualificados mesmo sem marcação legada',
-  x.agregarNegocios([{ etapa: 'negociacao', qualificacao: '', valor: 100, modalidade: 'pontual' }])
+  x.agregarNegocios([{ etapa: 'negociacao', qualificacao: '', valor: 100, modalidade: 'evento' }])
     .qualificacao.qualificadas === 1,
 )
 assert(
   'E16 totaliza quantidade e valor por modalidade',
   same(resumo.modalidades, [
     { modalidade: 'recorrente', quantidade: 1, valor_centavos: 20001 },
-    { modalidade: 'pontual', quantidade: 2, valor_centavos: 10001 },
+    { modalidade: 'evento', quantidade: 1, valor_centavos: 10001 },
+    { modalidade: 'serv_eventual', quantidade: 1, valor_centavos: 0 },
   ]),
 )
 

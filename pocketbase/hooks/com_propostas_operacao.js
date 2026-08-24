@@ -368,7 +368,7 @@
         return e.json(400, { error: 'VALIDATION' })
       if (
         body.tipo === 'preparar' &&
-        (['pontual', 'recorrente'].indexOf(body.modalidade) < 0 ||
+        (['recorrente', 'evento', 'serv_eventual'].indexOf(body.modalidade) < 0 ||
           !Number.isInteger(Number(body.valor_total_centavos)) ||
           Number(body.valor_total_centavos) < 0)
       )
