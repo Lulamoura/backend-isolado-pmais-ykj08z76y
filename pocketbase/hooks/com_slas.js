@@ -68,6 +68,13 @@ routerAdd(
     var ator = e.auth
     if (!ator) return e.unauthorizedError('Autenticacao necessaria')
     if (!ator.getBool('ativo_comercial')) return e.forbiddenError('Usuario comercial inativo')
+    var filtroSituacao = String(e.requestInfo().query.situacao || 'todas')
+    if (
+      ['todas', 'atencao', 'vencido', 'alerta', 'no_prazo', 'nao_calculavel'].indexOf(
+        filtroSituacao,
+      ) === -1
+    )
+      return e.json(400, { error: 'VALIDATION' })
     var p = perfil(ator),
       filtro = "inativo = false && resultado = ''"
     if (p !== 'superadministrador') {
@@ -96,9 +103,16 @@ routerAdd(
           : etapa === 'producao_proposta'
             ? cfg.proposta
             : cfg.negociacao
-      var vence = fimDiaUtil(n.getString('updated') || n.getString('created'), dias, fs)
+      var marco = n.getString('etapa_entrou_em')
+      var vence = marco ? fimDiaUtil(marco, dias, fs) : null
       var alerta = fimDiaUtil(agora, cfg.antecedencia, fs)
-      var situacao = vence < agora ? 'vencido' : vence <= alerta ? 'alerta' : 'no_prazo'
+      var situacao = !vence
+        ? 'nao_calculavel'
+        : vence < agora
+          ? 'vencido'
+          : vence <= alerta
+            ? 'alerta'
+            : 'no_prazo'
       var proxima = $app.findRecordsByFilter(
         'com_atividades',
         "negocio_id='" + n.id + "' && estado='planejada'",
@@ -106,20 +120,54 @@ routerAdd(
         1,
         0,
       )
+      if (
+        filtroSituacao !== 'todas' &&
+        !(
+          (filtroSituacao === 'atencao' && (situacao === 'vencido' || situacao === 'alerta')) ||
+          filtroSituacao === situacao
+        )
+      )
+        continue
+      var dono = null,
+        empresa = null,
+        externalId = null
+      try {
+        var ur = $app.findRecordById('users', n.getString('responsavel_id'))
+        dono = { id: ur.id, nome: ur.getString('name') || ur.getString('email') }
+      } catch (_) {}
+      try {
+        var er = $app.findRecordById('com_empresas', n.getString('empresa_id'))
+        empresa = { id: er.id, nome: er.getString('nome') }
+      } catch (_) {}
+      try {
+        externalId = $app
+          .findFirstRecordByFilter(
+            'com_vinculos_externos',
+            "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+              n.id +
+              "'",
+          )
+          .getString('external_id')
+      } catch (_) {}
       itens.push({
         negocio: {
           id: n.id,
+          external_id: externalId,
           titulo: n.getString('titulo'),
           etapa: etapa,
-          updated: n.getString('updated'),
+          empresa: empresa,
+          responsavel: dono,
         },
-        vence_em: vence.toISOString(),
+        marco_inicial: marco || null,
+        vence_em: vence ? vence.toISOString() : null,
         situacao: situacao,
         dias_uteis: dias,
         proxima_acao_em: proxima.length ? proxima[0].getString('planejada_para') : null,
       })
     }
     itens.sort(function (a, b) {
+      if (!a.vence_em) return 1
+      if (!b.vence_em) return -1
       return a.vence_em < b.vence_em ? -1 : 1
     })
     return e.json(200, {

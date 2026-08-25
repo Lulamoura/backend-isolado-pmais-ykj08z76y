@@ -222,6 +222,7 @@ routerAdd(
                 "'",
             )
           var dealStatus = String(event.data.status)
+          var previousStage = target.getString('etapa')
           if (dealStatus !== '0' && dealStatus !== '1' && dealStatus !== '2')
             throw new Error('STATUS_AC_INVALIDO')
           if (binding) {
@@ -252,6 +253,17 @@ routerAdd(
             var canonicalStage = tx
               .findRecordById('com_etapas', alias.getString('canonico_ref'))
               .getString('codigo')
+            if (canonicalStage !== previousStage)
+              target.set(
+                'etapa_entrou_em',
+                event.data.crm_updated_at || event.data.crm_created_at || new Date().toISOString(),
+              )
+            else if (
+              !target.getString('etapa_entrou_em') &&
+              canonicalStage === 'prospects' &&
+              event.data.crm_created_at >= '2026-08-24T03:00:00Z'
+            )
+              target.set('etapa_entrou_em', event.data.crm_created_at)
             target.set('etapa', canonicalStage)
             target.set('resultado', '')
             target.set('qualificacao', canonicalStage === 'prospects' ? 'pendente' : 'qualificada')

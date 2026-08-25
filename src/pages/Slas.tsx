@@ -1,23 +1,33 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { listarSlas, type FilaSla } from '@/services/slas'
+import { listarSlas, type FilaSla, type FiltroSla } from '@/services/slas'
 
-const label = { vencido: 'Vencido', alerta: 'Em alerta', no_prazo: 'No prazo' }
+const label = {
+  vencido: 'Vencido',
+  alerta: 'Em alerta',
+  no_prazo: 'No prazo',
+  nao_calculavel: 'SLA não calculável',
+}
 export default function Slas() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filtro = (searchParams.get('situacao') || 'todas') as FiltroSla
   const [dados, setDados] = useState<FilaSla | null>(null)
   const [erro, setErro] = useState(false)
   useEffect(() => {
-    void listarSlas()
+    void listarSlas(filtro)
       .then(setDados)
       .catch(() => setErro(true))
-  }, [])
+  }, [filtro])
   const totais = useMemo(
     () => ({
       vencido: dados?.itens.filter((i) => i.situacao === 'vencido').length ?? 0,
       alerta: dados?.itens.filter((i) => i.situacao === 'alerta').length ?? 0,
       no_prazo: dados?.itens.filter((i) => i.situacao === 'no_prazo').length ?? 0,
+      nao_calculavel: dados?.itens.filter((i) => i.situacao === 'nao_calculavel').length ?? 0,
     }),
     [dados],
   )
@@ -59,6 +69,27 @@ export default function Slas() {
           </CardContent>
         </Card>
       </div>
+      <div className="flex flex-wrap gap-2" aria-label="Filtros de SLA">
+        {(
+          [
+            ['atencao', 'Atenção e vencidos'],
+            ['vencido', 'Vencidos'],
+            ['alerta', 'Em alerta'],
+            ['no_prazo', 'No prazo'],
+            ['nao_calculavel', 'Não calculável'],
+            ['todas', 'Todos'],
+          ] as Array<[FiltroSla, string]>
+        ).map(([value, text]) => (
+          <Button
+            key={value}
+            size="sm"
+            variant={filtro === value ? 'default' : 'outline'}
+            onClick={() => setSearchParams(value === 'todas' ? {} : { situacao: value })}
+          >
+            {text}
+          </Button>
+        ))}
+      </div>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -73,16 +104,38 @@ export default function Slas() {
               className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
             >
               <div>
-                <p className="font-medium">{i.negocio.titulo}</p>
+                <p className="font-medium">
+                  {i.negocio.external_id ? `Negócio AC #${i.negocio.external_id} — ` : ''}
+                  {i.negocio.empresa?.nome || i.negocio.titulo}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {i.negocio.etapa} · {i.dias_uteis} dia(s) útil(eis)
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Responsável: {i.negocio.responsavel?.nome || 'não informado'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Marco da etapa:{' '}
+                  {i.marco_inicial
+                    ? new Date(i.marco_inicial).toLocaleString('pt-BR')
+                    : 'não comprovado'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Próxima ação:{' '}
+                  {i.proxima_acao_em
+                    ? new Date(i.proxima_acao_em).toLocaleString('pt-BR')
+                    : 'não informada'}
                 </p>
               </div>
               <div className="text-right">
                 <Badge variant={i.situacao === 'vencido' ? 'destructive' : 'secondary'}>
                   {label[i.situacao]}
                 </Badge>
-                <p className="mt-1 text-xs">{new Date(i.vence_em).toLocaleString('pt-BR')}</p>
+                <p className="mt-1 text-xs">
+                  {i.vence_em
+                    ? new Date(i.vence_em).toLocaleString('pt-BR')
+                    : 'Sem vencimento calculado'}
+                </p>
               </div>
             </div>
           ))}

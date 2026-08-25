@@ -248,7 +248,11 @@ export default function Atividades() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle className="text-base">{item.negocio.titulo}</CardTitle>
-                    <CardDescription>{item.negocio.etapa || 'Etapa não informada'}</CardDescription>
+                    <CardDescription>
+                      {item.negocio.external_id ? `Negócio AC #${item.negocio.external_id} · ` : ''}
+                      {item.negocio.empresa?.nome || 'Empresa não informada'} ·{' '}
+                      {item.negocio.etapa || 'Etapa não informada'}
+                    </CardDescription>
                   </div>
                   <Badge variant={item.situacao === 'programada' ? 'secondary' : 'destructive'}>
                     {rotuloSituacao[item.situacao]}
@@ -267,13 +271,19 @@ export default function Atividades() {
                     <p className="mt-1 text-xs text-muted-foreground">
                       Responsável: {item.proxima_acao.responsavel?.nome || 'não informado'}
                     </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Origem:{' '}
+                      {item.proxima_acao.origem === 'activecampaign'
+                        ? 'ActiveCampaign'
+                        : 'Aplicativo'}
+                    </p>
                   </div>
                 ) : (
                   <p className="text-sm text-amber-700">
                     Este negócio aberto precisa de uma próxima ação.
                   </p>
                 )}
-                {item.proxima_acao ? (
+                {item.proxima_acao?.editavel ? (
                   <div className="flex gap-2">
                     <Button className="flex-1 gap-2" onClick={() => abrir(item, 'realizar')}>
                       <CheckCircle2 className="h-4 w-4" />
@@ -288,6 +298,11 @@ export default function Atividades() {
                       Cancelar
                     </Button>
                   </div>
+                ) : item.proxima_acao ? (
+                  <p className="text-xs text-muted-foreground">
+                    A ação sincronizada deve ser atualizada no ActiveCampaign durante a
+                    pré-operação.
+                  </p>
                 ) : (
                   <Button
                     className="w-full gap-2"

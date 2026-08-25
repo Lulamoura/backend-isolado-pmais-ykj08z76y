@@ -54,6 +54,11 @@ routerAdd(
       )
       var proxima = null
       var estadoFila = 'sem_proxima_acao'
+      var dono = null
+      try {
+        var dr = $app.findRecordById('users', negocio.getString('responsavel_id'))
+        dono = { id: dr.id, nome: dr.getString('name') || dr.getString('email') }
+      } catch (_) {}
       if (planejadas.length) {
         var a = planejadas[0]
         var data = a.getString('planejada_para')
@@ -72,19 +77,49 @@ routerAdd(
           planejada_para: data || null,
           responsavel: responsavel,
           updated: a.getString('updated'),
+          origem: 'aplicativo',
+          editavel: true,
+        }
+      } else if (negocio.getString('proxima_acao_em')) {
+        var dataCrm = negocio.getString('proxima_acao_em')
+        estadoFila = dataCrm < agora ? 'vencida' : 'programada'
+        proxima = {
+          id: null,
+          tipo: 'acompanhamento_proposta',
+          descricao: 'Próxima ação registrada no ActiveCampaign',
+          canal: null,
+          estado: 'planejada',
+          planejada_para: dataCrm,
+          responsavel: dono,
+          updated: negocio.getString('crm_updated_at') || negocio.getString('updated'),
+          origem: 'activecampaign',
+          editavel: false,
         }
       }
       if (situacao !== 'todas' && estadoFila !== situacao) continue
-      var dono = null
+      var empresa = null
       try {
-        var dr = $app.findRecordById('users', negocio.getString('responsavel_id'))
-        dono = { id: dr.id, nome: dr.getString('name') || dr.getString('email') }
+        var er = $app.findRecordById('com_empresas', negocio.getString('empresa_id'))
+        empresa = { id: er.id, nome: er.getString('nome') }
+      } catch (_) {}
+      var externalId = null
+      try {
+        externalId = $app
+          .findFirstRecordByFilter(
+            'com_vinculos_externos',
+            "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+              negocio.id +
+              "'",
+          )
+          .getString('external_id')
       } catch (_) {}
       todos.push({
         negocio: {
           id: negocio.id,
+          external_id: externalId,
           titulo: negocio.getString('titulo'),
           etapa: negocio.getString('etapa'),
+          empresa: empresa,
           responsavel: dono,
           updated: negocio.getString('updated'),
         },

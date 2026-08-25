@@ -58,10 +58,10 @@ const checks = [
   ],
   [
     'novo contexto comercial reprocessa negócios já sincronizados sem duplicação',
-    relay.includes("context_revision: type === 'business' ? '4' : '1'") &&
-      relay.includes("type === 'business' ? ':ctx4' : ''") &&
-      reconciler.includes("context_revision: entityType === 'business' ? '4' : '1'") &&
-      reconciler.includes("entityType === 'business' ? ':ctx4' : ''"),
+    relay.includes("context_revision: type === 'business' ? '5' : '1'") &&
+      relay.includes("type === 'business' ? ':ctx5' : ''") &&
+      reconciler.includes("context_revision: entityType === 'business' ? '5' : '1'") &&
+      reconciler.includes("entityType === 'business' ? ':ctx5' : ''"),
   ],
   [
     'webhook preserva o valor inteiro em centavos',
