@@ -104,7 +104,7 @@ export default function OperacaoDia() {
       title: 'SLAs em atenção',
       value: summary.slasVencidos + summary.slasAlerta,
       detail: `${summary.slasVencidos} vencido(s) · ${summary.slasAlerta} em alerta`,
-      path: '/slas',
+      path: '/slas?situacao=atencao',
       icon: AlertTriangle,
       tone: 'text-amber-700 bg-amber-50',
     },

@@ -804,6 +804,12 @@
           "system": false
         },
         {
+          "name": "etapa_entrou_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
           "name": "fase_crm",
           "type": "text",
           "required": false,

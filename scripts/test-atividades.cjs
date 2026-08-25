@@ -19,6 +19,12 @@ check(
   ['sem_proxima_acao', 'vencida', 'programada'].every((v) => hook.includes(v)),
 )
 check('somente negócios abertos', hook.includes("inativo = false && resultado = ''"))
+check(
+  'fila usa próxima ação do CRM quando não há atividade local',
+  hook.includes("negocio.getString('proxima_acao_em')") &&
+    hook.includes("origem: 'activecampaign'") &&
+    hook.includes('editavel: false'),
+)
 check('escopo RBAC por responsável ou equipe', hook.includes('podeAcessar'))
 check(
   'operações planejar realizar cancelar',
@@ -49,4 +55,4 @@ check(
   app.includes('path="/atividades"') && app.includes('<Atividades />'),
 )
 
-console.log(`\nRESULTADO: ${passed}/18 aprovados`)
+console.log(`\nRESULTADO: ${passed}/19 aprovados`)

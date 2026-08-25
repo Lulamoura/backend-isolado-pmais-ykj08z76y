@@ -84,7 +84,7 @@ routerAdd(
       var sourceVersion = version(modified)
       events.push({
         schema_version: '1',
-        context_revision: entityType === 'business' ? '4' : '1',
+        context_revision: entityType === 'business' ? '5' : '1',
         event_id:
           'ac:' +
           entityType +
@@ -92,7 +92,7 @@ routerAdd(
           entityId +
           ':' +
           sourceVersion +
-          (entityType === 'business' ? ':ctx4' : ''),
+          (entityType === 'business' ? ':ctx5' : ''),
         source: 'activecampaign',
         entity_type: entityType,
         entity_id: String(entityId),
@@ -730,6 +730,7 @@ routerAdd(
                   "'",
               )
             var dealStatus = String(ev.data.status)
+            var previousStage = target.getString('etapa')
             if (dealStatus !== '0' && dealStatus !== '1' && dealStatus !== '2')
               throw new Error('STATUS_AC_INVALIDO')
             target.set('titulo', ev.data.title || 'Negocio importado')
@@ -761,6 +762,17 @@ routerAdd(
               var canonicalStage = tx
                 .findRecordById('com_etapas', alias.getString('canonico_ref'))
                 .getString('codigo')
+              if (canonicalStage !== previousStage)
+                target.set(
+                  'etapa_entrou_em',
+                  ev.data.crm_updated_at || ev.data.crm_created_at || new Date().toISOString(),
+                )
+              else if (
+                !target.getString('etapa_entrou_em') &&
+                canonicalStage === 'prospects' &&
+                ev.data.crm_created_at >= '2026-08-24T03:00:00Z'
+              )
+                target.set('etapa_entrou_em', ev.data.crm_created_at)
               target.set('etapa', canonicalStage)
               target.set('resultado', '')
               target.set(

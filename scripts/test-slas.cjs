@@ -58,6 +58,16 @@ const checks = [
   ],
   ['servico canonico', service.includes('/backend/v1/slas/fila')],
   [
+    'SLA usa marco real da etapa e nunca updated tecnico',
+    hook.includes("n.getString('etapa_entrou_em')") &&
+      hook.includes("'nao_calculavel'") &&
+      !hook.includes("fimDiaUtil(n.getString('updated')"),
+  ],
+  [
+    'fila de atencao filtra alerta e vencido',
+    hook.includes("filtroSituacao === 'atencao'") && service.includes('query: { situacao }'),
+  ],
+  [
     'interface de alertas',
     page.includes('SLAs, calendário e alertas') && page.includes('Agenda de vencimentos'),
   ],

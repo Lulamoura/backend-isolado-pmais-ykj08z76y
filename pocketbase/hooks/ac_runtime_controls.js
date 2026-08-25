@@ -100,6 +100,11 @@ routerAdd(
 
     var values = ['recorrente', 'evento', 'serv_eventual']
     try {
+      var negocios = $app.findCollectionByNameOrId('com_negocios')
+      if (!negocios.fields.getByName('etapa_entrou_em')) {
+        negocios.fields.add(new DateField({ name: 'etapa_entrou_em', required: false }))
+        $app.save(negocios)
+      }
       for (var i = 0; i < 2; i++) {
         var collectionName = i === 0 ? 'com_negocios' : 'com_proposta_versoes'
         var collection = $app.findCollectionByNameOrId(collectionName)

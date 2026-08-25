@@ -15,14 +15,16 @@ export type CanalAtividade = 'telefone' | 'email' | 'whatsapp' | 'presencial' | 
 export interface ItemFilaAtividade {
   negocio: {
     id: string
+    external_id: string | null
     titulo: string
     etapa: string
+    empresa: { id: string; nome: string } | null
     responsavel: { id: string; nome: string } | null
     updated: string
   }
   situacao: SituacaoAtividade
   proxima_acao: {
-    id: string
+    id: string | null
     tipo: TipoAtividade
     descricao: string | null
     canal: CanalAtividade | null
@@ -30,6 +32,8 @@ export interface ItemFilaAtividade {
     planejada_para: string | null
     responsavel: { id: string; nome: string } | null
     updated: string
+    origem: 'aplicativo' | 'activecampaign'
+    editavel: boolean
   } | null
 }
 
