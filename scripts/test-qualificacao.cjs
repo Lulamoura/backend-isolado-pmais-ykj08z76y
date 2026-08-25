@@ -38,6 +38,21 @@ var checks = [
   ],
   ['decisão não pode ser repetida', source.includes('JA_DECIDIDO')],
   ['autor sempre derivado da autenticação', source.includes("hist.set('autor_id', ator.id)")],
+  [
+    'exceção de teste exige marcador, superadministrador e prefixo',
+    source.includes('body.teste_controlado === true') &&
+      source.includes("perfilTx === 'superadministrador'") &&
+      source.includes("negocio.getString('titulo').indexOf('[TESTE]') === 0"),
+  ],
+  [
+    'marcador de teste integra idempotência e auditoria',
+    source.includes('teste_controlado: body.teste_controlado === true') &&
+      (source.match(/teste_controlado: body\.teste_controlado === true/g) || []).length >= 2,
+  ],
+  [
+    'bloqueio de pré-operação mantém resposta explícita',
+    source.includes("return e.json(423, { error: 'PREOPERACAO_SOMENTE_LEITURA' })"),
+  ],
 ]
 var failed = 0
 for (var i = 0; i < checks.length; i++) {
