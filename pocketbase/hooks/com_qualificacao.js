@@ -142,6 +142,7 @@ routerAdd(
       'justificativa',
       'updated_esperado',
       'command_idempotency_key',
+      'teste_controlado',
     ]
     var keys = Object.keys(body || {})
     for (var k = 0; k < keys.length; k++)
@@ -170,6 +171,11 @@ routerAdd(
       })
     if (motivo.length > 500 || justificativa.length > 1000)
       return e.json(400, { error: 'VALIDATION', message: 'Texto excede o limite permitido' })
+    if (body.teste_controlado !== undefined && body.teste_controlado !== true)
+      return e.json(400, {
+        error: 'VALIDATION',
+        message: 'Marcador de teste controlado invalido',
+      })
 
     var perfil = ''
     try {
@@ -182,6 +188,7 @@ routerAdd(
       motivo: motivo,
       justificativa: justificativa,
       updated_esperado: body.updated_esperado,
+      teste_controlado: body.teste_controlado === true,
     }
     var payloadHash = $security.sha256(canonicalize(payload))
     var resposta = null
@@ -278,7 +285,12 @@ routerAdd(
           if (
             preop.getBool('ativo') &&
             preop.getString('valor') === 'true' &&
-            negocio.getString('origem_canal') === 'activecampaign'
+            negocio.getString('origem_canal') === 'activecampaign' &&
+            !(
+              body.teste_controlado === true &&
+              perfilTx === 'superadministrador' &&
+              negocio.getString('titulo').indexOf('[TESTE]') === 0
+            )
           )
             throw new Error('PREOPERACAO_SOMENTE_LEITURA')
         } catch (preopError) {
@@ -321,6 +333,7 @@ routerAdd(
           motivo: motivo || null,
           autor_id: ator.id,
           historico_id: hist.id,
+          teste_controlado: body.teste_controlado === true,
         }
         var audCol = txApp.findCollectionByNameOrId('com_auditoria')
         var aud = new Record(audCol)
@@ -363,6 +376,8 @@ routerAdd(
     if (txError.indexOf('CONCORRENTE') !== -1) return e.json(409, { error: 'CONCORRENTE' })
     if (txError.indexOf('CONFLICT') !== -1) return e.json(409, { error: 'CONFLICT' })
     if (txError.indexOf('FORBIDDEN') !== -1) return e.json(403, { error: 'FORBIDDEN' })
+    if (txError.indexOf('PREOPERACAO_SOMENTE_LEITURA') !== -1)
+      return e.json(423, { error: 'PREOPERACAO_SOMENTE_LEITURA' })
     if (txError) return e.json(500, { error: 'INTERNAL', message: 'Falha ao registrar decisao' })
     return e.json(200, resposta)
   },
