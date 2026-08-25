@@ -1,25 +1,24 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EquipesTab } from "@/components/foundation/EquipesTab";
-import { PerfisTab } from "@/components/foundation/PerfisTab";
-import { PermissoesTab } from "@/components/foundation/PermissoesTab";
-import { ParametrosTab } from "@/components/foundation/ParametrosTab";
-import { EmpresasTab } from "@/components/foundation/EmpresasTab";
-import { NegociosTab } from "@/components/foundation/NegociosTab";
-import { UsuariosTab } from "@/components/foundation/UsuariosTab";
-import { VinculosTab } from "@/components/foundation/VinculosTab";
-import { useIsSuperAdmin } from "@/hooks/use-is-superadmin";
-import { ActiveCampaignReconciliationCard } from "@/components/foundation/ActiveCampaignReconciliationCard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { EquipesTab } from '@/components/foundation/EquipesTab'
+import { PerfisTab } from '@/components/foundation/PerfisTab'
+import { PermissoesTab } from '@/components/foundation/PermissoesTab'
+import { ParametrosTab } from '@/components/foundation/ParametrosTab'
+import { EmpresasTab } from '@/components/foundation/EmpresasTab'
+import { NegociosTab } from '@/components/foundation/NegociosTab'
+import { UsuariosTab } from '@/components/foundation/UsuariosTab'
+import { VinculosTab } from '@/components/foundation/VinculosTab'
+import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
+import { ActiveCampaignReconciliationCard } from '@/components/foundation/ActiveCampaignReconciliationCard'
 
 export default function Foundation() {
-  const { isSuperAdmin, loading: loadingSuperAdmin } = useIsSuperAdmin();
+  const { isSuperAdmin, loading: loadingSuperAdmin } = useIsSuperAdmin()
 
   return (
     <div className="container mx-auto p-4 space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Administração do Sistema</h1>
         <p className="text-sm text-muted-foreground">
-          Gestão da estrutura comercial, acessos e integração com o
-          ActiveCampaign
+          Gestão da estrutura comercial, acessos e integração com o ActiveCampaign
         </p>
       </div>
       <Tabs defaultValue="equipes" className="w-full">
@@ -32,9 +31,7 @@ export default function Foundation() {
           <TabsTrigger value="empresas">Empresas</TabsTrigger>
           <TabsTrigger value="negocios">Negócios</TabsTrigger>
           <TabsTrigger value="parametros">Parâmetros</TabsTrigger>
-          <TabsTrigger value="integracao">
-            Integração ActiveCampaign
-          </TabsTrigger>
+          <TabsTrigger value="integracao">Integração ActiveCampaign</TabsTrigger>
         </TabsList>
         <TabsContent value="equipes">
           <EquipesTab />
@@ -61,11 +58,9 @@ export default function Foundation() {
           <ParametrosTab />
         </TabsContent>
         <TabsContent value="integracao">
-          {isSuperAdmin && !loadingSuperAdmin ? (
-            <ActiveCampaignReconciliationCard />
-          ) : null}
-        </TabsContent>{" "}
+          {isSuperAdmin && !loadingSuperAdmin ? <ActiveCampaignReconciliationCard /> : null}
+        </TabsContent>{' '}
       </Tabs>
     </div>
-  );
+  )
 }
