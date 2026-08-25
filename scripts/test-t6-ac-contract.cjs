@@ -128,15 +128,47 @@ const checks = [
   ],
   [
     'interface exige simulação anterior',
-    reconciliationUi.includes('Simular') &&
-      reconciliationUi.includes('Executar plano simulado') &&
+    reconciliationUi.includes('Verificar atualizações') &&
+      reconciliationUi.includes('Confirmar reconciliação') &&
       reconciliationUi.includes('!simulation?.can_execute'),
+  ],
+  [
+    'incremental limita negócios ao pipeline e ao escopo operacional',
+    reconciliationHook.includes('String(candidate.group) !== pipelineId') &&
+      reconciliationHook.includes("candidateStatus === '0'") &&
+      reconciliationHook.includes("candidateStage === 'producao_proposta'") &&
+      reconciliationHook.includes("candidateStage === 'negociacao'") &&
+      reconciliationHook.includes("candidateStage === 'prospects'") &&
+      reconciliationHook.includes("Date.parse('2026-08-24T03:00:00.000Z')"),
+  ],
+  [
+    'incremental deriva empresas e contatos somente dos negócios selecionados',
+    !reconciliationHook.includes("list('/api/3/accounts', 'accounts', false, '')") &&
+      reconciliationHook.includes('var selectedContacts = {}') &&
+      reconciliationHook.includes('selectedAccounts = {}') &&
+      reconciliationHook.includes("'/api/3/accounts/' + encodeURIComponent") &&
+      reconciliationHook.includes("'/api/3/contacts/' + encodeURIComponent"),
+  ],
+  [
+    'incremental hidrata campos personalizados dos negócios selecionados',
+    reconciliationHook.includes("list('/api/3/dealCustomFieldMeta'") &&
+      reconciliationHook.includes("'&filters[dealId]='") &&
+      reconciliationHook.includes("customFields['Responsável']") &&
+      reconciliationHook.includes("customFields['Modalidade']"),
+  ],
+  [
+    'incremental acompanha terminal somente de negócio conhecido',
+    reconciliationHook.includes('isKnownTerminal') &&
+      reconciliationHook.includes("external_type='business'") &&
+      reconciliationHook.includes("candidateStatus !== '0'") &&
+      reconciliationHook.includes('(isOpenScope || isKnownTerminal)'),
   ],
   [
     'pré-carga filtra aberto + Negociação e usa Responsável comercial',
     reconciliationHook.includes("requestedMode === 'initial_open_negotiation'") &&
-      reconciliationHook.includes("String(deals[di].status) === '0'") &&
-      reconciliationHook.includes("toLowerCase() === 'negociação'") &&
+      reconciliationHook.includes("candidateStatus === '0'") &&
+      reconciliationHook.includes("stageTitle === 'negociação'") &&
+      reconciliationHook.includes('String(candidate.stage) === negotiationStageId') &&
       reconciliationHook.includes(
         "'/api/3/accounts/' + encodeURIComponent(selectedAccountIds[sai])",
       ) &&

@@ -154,68 +154,77 @@ routerAdd(
       var stageCanonicalById = {}
       var allStages =
         requestedMode === 'synthetic' ? [] : list('/api/3/dealStages', 'dealStages', false, '')
-      for (var asm = 0; asm < allStages.length; asm++) {
-        var allStageTitle = String(allStages[asm].title || '').toLowerCase()
-        if (allStageTitle === 'prospects')
-          stageCanonicalById[String(allStages[asm].id)] = 'prospects'
-        if (allStageTitle === 'produção proposta' || allStageTitle === 'produção de proposta')
-          stageCanonicalById[String(allStages[asm].id)] = 'producao_proposta'
-        if (allStageTitle === 'negociação')
-          stageCanonicalById[String(allStages[asm].id)] = 'negociacao'
-      }
-      var accounts =
-        requestedMode === 'synthetic' || requestedMode === 'initial_open_negotiation'
-          ? []
-          : list('/api/3/accounts', 'accounts', false, '')
-      var contacts =
-        requestedMode === 'synthetic' || requestedMode === 'initial_open_negotiation'
-          ? []
-          : list('/api/3/contacts', 'contacts', true, '&orders[id]=ASC')
-      var deals =
-        requestedMode === 'synthetic' || requestedMode === 'initial_open_negotiation'
-          ? []
-          : list('/api/3/deals', 'deals', true, '')
+      var accounts = [],
+        contacts = [],
+        deals = []
       var customByDeal = {},
         initialCompanyByContact = {}
-      if (requestedMode === 'initial_open_negotiation') {
+      if (requestedMode !== 'synthetic') {
         var groups = list('/api/3/dealGroups', 'dealGroups', false, '')
-        var stages = allStages
         var pipelineId = '',
           negotiationStageId = ''
         for (var gi = 0; gi < groups.length; gi++)
           if (groups[gi].title === 'Propostas Qualificadas') pipelineId = String(groups[gi].id)
-        for (var si = 0; si < stages.length; si++)
-          if (
-            String(stages[si].group) === pipelineId &&
-            String(stages[si].title).toLowerCase() === 'negociação'
-          )
-            negotiationStageId = String(stages[si].id)
-        for (var smi = 0; smi < stages.length; smi++) {
-          var stageTitle = String(stages[smi].title || '').toLowerCase()
-          if (stageTitle === 'prospects') stageCanonicalById[String(stages[smi].id)] = 'prospects'
+        for (var smi = 0; smi < allStages.length; smi++) {
+          if (String(allStages[smi].group) !== pipelineId) continue
+          var stageTitle = String(allStages[smi].title || '').toLowerCase()
+          if (stageTitle === 'prospects')
+            stageCanonicalById[String(allStages[smi].id)] = 'prospects'
           if (stageTitle === 'produção proposta' || stageTitle === 'produção de proposta')
-            stageCanonicalById[String(stages[smi].id)] = 'producao_proposta'
-          if (stageTitle === 'negociação') stageCanonicalById[String(stages[smi].id)] = 'negociacao'
+            stageCanonicalById[String(allStages[smi].id)] = 'producao_proposta'
+          if (stageTitle === 'negociação') {
+            stageCanonicalById[String(allStages[smi].id)] = 'negociacao'
+            negotiationStageId = String(allStages[smi].id)
+          }
         }
         if (!pipelineId || !negotiationStageId) throw new Error('ESCOPO_PRE_CARGA_NAO_MAPEADO')
-        deals = list(
-          '/api/3/deals',
-          'deals',
-          true,
-          '&filters[group]=' +
-            encodeURIComponent(pipelineId) +
-            '&filters[stage]=' +
-            encodeURIComponent(negotiationStageId) +
-            '&filters[status]=0',
-        )
+        var candidateDeals =
+          requestedMode === 'initial_open_negotiation'
+            ? list(
+                '/api/3/deals',
+                'deals',
+                true,
+                '&filters[group]=' +
+                  encodeURIComponent(pipelineId) +
+                  '&filters[stage]=' +
+                  encodeURIComponent(negotiationStageId) +
+                  '&filters[status]=0',
+              )
+            : list('/api/3/deals', 'deals', true, '')
         var selectedDeals = []
-        for (var di = 0; di < deals.length; di++)
+        for (var di = 0; di < candidateDeals.length; di++) {
+          var candidate = candidateDeals[di]
+          if (requestedMode === 'incremental') version(candidate.mdate || candidate.cdate || '')
+          if (String(candidate.group) !== pipelineId) continue
+          var candidateStatus = String(candidate.status || '0')
+          var candidateStage = stageCanonicalById[String(candidate.stage)] || ''
+          var isOpenScope =
+            candidateStatus === '0' &&
+            (candidateStage === 'producao_proposta' ||
+              candidateStage === 'negociacao' ||
+              (candidateStage === 'prospects' &&
+                candidate.cdate &&
+                Date.parse(candidate.cdate) >= Date.parse('2026-08-24T03:00:00.000Z')))
+          var isKnownTerminal = false
+          if (requestedMode === 'incremental' && candidateStatus !== '0') {
+            try {
+              $app.findFirstRecordByFilter(
+                'com_vinculos_externos',
+                "sistema_origem='activecampaign' && external_type='business' && external_id='" +
+                  candidate.id +
+                  "'",
+              )
+              isKnownTerminal = true
+            } catch (_) {}
+          }
           if (
-            String(deals[di].group) === pipelineId &&
-            String(deals[di].status) === '0' &&
-            String(deals[di].stage) === negotiationStageId
+            (requestedMode === 'initial_open_negotiation' &&
+              candidateStatus === '0' &&
+              String(candidate.stage) === negotiationStageId) ||
+            (requestedMode === 'incremental' && (isOpenScope || isKnownTerminal))
           )
-            selectedDeals.push(deals[di])
+            selectedDeals.push(candidate)
+        }
         deals = selectedDeals
         var selectedContacts = {},
           selectedAccounts = {},
