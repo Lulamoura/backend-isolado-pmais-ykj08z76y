@@ -1,5 +1,5 @@
-// T4.3 â ciclo transacional e auditÃ¡vel da proposta.
-// Eventos canÃ´nicos: preparada, aprovada, emitida, visualizada e decidida.
+// T4.3 — ciclo transacional e auditável da proposta.
+// Eventos canônicos: preparada, aprovada, emitida, visualizada e decidida.
 
 ;(function () {
   function propostaCanonicalize(obj) {
@@ -129,7 +129,7 @@
           }
         }
         var somenteLeitura = false
-        // O ID externo Ã© referÃªncia operacional obrigatÃ³ria nos cards do pipeline.
+        // O ID externo é referência operacional obrigatória nos cards do pipeline.
         var externalId = null
         try {
           externalId = app
