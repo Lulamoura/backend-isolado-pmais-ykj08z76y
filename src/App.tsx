@@ -19,6 +19,7 @@ import Fechamentos from './pages/Fechamentos'
 import OrdensExecucao from './pages/OrdensExecucao'
 
 import NotFound from './pages/NotFound'
+import AccessDenied from './pages/AccessDenied'
 import Layout from './components/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './hooks/use-auth'
@@ -39,13 +40,14 @@ function AdministrationRoute({ children }: { children: React.ReactNode }) {
     'parametros.gerenciar',
   ].some(hasPermission)
   if (loading) return null
-  return allowed ? children : <NotFound />
+  return allowed ? children : <AccessDenied />
 }
 
 function RestrictedProfileRoute({ children }: { children: React.ReactNode }) {
   const { perfilSlug, loading } = useIsSuperAdmin()
   if (loading) return null
-  return perfilSlug === 'negociacao-propria' ? <NotFound /> : children
+  if (!perfilSlug) return <AccessDenied profileUnavailable />
+  return perfilSlug === 'negociacao-propria' ? <AccessDenied /> : children
 }
 
 const App = () => (

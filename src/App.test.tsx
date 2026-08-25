@@ -66,11 +66,41 @@ vi.mock('@/hooks/use-permissions', () => ({
 
 // SUT importado DEPOIS dos mocks.
 import App from './App'
+import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 
 describe('App routing com gate fechado', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useIsSuperAdmin).mockReturnValue({
+      isSuperAdmin: false,
+      perfilSlug: 'superadministrador',
+      loading: false,
+    })
     window.history.pushState({}, '', '/')
+  })
+
+  it('bloqueia Qualificação com mensagem explícita para negociação própria', () => {
+    vi.mocked(useIsSuperAdmin).mockReturnValue({
+      isSuperAdmin: false,
+      perfilSlug: 'negociacao-propria',
+      loading: false,
+    })
+    window.history.pushState({}, '', '/qualificacao')
+    render(<App />)
+    expect(screen.getByText('Acesso não autorizado')).toBeInTheDocument()
+    expect(screen.queryByText('Qualificação')).not.toBeInTheDocument()
+  })
+
+  it('falha fechada quando o perfil não pode ser resolvido', () => {
+    vi.mocked(useIsSuperAdmin).mockReturnValue({
+      isSuperAdmin: false,
+      perfilSlug: null,
+      loading: false,
+    })
+    window.history.pushState({}, '', '/ordens-execucao')
+    render(<App />)
+    expect(screen.getByText('Perfil não validado')).toBeInTheDocument()
+    expect(screen.queryByText('Ordens de Execução')).not.toBeInTheDocument()
   })
 
   it('navegar para /substituicoes/nova com MUTATIONS_ENABLED=false renderiza NotFound', () => {

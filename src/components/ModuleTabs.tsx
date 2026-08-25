@@ -14,6 +14,8 @@ export function ModuleTabs({ showSubstituicoes }: ModuleTabsProps) {
   let tabs: NavigationEntry[] = []
   let label = ''
 
+  if (!perfilSlug) return null
+
   if (
     ['/pipeline', '/qualificacao', '/propostas', '/fechamentos', '/ordens-execucao'].some(
       (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),

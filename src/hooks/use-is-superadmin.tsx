@@ -42,20 +42,19 @@ export function useIsSuperAdmin() {
     }
 
     setLoading(true)
-    // Releitura autenticada do próprio usuário — slug vem exclusivamente do
-    // expand de perfil_id. Nunca lemos com_perfis diretamente (retorna 403
-    // para todos exceto SA direto) nem aceitamos slug de campo não expandido.
-    pb.collection('users')
-      .getOne(user.id, { expand: 'perfil_id' })
+    // O contexto autorizado é resolvido no backend. A leitura direta de users
+    // com expand pode ser recusada pelas regras da coleção e jamais deve fazer
+    // a interface liberar rotas com perfil nulo.
+    pb.send('/backend/v1/my-permissions', { method: 'GET' })
       .then((record) => {
-        const slug = record?.expand?.perfil_id?.slug ?? null
+        const slug = typeof record?.perfil_slug === 'string' ? record.perfil_slug : null
         cachedPerfilId = perfilId
         cachedSlug = slug
         setIsSuperAdmin(slug === 'superadministrador')
         setPerfilSlug(slug)
       })
       .catch(() => {
-        // Limpa cache em caso de erro
+        // Falha fechada: perfil ausente mantém todas as áreas protegidas bloqueadas.
         cachedPerfilId = null
         cachedSlug = null
         setIsSuperAdmin(false)
