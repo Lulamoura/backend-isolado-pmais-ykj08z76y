@@ -26,6 +26,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { MUTATIONS_ENABLED } from '@/lib/feature-flags'
 import { cn } from '@/lib/utils'
 import { MAIN_MODULES, modulePathFor } from '@/lib/navigation'
+import AccessDenied from '@/pages/AccessDenied'
 
 const SUBSTITUICOES_ALLOWLIST = new Set([
   'superadministrador',
@@ -83,6 +84,9 @@ function LayoutContent() {
     signOut()
     navigate('/login')
   }
+
+  if (perfilLoading) return null
+  if (!perfilSlug) return <AccessDenied profileUnavailable />
 
   const userInitials = user?.name
     ? user.name

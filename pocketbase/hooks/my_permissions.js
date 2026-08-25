@@ -7,6 +7,7 @@ routerAdd(
 
     var now = new Date().toISOString().split('T')[0]
     var permissions = {}
+    var profileSlug = ''
 
     // Check direct perfil_id on user auth record
     if (e.auth) {
@@ -15,6 +16,7 @@ routerAdd(
         try {
           var userPerfil = $app.findRecordById('com_perfis', userPerfilId)
           if (userPerfil && userPerfil.getBool('ativo')) {
+            profileSlug = userPerfil.getString('slug')
             var directLinks = $app.findRecordsByFilter(
               'com_perfil_permissoes',
               "perfil_id = '" + userPerfilId + "'",
@@ -125,7 +127,8 @@ routerAdd(
       }
     } catch (_) {}
 
-    return e.json(200, { permissions: permissions })
+    if (!profileSlug) return e.forbiddenError('Perfil comercial ativo nao encontrado')
+    return e.json(200, { permissions: permissions, perfil_slug: profileSlug })
   },
   $apis.requireAuth(),
 )

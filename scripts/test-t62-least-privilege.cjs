@@ -21,6 +21,11 @@ const atividades = read('pocketbase/hooks/com_atividades_operacao.js')
 const fechamentos = read('pocketbase/hooks/com_fechamentos_operacao.js')
 const ordens = read('pocketbase/hooks/com_ordens_execucao.js')
 const slas = read('pocketbase/hooks/com_slas.js')
+const profileHook = read('src/hooks/use-is-superadmin.tsx')
+const permissionsHook = read('pocketbase/hooks/my_permissions.js')
+const accessDenied = read('src/pages/AccessDenied.tsx')
+const indexHtml = read('index.html')
+const robotsTxt = read('public/robots.txt')
 
 check('menu Administração depende de permissões', layout.includes('podeAdministrar'))
 check('rota Administração possui barreira', app.includes('AdministrationRoute'))
@@ -93,6 +98,34 @@ check(
   [qualificacao, ordens, entrada].every(
     (source) => source.includes("'negociacao-propria'") && source.includes('ACAO_NAO_AUTORIZADA'),
   ),
+)
+check(
+  'rotas protegidas exibem acesso não autorizado e falham fechadas sem perfil',
+  app.includes('<AccessDenied />') && app.includes('<AccessDenied profileUnavailable />'),
+)
+check(
+  'perfil é resolvido pelo contexto autorizado do backend',
+  profileHook.includes("pb.send('/backend/v1/my-permissions'") &&
+    profileHook.includes('record?.perfil_slug'),
+)
+check(
+  'backend devolve slug ativo e recusa perfil ausente',
+  permissionsHook.includes('perfil_slug: profileSlug') &&
+    permissionsHook.includes("forbiddenError('Perfil comercial ativo nao encontrado')"),
+)
+check(
+  'tela de bloqueio diferencia acesso negado de perfil não validado',
+  accessDenied.includes('Acesso não autorizado') && accessDenied.includes('Perfil não validado'),
+)
+check(
+  'shell global impede indexação por robôs',
+  indexHtml.includes('noindex, nofollow, noarchive, nosnippet') &&
+    indexHtml.includes('name="googlebot"') &&
+    indexHtml.includes('name="bingbot"'),
+)
+check(
+  'robots.txt bloqueia rastreamento integral',
+  robotsTxt.includes('User-agent: *') && robotsTxt.includes('Disallow: /'),
 )
 
 let failures = 0
