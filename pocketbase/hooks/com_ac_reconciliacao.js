@@ -439,10 +439,11 @@ routerAdd(
                 ev.links.owner_code +
                 "'",
             )
-          $app.findFirstRecordByFilter(
-            'com_alias_dimensoes',
-            "dimensao='etapa' && valor_original='" + ev.data.stage + "'",
-          )
+          if (String(ev.data.status) === '0')
+            $app.findFirstRecordByFilter(
+              'com_alias_dimensoes',
+              "dimensao='etapa' && valor_original='" + ev.data.stage + "'",
+            )
         } catch (_) {
           kind = 'error'
         }

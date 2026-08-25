@@ -164,6 +164,11 @@ const checks = [
       reconciliationHook.includes('(isOpenScope || isKnownTerminal)'),
   ],
   [
+    'terminal conhecido não exige alias de etapa aberta',
+    reconciliationHook.includes("if (String(ev.data.status) === '0')") &&
+      reconciliationHook.includes("dimensao='etapa' && valor_original='"),
+  ],
+  [
     'pré-carga filtra aberto + Negociação e usa Responsável comercial',
     reconciliationHook.includes("requestedMode === 'initial_open_negotiation'") &&
       reconciliationHook.includes("candidateStatus === '0'") &&
