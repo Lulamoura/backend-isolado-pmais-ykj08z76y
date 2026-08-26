@@ -37,7 +37,8 @@ export default function Slas() {
       <div>
         <h1 className="text-2xl font-bold">SLAs, calendário e alertas</h1>
         <p className="text-sm text-muted-foreground">
-          Prazos calculados em dias úteis — America/Recife
+          Prazos da etapa calculados em dias úteis — America/Recife — não utilizam a data da
+          próxima ação
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -98,6 +99,12 @@ export default function Slas() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {dados && dados.itens.length === 0 && (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nenhum SLA encontrado para este filtro. Ações vencidas são acompanhadas na fila de
+              próximas ações.
+            </p>
+          )}
           {(dados?.itens ?? []).map((i) => (
             <div
               key={i.negocio.id}

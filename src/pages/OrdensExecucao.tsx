@@ -110,7 +110,12 @@ export default function OrdensExecucao() {
         {itensVisiveis.map((item) => {
           const concluida = item.estado_operacional === 'em_processo_de_entrega'
           return (
-            <Card key={item.negocio.id}>
+            <Card
+              key={item.negocio.id}
+              className={
+                concluida ? '' : 'border-l-4 border-l-sky-400 bg-sky-50/70'
+              }
+            >
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div>

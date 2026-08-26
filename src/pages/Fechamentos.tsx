@@ -26,7 +26,12 @@ import {
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { CommercialContextCard } from '@/components/CommercialContextCard'
 import { CommercialFilters } from '@/components/CommercialFilters'
-import { filterAndSortCommercial, type CommercialSort } from '@/lib/commercial-context'
+import {
+  commercialActionCardClass,
+  commercialOutcomeCardClass,
+  filterAndSortCommercial,
+  type CommercialSort,
+} from '@/lib/commercial-context'
 
 const motivos: Array<{ value: MotivoPerda; label: string }> = [
   { value: 'preco', label: 'Preço' },
@@ -161,7 +166,14 @@ export default function Fechamentos() {
             !perdeuContato ||
             (item.tentativas_contato >= 5 && item.janela_tentativas_dias_uteis >= 10)
           return (
-            <Card key={item.negocio.id}>
+            <Card
+              key={item.negocio.id}
+              className={
+                terminal
+                  ? commercialOutcomeCardClass(item.negocio.resultado)
+                  : commercialActionCardClass(item.contexto.proxima_acao_em)
+              }
+            >
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div>

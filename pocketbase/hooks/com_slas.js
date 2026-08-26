@@ -6,12 +6,32 @@ routerAdd(
   'GET',
   '/backend/v1/slas/fila',
   (e) => {
-    function perfil(ator) {
+    function maxScope(a, b) {
+      var rank = { proprios: 1, equipe: 2, todos: 3 }
+      return (rank[b] || 0) > (rank[a] || 0) ? b : a
+    }
+    function resolverEscopo(ator) {
+      var scope = ''
+      var perfilId = ator.getString('perfil_id')
+      if (!perfilId) return scope
       try {
-        return $app.findRecordById('com_perfis', ator.getString('perfil_id')).getString('slug')
-      } catch (_) {
-        return ''
-      }
+        var perfil = $app.findRecordById('com_perfis', perfilId)
+        if (perfil.getBool('ativo') && perfil.getString('slug') === 'superadministrador')
+          scope = 'todos'
+        var links = $app.findRecordsByFilter(
+          'com_perfil_permissoes',
+          "perfil_id = '" + perfilId + "'",
+          '',
+          500,
+          0,
+        )
+        for (var i = 0; i < links.length; i++) {
+          var permissao = $app.findRecordById('com_permissoes', links[i].getString('permissao_id'))
+          if (permissao.getString('slug') === 'negocios.view')
+            scope = maxScope(scope, links[i].getString('escopo'))
+        }
+      } catch (_) {}
+      return scope
     }
     function inteiro(chave, padrao) {
       try {
@@ -75,13 +95,14 @@ routerAdd(
       ) === -1
     )
       return e.json(400, { error: 'VALIDATION' })
-    var p = perfil(ator),
-      filtro = "inativo = false && resultado = ''"
-    if (p !== 'superadministrador') {
+    var escopo = resolverEscopo(ator)
+    if (!escopo) return e.forbiddenError('Permissao negocios.view necessaria')
+    var filtro = "inativo = false && resultado = ''"
+    if (escopo !== 'todos') {
       var equipe = ator.getString('equipe_id')
       filtro +=
-        p !== 'negociacao-propria' && equipe
-          ? " && (responsavel_id='" + ator.id + "' || equipe_id='" + equipe + "')"
+        escopo === 'equipe' && equipe
+          ? " && equipe_id='" + equipe + "'"
           : " && responsavel_id='" + ator.id + "'"
     }
     var cfg = {

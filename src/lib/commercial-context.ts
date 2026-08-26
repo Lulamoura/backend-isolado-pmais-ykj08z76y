@@ -36,6 +36,19 @@ export const actionStatus = (value: string | null, now = new Date()): ActionStat
   return target < today ? 'vencida' : target === today ? 'hoje' : 'futura'
 }
 
+export const commercialActionCardClass = (value: string | null, now = new Date()) => {
+  const status = actionStatus(value, now)
+  if (status === 'vencida') return 'border-l-4 border-l-rose-600 bg-rose-50/70'
+  if (status === 'ausente') return 'border-l-4 border-l-amber-500 bg-amber-50/70'
+  return 'border-l-4 border-l-emerald-600 bg-emerald-50/70'
+}
+
+export const commercialOutcomeCardClass = (outcome: string | null) => {
+  if (outcome === 'ganho') return 'border-l-4 border-l-blue-900 bg-blue-50/70'
+  if (outcome === 'perdido') return 'border-l-4 border-l-orange-500 bg-orange-50/70'
+  return ''
+}
+
 export const ageInDays = (value: string | null, now = new Date()) => {
   const date = validDate(value)
   if (!date) return null

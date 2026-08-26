@@ -99,6 +99,7 @@ routerAdd(
         qualificacao: r.getString('qualificacao') || 'pendente',
         empresa: empresa,
         responsavel: responsavel,
+        proxima_acao_em: r.getString('proxima_acao_em') || null,
         created: r.getString('created'),
         updated: r.getString('updated'),
       })
