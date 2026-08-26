@@ -85,40 +85,41 @@ routerAdd(
     if (perfil === 'negociacao-propria') return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
     var filtro =
       "qualificacao = 'pendente' && etapa = 'prospects' && inativo = false && crm_created_at >= '2026-08-24 03:00:00.000Z'"
-    var temResponsavelQualificacao = false
-    try {
-      temResponsavelQualificacao = !!$app
-        .findCollectionByNameOrId('com_negocios')
-        .fields.getByName('qualificacao_responsavel_id')
-    } catch (_) {}
+    var filtrarQualificacaoPropria = false
     if (
       perfil !== 'superadministrador' &&
       perfil !== 'leitura-executiva' &&
-      escopo !== 'todos' &&
-      (escopo === 'equipe' || temResponsavelQualificacao)
+      escopo !== 'todos'
     ) {
       var equipeId = ator.getString('equipe_id')
-      filtro +=
-        escopo === 'equipe' && equipeId
-          ? " && (responsavel_id = '' || responsavel_id = '" +
-            ator.id +
-            "' || equipe_id = '" +
-            equipeId +
-            "')"
-          : " && (qualificacao_responsavel_id = '' || qualificacao_responsavel_id = '" +
-            ator.id +
-            "')"
+      if (escopo === 'equipe' && equipeId)
+        filtro +=
+          " && (responsavel_id = '' || responsavel_id = '" +
+          ator.id +
+          "' || equipe_id = '" +
+          equipeId +
+          "')"
+      else filtrarQualificacaoPropria = true
     }
 
     var registros = $app.findRecordsByFilter(
       'com_negocios',
       filtro,
       '-created',
-      porPagina + 1,
-      (pagina - 1) * porPagina,
+      1000,
+      0,
     )
-    var temMais = registros.length > porPagina
-    if (temMais) registros.pop()
+    if (filtrarQualificacaoPropria) {
+      var registrosProprios = []
+      for (var fi = 0; fi < registros.length; fi++) {
+        var qualificador = registros[fi].getString('qualificacao_responsavel_id')
+        if (!qualificador || qualificador === ator.id) registrosProprios.push(registros[fi])
+      }
+      registros = registrosProprios
+    }
+    var inicioPagina = (pagina - 1) * porPagina
+    var temMais = registros.length > inicioPagina + porPagina
+    registros = registros.slice(inicioPagina, inicioPagina + porPagina)
     var itens = []
     for (var i = 0; i < registros.length; i++) {
       var r = registros[i]
@@ -286,13 +287,15 @@ routerAdd(
           devolvidos: itemIndicador.devolvidos,
           tempo_medio_assumir_horas: itemIndicador.contagem_tempo_assumir
             ? Math.round(
-                (itemIndicador.soma_tempo_assumir_horas / itemIndicador.contagem_tempo_assumir) *
+                (itemIndicador.soma_tempo_assumir_horas /
+                  itemIndicador.contagem_tempo_assumir) *
                   100,
               ) / 100
             : null,
           tempo_medio_decidir_horas: itemIndicador.contagem_tempo_decidir
             ? Math.round(
-                (itemIndicador.soma_tempo_decidir_horas / itemIndicador.contagem_tempo_decidir) *
+                (itemIndicador.soma_tempo_decidir_horas /
+                  itemIndicador.contagem_tempo_decidir) *
                   100,
               ) / 100
             : null,
@@ -564,7 +567,10 @@ routerAdd(
     ]
     var motivo = String(body.motivo || '').trim()
     var justificativa = String(body.justificativa || '').trim()
-    if (body.decisao === 'desqualificada' && motivosDesqualificacao.indexOf(motivo) === -1)
+    if (
+      body.decisao === 'desqualificada' &&
+      motivosDesqualificacao.indexOf(motivo) === -1
+    )
       return e.json(400, {
         error: 'MOTIVO_OBRIGATORIO',
         message: 'Selecione um motivo canonico para desqualificar',
