@@ -8,7 +8,13 @@ var source = fs.readFileSync(
   'utf8',
 )
 var migration = fs.readFileSync(
-  path.join(__dirname, '..', 'pocketbase', 'migrations', '0006_qualificacao_operacional.js'),
+  path.join(
+    __dirname,
+    '..',
+    'pocketbase',
+    'migrations',
+    '202608262120_qualificacao_operacional.js',
+  ),
   'utf8',
 )
 var page = fs.readFileSync(
