@@ -11,21 +11,15 @@ var migration = fs.readFileSync(
   path.join(__dirname, '..', 'pocketbase', 'migrations', '0006_qualificacao_operacional.js'),
   'utf8',
 )
-var page = fs.readFileSync(
-  path.join(__dirname, '..', 'src', 'pages', 'Qualificacoes.tsx'),
-  'utf8',
-)
-var proposals = fs.readFileSync(
-  path.join(__dirname, '..', 'src', 'pages', 'Propostas.tsx'),
-  'utf8',
-)
+var page = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Qualificacoes.tsx'), 'utf8')
+var proposals = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Propostas.tsx'), 'utf8')
 var schema = JSON.parse(
   fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'pocketbase', 'schema.json'), 'utf8'),
 )
 var negociosSchema = schema.collections.find(function (collection) {
   return collection.name === 'com_negocios'
 })
-var negocioFieldNames = (negociosSchema && negociosSchema.fields || []).map(function (field) {
+var negocioFieldNames = ((negociosSchema && negociosSchema.fields) || []).map(function (field) {
   return field.name
 })
 var checks = [
@@ -62,10 +56,7 @@ var checks = [
       source.includes("'desistencia_antes_proposta'") &&
       source.includes("'outro'"),
   ],
-  [
-    'outro exige justificativa',
-    source.includes("motivo === 'outro' && !justificativa"),
-  ],
+  ['outro exige justificativa', source.includes("motivo === 'outro' && !justificativa")],
   ['qualificação avança etapa', source.includes("negocio.set('etapa', 'producao_proposta')")],
   [
     'desqualificação encerra sem marcador financeiro',
@@ -83,7 +74,10 @@ var checks = [
     source.includes('teste_controlado: body.teste_controlado === true') &&
       (source.match(/teste_controlado: body\.teste_controlado === true/g) || []).length >= 2,
   ],
-  ['qualificação nativa não é bloqueada pela pré-operação', !source.includes('PREOPERACAO_SOMENTE_LEITURA')],
+  [
+    'qualificação nativa não é bloqueada pela pré-operação',
+    !source.includes('PREOPERACAO_SOMENTE_LEITURA'),
+  ],
   [
     'fila própria inclui não atribuídos e os assumidos pelo operador',
     source.includes("qualificacao_responsavel_id = '' || qualificacao_responsavel_id = '") &&
@@ -121,7 +115,7 @@ var checks = [
   ],
   [
     'erro de carga não é apresentado como fila vazia',
-    page.includes("error ? null : itens.length === 0"),
+    page.includes('error ? null : itens.length === 0'),
   ],
   [
     'card exibe contato e botão de assunção',
