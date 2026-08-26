@@ -93,9 +93,10 @@ var checks = [
   ],
   [
     'fila própria inclui não atribuídos e os assumidos pelo operador',
-    source.includes("qualificacao_responsavel_id = '' || qualificacao_responsavel_id = '") &&
+    source.includes("getString('qualificacao_responsavel_id')") &&
+      source.includes('if (!qualificador || qualificador === ator.id)') &&
       source.includes("perfil === 'negociacao-propria'") &&
-      source.includes('temResponsavelQualificacao'),
+      source.includes('filtrarQualificacaoPropria'),
   ],
   [
     'assunção atômica impede trabalho duplicado',
