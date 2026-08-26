@@ -86,11 +86,7 @@ routerAdd(
     var filtro =
       "qualificacao = 'pendente' && etapa = 'prospects' && inativo = false && crm_created_at >= '2026-08-24 03:00:00.000Z'"
     var filtrarQualificacaoPropria = false
-    if (
-      perfil !== 'superadministrador' &&
-      perfil !== 'leitura-executiva' &&
-      escopo !== 'todos'
-    ) {
+    if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva' && escopo !== 'todos') {
       var equipeId = ator.getString('equipe_id')
       if (escopo === 'equipe' && equipeId)
         filtro +=
@@ -102,13 +98,7 @@ routerAdd(
       else filtrarQualificacaoPropria = true
     }
 
-    var registros = $app.findRecordsByFilter(
-      'com_negocios',
-      filtro,
-      '-created',
-      1000,
-      0,
-    )
+    var registros = $app.findRecordsByFilter('com_negocios', filtro, '-created', 1000, 0)
     if (filtrarQualificacaoPropria) {
       var registrosProprios = []
       for (var fi = 0; fi < registros.length; fi++) {
@@ -287,15 +277,13 @@ routerAdd(
           devolvidos: itemIndicador.devolvidos,
           tempo_medio_assumir_horas: itemIndicador.contagem_tempo_assumir
             ? Math.round(
-                (itemIndicador.soma_tempo_assumir_horas /
-                  itemIndicador.contagem_tempo_assumir) *
+                (itemIndicador.soma_tempo_assumir_horas / itemIndicador.contagem_tempo_assumir) *
                   100,
               ) / 100
             : null,
           tempo_medio_decidir_horas: itemIndicador.contagem_tempo_decidir
             ? Math.round(
-                (itemIndicador.soma_tempo_decidir_horas /
-                  itemIndicador.contagem_tempo_decidir) *
+                (itemIndicador.soma_tempo_decidir_horas / itemIndicador.contagem_tempo_decidir) *
                   100,
               ) / 100
             : null,
@@ -567,10 +555,7 @@ routerAdd(
     ]
     var motivo = String(body.motivo || '').trim()
     var justificativa = String(body.justificativa || '').trim()
-    if (
-      body.decisao === 'desqualificada' &&
-      motivosDesqualificacao.indexOf(motivo) === -1
-    )
+    if (body.decisao === 'desqualificada' && motivosDesqualificacao.indexOf(motivo) === -1)
       return e.json(400, {
         error: 'MOTIVO_OBRIGATORIO',
         message: 'Selecione um motivo canonico para desqualificar',
