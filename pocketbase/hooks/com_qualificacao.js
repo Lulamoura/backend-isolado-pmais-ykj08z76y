@@ -275,15 +275,13 @@ routerAdd(
           devolvidos: itemIndicador.devolvidos,
           tempo_medio_assumir_horas: itemIndicador.contagem_tempo_assumir
             ? Math.round(
-                (itemIndicador.soma_tempo_assumir_horas /
-                  itemIndicador.contagem_tempo_assumir) *
+                (itemIndicador.soma_tempo_assumir_horas / itemIndicador.contagem_tempo_assumir) *
                   100,
               ) / 100
             : null,
           tempo_medio_decidir_horas: itemIndicador.contagem_tempo_decidir
             ? Math.round(
-                (itemIndicador.soma_tempo_decidir_horas /
-                  itemIndicador.contagem_tempo_decidir) *
+                (itemIndicador.soma_tempo_decidir_horas / itemIndicador.contagem_tempo_decidir) *
                   100,
               ) / 100
             : null,
@@ -555,10 +553,7 @@ routerAdd(
     ]
     var motivo = String(body.motivo || '').trim()
     var justificativa = String(body.justificativa || '').trim()
-    if (
-      body.decisao === 'desqualificada' &&
-      motivosDesqualificacao.indexOf(motivo) === -1
-    )
+    if (body.decisao === 'desqualificada' && motivosDesqualificacao.indexOf(motivo) === -1)
       return e.json(400, {
         error: 'MOTIVO_OBRIGATORIO',
         message: 'Selecione um motivo canonico para desqualificar',
