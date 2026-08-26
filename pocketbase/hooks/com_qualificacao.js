@@ -85,40 +85,41 @@ routerAdd(
     if (perfil === 'negociacao-propria') return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
     var filtro =
       "qualificacao = 'pendente' && etapa = 'prospects' && inativo = false && crm_created_at >= '2026-08-24 03:00:00.000Z'"
-    var temResponsavelQualificacao = false
-    try {
-      temResponsavelQualificacao = !!$app
-        .findCollectionByNameOrId('com_negocios')
-        .fields.getByName('qualificacao_responsavel_id')
-    } catch (_) {}
+    var filtrarQualificacaoPropria = false
     if (
       perfil !== 'superadministrador' &&
       perfil !== 'leitura-executiva' &&
-      escopo !== 'todos' &&
-      (escopo === 'equipe' || temResponsavelQualificacao)
+      escopo !== 'todos'
     ) {
       var equipeId = ator.getString('equipe_id')
-      filtro +=
-        escopo === 'equipe' && equipeId
-          ? " && (responsavel_id = '' || responsavel_id = '" +
-            ator.id +
-            "' || equipe_id = '" +
-            equipeId +
-            "')"
-          : " && (qualificacao_responsavel_id = '' || qualificacao_responsavel_id = '" +
-            ator.id +
-            "')"
+      if (escopo === 'equipe' && equipeId)
+        filtro +=
+          " && (responsavel_id = '' || responsavel_id = '" +
+          ator.id +
+          "' || equipe_id = '" +
+          equipeId +
+          "')"
+      else filtrarQualificacaoPropria = true
     }
 
     var registros = $app.findRecordsByFilter(
       'com_negocios',
       filtro,
       '-created',
-      porPagina + 1,
-      (pagina - 1) * porPagina,
+      1000,
+      0,
     )
-    var temMais = registros.length > porPagina
-    if (temMais) registros.pop()
+    if (filtrarQualificacaoPropria) {
+      var registrosProprios = []
+      for (var fi = 0; fi < registros.length; fi++) {
+        var qualificador = registros[fi].getString('qualificacao_responsavel_id')
+        if (!qualificador || qualificador === ator.id) registrosProprios.push(registros[fi])
+      }
+      registros = registrosProprios
+    }
+    var inicioPagina = (pagina - 1) * porPagina
+    var temMais = registros.length > inicioPagina + porPagina
+    registros = registros.slice(inicioPagina, inicioPagina + porPagina)
     var itens = []
     for (var i = 0; i < registros.length; i++) {
       var r = registros[i]
