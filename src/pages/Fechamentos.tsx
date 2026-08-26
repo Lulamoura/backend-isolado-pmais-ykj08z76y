@@ -38,6 +38,7 @@ const motivos: Array<{ value: MotivoPerda; label: string }> = [
 
 export default function Fechamentos() {
   const { perfilSlug } = useIsSuperAdmin()
+  const somenteLeituraPerfil = perfilSlug === 'leitura-executiva'
   const [itens, setItens] = useState<ItemFechamento[]>([])
   const [loading, setLoading] = useState(true)
   const [motivo, setMotivo] = useState<Record<string, MotivoPerda>>({})
@@ -194,7 +195,7 @@ export default function Fechamentos() {
                         fechamento.
                       </p>
                     )}
-                    {!item.contexto.somente_leitura && (
+                    {!somenteLeituraPerfil && !item.contexto.somente_leitura && (
                       <>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="space-y-2">
@@ -222,66 +223,66 @@ export default function Fechamentos() {
                             />
                           </div>
                         </div>
+                        <Button
+                          disabled={
+                            !item.proposta_emitida ||
+                            !Number(valor[item.negocio.id]) ||
+                            !evidencia[item.negocio.id]?.trim()
+                          }
+                          onClick={() => void ganhar(item)}
+                        >
+                          <Trophy className="mr-2 h-4 w-4" /> Registrar ganho
+                        </Button>
+                        <div className="border-t pt-4">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <Select
+                              value={motivo[item.negocio.id]}
+                              onValueChange={(x) =>
+                                setMotivo((v) => ({
+                                  ...v,
+                                  [item.negocio.id]: x as MotivoPerda,
+                                }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Motivo da perda" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {motivos.map((x) => (
+                                  <SelectItem key={x.value} value={x.value}>
+                                    {x.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              type="date"
+                              value={dataAlvo[item.negocio.id] || ''}
+                              onChange={(e) =>
+                                setDataAlvo((v) => ({
+                                  ...v,
+                                  [item.negocio.id]: e.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                          {perdeuContato && (
+                            <p className="mt-2 text-xs text-slate-500">
+                              Tentativas: {item.tentativas_contato}/5 · janela:{' '}
+                              {item.janela_tentativas_dias_uteis}/10 dias úteis
+                            </p>
+                          )}
+                          <Button
+                            className="mt-3"
+                            variant="outline"
+                            disabled={!motivo[item.negocio.id] || !contatoValido}
+                            onClick={() => void perder(item)}
+                          >
+                            <XCircle className="mr-2 h-4 w-4" /> Registrar perda
+                          </Button>
+                        </div>
                       </>
                     )}
-                    <Button
-                      disabled={
-                        !item.proposta_emitida ||
-                        !Number(valor[item.negocio.id]) ||
-                        !evidencia[item.negocio.id]?.trim()
-                      }
-                      onClick={() => void ganhar(item)}
-                    >
-                      <Trophy className="mr-2 h-4 w-4" /> Registrar ganho
-                    </Button>
-                    <div className="border-t pt-4">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Select
-                          value={motivo[item.negocio.id]}
-                          onValueChange={(x) =>
-                            setMotivo((v) => ({
-                              ...v,
-                              [item.negocio.id]: x as MotivoPerda,
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Motivo da perda" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {motivos.map((x) => (
-                              <SelectItem key={x.value} value={x.value}>
-                                {x.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          type="date"
-                          value={dataAlvo[item.negocio.id] || ''}
-                          onChange={(e) =>
-                            setDataAlvo((v) => ({
-                              ...v,
-                              [item.negocio.id]: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      {perdeuContato && (
-                        <p className="mt-2 text-xs text-slate-500">
-                          Tentativas: {item.tentativas_contato}/5 · janela:{' '}
-                          {item.janela_tentativas_dias_uteis}/10 dias úteis
-                        </p>
-                      )}
-                      <Button
-                        className="mt-3"
-                        variant="outline"
-                        disabled={!motivo[item.negocio.id] || !contatoValido}
-                        onClick={() => void perder(item)}
-                      >
-                        <XCircle className="mr-2 h-4 w-4" /> Registrar perda
-                      </Button>
-                    </div>
                   </>
                 ) : item.negocio.resultado === 'perdido' ? (
                   <div className="space-y-3">
@@ -303,7 +304,7 @@ export default function Fechamentos() {
                         ? `Recuperação em ${item.agenda.data_alvo}`
                         : 'Sem agenda de recuperação ativa'}
                     </p>
-                    {perfilSlug !== 'negociacao-propria' && (
+                    {perfilSlug !== 'negociacao-propria' && !somenteLeituraPerfil && (
                       <Button disabled={!item.agenda} onClick={() => void reativar(item)}>
                         <RotateCcw className="mr-2 h-4 w-4" /> Reativar negócio
                       </Button>

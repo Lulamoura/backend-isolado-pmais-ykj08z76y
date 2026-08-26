@@ -23,6 +23,7 @@ const reais = (centavos: number) =>
 export default function Propostas() {
   const { perfilSlug } = useIsSuperAdmin()
   const somenteNegociacao = perfilSlug === 'negociacao-propria'
+  const somenteLeituraPerfil = perfilSlug === 'leitura-executiva'
   const [itens, setItens] = useState<ItemProposta[]>([])
   const [loading, setLoading] = useState(true)
   const [valores, setValores] = useState<Record<string, string>>({})
@@ -154,7 +155,7 @@ export default function Propostas() {
                     </p>
                   </div>
                 )}
-                {!somenteNegociacao && !item.contexto.somente_leitura && (
+                {!somenteNegociacao && !somenteLeituraPerfil && !item.contexto.somente_leitura && (
                   <div className="space-y-2">
                     <Label htmlFor={`proposta-${item.negocio.id}`}>
                       {!p
@@ -177,7 +178,7 @@ export default function Propostas() {
                     />
                   </div>
                 )}
-                {!somenteNegociacao && !item.contexto.somente_leitura && (
+                {!somenteNegociacao && !somenteLeituraPerfil && !item.contexto.somente_leitura && (
                   <div className="flex flex-wrap gap-2">
                     {!p && (
                       <Button
