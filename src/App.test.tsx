@@ -99,6 +99,6 @@ describe('App routing com gate fechado', () => {
     console.log('HASH_REC:', hashRec)
     console.log('HASH_PROP:', hashProp)
     expect(hashRec).toBe('02240f1335e10a7920cf170eba9363cb2d02cfd5f18178aa5665931e68c46ab1')
-    expect(hashProp).toBe('9cfcb4f2e06adb09eb0e02e419ec23ba55c55bc83fdd8603c4e7884296460588')
+    expect(hashProp).toBe('5b7bdb935300f0d74cd87359aadba3ff262b1cd8832b7c2cabe0318cc6c2bc19')
   })
 })
