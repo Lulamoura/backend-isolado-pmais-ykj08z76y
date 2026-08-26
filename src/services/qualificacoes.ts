@@ -9,7 +9,10 @@ export interface QualificacaoPendente {
   tipo_entrada: 'pendente' | 'pre_qualificada'
   qualificacao: 'pendente'
   empresa: { id: string; nome: string } | null
+  contato: { id: string; nome: string | null; email: string | null; telefone: string | null } | null
   responsavel: { id: string; nome: string } | null
+  responsavel_qualificacao: { id: string; nome: string } | null
+  qualificacao_assumida_em: string | null
   proxima_acao_em: string | null
   created: string
   updated: string
@@ -17,9 +20,23 @@ export interface QualificacaoPendente {
 
 export interface QualificacoesPendentesResponse {
   itens: QualificacaoPendente[]
+  responsaveis_qualificacao: Array<{ id: string; nome: string }>
+  indicadores: IndicadorQualificacao[]
   pagina: number
   por_pagina: number
   tem_mais: boolean
+}
+
+export interface IndicadorQualificacao {
+  usuario_id: string
+  nome: string
+  assumidos: number
+  qualificados: number
+  desqualificados: number
+  taxa_qualificacao: number
+  devolvidos: number
+  tempo_medio_assumir_horas: number | null
+  tempo_medio_decidir_horas: number | null
 }
 
 export interface DecidirQualificacaoPayload {
@@ -47,6 +64,50 @@ export function decidirQualificacao(payload: DecidirQualificacaoPayload) {
       headers: { 'Content-Type': 'application/json' },
     },
   )
+}
+
+export function assumirQualificacao(negocioId: string, updatedEsperado: string) {
+  return pb.send<{ negocio_id: string; qualificacao_responsavel_id: string; updated: string }>(
+    '/backend/v1/qualificacoes/assumir',
+    {
+      method: 'POST',
+      body: JSON.stringify({ negocio_id: negocioId, updated_esperado: updatedEsperado }),
+      headers: { 'Content-Type': 'application/json' },
+    },
+  )
+}
+
+export function atribuirQualificacao(
+  negocioId: string,
+  responsavelId: string,
+  updatedEsperado: string,
+) {
+  return pb.send('/backend/v1/qualificacoes/atribuir', {
+    method: 'POST',
+    body: JSON.stringify({
+      negocio_id: negocioId,
+      responsavel_id: responsavelId,
+      updated_esperado: updatedEsperado,
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+export function devolverQualificacao(
+  negocioId: string,
+  updatedEsperado: string,
+  justificativa: string,
+) {
+  return pb.send('/backend/v1/qualificacoes/devolver', {
+    method: 'POST',
+    body: JSON.stringify({
+      negocio_id: negocioId,
+      updated_esperado: updatedEsperado,
+      justificativa,
+      command_idempotency_key: `qualificacao:devolver:${negocioId}:${crypto.randomUUID()}`,
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  })
 }
 
 export function novaChaveQualificacao(negocioId: string): string {

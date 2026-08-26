@@ -95,7 +95,8 @@ check(
 )
 check(
   'alertas SLA são limitados aos próprios negócios',
-  slas.includes("p !== 'negociacao-propria' && equipe"),
+  slas.includes("escopo === 'equipe' && equipe") &&
+    slas.includes("responsavel_id='\" + ator.id + \"'"),
 )
 check(
   'qualificação, OE e entrada permanecem bloqueadas',

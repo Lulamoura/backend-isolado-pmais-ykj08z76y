@@ -7,11 +7,26 @@ var source = fs.readFileSync(
   path.join(__dirname, '..', 'pocketbase', 'hooks', 'com_qualificacao.js'),
   'utf8',
 )
+var migration = fs.readFileSync(
+  path.join(__dirname, '..', 'pocketbase', 'migrations', '0006_qualificacao_operacional.js'),
+  'utf8',
+)
+var page = fs.readFileSync(
+  path.join(__dirname, '..', 'src', 'pages', 'Qualificacoes.tsx'),
+  'utf8',
+)
+var proposals = fs.readFileSync(
+  path.join(__dirname, '..', 'src', 'pages', 'Propostas.tsx'),
+  'utf8',
+)
 var checks = [
   [
-    'rotas GET e POST',
+    'rotas completas da qualificação',
     source.includes("'/backend/v1/qualificacoes/pendentes'") &&
-      source.includes("'/backend/v1/qualificacoes/decidir'"),
+      source.includes("'/backend/v1/qualificacoes/assumir'") &&
+      source.includes("'/backend/v1/qualificacoes/atribuir'") &&
+      source.includes("'/backend/v1/qualificacoes/decidir'") &&
+      source.includes("'/backend/v1/qualificacoes/devolver'"),
   ],
   ['autenticação obrigatória', source.includes('$apis.requireAuth()')],
   ['somente usuários comerciais ativos', source.includes("getBool('ativo_comercial')")],
@@ -21,7 +36,8 @@ var checks = [
   ],
   [
     'replay conhecido é resolvido antes da transação',
-    source.indexOf('var replayExistente') < source.indexOf('$app.runInTransaction'),
+    source.indexOf('var replayExistente') <
+      source.indexOf('$app.runInTransaction', source.indexOf('var replayExistente')),
   ],
   ['concorrência otimista', source.includes('updated_esperado') && source.includes('STALE_WRITE')],
   ['histórico append-only', source.includes("'com_qualificacao_historico'")],
@@ -30,6 +46,17 @@ var checks = [
     source.includes("'com_auditoria'") && source.includes("'evidencia_estruturada'"),
   ],
   ['motivo obrigatório para desqualificar', source.includes('MOTIVO_OBRIGATORIO')],
+  [
+    'catálogo canônico com 14 motivos',
+    (source.match(/^      '[a-z_]+',$/gm) || []).length >= 14 &&
+      source.includes("'contato_invalido_dados_insuficientes'") &&
+      source.includes("'desistencia_antes_proposta'") &&
+      source.includes("'outro'"),
+  ],
+  [
+    'outro exige justificativa',
+    source.includes("motivo === 'outro' && !justificativa"),
+  ],
   ['qualificação avança etapa', source.includes("negocio.set('etapa', 'producao_proposta')")],
   [
     'desqualificação encerra sem marcador financeiro',
@@ -39,19 +66,53 @@ var checks = [
   ['decisão não pode ser repetida', source.includes('JA_DECIDIDO')],
   ['autor sempre derivado da autenticação', source.includes("hist.set('autor_id', ator.id)")],
   [
-    'exceção de teste exige marcador, superadministrador e prefixo',
-    source.includes('body.teste_controlado === true') &&
-      source.includes("perfilTx === 'superadministrador'") &&
-      source.includes("negocio.getString('titulo').indexOf('[TESTE]') === 0"),
+    'marcador de teste só aceita valor booleano verdadeiro',
+    source.includes('body.teste_controlado !== undefined && body.teste_controlado !== true'),
   ],
   [
     'marcador de teste integra idempotência e auditoria',
     source.includes('teste_controlado: body.teste_controlado === true') &&
       (source.match(/teste_controlado: body\.teste_controlado === true/g) || []).length >= 2,
   ],
+  ['qualificação nativa não é bloqueada pela pré-operação', !source.includes('PREOPERACAO_SOMENTE_LEITURA')],
   [
-    'bloqueio de pré-operação mantém resposta explícita',
-    source.includes("return e.json(423, { error: 'PREOPERACAO_SOMENTE_LEITURA' })"),
+    'fila própria inclui não atribuídos e os assumidos pelo operador',
+    source.includes("qualificacao_responsavel_id = '' || qualificacao_responsavel_id = '") &&
+      source.includes("perfil === 'negociacao-propria'"),
+  ],
+  [
+    'assunção atômica impede trabalho duplicado',
+    source.includes("throw new Error('JA_ATRIBUIDA')") &&
+      source.includes("negocio.set('qualificacao_responsavel_id', ator.id)"),
+  ],
+  [
+    'operador só decide qualificação assumida',
+    source.includes("throw new Error('QUALIFICACAO_NAO_ASSUMIDA')"),
+  ],
+  [
+    'Rita pode atribuir e devolver com auditoria',
+    source.includes("perfil !== 'gestor-comercial'") &&
+      source.includes("aud.set('comando', 'atribuir_qualificacao')") &&
+      source.includes("aud.set('comando', 'devolver_qualificacao')"),
+  ],
+  [
+    'migração persiste responsável e tempos',
+    migration.includes('qualificacao_responsavel_id') &&
+      migration.includes('qualificacao_assumida_em') &&
+      migration.includes('qualificacao_decidida_em'),
+  ],
+  [
+    'card exibe contato e botão de assunção',
+    page.includes('Contato não informado') &&
+      page.includes('E-mail não informado') &&
+      page.includes('Telefone não informado') &&
+      page.includes('Assumir qualificação'),
+  ],
+  [
+    'gestão recebe indicadores e devolução',
+    source.includes('taxa_qualificacao') &&
+      page.includes('Acompanhamento por responsável') &&
+      proposals.includes('Devolver para Qualificação'),
   ],
 ]
 var failed = 0
