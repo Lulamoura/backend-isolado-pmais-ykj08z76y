@@ -19,6 +19,15 @@ var proposals = fs.readFileSync(
   path.join(__dirname, '..', 'src', 'pages', 'Propostas.tsx'),
   'utf8',
 )
+var schema = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'pocketbase', 'schema.json'), 'utf8'),
+)
+var negociosSchema = schema.collections.find(function (collection) {
+  return collection.name === 'com_negocios'
+})
+var negocioFieldNames = (negociosSchema && negociosSchema.fields || []).map(function (field) {
+  return field.name
+})
 var checks = [
   [
     'rotas completas da qualificação',
@@ -100,6 +109,19 @@ var checks = [
     migration.includes('qualificacao_responsavel_id') &&
       migration.includes('qualificacao_assumida_em') &&
       migration.includes('qualificacao_decidida_em'),
+  ],
+  [
+    'manifesto materializa responsável e tempos no runtime',
+    negocioFieldNames.includes('qualificacao_responsavel_id') &&
+      negocioFieldNames.includes('qualificacao_assumida_em') &&
+      negocioFieldNames.includes('qualificacao_decidida_em') &&
+      negociosSchema.indexes.some(function (index) {
+        return index.includes('idx_com_negocios_qualificacao_responsavel')
+      }),
+  ],
+  [
+    'erro de carga não é apresentado como fila vazia',
+    page.includes("error ? null : itens.length === 0"),
   ],
   [
     'card exibe contato e botão de assunção',

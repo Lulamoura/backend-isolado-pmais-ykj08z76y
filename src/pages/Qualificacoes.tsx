@@ -224,7 +224,7 @@ export default function Qualificacoes() {
             <Skeleton key={n} className="h-48 w-full" />
           ))}
         </div>
-      ) : itens.length === 0 ? (
+      ) : error ? null : itens.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
             <SearchX className="h-9 w-9 text-muted-foreground" />
