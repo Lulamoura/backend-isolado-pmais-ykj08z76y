@@ -18,16 +18,19 @@ routerAdd(
     } catch (_) {
       return e.badRequestError('Equipe Comercial nao encontrada')
     }
+    if (!/^[a-z0-9]{15}$/.test(equipe.id)) return e.badRequestError('Equipe Comercial invalida')
+    var todosAntes = $app.findRecordsByFilter('com_negocios', "id != ''", 'id', 500, 0)
     var atualizados = 0
-    $app.runInTransaction(function (tx) {
-      var negocios = tx.findRecordsByFilter('com_negocios', "id != ''", 'id', 500, 0)
-      for (var i = 0; i < negocios.length; i++) {
-        if (negocios[i].getString('equipe_id')) continue
-        negocios[i].set('equipe_id', equipe.id)
-        tx.save(negocios[i])
-        atualizados++
-      }
-    })
+    for (var i = 0; i < todosAntes.length; i++)
+      if (!todosAntes[i].getString('equipe_id')) atualizados++
+    $app
+      .db()
+      .newQuery(
+        "UPDATE com_negocios SET equipe_id = '" +
+          equipe.id +
+          "' WHERE equipe_id IS NULL OR equipe_id = ''",
+      )
+      .execute()
     var todos = $app.findRecordsByFilter('com_negocios', "id != ''", 'id', 500, 0)
     var restantes = 0
     for (var j = 0; j < todos.length; j++) if (!todos[j].getString('equipe_id')) restantes++
