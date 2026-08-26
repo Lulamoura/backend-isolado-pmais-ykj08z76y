@@ -47,7 +47,8 @@ describe('Operação do Dia', () => {
     )
 
     expect(await screen.findByText('1 sem ação · 1 vencida(s)')).toBeInTheDocument()
-    expect(screen.getByText('1 vencido(s) · 1 em alerta')).toBeInTheDocument()
+    expect(screen.getByText('1 vencido(s) · 1 em alerta · prazo da etapa')).toBeInTheDocument()
+    expect(listarSlas).toHaveBeenCalledWith('atencao')
     expect(screen.getByText('Leitura de propostas: Não rastreável')).toBeInTheDocument()
     expect(screen.getByText(/Nenhuma abertura será inferida ou simulada/)).toBeInTheDocument()
   })

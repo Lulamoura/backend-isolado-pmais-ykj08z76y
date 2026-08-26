@@ -24,6 +24,7 @@ import {
   type QualificacaoPendente,
 } from '@/services/qualificacoes'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
+import { commercialActionCardClass } from '@/lib/commercial-context'
 
 type Decisao = 'qualificada' | 'desqualificada'
 
@@ -129,7 +130,7 @@ export default function Qualificacoes() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {itens.map((item) => (
-            <Card key={item.id}>
+            <Card key={item.id} className={commercialActionCardClass(item.proxima_acao_em)}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   actionStatus,
   ageInDays,
+  commercialActionCardClass,
+  commercialOutcomeCardClass,
   filterAndSortCommercial,
   type CommercialContext,
 } from '@/lib/commercial-context'
@@ -34,6 +36,15 @@ describe('contexto comercial', () => {
 
   it('calcula o tempo de vida a partir da criação no CRM', () => {
     expect(ageInDays('2026-08-14T12:00:00Z', new Date('2026-08-24T12:00:00Z'))).toBe(10)
+  })
+
+  it('aplica as barras semânticas da próxima ação e do fechamento', () => {
+    const now = new Date('2026-08-24T15:00:00Z')
+    expect(commercialActionCardClass('2026-08-23T12:00:00Z', now)).toContain('rose-600')
+    expect(commercialActionCardClass(null, now)).toContain('amber-500')
+    expect(commercialActionCardClass('2026-08-25T12:00:00Z', now)).toContain('emerald-600')
+    expect(commercialOutcomeCardClass('ganho')).toContain('blue-900')
+    expect(commercialOutcomeCardClass('perdido')).toContain('orange-500')
   })
 
   it('filtra por empresa e ordena pelo maior valor', () => {

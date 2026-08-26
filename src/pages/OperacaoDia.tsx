@@ -48,7 +48,7 @@ export default function OperacaoDia() {
     setLoading(true)
     Promise.allSettled([
       listarFilaAtividades('todas'),
-      listarSlas(),
+      listarSlas('atencao'),
       perfilSlug === 'negociacao-propria'
         ? Promise.resolve({ itens: [], responsaveis_envio: [] })
         : listarOrdensExecucao(),
@@ -103,7 +103,7 @@ export default function OperacaoDia() {
     {
       title: 'SLAs em atenção',
       value: summary.slasVencidos + summary.slasAlerta,
-      detail: `${summary.slasVencidos} vencido(s) · ${summary.slasAlerta} em alerta`,
+      detail: `${summary.slasVencidos} vencido(s) · ${summary.slasAlerta} em alerta · prazo da etapa`,
       path: '/slas?situacao=atencao',
       icon: AlertTriangle,
       tone: 'text-amber-700 bg-amber-50',

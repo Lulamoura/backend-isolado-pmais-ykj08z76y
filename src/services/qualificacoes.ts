@@ -10,6 +10,7 @@ export interface QualificacaoPendente {
   qualificacao: 'pendente'
   empresa: { id: string; nome: string } | null
   responsavel: { id: string; nome: string } | null
+  proxima_acao_em: string | null
   created: string
   updated: string
 }

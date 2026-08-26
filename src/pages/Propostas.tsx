@@ -16,7 +16,11 @@ import {
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { CommercialContextCard } from '@/components/CommercialContextCard'
 import { CommercialFilters } from '@/components/CommercialFilters'
-import { filterAndSortCommercial, type CommercialSort } from '@/lib/commercial-context'
+import {
+  commercialActionCardClass,
+  filterAndSortCommercial,
+  type CommercialSort,
+} from '@/lib/commercial-context'
 
 const reais = (centavos: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(centavos / 100)
@@ -121,7 +125,10 @@ export default function Propostas() {
         {itensVisiveis.map((item) => {
           const p = item.proposta
           return (
-            <Card key={item.negocio.id}>
+            <Card
+              key={item.negocio.id}
+              className={commercialActionCardClass(item.contexto.proxima_acao_em)}
+            >
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div>

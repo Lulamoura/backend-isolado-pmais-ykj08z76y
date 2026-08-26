@@ -29,7 +29,14 @@ const checks = [
   ['proposta 5 dias uteis', migration.includes("sla.proposta_dias_uteis', '5")],
   ['negociacao 2 dias uteis', /['"]sla\.negociacao_dias_uteis['"],\s*['"]2['"]/.test(migration)],
   ['timezone Recife', hook.includes('America/Recife') && page.includes('America/Recife')],
-  ['fila RBAC', hook.includes("perfil !== 'superadministrador'") && hook.includes('equipe_id')],
+  [
+    'fila aplica o escopo real de negocios.view',
+    hook.includes("permissao.getString('slug') === 'negocios.view'") &&
+      hook.includes("escopo === 'equipe'") &&
+      hook.includes("escopo !== 'todos'") &&
+      hook.includes("responsavel_id='") &&
+      hook.includes('Permissao negocios.view necessaria'),
+  ],
   ['tres situacoes', ['vencido', 'alerta', 'no_prazo'].every((v) => hook.includes(v))],
   [
     'parametro SuperAdmin',
