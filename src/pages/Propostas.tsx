@@ -14,6 +14,7 @@ import {
   type ItemProposta,
 } from '@/services/propostas'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
+import { devolverQualificacao } from '@/services/qualificacoes'
 import { CommercialContextCard } from '@/components/CommercialContextCard'
 import { CommercialFilters } from '@/components/CommercialFilters'
 import {
@@ -28,6 +29,8 @@ export default function Propostas() {
   const { perfilSlug } = useIsSuperAdmin()
   const somenteNegociacao = perfilSlug === 'negociacao-propria'
   const somenteLeituraPerfil = perfilSlug === 'leitura-executiva'
+  const podeDevolverQualificacao =
+    perfilSlug === 'superadministrador' || perfilSlug === 'gestor-comercial'
   const [itens, setItens] = useState<ItemProposta[]>([])
   const [loading, setLoading] = useState(true)
   const [valores, setValores] = useState<Record<string, string>>({})
@@ -37,6 +40,7 @@ export default function Propostas() {
   const [ordenacao, setOrdenacao] = useState<CommercialSort>('proxima_acao')
   const [periodoInicio, setPeriodoInicio] = useState('')
   const [periodoFim, setPeriodoFim] = useState('')
+  const [motivoDevolucao, setMotivoDevolucao] = useState<Record<string, string>>({})
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
@@ -90,6 +94,17 @@ export default function Propostas() {
       await carregar()
     } catch (_) {
       toast.error('A transição não pôde ser registrada.')
+    }
+  }
+  const devolver = async (item: ItemProposta) => {
+    const justificativa = motivoDevolucao[item.negocio.id]?.trim()
+    if (!justificativa) return
+    try {
+      await devolverQualificacao(item.negocio.id, item.negocio.updated, justificativa)
+      toast.success('Negócio devolvido para Qualificação.')
+      await carregar()
+    } catch (_) {
+      toast.error('O negócio não pôde ser devolvido para Qualificação.')
     }
   }
   return (
@@ -160,6 +175,31 @@ export default function Propostas() {
                       Aprovada: {p.aprovada ? 'Sim' : 'Não'} · Visualizada:{' '}
                       {p.visualizada ? 'Sim' : 'Não'}
                     </p>
+                  </div>
+                )}
+                {podeDevolverQualificacao && item.negocio.etapa === 'producao_proposta' && (
+                  <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <Label htmlFor={`devolver-${item.negocio.id}`}>
+                      Motivo para devolver à Qualificação
+                    </Label>
+                    <Input
+                      id={`devolver-${item.negocio.id}`}
+                      value={motivoDevolucao[item.negocio.id] || ''}
+                      onChange={(event) =>
+                        setMotivoDevolucao((atual) => ({
+                          ...atual,
+                          [item.negocio.id]: event.target.value,
+                        }))
+                      }
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!motivoDevolucao[item.negocio.id]?.trim()}
+                      onClick={() => void devolver(item)}
+                    >
+                      Devolver para Qualificação
+                    </Button>
                   </div>
                 )}
                 {!somenteNegociacao && !somenteLeituraPerfil && !item.contexto.somente_leitura && (
