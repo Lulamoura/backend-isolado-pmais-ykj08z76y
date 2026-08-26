@@ -18,6 +18,7 @@ export interface ItemFilaAtividade {
     external_id: string | null
     titulo: string
     etapa: string
+    modalidade: 'recorrente' | 'evento' | 'serv_eventual' | null
     empresa: { id: string; nome: string } | null
     responsavel: { id: string; nome: string } | null
     updated: string

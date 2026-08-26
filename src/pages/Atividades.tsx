@@ -60,6 +60,19 @@ const rotuloSituacao: Record<SituacaoAtividade, string> = {
   programada: 'Programada',
 }
 
+const classeSituacao: Record<SituacaoAtividade, string> = {
+  sem_proxima_acao: 'border-l-4 border-l-amber-500 bg-amber-50/70',
+  vencida: 'border-l-4 border-l-rose-600 bg-rose-50/70',
+  programada: 'border-l-4 border-l-emerald-600 bg-emerald-50/70',
+}
+
+function rotuloModalidade(value: string | null) {
+  if (value === 'recorrente') return 'Recorrente'
+  if (value === 'evento') return 'Evento'
+  if (value === 'serv_eventual') return 'Serviço eventual'
+  return 'Não informada'
+}
+
 function dataLocal(value: string | null) {
   if (!value) return 'Sem data definida'
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(
@@ -243,7 +256,7 @@ export default function Atividades() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {itens.map((item) => (
-            <Card key={item.negocio.id}>
+            <Card key={item.negocio.id} className={classeSituacao[item.situacao]}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -272,10 +285,7 @@ export default function Atividades() {
                       Responsável: {item.proxima_acao.responsavel?.nome || 'não informado'}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Origem:{' '}
-                      {item.proxima_acao.origem === 'activecampaign'
-                        ? 'ActiveCampaign'
-                        : 'Aplicativo'}
+                      Modalidade: {rotuloModalidade(item.negocio.modalidade)}
                     </p>
                   </div>
                 ) : (
@@ -300,8 +310,7 @@ export default function Atividades() {
                   </div>
                 ) : item.proxima_acao ? (
                   <p className="text-xs text-muted-foreground">
-                    A ação sincronizada deve ser atualizada no ActiveCampaign durante a
-                    pré-operação.
+                    Atualize esta ação no ActiveCampaign.
                   </p>
                 ) : (
                   <Button

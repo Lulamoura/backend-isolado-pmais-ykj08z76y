@@ -14,8 +14,27 @@
       function fechamentoPodeAcessar(user, perfil, negocio) {
         if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
-        if (perfil === 'negociacao-propria') return false
+        var escopo = 'proprios'
+        try {
+          var links = $app.findRecordsByFilter(
+            'com_perfil_permissoes',
+            "perfil_id='" + user.getString('perfil_id') + "'",
+            '',
+            500,
+            0,
+          )
+          for (var i = 0; i < links.length; i++) {
+            var permissao = $app.findRecordById(
+              'com_permissoes',
+              links[i].getString('permissao_id'),
+            )
+            if (permissao.getString('slug') === 'negocios.view')
+              escopo = links[i].getString('escopo')
+          }
+        } catch (_) {}
+        if (escopo === 'todos') return true
         return (
+          escopo === 'equipe' &&
           !!user.getString('equipe_id') &&
           negocio.getString('equipe_id') === user.getString('equipe_id')
         )

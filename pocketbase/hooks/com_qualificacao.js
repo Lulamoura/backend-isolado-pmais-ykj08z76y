@@ -22,22 +22,38 @@ routerAdd(
       return e.badRequestError('Paginacao invalida')
 
     var perfil = ''
+    var escopo = 'proprios'
     try {
       var perfilId = ator.getString('perfil_id')
-      if (perfilId) perfil = $app.findRecordById('com_perfis', perfilId).getString('slug')
+      if (perfilId) {
+        perfil = $app.findRecordById('com_perfis', perfilId).getString('slug')
+        var links = $app.findRecordsByFilter(
+          'com_perfil_permissoes',
+          "perfil_id='" + perfilId + "'",
+          '',
+          500,
+          0,
+        )
+        for (var li = 0; li < links.length; li++) {
+          var permissao = $app.findRecordById('com_permissoes', links[li].getString('permissao_id'))
+          if (permissao.getString('slug') === 'negocios.view')
+            escopo = links[li].getString('escopo')
+        }
+      }
     } catch (_) {}
     if (perfil === 'negociacao-propria') return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
     var filtro =
       "qualificacao = 'pendente' && etapa = 'prospects' && inativo = false && crm_created_at >= '2026-08-24 03:00:00.000Z'"
-    if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva') {
+    if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva' && escopo !== 'todos') {
       var equipeId = ator.getString('equipe_id')
-      filtro += equipeId
-        ? " && (responsavel_id = '' || responsavel_id = '" +
-          ator.id +
-          "' || equipe_id = '" +
-          equipeId +
-          "')"
-        : " && (responsavel_id = '' || responsavel_id = '" + ator.id + "')"
+      filtro +=
+        escopo === 'equipe' && equipeId
+          ? " && (responsavel_id = '' || responsavel_id = '" +
+            ator.id +
+            "' || equipe_id = '" +
+            equipeId +
+            "')"
+          : " && responsavel_id = '" + ator.id + "'"
     }
 
     var registros = $app.findRecordsByFilter(

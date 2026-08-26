@@ -32,6 +32,12 @@ export function CommercialContextCard({
   showReadOnlyNotice?: boolean
 }) {
   const status = actionStatus(contexto.proxima_acao_em)
+  const nextActionClass =
+    status === 'vencida'
+      ? 'border-rose-300 bg-rose-50'
+      : status === 'ausente'
+        ? 'border-amber-300 bg-amber-50'
+        : 'border-emerald-300 bg-emerald-50'
   const age = ageInDays(contexto.crm_created_at)
   const alerts = [
     showNextAction && status === 'vencida' ? 'Próxima ação vencida' : '',
@@ -68,7 +74,7 @@ export function CommercialContextCard({
         {age !== null && <Badge variant="secondary">{age} dia(s) de vida</Badge>}
       </div>
       {showNextAction ? (
-        <div className="rounded-md border bg-muted/30 p-3">
+        <div className={`rounded-md border p-3 ${nextActionClass}`}>
           <p className="flex items-center gap-2 font-medium">
             <CalendarClock className="h-4 w-4" />
             Próxima ação: {formatDate(contexto.proxima_acao_em)}

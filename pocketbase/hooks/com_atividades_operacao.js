@@ -14,6 +14,34 @@ routerAdd(
         return ''
       }
     }
+    function maxScope(a, b) {
+      var rank = { proprios: 1, equipe: 2, todos: 3 }
+      return (rank[b] || 0) > (rank[a] || 0) ? b : a
+    }
+    function resolverEscopo(ator, app) {
+      var scope = ''
+      var perfilId = ator.getString('perfil_id')
+      if (perfilId) {
+        try {
+          var perfil = app.findRecordById('com_perfis', perfilId)
+          if (perfil.getBool('ativo') && perfil.getString('slug') === 'superadministrador')
+            scope = 'todos'
+          var links = app.findRecordsByFilter(
+            'com_perfil_permissoes',
+            "perfil_id = '" + perfilId + "'",
+            '',
+            500,
+            0,
+          )
+          for (var i = 0; i < links.length; i++) {
+            var permissao = app.findRecordById('com_permissoes', links[i].getString('permissao_id'))
+            if (permissao.getString('slug') === 'negocios.view')
+              scope = maxScope(scope, links[i].getString('escopo'))
+          }
+        } catch (_) {}
+      }
+      return scope
+    }
     var ator = e.auth
     if (!ator) return e.unauthorizedError('Autenticacao necessaria')
     if (!ator.getBool('ativo_comercial')) return e.forbiddenError('Usuario comercial inativo')
@@ -32,12 +60,14 @@ routerAdd(
       return e.json(400, { error: 'VALIDATION' })
 
     var perfil = perfilDoAtor(ator, $app)
+    var escopo = resolverEscopo(ator, $app)
+    if (!escopo) return e.forbiddenError('Permissao negocios.view necessaria')
     var filtro = "inativo = false && resultado = ''"
-    if (perfil !== 'superadministrador') {
+    if (escopo !== 'todos') {
       var equipe = ator.getString('equipe_id')
       filtro +=
-        perfil !== 'negociacao-propria' && equipe
-          ? " && (responsavel_id = '" + ator.id + "' || equipe_id = '" + equipe + "')"
+        escopo === 'equipe' && equipe
+          ? " && equipe_id = '" + equipe + "'"
           : " && responsavel_id = '" + ator.id + "'"
     }
     var negocios = $app.findRecordsByFilter('com_negocios', filtro, 'titulo', 500, 0)
@@ -119,6 +149,7 @@ routerAdd(
           external_id: externalId,
           titulo: negocio.getString('titulo'),
           etapa: negocio.getString('etapa'),
+          modalidade: negocio.getString('modalidade') || null,
           empresa: empresa,
           responsavel: dono,
           updated: negocio.getString('updated'),
