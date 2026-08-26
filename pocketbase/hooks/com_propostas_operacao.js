@@ -21,7 +21,7 @@
   }
 
   function propostaPodeAcessar(user, perfil, negocio) {
-    if (perfil === 'superadministrador') return true
+    if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
     if (negocio.getString('responsavel_id') === user.id) return true
     if (perfil === 'negociacao-propria') return false
     return (
@@ -85,7 +85,7 @@
         }
       }
       function propostaPodeAcessar(user, perfil, negocio) {
-        if (perfil === 'superadministrador') return true
+        if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
         if (perfil === 'negociacao-propria') return false
         return (
@@ -265,7 +265,7 @@
         }
       }
       function propostaPodeAcessar(user, perfil, negocio) {
-        if (perfil === 'superadministrador') return true
+        if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
         if (perfil === 'negociacao-propria') return false
         return (
@@ -276,7 +276,7 @@
       function propostaPodeExecutar(app, user, tipo) {
         var perfil = propostaPerfil(app, user)
         if (perfil === 'superadministrador') return true
-        if (perfil === 'negociacao-propria') return false
+        if (perfil === 'negociacao-propria' || perfil === 'leitura-executiva') return false
         return true
       }
       function propostaEventos(app, versaoId) {
