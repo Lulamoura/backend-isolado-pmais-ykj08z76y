@@ -8,20 +8,17 @@ var source = fs.readFileSync(
   'utf8',
 )
 var migration = fs.readFileSync(
-  path.join(__dirname, '..', 'pocketbase', 'migrations', '0006_qualificacao_operacional.js'),
+  path.join(
+    __dirname,
+    '..',
+    'pocketbase',
+    'migrations',
+    '202608262120_qualificacao_operacional.js',
+  ),
   'utf8',
 )
 var page = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Qualificacoes.tsx'), 'utf8')
 var proposals = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Propostas.tsx'), 'utf8')
-var schema = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'pocketbase', 'schema.json'), 'utf8'),
-)
-var negociosSchema = schema.collections.find(function (collection) {
-  return collection.name === 'com_negocios'
-})
-var negocioFieldNames = ((negociosSchema && negociosSchema.fields) || []).map(function (field) {
-  return field.name
-})
 var schema = JSON.parse(
   fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'pocketbase', 'schema.json'), 'utf8'),
 )
@@ -97,7 +94,8 @@ var checks = [
   [
     'fila própria inclui não atribuídos e os assumidos pelo operador',
     source.includes("qualificacao_responsavel_id = '' || qualificacao_responsavel_id = '") &&
-      source.includes("perfil === 'negociacao-propria'"),
+      source.includes("perfil === 'negociacao-propria'") &&
+      source.includes('temResponsavelQualificacao'),
   ],
   [
     'assunção atômica impede trabalho duplicado',
