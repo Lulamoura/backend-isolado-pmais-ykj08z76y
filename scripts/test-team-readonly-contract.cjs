@@ -3,6 +3,7 @@ const assert = require('node:assert/strict')
 
 const read = (path) => fs.readFileSync(path, 'utf8')
 const team = read('pocketbase/hooks/com_negocio_equipe.js')
+const backfill = read('pocketbase/hooks/admin_negocio_equipe.js')
 const proposals = read('pocketbase/hooks/com_propostas_operacao.js')
 const closings = read('pocketbase/hooks/com_fechamentos_operacao.js')
 const qualification = read('pocketbase/hooks/com_qualificacao.js')
@@ -14,8 +15,8 @@ const ordersPage = read('src/pages/OrdensExecucao.tsx')
 
 assert.ok(team.includes("onRecordCreate(preencherEquipeNegocio, 'com_negocios')"))
 assert.ok(team.includes("onRecordUpdate(preencherEquipeNegocio, 'com_negocios')"))
-assert.ok(team.includes("'/backend/v1/admin/negocios/equipe-comercial/backfill'"))
-assert.ok(team.includes("equipe_id = ''"))
+assert.ok(backfill.includes("'/backend/v1/admin/negocios/equipe-comercial/backfill'"))
+assert.ok(backfill.includes("equipe_id = ''"))
 for (const hook of [proposals, closings, qualification, orders]) {
   assert.ok(hook.includes("perfil === 'leitura-executiva'"))
 }
