@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
+import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 import { createUser, updateUser } from '@/services/users'
 import { getPerfis, getEquipes } from '@/services/foundation'
 import { Button } from '@/components/ui/button'
@@ -36,6 +36,7 @@ export function UserForm({ open, onOpenChange, editUser }: Props) {
   const [equipes, setEquipes] = useState<RecordModel[]>([])
   const [form, setForm] = useState(EMPTY)
   const [errors, setErrors] = useState<FieldErrors>({})
+  const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
 
   const isEdit = !!editUser
@@ -59,29 +60,46 @@ export function UserForm({ open, onOpenChange, editUser }: Props) {
       setForm(EMPTY)
     }
     setErrors({})
+    setFormError('')
   }, [open, editUser])
 
   const submit = async () => {
     setErrors({})
+    setFormError('')
     setSaving(true)
     try {
       if (isEdit && editUser) {
-        await updateUser(editUser.id, {
+        const saved = await updateUser(editUser.id, {
           name: form.name,
           email: form.email,
           perfil_id: form.perfil_id || undefined,
           equipe_id: form.equipe_id || undefined,
           ativo_comercial: form.ativo_comercial,
         })
+        if (
+          !saved?.id ||
+          saved.name !== form.name.trim() ||
+          saved.email !== form.email.trim().toLowerCase()
+        ) {
+          throw new Error('A alteração não foi confirmada pelo servidor.')
+        }
       } else {
-        await createUser({
+        const saved = await createUser({
           ...form,
           passwordConfirm: form.password,
         })
+        if (
+          !saved?.id ||
+          saved.name !== form.name.trim() ||
+          saved.email !== form.email.trim().toLowerCase()
+        ) {
+          throw new Error('O cadastro não foi confirmado pelo servidor.')
+        }
       }
       onOpenChange(false)
     } catch (err) {
       setErrors(extractFieldErrors(err))
+      setFormError(getErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -165,6 +183,7 @@ export function UserForm({ open, onOpenChange, editUser }: Props) {
             />
             <Label>Ativo Comercial</Label>
           </div>
+          {formError && <p className="text-sm text-red-600">{formError}</p>}
           <Button onClick={submit} className="w-full" disabled={saving}>
             {saving ? 'Salvando...' : 'Salvar'}
           </Button>
