@@ -70,6 +70,10 @@ export interface DashboardResumoResponse {
     incluir_inativos: boolean
   }
   escopo: 'proprios' | 'equipe' | 'todos'
+  opcoes_filtro: {
+    equipes: Array<{ id: string; nome: string }>
+    responsaveis: Array<{ id: string; nome: string; ativo: boolean }>
+  }
   resumo: DashboardResumo
   avisos: string[]
 }

@@ -76,7 +76,27 @@ const checks = [
   ],
   [
     'interface de alertas',
-    page.includes('SLAs, calendário e alertas') && page.includes('Agenda de vencimentos'),
+    page.includes('SLAs, calendário e alertas') &&
+      page.includes('Agenda de vencimentos') &&
+      page.includes('Parâmetros vigentes'),
+  ],
+  [
+    'totais permanecem estáveis ao filtrar',
+    hook.includes('totais[situacao]++') &&
+      hook.includes('totais: totais') &&
+      service.includes('totais: Record<SituacaoSla, number>'),
+  ],
+  [
+    'fase e justificativa são apresentadas em linguagem operacional',
+    page.includes("prospects: 'Prospect'") &&
+      page.includes("producao_proposta: 'Produção de Proposta'") &&
+      page.includes("negociacao: 'Negociação'") &&
+      page.includes('data de entrada na fase ausente') &&
+      hook.includes('motivo_situacao'),
+  ],
+  [
+    'SuperAdmin recebe atalho para ajustar parâmetros',
+    page.includes('Ajustar parâmetros') && page.includes('/foundation?tab=parametros'),
   ],
   ['rota protegida', app.includes('path="/slas"') && app.includes('<Slas />')],
   [

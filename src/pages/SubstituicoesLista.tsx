@@ -184,6 +184,16 @@ export default function SubstituicoesLista() {
         )}
       </div>
 
+      {!MUTATIONS_ENABLED && (
+        <Alert>
+          <AlertTitle>Consulta disponível; gestão ainda não ativada</AlertTitle>
+          <AlertDescription>
+            A listagem permanece disponível para consulta. A criação e o ajuste estão bloqueados
+            durante a pré-operação e serão liberados após o gate funcional específico desta rotina.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Filtros */}
       <Card>
         <CardContent className="p-4">

@@ -6,9 +6,10 @@ import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 
 interface ModuleTabsProps {
   showSubstituicoes: boolean
+  showSystem: boolean
 }
 
-export function ModuleTabs({ showSubstituicoes }: ModuleTabsProps) {
+export function ModuleTabs({ showSubstituicoes, showSystem }: ModuleTabsProps) {
   const location = useLocation()
   const { perfilSlug } = useIsSuperAdmin()
   let tabs: NavigationEntry[] = []
@@ -33,9 +34,11 @@ export function ModuleTabs({ showSubstituicoes }: ModuleTabsProps) {
       (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
     )
   ) {
-    tabs = showSubstituicoes
-      ? ADMIN_TABS
-      : ADMIN_TABS.filter((item) => item.path !== '/substituicoes')
+    tabs = ADMIN_TABS.filter(
+      (item) =>
+        (showSystem || item.path !== '/foundation') &&
+        (showSubstituicoes || item.path !== '/substituicoes'),
+    )
     label = 'Áreas da Administração'
   }
 

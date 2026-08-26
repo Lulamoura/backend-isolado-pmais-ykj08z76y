@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3 } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { listarSlas, type FilaSla, type FiltroSla } from '@/services/slas'
+import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 
 const label = {
   vencido: 'Vencido',
@@ -12,7 +13,24 @@ const label = {
   no_prazo: 'No prazo',
   nao_calculavel: 'SLA não calculável',
 }
+
+const etapaLabel: Record<string, string> = {
+  prospects: 'Prospect',
+  producao_proposta: 'Produção de Proposta',
+  negociacao: 'Negociação',
+}
+
+function explicacao(item: FilaSla['itens'][number], antecedencia: number) {
+  if (item.motivo_situacao === 'data_entrada_etapa_ausente')
+    return 'Não calculável: data de entrada na fase ausente.'
+  if (item.motivo_situacao === 'prazo_etapa_expirado') return 'Vencido: o prazo da fase expirou.'
+  if (item.motivo_situacao === 'dentro_janela_alerta')
+    return `Em alerta: vencimento dentro da janela de ${antecedencia} dia(s) útil(eis).`
+  return 'No prazo: vencimento ainda fora da janela de alerta.'
+}
+
 export default function Slas() {
+  const { isSuperAdmin } = useIsSuperAdmin()
   const [searchParams, setSearchParams] = useSearchParams()
   const filtro = (searchParams.get('situacao') || 'todas') as FiltroSla
   const [dados, setDados] = useState<FilaSla | null>(null)
@@ -22,15 +40,7 @@ export default function Slas() {
       .then(setDados)
       .catch(() => setErro(true))
   }, [filtro])
-  const totais = useMemo(
-    () => ({
-      vencido: dados?.itens.filter((i) => i.situacao === 'vencido').length ?? 0,
-      alerta: dados?.itens.filter((i) => i.situacao === 'alerta').length ?? 0,
-      no_prazo: dados?.itens.filter((i) => i.situacao === 'no_prazo').length ?? 0,
-      nao_calculavel: dados?.itens.filter((i) => i.situacao === 'nao_calculavel').length ?? 0,
-    }),
-    [dados],
-  )
+  const totais = dados?.totais ?? { vencido: 0, alerta: 0, no_prazo: 0, nao_calculavel: 0 }
   if (erro) return <p className="p-8 text-destructive">Não foi possível carregar os SLAs.</p>
   return (
     <div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
@@ -70,6 +80,24 @@ export default function Slas() {
           </CardContent>
         </Card>
       </div>
+      {dados && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Parâmetros vigentes</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            <span>Prospect: {dados.parametros.lead} dia(s) útil(eis)</span>
+            <span>Produção de Proposta: {dados.parametros.proposta} dia(s) útil(eis)</span>
+            <span>Negociação: {dados.parametros.negociacao} dia(s) útil(eis)</span>
+            <span>Alerta: {dados.parametros.antecedencia} dia(s) útil(eis) antes</span>
+            {isSuperAdmin && (
+              <Button asChild size="sm" variant="outline">
+                <Link to="/foundation?tab=parametros">Ajustar parâmetros</Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
       <div className="flex flex-wrap gap-2" aria-label="Filtros de SLA">
         {(
           [
@@ -116,7 +144,8 @@ export default function Slas() {
                   {i.negocio.empresa?.nome || i.negocio.titulo}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {i.negocio.etapa} · {i.dias_uteis} dia(s) útil(eis)
+                  Fase: {etapaLabel[i.negocio.etapa] || i.negocio.etapa || 'não informada'} · Regra:{' '}
+                  {i.dias_uteis} dia(s) útil(eis)
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Responsável: {i.negocio.responsavel?.nome || 'não informado'}
@@ -142,6 +171,9 @@ export default function Slas() {
                   {i.vence_em
                     ? new Date(i.vence_em).toLocaleString('pt-BR')
                     : 'Sem vencimento calculado'}
+                </p>
+                <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                  {explicacao(i, dados?.parametros.antecedencia ?? 1)}
                 </p>
               </div>
             </div>
