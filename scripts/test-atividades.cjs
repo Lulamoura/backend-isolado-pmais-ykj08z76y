@@ -25,7 +25,18 @@ check(
     hook.includes("origem: 'activecampaign'") &&
     hook.includes('editavel: false'),
 )
-check('escopo RBAC por responsável ou equipe', hook.includes('podeAcessar'))
+check(
+  'fila aplica o escopo real de negocios.view',
+  hook.includes("permissao.getString('slug') === 'negocios.view'") &&
+    hook.includes("escopo === 'equipe'") &&
+    hook.includes("escopo !== 'todos'") &&
+    hook.includes("responsavel_id = '"),
+)
+check('comandos mantêm RBAC por responsável ou equipe', hook.includes('podeAcessar'))
+check(
+  'fila informa modalidade do negócio',
+  hook.includes("modalidade: negocio.getString('modalidade')"),
+)
 check(
   'operações planejar realizar cancelar',
   ['planejar', 'realizar', 'cancelar'].every((v) => hook.includes(v)),
@@ -51,8 +62,16 @@ check(
   page.includes('Atividades e próxima ação') && page.includes('Planejar próxima ação'),
 )
 check(
+  'interface sinaliza estados por cor e mostra modalidade',
+  page.includes('border-l-rose-600') &&
+    page.includes('border-l-emerald-600') &&
+    page.includes('border-l-amber-500') &&
+    page.includes('Modalidade:'),
+)
+check('mensagem do ActiveCampaign é direta', page.includes('Atualize esta ação no ActiveCampaign.'))
+check(
   'rota protegida registrada',
   app.includes('path="/atividades"') && app.includes('<Atividades />'),
 )
 
-console.log(`\nRESULTADO: ${passed}/19 aprovados`)
+console.log(`\nRESULTADO: ${passed}/23 aprovados`)

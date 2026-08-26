@@ -76,18 +76,22 @@ check(
 )
 check(
   'atividades limitam leitura e escrita aos próprios negócios',
-  atividades.includes("perfil !== 'negociacao-propria' && equipe") &&
+  atividades.includes("permissao.getString('slug') === 'negocios.view'") &&
+    atividades.includes("escopo === 'equipe'") &&
     atividades.includes("if (perfil === 'negociacao-propria') return false") &&
     !atividades.includes("var perfilRestrito = $app.findRecordById('com_perfis'"),
 )
 check(
   'fechamentos permitem decisão própria e bloqueiam reativação',
-  (fechamentos.match(/if \(perfil === 'negociacao-propria'\) return false/g) || []).length >= 2 &&
+  fechamentos.includes("permissao.getString('slug') === 'negocios.view'") &&
+    (fechamentos.match(/if \(perfil === 'negociacao-propria'\) return false/g) || []).length >= 1 &&
     (fechamentos.match(/ACAO_NAO_AUTORIZADA/g) || []).length === 1,
 )
 check(
   'propostas são próprias e permanecem sem mutação',
-  (propostas.match(/if \(perfil === 'negociacao-propria'\) return false/g) || []).length >= 3,
+  propostas.includes("permissao.getString('slug') === 'negocios.view'") &&
+    (propostas.match(/if \(perfil === 'negociacao-propria'\) return false/g) || []).length >= 1 &&
+    propostas.includes("perfil === 'negociacao-propria' || perfil === 'leitura-executiva'"),
 )
 check(
   'alertas SLA são limitados aos próprios negócios',
