@@ -16,7 +16,7 @@ const ordersPage = read('src/pages/OrdensExecucao.tsx')
 assert.ok(team.includes('onRecordCreate('))
 assert.ok(team.includes('onRecordUpdate('))
 assert.ok(backfill.includes("'/backend/v1/admin/negocios/equipe-comercial/backfill'"))
-assert.ok(backfill.includes("if (negocios[i].getString('equipe_id')) continue"))
+assert.ok(backfill.includes('UPDATE com_negocios SET equipe_id'))
 for (const hook of [proposals, closings, qualification, orders]) {
   assert.ok(hook.includes("perfil === 'leitura-executiva'"))
 }
