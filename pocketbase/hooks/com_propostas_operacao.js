@@ -264,6 +264,8 @@
           return ''
         }
       }
+      if (propostaPerfil($app, e.auth) === 'leitura-executiva')
+        return e.json(403, { error: 'SOMENTE_LEITURA' })
       function propostaPodeAcessar(user, perfil, negocio) {
         if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
