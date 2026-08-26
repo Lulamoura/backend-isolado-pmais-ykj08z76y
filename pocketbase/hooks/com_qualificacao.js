@@ -4,6 +4,40 @@
 // POST /backend/v1/qualificacoes/decidir
 // POST /backend/v1/qualificacoes/devolver
 
+function comQualificacaoGarantirCampos() {
+  var negocios = $app.findCollectionByNameOrId('com_negocios')
+  var alterado = false
+  if (!negocios.fields.getByName('qualificacao_responsavel_id')) {
+    negocios.fields.add(
+      new RelationField({
+        name: 'qualificacao_responsavel_id',
+        collectionId: '_pb_users_auth_',
+        maxSelect: 1,
+        cascadeDelete: false,
+        required: false,
+      }),
+    )
+    alterado = true
+  }
+  if (!negocios.fields.getByName('qualificacao_assumida_em')) {
+    negocios.fields.add(new DateField({ name: 'qualificacao_assumida_em', required: false }))
+    alterado = true
+  }
+  if (!negocios.fields.getByName('qualificacao_decidida_em')) {
+    negocios.fields.add(new DateField({ name: 'qualificacao_decidida_em', required: false }))
+    alterado = true
+  }
+  if (alterado) {
+    negocios.indexes = Array.from(
+      new Set([
+        ...(negocios.indexes || []),
+        'CREATE INDEX idx_com_negocios_qualificacao_responsavel ON com_negocios (qualificacao_responsavel_id, qualificacao)',
+      ]),
+    )
+    $app.save(negocios)
+  }
+}
+
 routerAdd(
   'GET',
   '/backend/v1/qualificacoes/pendentes',
@@ -11,6 +45,11 @@ routerAdd(
     var ator = e.auth
     if (!ator) return e.unauthorizedError('Autenticacao necessaria')
     if (!ator.getBool('ativo_comercial')) return e.forbiddenError('Usuario comercial inativo')
+    try {
+      comQualificacaoGarantirCampos()
+    } catch (_) {
+      return e.json(503, { error: 'QUALIFICACAO_SCHEMA_INDISPONIVEL' })
+    }
 
     var pagina = Number(e.requestInfo().query.pagina || 1)
     var porPagina = Number(e.requestInfo().query.por_pagina || 20)
@@ -236,13 +275,15 @@ routerAdd(
           devolvidos: itemIndicador.devolvidos,
           tempo_medio_assumir_horas: itemIndicador.contagem_tempo_assumir
             ? Math.round(
-                (itemIndicador.soma_tempo_assumir_horas / itemIndicador.contagem_tempo_assumir) *
+                (itemIndicador.soma_tempo_assumir_horas /
+                  itemIndicador.contagem_tempo_assumir) *
                   100,
               ) / 100
             : null,
           tempo_medio_decidir_horas: itemIndicador.contagem_tempo_decidir
             ? Math.round(
-                (itemIndicador.soma_tempo_decidir_horas / itemIndicador.contagem_tempo_decidir) *
+                (itemIndicador.soma_tempo_decidir_horas /
+                  itemIndicador.contagem_tempo_decidir) *
                   100,
               ) / 100
             : null,
@@ -514,7 +555,10 @@ routerAdd(
     ]
     var motivo = String(body.motivo || '').trim()
     var justificativa = String(body.justificativa || '').trim()
-    if (body.decisao === 'desqualificada' && motivosDesqualificacao.indexOf(motivo) === -1)
+    if (
+      body.decisao === 'desqualificada' &&
+      motivosDesqualificacao.indexOf(motivo) === -1
+    )
       return e.json(400, {
         error: 'MOTIVO_OBRIGATORIO',
         message: 'Selecione um motivo canonico para desqualificar',
