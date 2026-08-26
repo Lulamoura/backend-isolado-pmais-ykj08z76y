@@ -103,7 +103,8 @@ var checks = [
   [
     'fila própria inclui não atribuídos e os assumidos pelo operador',
     source.includes("qualificacao_responsavel_id = '' || qualificacao_responsavel_id = '") &&
-      source.includes("perfil === 'negociacao-propria'"),
+      source.includes("perfil === 'negociacao-propria'") &&
+      source.includes('temResponsavelQualificacao'),
   ],
   [
     'assunção atômica impede trabalho duplicado',

@@ -85,7 +85,18 @@ routerAdd(
     if (perfil === 'negociacao-propria') return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
     var filtro =
       "qualificacao = 'pendente' && etapa = 'prospects' && inativo = false && crm_created_at >= '2026-08-24 03:00:00.000Z'"
-    if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva' && escopo !== 'todos') {
+    var temResponsavelQualificacao = false
+    try {
+      temResponsavelQualificacao = !!$app
+        .findCollectionByNameOrId('com_negocios')
+        .fields.getByName('qualificacao_responsavel_id')
+    } catch (_) {}
+    if (
+      perfil !== 'superadministrador' &&
+      perfil !== 'leitura-executiva' &&
+      escopo !== 'todos' &&
+      (escopo === 'equipe' || temResponsavelQualificacao)
+    ) {
       var equipeId = ator.getString('equipe_id')
       filtro +=
         escopo === 'equipe' && equipeId
