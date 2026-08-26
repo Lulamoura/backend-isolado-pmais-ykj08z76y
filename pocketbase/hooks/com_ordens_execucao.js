@@ -12,7 +12,7 @@
         }
       }
       function oePodeAcessar(user, perfil, negocio) {
-        if (perfil === 'superadministrador') return true
+        if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
         return (
           !!user.getString('equipe_id') &&
@@ -102,7 +102,7 @@
             proxima_acao_em: negocio.getString('proxima_acao_em') || null,
             fonte_prospeccao: negocio.getString('fonte_prospeccao') || null,
             origem_canal: negocio.getString('origem_canal') || null,
-            somente_leitura: false,
+            somente_leitura: perfil === 'leitura-executiva',
           },
           estado_operacional: oeEstado(negocio),
           oe: negocio.getString('oe_numero')
@@ -136,7 +136,10 @@
     (e) => {
       try {
         var perfilRestrito = $app.findRecordById('com_perfis', e.auth.getString('perfil_id'))
-        if (perfilRestrito.getString('slug') === 'negociacao-propria')
+        if (
+          perfilRestrito.getString('slug') === 'negociacao-propria' ||
+          perfilRestrito.getString('slug') === 'leitura-executiva'
+        )
           return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
       } catch (_) {}
       function oePerfil(app, user) {
@@ -147,7 +150,7 @@
         }
       }
       function oePodeAcessar(user, perfil, negocio) {
-        if (perfil === 'superadministrador') return true
+        if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
         return (
           !!user.getString('equipe_id') &&

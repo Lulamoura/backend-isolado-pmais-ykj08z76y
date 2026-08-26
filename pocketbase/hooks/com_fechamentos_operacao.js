@@ -12,7 +12,7 @@
         }
       }
       function fechamentoPodeAcessar(user, perfil, negocio) {
-        if (perfil === 'superadministrador') return true
+        if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
         if (perfil === 'negociacao-propria') return false
         return (
@@ -193,7 +193,7 @@
         }
       }
       function fechamentoPodeAcessar(user, perfil, negocio) {
-        if (perfil === 'superadministrador') return true
+        if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
         if (perfil === 'negociacao-propria') return false
         return (
@@ -232,6 +232,8 @@
           command_idempotency_key: '',
           justificativa: '',
         })
+      if (fechamentoPerfil(ator) === 'leitura-executiva')
+        return e.json(403, { error: 'SOMENTE_LEITURA' })
       e.bindBody(body)
       if (!ator || !ator.getBool('ativo_comercial'))
         return e.forbiddenError('Usuario comercial necessario')
@@ -415,7 +417,7 @@
         }
       }
       function fechamentoPodeAcessar(user, perfil, negocio) {
-        if (perfil === 'superadministrador') return true
+        if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
         return (
           !!user.getString('equipe_id') &&
@@ -429,6 +431,8 @@
           updated_esperado: '',
           command_idempotency_key: '',
         })
+      if (fechamentoPerfil(ator) === 'leitura-executiva')
+        return e.json(403, { error: 'SOMENTE_LEITURA' })
       e.bindBody(body)
       if (!ator || !ator.getBool('ativo_comercial'))
         return e.forbiddenError('Usuario comercial necessario')

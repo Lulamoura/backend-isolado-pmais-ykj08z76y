@@ -29,7 +29,7 @@ routerAdd(
     if (perfil === 'negociacao-propria') return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
     var filtro =
       "qualificacao = 'pendente' && etapa = 'prospects' && inativo = false && crm_created_at >= '2026-08-24 03:00:00.000Z'"
-    if (perfil !== 'superadministrador') {
+    if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva') {
       var equipeId = ator.getString('equipe_id')
       filtro += equipeId
         ? " && (responsavel_id = '' || responsavel_id = '" +
@@ -98,7 +98,10 @@ routerAdd(
   (e) => {
     try {
       var perfilRestrito = $app.findRecordById('com_perfis', e.auth.getString('perfil_id'))
-      if (perfilRestrito.getString('slug') === 'negociacao-propria')
+      if (
+        perfilRestrito.getString('slug') === 'negociacao-propria' ||
+        perfilRestrito.getString('slug') === 'leitura-executiva'
+      )
         return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
     } catch (_) {}
     function canonicalize(obj) {
@@ -114,7 +117,7 @@ routerAdd(
       return /^[a-z0-9]{15}$/.test(v || '')
     }
     function podeAcessar(ator, perfil, negocio) {
-      if (perfil === 'superadministrador') return true
+      if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
       if (
         negocio.getString('etapa') === 'prospects' &&
         !negocio.getString('responsavel_id') &&

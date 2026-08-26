@@ -23,8 +23,11 @@ import {
   type ItemOE,
   type ResponsavelOE,
 } from '@/services/ordens-execucao'
+import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 
 export default function OrdensExecucao() {
+  const { perfilSlug } = useIsSuperAdmin()
+  const somenteLeitura = perfilSlug === 'leitura-executiva'
   const [itens, setItens] = useState<ItemOE[]>([])
   const [responsaveis, setResponsaveis] = useState<ResponsavelOE[]>([])
   const [loading, setLoading] = useState(true)
@@ -157,6 +160,10 @@ export default function OrdensExecucao() {
                       <dd>{item.oe.responsavel_envio?.name || 'Não identificado'}</dd>
                     </div>
                   </dl>
+                ) : somenteLeitura ? (
+                  <p className="rounded-md border border-violet-200 bg-violet-50 p-3 text-sm text-violet-800">
+                    Consulta executiva: registro de OE disponível somente para a equipe operacional.
+                  </p>
                 ) : (
                   <>
                     <div className="grid gap-3 sm:grid-cols-2">

@@ -23,10 +23,13 @@ import {
   novaChaveQualificacao,
   type QualificacaoPendente,
 } from '@/services/qualificacoes'
+import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 
 type Decisao = 'qualificada' | 'desqualificada'
 
 export default function Qualificacoes() {
+  const { perfilSlug } = useIsSuperAdmin()
+  const somenteLeitura = perfilSlug === 'leitura-executiva'
   const [itens, setItens] = useState<QualificacaoPendente[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -152,20 +155,22 @@ export default function Qualificacoes() {
                   <span className="mx-2">•</span>
                   <span>Responsável: {item.responsavel?.nome || 'não informado'}</span>
                 </div>
-                <div className="flex gap-2">
-                  <Button className="flex-1 gap-2" onClick={() => abrir(item, 'qualificada')}>
-                    <CheckCircle2 className="h-4 w-4" />
-                    Qualificar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 gap-2 text-rose-700"
-                    onClick={() => abrir(item, 'desqualificada')}
-                  >
-                    <XCircle className="h-4 w-4" />
-                    Desqualificar
-                  </Button>
-                </div>
+                {!somenteLeitura && (
+                  <div className="flex gap-2">
+                    <Button className="flex-1 gap-2" onClick={() => abrir(item, 'qualificada')}>
+                      <CheckCircle2 className="h-4 w-4" />
+                      Qualificar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 gap-2 text-rose-700"
+                      onClick={() => abrir(item, 'desqualificada')}
+                    >
+                      <XCircle className="h-4 w-4" />
+                      Desqualificar
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
