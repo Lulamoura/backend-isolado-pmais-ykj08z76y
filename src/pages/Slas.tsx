@@ -37,8 +37,8 @@ export default function Slas() {
       <div>
         <h1 className="text-2xl font-bold">SLAs, calendário e alertas</h1>
         <p className="text-sm text-muted-foreground">
-          Prazos da etapa calculados em dias úteis — America/Recife — não utilizam a data da
-          próxima ação
+          Prazos da etapa calculados em dias úteis — America/Recife — não utilizam a data da próxima
+          ação
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">

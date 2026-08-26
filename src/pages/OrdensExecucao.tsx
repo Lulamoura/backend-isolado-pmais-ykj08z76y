@@ -112,9 +112,7 @@ export default function OrdensExecucao() {
           return (
             <Card
               key={item.negocio.id}
-              className={
-                concluida ? '' : 'border-l-4 border-l-sky-400 bg-sky-50/70'
-              }
+              className={concluida ? '' : 'border-l-4 border-l-sky-400 bg-sky-50/70'}
             >
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
