@@ -20,14 +20,17 @@ routerAdd(
     }
     var atualizados = 0
     $app.runInTransaction(function (tx) {
-      var negocios = tx.findRecordsByFilter('com_negocios', "equipe_id = ''", 'id', 500, 0)
+      var negocios = tx.findRecordsByFilter('com_negocios', "id != ''", 'id', 500, 0)
       for (var i = 0; i < negocios.length; i++) {
+        if (negocios[i].getString('equipe_id')) continue
         negocios[i].set('equipe_id', equipe.id)
         tx.save(negocios[i])
         atualizados++
       }
     })
-    var restantes = $app.findRecordsByFilter('com_negocios', "equipe_id = ''", 'id', 1, 0).length
+    var todos = $app.findRecordsByFilter('com_negocios', "id != ''", 'id', 500, 0)
+    var restantes = 0
+    for (var j = 0; j < todos.length; j++) if (!todos[j].getString('equipe_id')) restantes++
     return e.json(200, {
       equipe_id: equipe.id,
       atualizados: atualizados,
