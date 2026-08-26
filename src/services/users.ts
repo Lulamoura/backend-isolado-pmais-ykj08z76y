@@ -15,7 +15,12 @@ export const createUser = (data: {
   perfil_id?: string
   equipe_id?: string
   ativo_comercial?: boolean
-}) => pb.collection('users').create(data)
+}) =>
+  pb.send('/backend/v1/admin/users', {
+    method: 'POST',
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
+  })
 
 export const updateUser = (
   id: string,
@@ -26,7 +31,12 @@ export const updateUser = (
     equipe_id?: string
     ativo_comercial?: boolean
   },
-) => pb.collection('users').update(id, data)
+) =>
+  pb.send(`/backend/v1/admin/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
+  })
 
 export const changeOwnPassword = (_userId: string, oldPassword: string, newPassword: string) =>
   pb.send('/backend/v1/change-own-password', {
