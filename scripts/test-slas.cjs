@@ -9,6 +9,7 @@ const service = fs.readFileSync('src/services/slas.ts', 'utf8')
 const app = fs.readFileSync('src/App.tsx', 'utf8')
 const layout = fs.readFileSync('src/components/Layout.tsx', 'utf8')
 const navigation = fs.readFileSync('src/lib/navigation.ts', 'utf8')
+const dialog = fs.readFileSync('src/components/SlaParametrosDialog.tsx', 'utf8')
 const checks = [
   [
     'rotas GET e POST',
@@ -65,6 +66,21 @@ const checks = [
   ],
   ['servico canonico', service.includes('/backend/v1/slas/fila')],
   [
+    'formulario dedicado altera somente as quatro chaves de SLA',
+    dialog.includes('Prazo de Prospect') &&
+      dialog.includes('Prazo de Produção de Proposta') &&
+      dialog.includes('Prazo de Negociação') &&
+      dialog.includes('Antecedência do alerta') &&
+      service.includes("'/backend/v1/slas/parametros'") &&
+      !dialog.includes('com_parametros'),
+  ],
+  [
+    'alteracao dedicada exige justificativa e concorrencia otimista',
+    dialog.includes('justificativa.trim()') &&
+      dialog.includes('updated_esperado') &&
+      hook.includes('parametros_controle'),
+  ],
+  [
     'SLA usa marco real da etapa e nunca updated tecnico',
     hook.includes("n.getString('etapa_entrou_em')") &&
       hook.includes("'nao_calculavel'") &&
@@ -96,7 +112,9 @@ const checks = [
   ],
   [
     'SuperAdmin recebe atalho para ajustar parâmetros',
-    page.includes('Ajustar parâmetros') && page.includes('/foundation?tab=parametros'),
+    page.includes('Ajustar parâmetros') &&
+      page.includes('SlaParametrosDialog') &&
+      !page.includes('/foundation?tab=parametros'),
   ],
   ['rota protegida', app.includes('path="/slas"') && app.includes('<Slas />')],
   [

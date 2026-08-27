@@ -256,14 +256,13 @@ routerAdd(
             if (canonicalStage !== previousStage)
               target.set(
                 'etapa_entrou_em',
-                event.data.crm_updated_at || event.data.crm_created_at || new Date().toISOString(),
+                event.data.stage_entered_at ||
+                  event.data.crm_updated_at ||
+                  event.data.crm_created_at ||
+                  new Date().toISOString(),
               )
-            else if (
-              !target.getString('etapa_entrou_em') &&
-              canonicalStage === 'prospects' &&
-              event.data.crm_created_at >= '2026-08-24T03:00:00Z'
-            )
-              target.set('etapa_entrou_em', event.data.crm_created_at)
+            else if (!target.getString('etapa_entrou_em') && event.data.stage_entered_at)
+              target.set('etapa_entrou_em', event.data.stage_entered_at)
             target.set('etapa', canonicalStage)
             target.set('resultado', '')
             target.set('qualificacao', canonicalStage === 'prospects' ? 'pendente' : 'qualificada')
@@ -276,6 +275,8 @@ routerAdd(
               dealStatus === '1' ? 'ganho' : isProspect ? 'desqualificado' : 'perdido',
             )
             if (isProspect) target.set('qualificacao', 'desqualificada')
+            if (dealStatus === '1' && event.data.closed_at)
+              target.set('fechamento_data', event.data.closed_at)
             if (dealStatus === '2' && !isProspect) {
               target.set('fechamento_motivo', canonicalLossReason(event.data.loss_reason))
               if (event.data.closed_at) target.set('fechamento_data', event.data.closed_at)

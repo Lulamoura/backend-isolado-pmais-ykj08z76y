@@ -669,6 +669,21 @@ routerAdd(
             perfilTx = txApp.findRecordById('com_perfis', perfilTxId).getString('slug')
         } catch (_) {}
         var negocio = txApp.findRecordById('com_negocios', body.negocio_id)
+        try {
+          var preop = txApp.findFirstRecordByData(
+            'com_parametros',
+            'chave',
+            'ac_preoperation_read_only',
+          )
+          if (
+            preop.getBool('ativo') &&
+            preop.getString('valor') === 'true' &&
+            negocio.getString('origem_canal') === 'activecampaign'
+          )
+            throw new Error('PREOPERACAO_SOMENTE_LEITURA')
+        } catch (preopError) {
+          if (String(preopError).indexOf('PREOPERACAO_SOMENTE_LEITURA') !== -1) throw preopError
+        }
         if (!podeAcessar(usuarioTx, perfilTx, negocio)) throw new Error('FORBIDDEN')
         var responsavelQualificacao = negocio.getString('qualificacao_responsavel_id')
         if (
@@ -760,6 +775,8 @@ routerAdd(
     if (txError.indexOf('CONCORRENTE') !== -1) return e.json(409, { error: 'CONCORRENTE' })
     if (txError.indexOf('CONFLICT') !== -1) return e.json(409, { error: 'CONFLICT' })
     if (txError.indexOf('FORBIDDEN') !== -1) return e.json(403, { error: 'FORBIDDEN' })
+    if (txError.indexOf('PREOPERACAO_SOMENTE_LEITURA') !== -1)
+      return e.json(423, { error: 'PREOPERACAO_SOMENTE_LEITURA' })
     if (txError.indexOf('QUALIFICACAO_NAO_ASSUMIDA') !== -1)
       return e.json(409, { error: 'QUALIFICACAO_NAO_ASSUMIDA' })
     if (txError) return e.json(500, { error: 'INTERNAL', message: 'Falha ao registrar decisao' })

@@ -26,7 +26,28 @@ export interface FilaSla {
   itens: ItemSla[]
   totais: Record<SituacaoSla, number>
   parametros: { lead: number; proposta: number; negociacao: number; antecedencia: number }
+  parametros_controle: Record<ParametroSlaChave, { valor: number; updated: string }>
   calendario: { timezone: string; feriados_ativos: number }
 }
+export type ParametroSlaChave =
+  | 'sla.lead_dias_uteis'
+  | 'sla.proposta_dias_uteis'
+  | 'sla.negociacao_dias_uteis'
+  | 'sla.alerta_antecedencia_dias_uteis'
 export const listarSlas = (situacao: FiltroSla = 'todas') =>
   pb.send<FilaSla>('/backend/v1/slas/fila', { method: 'GET', query: { situacao } })
+
+export const atualizarParametroSla = (dados: {
+  chave: ParametroSlaChave
+  valor: number
+  justificativa: string
+  updated_esperado: string
+}) =>
+  pb.send<{ id: string; chave: ParametroSlaChave; valor: string; versao: number; updated: string }>(
+    '/backend/v1/slas/parametros',
+    {
+      method: 'POST',
+      body: JSON.stringify(dados),
+      headers: { 'Content-Type': 'application/json' },
+    },
+  )

@@ -73,9 +73,9 @@ routerAdd(
       var sourceVersion = clean(modified, 80) || new Date(0).toISOString()
       return {
         schema_version: '1',
-        context_revision: type === 'business' ? '5' : '1',
+        context_revision: type === 'business' ? '6' : '1',
         event_id:
-          'ac:' + type + ':' + id + ':' + sourceVersion + (type === 'business' ? ':ctx5' : ''),
+          'ac:' + type + ':' + id + ':' + sourceVersion + (type === 'business' ? ':ctx6' : ''),
         source: 'activecampaign',
         entity_type: type,
         entity_id: String(id),
@@ -201,6 +201,17 @@ routerAdd(
     var ownerCode = clean(customByLabel['Responsável'], 120)
     if (canonicalStage !== 'prospects' && !ownerCode)
       return e.json(422, { error: 'RESPONSAVEL_COMERCIAL_AUSENTE' })
+    var stageEnteredAt = ''
+    if (canonicalStage === 'prospects') stageEnteredAt = deal.cdate || ''
+    if (canonicalStage === 'producao_proposta' && eventType === 'deal_add')
+      stageEnteredAt = deal.cdate || ''
+    if (canonicalStage === 'negociacao') stageEnteredAt = customByLabel['Data_Negociacao'] || ''
+    var terminalAt =
+      String(deal.status) === '1'
+        ? customByLabel['Data_Fechamento'] || ''
+        : String(deal.status) === '2'
+          ? customByLabel['Data_Cancelamento'] || ''
+          : ''
 
     var correlation = 'ac-native-' + dealId + '-' + String(deal.mdate || deal.cdate || Date.now())
     correlation = correlation.replace(/[^a-zA-Z0-9._:-]/g, '-').slice(0, 120)
@@ -238,10 +249,14 @@ routerAdd(
         next_action_at: customByLabel['Data de Ação'] || deal.nextdate || '',
         crm_created_at: deal.cdate || '',
         crm_updated_at: deal.mdate || deal.cdate || '',
+        stage_entered_at: stageEnteredAt,
+        negotiation_entered_at: customByLabel['Data_Negociacao'] || '',
+        won_at: customByLabel['Data_Fechamento'] || '',
+        lost_at: customByLabel['Data_Cancelamento'] || '',
         phase: customByLabel['Fase'] || '',
         source: customByLabel['Fonte de Prospecção'] || '',
         loss_reason: customByLabel['Motivo Perda'] || '',
-        closed_at: customByLabel['Data_Cancelamento'] || '',
+        closed_at: terminalAt,
         prospect_cutoff_applied: canonicalStage === 'prospects',
       },
       {

@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3 } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { listarSlas, type FilaSla, type FiltroSla } from '@/services/slas'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
+import { SlaParametrosDialog } from '@/components/SlaParametrosDialog'
 
 const label = {
   vencido: 'Vencido',
@@ -34,12 +35,12 @@ export default function Slas() {
   const [searchParams, setSearchParams] = useSearchParams()
   const filtro = (searchParams.get('situacao') || 'todas') as FiltroSla
   const [dados, setDados] = useState<FilaSla | null>(null)
+  const [parametrosOpen, setParametrosOpen] = useState(false)
   const [erro, setErro] = useState(false)
+  const carregar = useCallback(async () => setDados(await listarSlas(filtro)), [filtro])
   useEffect(() => {
-    void listarSlas(filtro)
-      .then(setDados)
-      .catch(() => setErro(true))
-  }, [filtro])
+    void carregar().catch(() => setErro(true))
+  }, [carregar])
   const totais = dados?.totais ?? { vencido: 0, alerta: 0, no_prazo: 0, nao_calculavel: 0 }
   if (erro) return <p className="p-8 text-destructive">Não foi possível carregar os SLAs.</p>
   return (
@@ -91,8 +92,8 @@ export default function Slas() {
             <span>Negociação: {dados.parametros.negociacao} dia(s) útil(eis)</span>
             <span>Alerta: {dados.parametros.antecedencia} dia(s) útil(eis) antes</span>
             {isSuperAdmin && (
-              <Button asChild size="sm" variant="outline">
-                <Link to="/foundation?tab=parametros">Ajustar parâmetros</Link>
+              <Button size="sm" variant="outline" onClick={() => setParametrosOpen(true)}>
+                Ajustar parâmetros
               </Button>
             )}
           </CardContent>
@@ -180,6 +181,14 @@ export default function Slas() {
           ))}
         </CardContent>
       </Card>
+      {dados && isSuperAdmin ? (
+        <SlaParametrosDialog
+          open={parametrosOpen}
+          onOpenChange={setParametrosOpen}
+          dados={dados}
+          onSaved={carregar}
+        />
+      ) : null}
     </div>
   )
 }
