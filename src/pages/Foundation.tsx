@@ -9,9 +9,12 @@ import { UsuariosTab } from '@/components/foundation/UsuariosTab'
 import { VinculosTab } from '@/components/foundation/VinculosTab'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { ActiveCampaignReconciliationCard } from '@/components/foundation/ActiveCampaignReconciliationCard'
+import { useSearchParams } from 'react-router-dom'
 
 export default function Foundation() {
   const { isSuperAdmin, loading: loadingSuperAdmin } = useIsSuperAdmin()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'equipes'
 
   return (
     <div className="container mx-auto p-4 space-y-4">
@@ -21,7 +24,11 @@ export default function Foundation() {
           Gestão da estrutura comercial, acessos e integração com o ActiveCampaign
         </p>
       </div>
-      <Tabs defaultValue="equipes" className="w-full">
+      <Tabs
+        value={tab}
+        onValueChange={(value) => setSearchParams({ tab: value })}
+        className="w-full"
+      >
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="equipes">Equipes</TabsTrigger>
           <TabsTrigger value="perfis">Perfis</TabsTrigger>

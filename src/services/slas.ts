@@ -14,11 +14,17 @@ export interface ItemSla {
   marco_inicial: string | null
   vence_em: string | null
   situacao: SituacaoSla
+  motivo_situacao:
+    | 'data_entrada_etapa_ausente'
+    | 'prazo_etapa_expirado'
+    | 'dentro_janela_alerta'
+    | 'fora_janela_alerta'
   dias_uteis: number
   proxima_acao_em: string | null
 }
 export interface FilaSla {
   itens: ItemSla[]
+  totais: Record<SituacaoSla, number>
   parametros: { lead: number; proposta: number; negociacao: number; antecedencia: number }
   calendario: { timezone: string; feriados_ativos: number }
 }

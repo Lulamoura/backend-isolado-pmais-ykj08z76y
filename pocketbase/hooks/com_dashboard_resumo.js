@@ -252,6 +252,78 @@ routerAdd(
       return parts.join(' && ')
     }
 
+    function opcoesFiltro(scope, actor, equipeIds) {
+      var equipes = []
+      var responsaveis = []
+      var equipePermitida = {}
+      var usuarios = []
+
+      if (scope === 'todos') {
+        var todasEquipes = $app.findRecordsByFilter('com_equipes', 'ativo = true', 'nome', 500, 0)
+        for (var ti = 0; ti < todasEquipes.length; ti++) {
+          equipePermitida[todasEquipes[ti].id] = true
+          equipes.push({
+            id: todasEquipes[ti].id,
+            nome:
+              todasEquipes[ti].getString('nome') ||
+              todasEquipes[ti].getString('slug') ||
+              todasEquipes[ti].id,
+          })
+        }
+        usuarios = $app.findRecordsByFilter('users', "equipe_id != ''", 'name,email', 500, 0)
+      } else if (scope === 'equipe') {
+        for (var ei = 0; ei < equipeIds.length; ei++) {
+          try {
+            var equipe = $app.findRecordById('com_equipes', equipeIds[ei])
+            if (!equipe.getBool('ativo')) continue
+            equipePermitida[equipe.id] = true
+            equipes.push({
+              id: equipe.id,
+              nome: equipe.getString('nome') || equipe.getString('slug') || equipe.id,
+            })
+          } catch (_) {}
+        }
+        if (equipeIds.length) {
+          var partesEquipe = []
+          for (var pe = 0; pe < equipeIds.length; pe++)
+            partesEquipe.push("equipe_id = '" + equipeIds[pe] + "'")
+          usuarios = $app.findRecordsByFilter(
+            'users',
+            '(' + partesEquipe.join(' || ') + ')',
+            'name,email',
+            500,
+            0,
+          )
+        }
+      } else {
+        usuarios = [actor]
+        var actorEquipeId = actor.getString('equipe_id')
+        if (actorEquipeId) {
+          try {
+            var actorEquipe = $app.findRecordById('com_equipes', actorEquipeId)
+            equipePermitida[actorEquipe.id] = true
+            equipes.push({
+              id: actorEquipe.id,
+              nome:
+                actorEquipe.getString('nome') || actorEquipe.getString('slug') || actorEquipe.id,
+            })
+          } catch (_) {}
+        }
+      }
+
+      for (var ui = 0; ui < usuarios.length; ui++) {
+        var usuario = usuarios[ui]
+        var usuarioEquipeId = usuario.getString('equipe_id')
+        if (scope !== 'proprios' && !equipePermitida[usuarioEquipeId]) continue
+        responsaveis.push({
+          id: usuario.id,
+          nome: usuario.getString('name') || usuario.getString('email') || usuario.id,
+          ativo: usuario.getBool('ativo_comercial'),
+        })
+      }
+      return { equipes: equipes, responsaveis: responsaveis }
+    }
+
     var query = e.requestInfo().query || {}
     var validated = validarQuery(query)
     if (!validated.valido) return e.badRequestError('Parametros de consulta invalidos')
@@ -346,6 +418,7 @@ routerAdd(
     }
 
     var resumo = agregarNegocios(records)
+    var opcoes = opcoesFiltro(scope, e.auth, equipeIds)
     return e.json(200, {
       periodo: {
         inicio: validated.params.inicio || null,
@@ -360,6 +433,7 @@ routerAdd(
         incluir_inativos: validated.params.incluir_inativos,
       },
       escopo: scope,
+      opcoes_filtro: opcoes,
       resumo: resumo,
       avisos: [
         'Valores monetarios estao em centavos; zero e um centavo nao entram nas somas.',

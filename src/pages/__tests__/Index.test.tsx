@@ -2,16 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 
 const useDashboardResumo = vi.hoisted(() => vi.fn())
-const getEquipes = vi.hoisted(() => vi.fn())
-const getUsers = vi.hoisted(() => vi.fn())
 
 vi.mock('@/hooks/use-auth', () => ({
   useAuth: () => ({ user: { id: 'u1', name: 'Spok Agente Digital' } }),
 }))
 
 vi.mock('@/hooks/use-dashboard', () => ({ useDashboardResumo }))
-vi.mock('@/services/foundation', () => ({ getEquipes }))
-vi.mock('@/services/users', () => ({ getUsers }))
 
 import Index, { createDefaultDashboardPeriod } from '@/pages/Index'
 
@@ -24,6 +20,13 @@ const dashboardResponse = {
   },
   filtros: { equipe_id: null, responsavel_id: null, modalidade: null, incluir_inativos: false },
   escopo: 'todos',
+  opcoes_filtro: {
+    equipes: [{ id: 'team1', nome: 'Equipe Recife' }],
+    responsaveis: [
+      { id: 'user1', nome: 'Ana Gestora', ativo: true },
+      { id: 'user2', nome: 'Bruno Inativo', ativo: false },
+    ],
+  },
   resumo: {
     total: 7,
     situacao: { abertos: 5, ganhos: 1, perdidos: 1, desqualificados: 0 },
@@ -69,14 +72,6 @@ const dashboardResponse = {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  getEquipes.mockResolvedValue([
-    { id: 'team1', nome: 'Equipe Recife', ativo: true },
-    { id: 'team2', nome: 'Equipe inativa', ativo: false },
-  ])
-  getUsers.mockResolvedValue([
-    { id: 'user1', name: 'Ana Gestora', ativo_comercial: true },
-    { id: 'user2', name: 'Bruno Inativo', ativo_comercial: false },
-  ])
   useDashboardResumo.mockReturnValue({
     data: dashboardResponse,
     loading: false,
@@ -160,14 +155,14 @@ describe('Dashboard V1', () => {
     })
   })
 
-  it('mantém o resumo disponível quando as opções de filtro falham', async () => {
-    getEquipes.mockRejectedValueOnce(new Error('falha controlada'))
+  it('usa opções de responsáveis devolvidas pelo mesmo escopo do dashboard', async () => {
     render(<Index />)
 
+    fireEvent.click(await screen.findByRole('combobox', { name: 'Responsável' }))
+    expect(await screen.findByRole('option', { name: 'Ana Gestora' })).toBeInTheDocument()
     expect(
-      await screen.findByText(/As opções de equipe e responsável não puderam ser carregadas/),
+      await screen.findByRole('option', { name: 'Bruno Inativo (inativo)' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Detalhamento comercial')).toBeInTheDocument()
   })
 
   it('detalha composição e qualificação sem inferir resultados', () => {

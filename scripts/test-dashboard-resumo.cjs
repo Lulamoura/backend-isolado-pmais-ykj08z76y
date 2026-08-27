@@ -7,6 +7,7 @@ var vm = require('vm')
 
 var hookPath = path.join(__dirname, '..', 'pocketbase', 'hooks', 'com_dashboard_resumo.js')
 var src = fs.readFileSync(hookPath, 'utf8')
+var pageSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Index.tsx'), 'utf8')
 var startMarker = '/* ──── BLOCO DE TESTES ESTÁTICOS ──── */'
 var endMarker = '/* ──── FIM DO BLOCO DE TESTES ESTÁTICOS ──── */'
 var start = src.indexOf(startMarker)
@@ -279,6 +280,16 @@ assert(
 assert('G5 hook não grava dados', !/\$app\.save|runInTransaction|new Record\s*\(/.test(src))
 assert('G6 hook não chama rede externa', !/\$http\.|fetch\s*\(|request\s*\(/.test(src))
 assert('G7 contrato documenta centavos', src.indexOf('Valores monetarios estao em centavos') !== -1)
+assert(
+  'G8 opções de filtro respeitam o escopo do dashboard',
+  src.indexOf('opcoesFiltro(scope, e.auth, equipeIds)') !== -1 &&
+    src.indexOf('opcoes_filtro: opcoes') !== -1,
+)
+assert(
+  'G9 tela não consulta a coleção administrativa de usuários',
+  pageSrc.indexOf("from '@/services/users'") === -1 &&
+    pageSrc.indexOf('data.opcoes_filtro.responsaveis') !== -1,
+)
 
 console.log('\nRESULTADO: ' + passed + ' passou, ' + failed + ' falhou')
 if (failed) process.exit(1)

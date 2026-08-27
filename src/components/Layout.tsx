@@ -255,7 +255,7 @@ function LayoutContent() {
           </div>
         </header>
 
-        <ModuleTabs showSubstituicoes={podeVerSubstituicoes} />
+        <ModuleTabs showSubstituicoes={podeVerSubstituicoes} showSystem={podeAdministrar} />
 
         <main id="conteudo-principal" className="mx-auto w-full max-w-7xl flex-1 p-4 lg:p-8">
           <Outlet />

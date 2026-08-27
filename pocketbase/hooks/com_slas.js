@@ -113,7 +113,8 @@ routerAdd(
     }
     var fs = feriados(),
       agora = new Date(),
-      itens = []
+      itens = [],
+      totais = { vencido: 0, alerta: 0, no_prazo: 0, nao_calculavel: 0 }
     var negocios = $app.findRecordsByFilter('com_negocios', filtro, 'created', 500, 0)
     for (var i = 0; i < negocios.length; i++) {
       var n = negocios[i],
@@ -134,6 +135,7 @@ routerAdd(
           : vence <= alerta
             ? 'alerta'
             : 'no_prazo'
+      totais[situacao]++
       var proxima = $app.findRecordsByFilter(
         'com_atividades',
         "negocio_id='" + n.id + "' && estado='planejada'",
@@ -182,6 +184,13 @@ routerAdd(
         marco_inicial: marco || null,
         vence_em: vence ? vence.toISOString() : null,
         situacao: situacao,
+        motivo_situacao: !vence
+          ? 'data_entrada_etapa_ausente'
+          : situacao === 'vencido'
+            ? 'prazo_etapa_expirado'
+            : situacao === 'alerta'
+              ? 'dentro_janela_alerta'
+              : 'fora_janela_alerta',
         dias_uteis: dias,
         proxima_acao_em: proxima.length ? proxima[0].getString('planejada_para') : null,
       })
@@ -193,6 +202,7 @@ routerAdd(
     })
     return e.json(200, {
       itens: itens,
+      totais: totais,
       parametros: cfg,
       calendario: { timezone: 'America/Recife', feriados_ativos: Object.keys(fs).length },
     })

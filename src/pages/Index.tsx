@@ -14,8 +14,6 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useDashboardResumo } from '@/hooks/use-dashboard'
-import { getEquipes } from '@/services/foundation'
-import { getUsers } from '@/services/users'
 import { motivoPerdaLabel } from '@/services/fechamentos'
 import type { DashboardResumoParams } from '@/services/dashboard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -179,39 +177,19 @@ export default function Index() {
     equipes: [] as Array<{ id: string; nome: string }>,
     responsaveis: [] as Array<{ id: string; nome: string; ativo: boolean }>,
   })
-  const [filterOptionsError, setFilterOptionsError] = useState(false)
   const { data, loading, error, refresh } = useDashboardResumo({ ...period, ...filters })
 
   useEffect(() => {
-    let active = true
-    Promise.all([getEquipes(), getUsers()])
-      .then(([equipes, responsaveis]) => {
-        if (!active) return
-        setFilterOptions({
-          equipes: equipes
-            .filter((equipe) => equipe.ativo !== false)
-            .map((equipe) => ({
-              id: equipe.id,
-              nome: String(equipe.nome || equipe.slug || equipe.id),
-            }))
-            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
-          responsaveis: responsaveis
-            .map((responsavel) => ({
-              id: responsavel.id,
-              nome: String(responsavel.name || responsavel.email || responsavel.id),
-              ativo: responsavel.ativo_comercial !== false,
-            }))
-            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
-        })
-        setFilterOptionsError(false)
-      })
-      .catch(() => {
-        if (active) setFilterOptionsError(true)
-      })
-    return () => {
-      active = false
-    }
-  }, [])
+    if (!data?.opcoes_filtro) return
+    setFilterOptions({
+      equipes: [...data.opcoes_filtro.equipes].sort((a, b) =>
+        a.nome.localeCompare(b.nome, 'pt-BR'),
+      ),
+      responsaveis: [...data.opcoes_filtro.responsaveis].sort((a, b) =>
+        a.nome.localeCompare(b.nome, 'pt-BR'),
+      ),
+    })
+  }, [data?.opcoes_filtro])
 
   function applyPeriod(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -428,13 +406,6 @@ export default function Index() {
               </Button>
             </div>
           </form>
-
-          {filterOptionsError ? (
-            <p role="status" className="mt-3 text-xs text-amber-700">
-              As opções de equipe e responsável não puderam ser carregadas. O resumo geral continua
-              disponível.
-            </p>
-          ) : null}
         </CardContent>
       </Card>
 
