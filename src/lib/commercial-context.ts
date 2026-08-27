@@ -28,11 +28,26 @@ const validDate = (value: string | null) => {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
+const civilDateKey = (value: string | null) => {
+  const match = value?.match(/^(\d{4}-\d{2}-\d{2})/)
+  return match?.[1] ?? null
+}
+
+const recifeDateKey = (date: Date) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Recife',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return `${value.year}-${value.month}-${value.day}`
+}
+
 export const actionStatus = (value: string | null, now = new Date()): ActionStatus => {
-  const date = validDate(value)
-  if (!date) return 'ausente'
-  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const target = civilDateKey(value)
+  if (!target) return 'ausente'
+  const today = recifeDateKey(now)
   return target < today ? 'vencida' : target === today ? 'hoje' : 'futura'
 }
 
@@ -56,8 +71,10 @@ export const ageInDays = (value: string | null, now = new Date()) => {
 }
 
 export const formatDate = (value: string | null) => {
-  const date = validDate(value)
-  return date ? new Intl.DateTimeFormat('pt-BR').format(date) : 'Não informada'
+  const key = civilDateKey(value)
+  if (!key) return 'Não informada'
+  const [year, month, day] = key.split('-')
+  return `${day}/${month}/${year}`
 }
 
 export const formatMoney = (cents: number) =>

@@ -19,7 +19,14 @@ export interface ItemSla {
     | 'prazo_etapa_expirado'
     | 'dentro_janela_alerta'
     | 'fora_janela_alerta'
+    | 'acao_vencida_fora_tolerancia'
+    | 'acao_vencida_dentro_tolerancia'
+    | 'acao_para_hoje'
+    | 'acao_programada'
+    | 'sem_acao_fora_tolerancia'
+    | 'sem_acao_dentro_tolerancia'
   dias_uteis: number
+  dias_atraso_uteis: number
   proxima_acao_em: string | null
 }
 export interface FilaSla {
