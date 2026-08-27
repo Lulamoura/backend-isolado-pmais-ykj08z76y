@@ -462,7 +462,10 @@ routerAdd(
                 ev.links.contact_id +
                 "'",
             )
-          if (ev.links.owner_code)
+          // Prospects entram na fila compartilhada e só recebem responsável
+          // quando uma operadora assume a qualificação. O proprietário técnico
+          // do ActiveCampaign não deve bloquear essa entrada.
+          if (ev.links.owner_code && !eventIsProspect)
             $app.findFirstRecordByFilter(
               'com_vinculos_externos',
               "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
@@ -762,7 +765,8 @@ routerAdd(
                 "'",
             )
             var owner = null
-            if (ev.links.owner_code)
+            var executionIsProspect = String(ev.data.stage || '') === 'prospects'
+            if (ev.links.owner_code && !executionIsProspect)
               owner = tx.findFirstRecordByFilter(
                 'com_vinculos_externos',
                 "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +

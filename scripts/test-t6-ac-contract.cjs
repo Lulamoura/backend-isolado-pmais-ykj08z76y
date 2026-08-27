@@ -221,7 +221,9 @@ const checks = [
       webhook.includes('(!isProspect && !links.owner_code)') &&
       reconciliationHook.includes('2026-08-24T03:00:00.000Z') &&
       reconciliationHook.includes("canonicalStage === 'prospects'") &&
-      reconciliationHook.includes('(!eventIsProspect && !ev.links.owner_code)'),
+      reconciliationHook.includes('(!eventIsProspect && !ev.links.owner_code)') &&
+      reconciliationHook.includes('if (ev.links.owner_code && !eventIsProspect)') &&
+      reconciliationHook.includes('if (ev.links.owner_code && !executionIsProspect)'),
   ],
   [
     'controles possuem materialização runtime idempotente e autenticada',
