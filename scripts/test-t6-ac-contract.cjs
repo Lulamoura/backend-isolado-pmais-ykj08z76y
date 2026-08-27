@@ -34,12 +34,12 @@ const preoperationGuard = fs.readFileSync(
   path.join(root, 'pocketbase/hooks/com_preoperacao_guard.js'),
   'utf8',
 )
-const mutationHooks = [
+const protectedMutationHooks = [
   'com_qualificacao.js',
   'com_atividades_operacao.js',
   'com_fechamentos_operacao.js',
-  'com_ordens_execucao.js',
 ].map((name) => fs.readFileSync(path.join(root, 'pocketbase/hooks', name), 'utf8'))
+const oeHook = fs.readFileSync(path.join(root, 'pocketbase/hooks/com_ordens_execucao.js'), 'utf8')
 
 const checks = [
   ['contrato define event_id', contract.includes('"event_id"')],
@@ -190,13 +190,19 @@ const checks = [
       reconciliationHook.includes("customFields['Responsável']"),
   ],
   [
-    'pré-operação bloqueia comandos mutantes sobre importados reais',
+    'pré-operação bloqueia comandos comerciais mutantes sobre importados reais',
     reconciliationHook.includes("target.set('origem_canal', 'activecampaign')") &&
-      mutationHooks.every(
+      protectedMutationHooks.every(
         (source) =>
           source.includes('ac_preoperation_read_only') &&
           source.includes("origem_canal') === 'activecampaign'"),
       ),
+  ],
+  [
+    'OE é exceção interna auditada à trava de pré-operação',
+    !oeHook.includes("preop.getString('valor') === 'true'") &&
+      oeHook.includes("auditoria.set('escopo', 'ordem_execucao')") &&
+      oeHook.includes("auditoria.set('origem', 'server-side')"),
   ],
   ['API direta de negócio fica fechada', migration.includes('negocios.updateRule = null')],
   [

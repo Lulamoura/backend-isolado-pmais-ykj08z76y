@@ -26,6 +26,13 @@ check(
     hook.includes('editavel: false'),
 )
 check(
+  'ação vence apenas depois da data civil em Recife',
+  hook.includes('function dataCivil') &&
+    hook.includes('function hojeRecife') &&
+    hook.includes('dataCivil(data) < hoje') &&
+    !hook.includes('data < agora'),
+)
+check(
   'fila aplica o escopo real de negocios.view',
   hook.includes("permissao.getString('slug') === 'negocios.view'") &&
     hook.includes("escopo === 'equipe'") &&
@@ -74,4 +81,4 @@ check(
   app.includes('path="/atividades"') && app.includes('<Atividades />'),
 )
 
-console.log(`\nRESULTADO: ${passed}/23 aprovados`)
+console.log(`\nRESULTADO: ${passed}/24 aprovados`)

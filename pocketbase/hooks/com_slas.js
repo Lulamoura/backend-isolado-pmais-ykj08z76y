@@ -46,6 +46,13 @@ routerAdd(
     function chaveData(d) {
       return d.toISOString().slice(0, 10)
     }
+    function dataCivil(valor) {
+      var match = String(valor || '').match(/^(\d{4}-\d{2}-\d{2})/)
+      return match ? match[1] : ''
+    }
+    function hojeRecife(agora) {
+      return new Date(agora.getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    }
     function feriados() {
       var fixos = [
         '2026-01-01',
@@ -84,6 +91,27 @@ routerAdd(
         if (diaUtil(d, fs)) feitos++
       }
       return d
+    }
+    function diasUteisDepois(baseKey, hojeKey, fs) {
+      if (!baseKey || !hojeKey || baseKey >= hojeKey) return 0
+      var d = new Date(baseKey + 'T12:00:00.000Z'),
+        fim = new Date(hojeKey + 'T12:00:00.000Z'),
+        total = 0
+      while (d < fim) {
+        d.setUTCDate(d.getUTCDate() + 1)
+        if (diaUtil(d, fs)) total++
+      }
+      return total
+    }
+    function inicioPrimeiroDiaCritico(baseKey, tolerancia, fs) {
+      if (!baseKey) return null
+      var d = new Date(baseKey + 'T12:00:00.000Z'),
+        feitos = 0
+      while (feitos <= tolerancia) {
+        d.setUTCDate(d.getUTCDate() + 1)
+        if (diaUtil(d, fs)) feitos++
+      }
+      return new Date(chaveData(d) + 'T03:00:00.000Z')
     }
     var ator = e.auth
     if (!ator) return e.unauthorizedError('Autenticacao necessaria')
@@ -131,6 +159,7 @@ routerAdd(
     }
     var fs = feriados(),
       agora = new Date(),
+      hoje = hojeRecife(agora),
       itens = [],
       totais = { vencido: 0, alerta: 0, no_prazo: 0, nao_calculavel: 0 }
     var negocios = $app.findRecordsByFilter('com_negocios', filtro, 'created', 500, 0)
@@ -144,16 +173,6 @@ routerAdd(
             ? cfg.proposta
             : cfg.negociacao
       var marco = n.getString('etapa_entrou_em')
-      var vence = marco ? fimDiaUtil(marco, dias, fs) : null
-      var alerta = fimDiaUtil(agora, cfg.antecedencia, fs)
-      var situacao = !vence
-        ? 'nao_calculavel'
-        : vence < agora
-          ? 'vencido'
-          : vence <= alerta
-            ? 'alerta'
-            : 'no_prazo'
-      totais[situacao]++
       var proxima = $app.findRecordsByFilter(
         'com_atividades',
         "negocio_id='" + n.id + "' && estado='planejada'",
@@ -161,6 +180,54 @@ routerAdd(
         1,
         0,
       )
+      var proximaAcao = proxima.length
+        ? proxima[0].getString('planejada_para')
+        : n.getString('proxima_acao_em')
+      var vence = null,
+        situacao = 'nao_calculavel',
+        motivoSituacao = 'data_entrada_etapa_ausente',
+        diasAtraso = 0
+      if (etapa === 'negociacao') {
+        var baseNegociacao = dataCivil(proximaAcao) || dataCivil(marco)
+        if (baseNegociacao) {
+          diasAtraso = diasUteisDepois(baseNegociacao, hoje, fs)
+          vence = inicioPrimeiroDiaCritico(baseNegociacao, cfg.negociacao, fs)
+          if (proximaAcao) {
+            situacao =
+              diasAtraso > cfg.negociacao ? 'vencido' : diasAtraso > 0 ? 'alerta' : 'no_prazo'
+            motivoSituacao =
+              situacao === 'vencido'
+                ? 'acao_vencida_fora_tolerancia'
+                : situacao === 'alerta'
+                  ? 'acao_vencida_dentro_tolerancia'
+                  : dataCivil(proximaAcao) === hoje
+                    ? 'acao_para_hoje'
+                    : 'acao_programada'
+          } else {
+            situacao = diasAtraso > cfg.negociacao ? 'vencido' : 'alerta'
+            motivoSituacao =
+              situacao === 'vencido' ? 'sem_acao_fora_tolerancia' : 'sem_acao_dentro_tolerancia'
+          }
+        }
+      } else {
+        vence = marco ? fimDiaUtil(marco, dias, fs) : null
+        var alerta = fimDiaUtil(agora, cfg.antecedencia, fs)
+        situacao = !vence
+          ? 'nao_calculavel'
+          : vence < agora
+            ? 'vencido'
+            : vence <= alerta
+              ? 'alerta'
+              : 'no_prazo'
+        motivoSituacao = !vence
+          ? 'data_entrada_etapa_ausente'
+          : situacao === 'vencido'
+            ? 'prazo_etapa_expirado'
+            : situacao === 'alerta'
+              ? 'dentro_janela_alerta'
+              : 'fora_janela_alerta'
+      }
+      totais[situacao]++
       if (
         filtroSituacao !== 'todas' &&
         !(
@@ -202,15 +269,10 @@ routerAdd(
         marco_inicial: marco || null,
         vence_em: vence ? vence.toISOString() : null,
         situacao: situacao,
-        motivo_situacao: !vence
-          ? 'data_entrada_etapa_ausente'
-          : situacao === 'vencido'
-            ? 'prazo_etapa_expirado'
-            : situacao === 'alerta'
-              ? 'dentro_janela_alerta'
-              : 'fora_janela_alerta',
+        motivo_situacao: motivoSituacao,
         dias_uteis: dias,
-        proxima_acao_em: proxima.length ? proxima[0].getString('planejada_para') : null,
+        dias_atraso_uteis: diasAtraso,
+        proxima_acao_em: proximaAcao || null,
       })
     }
     itens.sort(function (a, b) {

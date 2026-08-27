@@ -42,6 +42,13 @@ routerAdd(
       }
       return scope
     }
+    function dataCivil(valor) {
+      var match = String(valor || '').match(/^(\d{4}-\d{2}-\d{2})/)
+      return match ? match[1] : ''
+    }
+    function hojeRecife() {
+      return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    }
     var ator = e.auth
     if (!ator) return e.unauthorizedError('Autenticacao necessaria')
     if (!ator.getBool('ativo_comercial')) return e.forbiddenError('Usuario comercial inativo')
@@ -71,7 +78,7 @@ routerAdd(
           : " && responsavel_id = '" + ator.id + "'"
     }
     var negocios = $app.findRecordsByFilter('com_negocios', filtro, 'titulo', 500, 0)
-    var agora = new Date().toISOString()
+    var hoje = hojeRecife()
     var todos = []
     for (var i = 0; i < negocios.length; i++) {
       var negocio = negocios[i]
@@ -92,7 +99,7 @@ routerAdd(
       if (planejadas.length) {
         var a = planejadas[0]
         var data = a.getString('planejada_para')
-        estadoFila = data && data < agora ? 'vencida' : 'programada'
+        estadoFila = dataCivil(data) && dataCivil(data) < hoje ? 'vencida' : 'programada'
         var responsavel = null
         try {
           var ur = $app.findRecordById('users', a.getString('responsavel_id'))
@@ -112,7 +119,7 @@ routerAdd(
         }
       } else if (negocio.getString('proxima_acao_em')) {
         var dataCrm = negocio.getString('proxima_acao_em')
-        estadoFila = dataCrm < agora ? 'vencida' : 'programada'
+        estadoFila = dataCivil(dataCrm) && dataCivil(dataCrm) < hoje ? 'vencida' : 'programada'
         proxima = {
           id: null,
           tipo: 'acompanhamento_proposta',

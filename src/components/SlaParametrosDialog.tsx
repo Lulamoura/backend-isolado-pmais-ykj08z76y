@@ -27,8 +27,8 @@ const OPCOES: Array<{ chave: ParametroSlaChave; nome: string; explicacao: string
   },
   {
     chave: 'sla.negociacao_dias_uteis',
-    nome: 'Prazo de Negociação',
-    explicacao: 'Tempo de acompanhamento da negociação.',
+    nome: 'Tolerância crítica da Negociação',
+    explicacao: 'Dias úteis tolerados após o vencimento da próxima ação.',
   },
   {
     chave: 'sla.alerta_antecedencia_dias_uteis',

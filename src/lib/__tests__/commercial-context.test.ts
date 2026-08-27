@@ -34,6 +34,13 @@ describe('contexto comercial', () => {
     expect(actionStatus('2026-08-25T12:00:00Z', now)).toBe('futura')
   })
 
+  it('preserva a data civil do CRM e só vence no dia seguinte em Recife', () => {
+    expect(actionStatus('2026-08-27 00:00:00.000Z', new Date('2026-08-27T23:30:00Z'))).toBe('hoje')
+    expect(actionStatus('2026-08-27 00:00:00.000Z', new Date('2026-08-28T03:00:00Z'))).toBe(
+      'vencida',
+    )
+  })
+
   it('calcula o tempo de vida a partir da criação no CRM', () => {
     expect(ageInDays('2026-08-14T12:00:00Z', new Date('2026-08-24T12:00:00Z'))).toBe(10)
   })

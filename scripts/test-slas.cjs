@@ -69,10 +69,26 @@ const checks = [
     'formulario dedicado altera somente as quatro chaves de SLA',
     dialog.includes('Prazo de Prospect') &&
       dialog.includes('Prazo de Produção de Proposta') &&
-      dialog.includes('Prazo de Negociação') &&
+      dialog.includes('Tolerância crítica da Negociação') &&
       dialog.includes('Antecedência do alerta') &&
       service.includes("'/backend/v1/slas/parametros'") &&
       !dialog.includes('com_parametros'),
+  ],
+  [
+    'negociação usa próxima ação com fallback do ActiveCampaign',
+    hook.includes("n.getString('proxima_acao_em')") &&
+      hook.includes("etapa === 'negociacao'") &&
+      hook.includes('diasUteisDepois'),
+  ],
+  [
+    'SLA crítico só ocorre depois da tolerância de atraso',
+    hook.includes('diasAtraso > cfg.negociacao') &&
+      hook.includes('acao_vencida_dentro_tolerancia') &&
+      hook.includes('acao_vencida_fora_tolerancia'),
+  ],
+  [
+    'negociação sem ação é irregular e escala após tolerância',
+    hook.includes('sem_acao_dentro_tolerancia') && hook.includes('sem_acao_fora_tolerancia'),
   ],
   [
     'alteracao dedicada exige justificativa e concorrencia otimista',

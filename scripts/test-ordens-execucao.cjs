@@ -56,6 +56,11 @@ const checks = [
     hook.includes("set('origem', 'server-side')") && hook.includes('evidencia_estruturada'),
   ],
   [
+    'OE real não é bloqueada pela trava geral de pré-operação',
+    !hook.includes("preop.getString('valor') === 'true'") &&
+      !hook.includes("return e.json(423, { error: 'PREOPERACAO_SOMENTE_LEITURA' })"),
+  ],
+  [
     'serviço canônico',
     service.includes('/backend/v1/ordens-execucao/fila') &&
       service.includes('/backend/v1/ordens-execucao/registrar'),

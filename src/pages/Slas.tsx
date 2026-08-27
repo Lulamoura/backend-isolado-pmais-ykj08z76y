@@ -22,6 +22,16 @@ const etapaLabel: Record<string, string> = {
 }
 
 function explicacao(item: FilaSla['itens'][number], antecedencia: number) {
+  if (item.motivo_situacao === 'acao_vencida_fora_tolerancia')
+    return `SLA crítico: ação vencida há ${item.dias_atraso_uteis} dia(s) útil(eis).`
+  if (item.motivo_situacao === 'acao_vencida_dentro_tolerancia')
+    return `Ação vencida há ${item.dias_atraso_uteis} dia(s) útil(eis), dentro da tolerância.`
+  if (item.motivo_situacao === 'acao_para_hoje') return 'Em dia: próxima ação prevista para hoje.'
+  if (item.motivo_situacao === 'acao_programada') return 'Em dia: próxima ação futura programada.'
+  if (item.motivo_situacao === 'sem_acao_fora_tolerancia')
+    return 'SLA crítico: negociação permanece sem próxima ação além da tolerância.'
+  if (item.motivo_situacao === 'sem_acao_dentro_tolerancia')
+    return 'Atenção: negociação sem próxima ação, ainda dentro da tolerância.'
   if (item.motivo_situacao === 'data_entrada_etapa_ausente')
     return 'Não calculável: data de entrada na fase ausente.'
   if (item.motivo_situacao === 'prazo_etapa_expirado') return 'Vencido: o prazo da fase expirou.'
@@ -48,8 +58,8 @@ export default function Slas() {
       <div>
         <h1 className="text-2xl font-bold">SLAs, calendário e alertas</h1>
         <p className="text-sm text-muted-foreground">
-          Prazos da etapa calculados em dias úteis — America/Recife — não utilizam a data da próxima
-          ação
+          Prospect e proposta usam prazo da etapa. Na negociação, o SLA crítico começa após a
+          tolerância de dias úteis sobre a próxima ação vencida — calendário America/Recife.
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -89,7 +99,9 @@ export default function Slas() {
           <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <span>Prospect: {dados.parametros.lead} dia(s) útil(eis)</span>
             <span>Produção de Proposta: {dados.parametros.proposta} dia(s) útil(eis)</span>
-            <span>Negociação: {dados.parametros.negociacao} dia(s) útil(eis)</span>
+            <span>
+              Negociação: crítico após {dados.parametros.negociacao} dia(s) útil(eis) de atraso
+            </span>
             <span>Alerta: {dados.parametros.antecedencia} dia(s) útil(eis) antes</span>
             {isSuperAdmin && (
               <Button size="sm" variant="outline" onClick={() => setParametrosOpen(true)}>
@@ -146,7 +158,9 @@ export default function Slas() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Fase: {etapaLabel[i.negocio.etapa] || i.negocio.etapa || 'não informada'} · Regra:{' '}
-                  {i.dias_uteis} dia(s) útil(eis)
+                  {i.negocio.etapa === 'negociacao'
+                    ? `crítico após ${i.dias_uteis} dia(s) útil(eis) de atraso`
+                    : `${i.dias_uteis} dia(s) útil(eis)`}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Responsável: {i.negocio.responsavel?.nome || 'não informado'}
@@ -160,7 +174,7 @@ export default function Slas() {
                 <p className="text-xs text-muted-foreground">
                   Próxima ação:{' '}
                   {i.proxima_acao_em
-                    ? new Date(i.proxima_acao_em).toLocaleString('pt-BR')
+                    ? i.proxima_acao_em.slice(0, 10).split('-').reverse().join('/')
                     : 'não informada'}
                 </p>
               </div>
@@ -170,7 +184,9 @@ export default function Slas() {
                 </Badge>
                 <p className="mt-1 text-xs">
                   {i.vence_em
-                    ? new Date(i.vence_em).toLocaleString('pt-BR')
+                    ? i.negocio.etapa === 'negociacao'
+                      ? `Crítico em ${i.vence_em.slice(0, 10).split('-').reverse().join('/')}`
+                      : new Date(i.vence_em).toLocaleString('pt-BR')
                     : 'Sem vencimento calculado'}
                 </p>
                 <p className="mt-1 max-w-sm text-xs text-muted-foreground">
