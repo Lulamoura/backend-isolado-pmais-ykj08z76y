@@ -84,7 +84,7 @@ routerAdd(
       var sourceVersion = version(modified)
       events.push({
         schema_version: '1',
-        context_revision: entityType === 'business' ? '5' : '1',
+        context_revision: entityType === 'business' ? '6' : '1',
         event_id:
           'ac:' +
           entityType +
@@ -92,7 +92,7 @@ routerAdd(
           entityId +
           ':' +
           sourceVersion +
-          (entityType === 'business' ? ':ctx5' : ''),
+          (entityType === 'business' ? ':ctx6' : ''),
         source: 'activecampaign',
         entity_type: entityType,
         entity_id: String(entityId),
@@ -315,6 +315,32 @@ routerAdd(
           (!deals[d].cdate || Date.parse(deals[d].cdate) < Date.parse('2026-08-24T03:00:00.000Z'))
         )
           continue
+        var knownBusiness = false
+        try {
+          $app.findFirstRecordByFilter(
+            'com_vinculos_externos',
+            "sistema_origem='activecampaign' && external_type='business' && external_id='" +
+              String(deals[d].id) +
+              "'",
+          )
+          knownBusiness = true
+        } catch (_) {}
+        var stageEnteredAt = ''
+        if (dealStage === 'prospects') stageEnteredAt = deals[d].cdate || ''
+        if (
+          dealStage === 'producao_proposta' &&
+          !knownBusiness &&
+          deals[d].cdate &&
+          Date.parse(deals[d].cdate) >= Date.parse('2026-08-24T03:00:00.000Z')
+        )
+          stageEnteredAt = deals[d].cdate
+        if (dealStage === 'negociacao') stageEnteredAt = customFields['Data_Negociacao'] || ''
+        var terminalAt =
+          String(deals[d].status) === '1'
+            ? customFields['Data_Fechamento'] || ''
+            : String(deals[d].status) === '2'
+              ? customFields['Data_Cancelamento'] || ''
+              : ''
         add(
           'business',
           deals[d].id,
@@ -328,10 +354,14 @@ routerAdd(
             next_action_at: customFields['Data de Ação'] || deals[d].nextdate || '',
             crm_created_at: deals[d].cdate || '',
             crm_updated_at: deals[d].mdate || deals[d].cdate || '',
+            stage_entered_at: stageEnteredAt,
+            negotiation_entered_at: customFields['Data_Negociacao'] || '',
+            won_at: customFields['Data_Fechamento'] || '',
+            lost_at: customFields['Data_Cancelamento'] || '',
             phase: customFields['Fase'] || '',
             source: customFields['Fonte de Prospecção'] || '',
             loss_reason: customFields['Motivo Perda'] || '',
-            closed_at: customFields['Data_Cancelamento'] || '',
+            closed_at: terminalAt,
             initial_load_scope:
               requestedMode === 'initial_open_negotiation' ? 'open_negotiation' : '',
           },
@@ -775,14 +805,13 @@ routerAdd(
               if (canonicalStage !== previousStage)
                 target.set(
                   'etapa_entrou_em',
-                  ev.data.crm_updated_at || ev.data.crm_created_at || new Date().toISOString(),
+                  ev.data.stage_entered_at ||
+                    ev.data.crm_updated_at ||
+                    ev.data.crm_created_at ||
+                    new Date().toISOString(),
                 )
-              else if (
-                !target.getString('etapa_entrou_em') &&
-                canonicalStage === 'prospects' &&
-                ev.data.crm_created_at >= '2026-08-24T03:00:00Z'
-              )
-                target.set('etapa_entrou_em', ev.data.crm_created_at)
+              else if (!target.getString('etapa_entrou_em') && ev.data.stage_entered_at)
+                target.set('etapa_entrou_em', ev.data.stage_entered_at)
               target.set('etapa', canonicalStage)
               target.set('resultado', '')
               target.set(
@@ -803,6 +832,8 @@ routerAdd(
               )
               if (String(ev.data.stage || '') === 'prospects')
                 target.set('qualificacao', 'desqualificada')
+              if (dealStatus === '1' && ev.data.closed_at)
+                target.set('fechamento_data', ev.data.closed_at)
               if (dealStatus === '2' && String(ev.data.stage || '') !== 'prospects') {
                 target.set('fechamento_motivo', canonicalLossReason(ev.data.loss_reason))
                 if (ev.data.closed_at) target.set('fechamento_data', ev.data.closed_at)

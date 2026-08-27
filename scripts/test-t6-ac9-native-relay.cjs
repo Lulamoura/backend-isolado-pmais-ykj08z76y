@@ -57,11 +57,29 @@ const checks = [
       reconciler.includes("target.set('fechamento_data'"),
   ],
   [
+    'marcos de SLA usam datas comerciais comprovadas',
+    relay.includes("customByLabel['Data_Negociacao']") &&
+      relay.includes("customByLabel['Data_Fechamento']") &&
+      relay.includes('stage_entered_at: stageEnteredAt') &&
+      reconciler.includes("customFields['Data_Negociacao']") &&
+      reconciler.includes("customFields['Data_Fechamento']") &&
+      reconciler.includes('ev.data.stage_entered_at') &&
+      webhook.includes('event.data.stage_entered_at'),
+  ],
+  [
+    'ganho e perda encerram o ciclo sem iniciar SLA',
+    relay.includes("String(deal.status) === '1'") &&
+      relay.includes("String(deal.status) === '2'") &&
+      webhook.includes("dealStatus === '1' && event.data.closed_at") &&
+      reconciler.includes("dealStatus === '1' && ev.data.closed_at") &&
+      !webhook.includes("'etapa_entrou_em', event.data.closed_at"),
+  ],
+  [
     'novo contexto comercial reprocessa negócios já sincronizados sem duplicação',
-    relay.includes("context_revision: type === 'business' ? '5' : '1'") &&
-      relay.includes("type === 'business' ? ':ctx5' : ''") &&
-      reconciler.includes("context_revision: entityType === 'business' ? '5' : '1'") &&
-      reconciler.includes("entityType === 'business' ? ':ctx5' : ''"),
+    relay.includes("context_revision: type === 'business' ? '6' : '1'") &&
+      relay.includes("type === 'business' ? ':ctx6' : ''") &&
+      reconciler.includes("context_revision: entityType === 'business' ? '6' : '1'") &&
+      reconciler.includes("entityType === 'business' ? ':ctx6' : ''"),
   ],
   [
     'webhook preserva o valor inteiro em centavos',

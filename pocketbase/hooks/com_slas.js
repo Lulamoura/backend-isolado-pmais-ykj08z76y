@@ -111,6 +111,24 @@ routerAdd(
       negociacao: inteiro('sla.negociacao_dias_uteis', 2),
       antecedencia: inteiro('sla.alerta_antecedencia_dias_uteis', 1),
     }
+    var cfgControle = {}
+    var cfgChaves = {
+      'sla.lead_dias_uteis': cfg.lead,
+      'sla.proposta_dias_uteis': cfg.proposta,
+      'sla.negociacao_dias_uteis': cfg.negociacao,
+      'sla.alerta_antecedencia_dias_uteis': cfg.antecedencia,
+    }
+    var cfgNomes = Object.keys(cfgChaves)
+    for (var ci = 0; ci < cfgNomes.length; ci++) {
+      var cfgChave = cfgNomes[ci]
+      var cfgUpdated = 'DEFAULT'
+      try {
+        cfgUpdated = $app
+          .findFirstRecordByData('com_parametros', 'chave', cfgChave)
+          .getString('updated')
+      } catch (_) {}
+      cfgControle[cfgChave] = { valor: cfgChaves[cfgChave], updated: cfgUpdated }
+    }
     var fs = feriados(),
       agora = new Date(),
       itens = [],
@@ -204,6 +222,7 @@ routerAdd(
       itens: itens,
       totais: totais,
       parametros: cfg,
+      parametros_controle: cfgControle,
       calendario: { timezone: 'America/Recife', feriados_ativos: Object.keys(fs).length },
     })
   },
