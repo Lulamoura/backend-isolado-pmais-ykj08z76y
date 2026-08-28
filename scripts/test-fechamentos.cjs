@@ -10,8 +10,10 @@ const navigation = read('src/lib/navigation.ts')
 
 const checks = [
   [
-    'rotas de fila, fechamento e reativação',
-    ['/fila', '/decidir', '/reativar'].every((x) => hook.includes(`/backend/v1/fechamentos${x}`)),
+    'rotas de fila, fechamento e descarte de recuperação',
+    ['/fila', '/decidir', '/recuperacao/descartar'].every((x) =>
+      hook.includes(`/backend/v1/fechamentos${x}`),
+    ),
   ],
   [
     'autenticação comercial',
@@ -49,9 +51,11 @@ const checks = [
         "newAgenda.set('antecedencia_dias', 60)",
       ),
   ],
+  ['reativação local bloqueada', hook.includes('REATIVACAO_DEVE_OCORRER_NO_ACTIVECAMPAIGN')],
   [
-    'reativação cria novo negócio vinculado',
-    hook.includes("set('negocio_original_id'") && hook.includes("set('negocio_novo_id'"),
+    'descarte exige justificativa e encerra agenda',
+    hook.includes('JUSTIFICATIVA_OBRIGATORIA_MINIMO_10_CARACTERES') &&
+      hook.includes("agenda.set('estado', 'descartada')"),
   ],
   ['terminal não é reaberto', hook.includes('NEGOCIO_TERMINAL_IMUTAVEL')],
   ['idempotência com replay', hook.includes('com_idempotencia') && hook.includes('replay: true')],
@@ -63,11 +67,16 @@ const checks = [
   [
     'serviço canônico',
     service.includes('/backend/v1/fechamentos/decidir') &&
-      service.includes('/backend/v1/fechamentos/reativar'),
+      service.includes('/backend/v1/fechamentos/recuperacao/descartar'),
   ],
   [
     'interface operacional',
-    ['Registrar ganho', 'Registrar perda', 'Reativar negócio'].every((x) => page.includes(x)),
+    [
+      'Registrar ganho',
+      'Registrar perda',
+      'Recuperar no ActiveCampaign',
+      'Descartar recuperação',
+    ].every((x) => page.includes(x)),
   ],
   [
     'rota protegida e navegação',

@@ -1,5 +1,6 @@
 export interface CommercialContext {
   external_id: string | null
+  activecampaign_url?: string | null
   empresa: { id: string; nome: string | null } | null
   contato: {
     id: string

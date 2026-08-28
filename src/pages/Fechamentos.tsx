@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { RefreshCw, RotateCcw, Trophy, XCircle } from 'lucide-react'
+import { Ban, ExternalLink, RefreshCw, Trophy, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import {
   decidirFechamento,
   listarFechamentos,
   novaChaveFechamento,
-  reativarFechamento,
+  descartarRecuperacao,
   motivoPerdaLabel,
   type ItemFechamento,
   type MotivoPerda,
@@ -50,6 +51,7 @@ export default function Fechamentos() {
   const [valor, setValor] = useState<Record<string, string>>({})
   const [evidencia, setEvidencia] = useState<Record<string, string>>({})
   const [dataAlvo, setDataAlvo] = useState<Record<string, string>>({})
+  const [justificativaDescarte, setJustificativaDescarte] = useState<Record<string, string>>({})
   const [busca, setBusca] = useState('')
   const [responsavel, setResponsavel] = useState('')
   const [situacaoAcao, setSituacaoAcao] = useState('')
@@ -117,18 +119,19 @@ export default function Fechamentos() {
     }
   }
 
-  const reativar = async (item: ItemFechamento) => {
+  const descartar = async (item: ItemFechamento) => {
     try {
-      await reativarFechamento({
+      await descartarRecuperacao({
         negocio_perdido_id: item.negocio.id,
         agenda_id: item.agenda?.id,
+        justificativa: justificativaDescarte[item.negocio.id],
         updated_esperado: item.negocio.updated,
-        command_idempotency_key: novaChaveFechamento('reativar', item.negocio.id),
+        command_idempotency_key: novaChaveFechamento('descartar-recuperacao', item.negocio.id),
       })
-      toast.success('Novo negócio reativado e vinculado.')
+      toast.success('Recuperação descartada com justificativa registrada.')
       await carregar()
     } catch (_) {
-      toast.error('O negócio não pôde ser reativado.')
+      toast.error('A recuperação não pôde ser descartada.')
     }
   }
 
@@ -317,11 +320,52 @@ export default function Fechamentos() {
                         ? `Recuperação em ${item.agenda.data_alvo}`
                         : 'Sem agenda de recuperação ativa'}
                     </p>
-                    {perfilSlug !== 'negociacao-propria' && !somenteLeituraPerfil && (
-                      <Button disabled={!item.agenda} onClick={() => void reativar(item)}>
-                        <RotateCcw className="mr-2 h-4 w-4" /> Reativar negócio
-                      </Button>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {item.contexto.activecampaign_url ? (
+                        <Button variant="outline" asChild>
+                          <a
+                            href={item.contexto.activecampaign_url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <ExternalLink className="mr-2 h-4 w-4" /> Recuperar no ActiveCampaign
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button variant="outline" disabled>
+                          <ExternalLink className="mr-2 h-4 w-4" /> Negócio sem vínculo no CRM
+                        </Button>
+                      )}
+                    </div>
+                    {perfilSlug !== 'negociacao-propria' &&
+                      !somenteLeituraPerfil &&
+                      item.agenda && (
+                        <div className="space-y-2 rounded-md border border-slate-200 p-3">
+                          <Label htmlFor={`descarte-${item.negocio.id}`}>
+                            Justificativa para não recuperar
+                          </Label>
+                          <Textarea
+                            id={`descarte-${item.negocio.id}`}
+                            value={justificativaDescarte[item.negocio.id] || ''}
+                            onChange={(event) =>
+                              setJustificativaDescarte((current) => ({
+                                ...current,
+                                [item.negocio.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Informe o motivo da decisão (mínimo de 10 caracteres)."
+                          />
+                          <Button
+                            variant="destructive"
+                            disabled={
+                              (justificativaDescarte[item.negocio.id] || '').trim().length < 10
+                            }
+                            onClick={() => void descartar(item)}
+                          >
+                            <Ban className="mr-2 h-4 w-4" /> Descartar recuperação
+                          </Button>
+                        </div>
+                      )}
                   </div>
                 ) : (
                   <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">

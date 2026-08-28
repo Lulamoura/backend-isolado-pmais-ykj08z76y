@@ -96,6 +96,7 @@
         }
         var somenteLeitura = false
         var externalId = null
+        var activeCampaignUrl = null
         try {
           externalId = $app
             .findFirstRecordByFilter(
@@ -105,6 +106,11 @@
                 "'",
             )
             .getString('external_id')
+        } catch (_) {}
+        try {
+          var acBase = String($secrets.get('AC_API_URL') || '').replace(/\/$/, '')
+          if (externalId && /^\d+$/.test(externalId) && acBase)
+            activeCampaignUrl = acBase + '/app/deals/' + externalId
         } catch (_) {}
         try {
           var parametro = $app.findFirstRecordByData(
@@ -117,6 +123,7 @@
         var followUp = acompanhamento()
         return {
           external_id: externalId,
+          activecampaign_url: activeCampaignUrl,
           empresa: relacionado('com_empresas', negocio.getString('empresa_id'), ['nome']),
           contato: relacionado('com_contatos', negocio.getString('contato_principal_id'), [
             'nome',
@@ -457,6 +464,7 @@
     'POST',
     '/backend/v1/fechamentos/reativar',
     (e) => {
+      return e.json(409, { error: 'REATIVACAO_DEVE_OCORRER_NO_ACTIVECAMPAIGN' })
       try {
         var perfilRestrito = $app.findRecordById('com_perfis', e.auth.getString('perfil_id'))
         if (perfilRestrito.getString('slug') === 'negociacao-propria')
@@ -597,6 +605,138 @@
         a.set('snapshot_hash', $security.sha256(JSON.stringify(resposta)))
         a.set('snapshot_hash_versao', '1')
         tx.save(a)
+      })
+      return e.json(200, Object.assign({ replay: false }, resposta))
+    },
+    $apis.requireAuth(),
+  )
+
+  routerAdd(
+    'POST',
+    '/backend/v1/fechamentos/recuperacao/descartar',
+    (e) => {
+      function perfilDo(user) {
+        try {
+          return $app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
+        } catch (_) {
+          return ''
+        }
+      }
+      function podeAcessar(user, perfil, negocio) {
+        if (perfil === 'superadministrador') return true
+        if (negocio.getString('responsavel_id') === user.id) return true
+        return (
+          !!user.getString('equipe_id') &&
+          negocio.getString('equipe_id') === user.getString('equipe_id')
+        )
+      }
+
+      var ator = e.auth,
+        body = new DynamicModel({
+          negocio_perdido_id: '',
+          agenda_id: '',
+          justificativa: '',
+          updated_esperado: '',
+          command_idempotency_key: '',
+        })
+      if (!ator || !ator.getBool('ativo_comercial'))
+        return e.forbiddenError('Usuario comercial necessario')
+      var perfil = perfilDo(ator)
+      if (perfil === 'leitura-executiva' || perfil === 'negociacao-propria')
+        return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
+      e.bindBody(body)
+      var justificativa = String(body.justificativa || '').trim()
+      if (justificativa.length < 10)
+        return e.badRequestError('JUSTIFICATIVA_OBRIGATORIA_MINIMO_10_CARACTERES')
+      if (!body.command_idempotency_key) return e.badRequestError('IDEMPOTENCY_KEY_OBRIGATORIA')
+
+      var original = $app.findRecordById('com_negocios', body.negocio_perdido_id)
+      if (!podeAcessar(ator, perfil, original)) return e.forbiddenError('FORA_DO_ESCOPO')
+      if (original.getString('resultado') !== 'perdido')
+        return e.badRequestError('NEGOCIO_NAO_PERDIDO')
+      if (body.updated_esperado !== original.getString('updated'))
+        return e.json(409, { error: 'STALE_WRITE' })
+
+      var comando = 'recuperacao_descartar',
+        payload = {
+          negocio_perdido_id: body.negocio_perdido_id,
+          agenda_id: body.agenda_id,
+          justificativa: justificativa,
+          updated_esperado: body.updated_esperado,
+        },
+        hash = $security.sha256(JSON.stringify(payload))
+      try {
+        var known = $app.findRecordsByFilter(
+          'com_idempotencia',
+          "ator_id='" +
+            ator.id +
+            "' && comando='" +
+            comando +
+            "' && command_idempotency_key='" +
+            body.command_idempotency_key +
+            "'",
+          '',
+          1,
+          0,
+        )
+        if (known.length) {
+          if (known[0].getString('payload_hash') !== hash) return e.json(409, { error: 'CONFLICT' })
+          if (known[0].getString('estado') !== 'concluido')
+            return e.json(409, { error: 'CONCORRENTE' })
+          return e.json(
+            200,
+            Object.assign({ replay: true }, JSON.parse(known[0].getString('resultado'))),
+          )
+        }
+      } catch (_) {}
+
+      var resposta
+      $app.runInTransaction(function (tx) {
+        var agenda = tx.findRecordById('com_recuperacao_agendas', body.agenda_id)
+        if (agenda.getString('negocio_perdido_id') !== original.id)
+          throw new BadRequestError('AGENDA_FORA_DO_NEGOCIO')
+        if (agenda.getString('estado') !== 'ativa') throw new BadRequestError('AGENDA_INATIVA')
+        agenda.set('estado', 'descartada')
+        tx.save(agenda)
+        resposta = {
+          negocio_original_id: original.id,
+          agenda_id: agenda.id,
+          estado: 'descartada',
+          justificativa: justificativa,
+        }
+
+        var idem = new Record(tx.findCollectionByNameOrId('com_idempotencia'))
+        idem.set('command_idempotency_key', body.command_idempotency_key)
+        idem.set('comando', comando)
+        idem.set('ator_id', ator.id)
+        idem.set('payload_hash', hash)
+        idem.set('estado', 'concluido')
+        idem.set('codigo_retorno', '200')
+        idem.set('resultado', resposta)
+        idem.set('registros_afetados', [original.id, agenda.id])
+        idem.set('executor_id', 'pb-primary')
+        idem.set('lease_ate', new Date(Date.now() + 300000))
+        idem.set('tentativa', 1)
+        idem.set('claim_version', 1)
+        idem.set('inicio_em', new Date())
+        idem.set('conclusao_em', new Date())
+        tx.save(idem)
+
+        var auditoria = new Record(tx.findCollectionByNameOrId('com_auditoria'))
+        auditoria.set('collection_name', 'com_recuperacao_agendas')
+        auditoria.set('record_id', agenda.id)
+        auditoria.set('acao', 'update')
+        auditoria.set('usuario_id', ator.id)
+        auditoria.set('comando', comando)
+        auditoria.set('command_idempotency_key', body.command_idempotency_key)
+        auditoria.set('evento_em', new Date())
+        auditoria.set('perfil', perfil)
+        auditoria.set('escopo', 'recuperacao')
+        auditoria.set('origem', 'server-side')
+        auditoria.set('evidencia_estruturada', resposta)
+        auditoria.set('snapshot_hash', $security.sha256(JSON.stringify(resposta)))
+        auditoria.set('snapshot_hash_versao', '1')
+        tx.save(auditoria)
       })
       return e.json(200, Object.assign({ replay: false }, resposta))
     },
