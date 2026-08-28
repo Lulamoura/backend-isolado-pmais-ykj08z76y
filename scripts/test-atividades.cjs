@@ -77,8 +77,13 @@ check(
 )
 check('mensagem do ActiveCampaign é direta', page.includes('Atualize esta ação no ActiveCampaign.'))
 check(
+  'cards de atividades oferecem BusinessNotesDialog',
+  page.includes('BusinessNotesDialog') &&
+    page.includes('<BusinessNotesDialog negocioId={item.negocio.id} />'),
+)
+check(
   'rota protegida registrada',
   app.includes('path="/atividades"') && app.includes('<Atividades />'),
 )
 
-console.log(`\nRESULTADO: ${passed}/24 aprovados`)
+console.log(`\nRESULTADO: ${passed}/25 aprovados`)

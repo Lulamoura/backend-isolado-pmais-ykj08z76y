@@ -19,4 +19,23 @@ assert.doesNotMatch(hook, /Api-Token['"]\s*:\s*['"][^'"]+['"]/)
 assert.match(relay, /deal_note_add/)
 assert.match(relay, /NEGOCIO_NAO_ESPELHADO/)
 assert.match(relay, /replay: true/)
+
+const atividadesPage = fs.readFileSync('src/pages/Atividades.tsx', 'utf8')
+const qualificacoesPage = fs.readFileSync('src/pages/Qualificacoes.tsx', 'utf8')
+const slasPage = fs.readFileSync('src/pages/Slas.tsx', 'utf8')
+const commercialCard = fs.readFileSync('src/components/CommercialContextCard.tsx', 'utf8')
+
+assert.ok(
+  atividadesPage.includes('BusinessNotesDialog'),
+  'Atividades deve oferecer BusinessNotesDialog',
+)
+assert.ok(
+  qualificacoesPage.includes('BusinessNotesDialog'),
+  'Qualificacoes deve oferecer BusinessNotesDialog',
+)
+assert.ok(
+  slasPage.includes('CommercialContextCard') && commercialCard.includes('BusinessNotesDialog'),
+  'SLA deve oferecer notas via CommercialContextCard',
+)
+
 console.log('notas-negocio contract: PASS')

@@ -107,10 +107,11 @@ const checks = [
     hook.includes("filtroSituacao === 'atencao'") && service.includes('query: { situacao }'),
   ],
   [
-    'interface de alertas',
+    'interface em grid com CommercialContextCard e parâmetros vigentes',
     page.includes('SLAs, calendário e alertas') &&
-      page.includes('Agenda de vencimentos') &&
-      page.includes('Parâmetros vigentes'),
+      page.includes('Parâmetros vigentes') &&
+      page.includes('CommercialContextCard') &&
+      page.includes('grid gap-4 md:grid-cols-2'),
   ],
   [
     'totais permanecem estáveis ao filtrar',
@@ -119,11 +120,12 @@ const checks = [
       service.includes('totais: Record<SituacaoSla, number>'),
   ],
   [
-    'fase e justificativa são apresentadas em linguagem operacional',
-    page.includes("prospects: 'Prospect'") &&
-      page.includes("producao_proposta: 'Produção de Proposta'") &&
-      page.includes("negociacao: 'Negociação'") &&
-      page.includes('data de entrada na fase ausente') &&
+    'slot de SLA preserva situacao, marco, vencimento, regra e explicacao',
+    page.includes('Situação do SLA:') &&
+      page.includes('Marco inicial:') &&
+      page.includes('Vencimento:') &&
+      page.includes('Regra:') &&
+      page.includes('explicacao(i, dados?.parametros.antecedencia ?? 1)') &&
       hook.includes('motivo_situacao'),
   ],
   [
