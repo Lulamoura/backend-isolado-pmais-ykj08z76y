@@ -164,6 +164,7 @@ export default function Propostas() {
                 <CommercialContextCard
                   contexto={item.contexto}
                   etapa={item.negocio.etapa}
+                  negocioId={item.negocio.id}
                   showReadOnlyNotice={false}
                 />
                 {p && (
