@@ -122,13 +122,37 @@ routerAdd(
         },
         perdas_por_motivo: [],
         modalidades: [],
+        fontes_prospeccao: [],
+        responsaveis: [],
       }
       var ganhosPrecificados = 0
       var perdasPorMotivo = {}
       var modalidades = {}
+      var fontesProspeccao = {}
+      var responsaveis = {}
       for (var i = 0; i < items.length; i++) {
         var n = items[i]
         out.total++
+        var fonteProspeccao = String(n.fonte_prospeccao || '').trim() || 'Não informada'
+        if (!fontesProspeccao[fonteProspeccao])
+          fontesProspeccao[fonteProspeccao] = {
+            fonte: fonteProspeccao,
+            quantidade: 0,
+          }
+        fontesProspeccao[fonteProspeccao].quantidade++
+
+        var responsavelId = String(n.responsavel_id || '').trim()
+        var responsavelNome = responsavelId
+          ? String(n.responsavel_nome || '').trim() || 'Responsável não identificado'
+          : 'Sem responsável'
+        var responsavelKey = responsavelId || '__sem_responsavel__'
+        if (!responsaveis[responsavelKey])
+          responsaveis[responsavelKey] = {
+            responsavel_id: responsavelId || null,
+            responsavel: responsavelNome,
+            quantidade: 0,
+          }
+        responsaveis[responsavelKey].quantidade++
         var situacao = classificarResultado(n)
         if (situacao === 'ganho') out.situacao.ganhos++
         else if (situacao === 'perdido') out.situacao.perdidos++
@@ -231,6 +255,20 @@ routerAdd(
         })
         .sort(function (a, b) {
           return b.valor_centavos - a.valor_centavos
+        })
+      out.fontes_prospeccao = Object.keys(fontesProspeccao)
+        .map(function (key) {
+          return fontesProspeccao[key]
+        })
+        .sort(function (a, b) {
+          return b.quantidade - a.quantidade || a.fonte.localeCompare(b.fonte)
+        })
+      out.responsaveis = Object.keys(responsaveis)
+        .map(function (key) {
+          return responsaveis[key]
+        })
+        .sort(function (a, b) {
+          return b.quantidade - a.quantidade || a.responsavel.localeCompare(b.responsavel)
         })
       return out
     }
@@ -396,11 +434,24 @@ routerAdd(
 
     var filter = comporFiltro(validated.params, scope, actorId, equipeIds)
     var records = []
+    var responsavelNomes = {}
     var offset = 0
     var batchSize = 500
     while (true) {
       var batch = $app.findRecordsByFilter('com_negocios', filter, 'created,id', batchSize, offset)
       for (var ri = 0; ri < batch.length; ri++) {
+        var responsavelId = batch[ri].getString('responsavel_id')
+        if (responsavelId && responsavelNomes[responsavelId] === undefined) {
+          try {
+            var responsavelRecord = $app.findRecordById('users', responsavelId)
+            responsavelNomes[responsavelId] =
+              responsavelRecord.getString('name') ||
+              responsavelRecord.getString('email') ||
+              'Responsável não identificado'
+          } catch (_) {
+            responsavelNomes[responsavelId] = 'Responsável não identificado'
+          }
+        }
         records.push({
           valor: batch[ri].get('valor'),
           status: batch[ri].getString('status'),
@@ -409,7 +460,9 @@ routerAdd(
           etapa: batch[ri].getString('etapa'),
           modalidade: batch[ri].getString('modalidade'),
           origem_canal: batch[ri].getString('origem_canal'),
-          responsavel_id: batch[ri].getString('responsavel_id'),
+          fonte_prospeccao: batch[ri].getString('fonte_prospeccao'),
+          responsavel_id: responsavelId,
+          responsavel_nome: responsavelId ? responsavelNomes[responsavelId] : '',
           fechamento_motivo: batch[ri].getString('fechamento_motivo'),
         })
       }

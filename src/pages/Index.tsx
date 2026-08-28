@@ -35,6 +35,16 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 const RECIFE_TIME_ZONE = 'America/Recife'
 const LOSS_COLORS = ['#8b5cf6', '#6366f1', '#06b6d4', '#f59e0b', '#ec4899', '#64748b']
+const DISTRIBUTION_COLORS = [
+  '#7c3aed',
+  '#2563eb',
+  '#0891b2',
+  '#059669',
+  '#d97706',
+  '#db2777',
+  '#64748b',
+  '#9333ea',
+]
 
 function configuredDefaultPeriodDays(): number {
   const configured = Number(import.meta.env.VITE_DASHBOARD_DEFAULT_PERIOD_DAYS ?? 90)
@@ -139,6 +149,97 @@ function DetailCard({ title, description, items, icon: Icon }: DetailCardProps) 
   )
 }
 
+interface DistributionItem {
+  label: string
+  quantidade: number
+}
+
+interface DistributionPieCardProps {
+  title: string
+  description: string
+  chartLabel: string
+  emptyMessage: string
+  items: DistributionItem[]
+}
+
+function DistributionPieCard({
+  title,
+  description,
+  chartLabel,
+  emptyMessage,
+  items,
+}: DistributionPieCardProps) {
+  const total = items.reduce((sum, item) => sum + item.quantidade, 0)
+
+  return (
+    <Card aria-label={title}>
+      <CardHeader className="space-y-1 pb-3">
+        <CardTitle className="text-base text-slate-900">{title}</CardTitle>
+        <p className="text-xs text-slate-500">{description}</p>
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <p className="py-12 text-center text-sm text-slate-500">{emptyMessage}</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-[minmax(13rem,0.85fr)_minmax(13rem,1.15fr)] sm:items-center">
+            <div className="h-64" aria-label={chartLabel}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={items}
+                    dataKey="quantidade"
+                    nameKey="label"
+                    innerRadius={52}
+                    outerRadius={88}
+                    paddingAngle={2}
+                  >
+                    {items.map((item, index) => (
+                      <Cell
+                        key={item.label}
+                        fill={DISTRIBUTION_COLORS[index % DISTRIBUTION_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number | string | undefined) => [
+                      `${Number(value ?? 0)} negócio(s)`,
+                      'Quantidade',
+                    ]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <ul className="space-y-2">
+              {items.map((item, index) => (
+                <li
+                  key={item.label}
+                  className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full"
+                      style={{
+                        backgroundColor: DISTRIBUTION_COLORS[index % DISTRIBUTION_COLORS.length],
+                      }}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate text-sm font-medium text-slate-800">
+                      {item.label}
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold text-slate-950">
+                    {item.quantidade} · {formatPercent(total ? (item.quantidade / total) * 100 : 0)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function DashboardSkeleton() {
   return (
     <div
@@ -225,6 +326,14 @@ export default function Index() {
 
   const resumo = data?.resumo
   const perdasPorMotivo = resumo?.perdas_por_motivo ?? []
+  const fontesProspeccao = (resumo?.fontes_prospeccao ?? []).map((item) => ({
+    label: item.fonte,
+    quantidade: item.quantidade,
+  }))
+  const negociosPorResponsavel = (resumo?.responsaveis ?? []).map((item) => ({
+    label: item.responsavel,
+    quantidade: item.quantidade,
+  }))
 
   return (
     <main className="container mx-auto max-w-7xl space-y-5 px-4 py-5 animate-fade-in sm:py-6">
@@ -574,6 +683,23 @@ export default function Index() {
                   value: String(resumo.valores.negocios_marcador_um_centavo),
                 },
               ]}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <DistributionPieCard
+              title="Negócios por fonte de prospecção"
+              description="Distribuição da quantidade de negócios pela fonte registrada, respeitando os filtros aplicados."
+              chartLabel="Gráfico de distribuição dos negócios por fonte de prospecção"
+              emptyMessage="Nenhum negócio no período selecionado."
+              items={fontesProspeccao}
+            />
+            <DistributionPieCard
+              title="Negócios por responsável"
+              description="Distribuição da quantidade de negócios pelos responsáveis, respeitando o escopo de acesso."
+              chartLabel="Gráfico de distribuição dos negócios por responsável"
+              emptyMessage="Nenhum negócio no período selecionado."
+              items={negociosPorResponsavel}
             />
           </div>
 

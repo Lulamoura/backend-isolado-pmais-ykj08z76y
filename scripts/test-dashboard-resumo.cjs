@@ -148,6 +148,7 @@ var resumo = x.agregarNegocios([
     modalidade: '',
     valor: 0,
     origem_canal: '',
+    fonte_prospeccao: '',
     responsavel_id: '',
   },
   {
@@ -158,7 +159,9 @@ var resumo = x.agregarNegocios([
     modalidade: 'evento',
     valor: 10001,
     origem_canal: 'site',
+    fonte_prospeccao: 'Indicação',
     responsavel_id: 'u1',
+    responsavel_nome: 'Ana Gestora',
   },
   {
     resultado: 'perdido',
@@ -168,7 +171,9 @@ var resumo = x.agregarNegocios([
     modalidade: 'recorrente',
     valor: 20001,
     origem_canal: 'evento',
+    fonte_prospeccao: 'Evento empresarial',
     responsavel_id: 'u2',
+    responsavel_nome: 'Bruno Comercial',
     fechamento_motivo: 'Preço',
   },
   {
@@ -179,6 +184,7 @@ var resumo = x.agregarNegocios([
     modalidade: 'serv_eventual',
     valor: 1,
     origem_canal: '',
+    fonte_prospeccao: 'Indicação',
     responsavel_id: '',
   },
 ])
@@ -227,6 +233,22 @@ assert(
     { modalidade: 'recorrente', quantidade: 1, valor_centavos: 20001 },
     { modalidade: 'evento', quantidade: 1, valor_centavos: 10001 },
     { modalidade: 'serv_eventual', quantidade: 1, valor_centavos: 0 },
+  ]),
+)
+assert(
+  'E17 distribui negócios por fonte de prospecção e explicita ausência',
+  same(resumo.fontes_prospeccao, [
+    { fonte: 'Indicação', quantidade: 2 },
+    { fonte: 'Evento empresarial', quantidade: 1 },
+    { fonte: 'Não informada', quantidade: 1 },
+  ]),
+)
+assert(
+  'E18 distribui negócios por responsável e explicita ausência',
+  same(resumo.responsaveis, [
+    { responsavel_id: null, responsavel: 'Sem responsável', quantidade: 2 },
+    { responsavel_id: 'u1', responsavel: 'Ana Gestora', quantidade: 1 },
+    { responsavel_id: 'u2', responsavel: 'Bruno Comercial', quantidade: 1 },
   ]),
 )
 

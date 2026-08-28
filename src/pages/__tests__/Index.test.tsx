@@ -66,6 +66,14 @@ const dashboardResponse = {
       { modalidade: 'evento', quantidade: 2, valor_centavos: 120000 },
       { modalidade: 'serv_eventual', quantidade: 2, valor_centavos: 80000 },
     ],
+    fontes_prospeccao: [
+      { fonte: 'Indicação', quantidade: 4 },
+      { fonte: 'Não informada', quantidade: 3 },
+    ],
+    responsaveis: [
+      { responsavel_id: 'user1', responsavel: 'Ana Gestora', quantidade: 5 },
+      { responsavel_id: null, responsavel: 'Sem responsável', quantidade: 2 },
+    ],
   },
   avisos: ['Conversão de propostas permanece indisponível.'],
 }
@@ -116,6 +124,20 @@ describe('Dashboard V1', () => {
     expect(within(modalidades).getByText('Recorrente')).toBeInTheDocument()
     expect(within(modalidades).getByText('Evento')).toBeInTheDocument()
     expect(within(modalidades).getByText('Serv. Eventual')).toBeInTheDocument()
+  })
+
+  it('mostra os gráficos de negócios por fonte de prospecção e responsável', () => {
+    render(<Index />)
+
+    const fontes = screen.getByLabelText('Negócios por fonte de prospecção')
+    expect(within(fontes).getByText('Indicação')).toBeInTheDocument()
+    expect(within(fontes).getByText('Não informada')).toBeInTheDocument()
+    expect(within(fontes).getByText('4 · 57,14%')).toBeInTheDocument()
+
+    const responsaveis = screen.getByLabelText('Negócios por responsável')
+    expect(within(responsaveis).getByText('Ana Gestora')).toBeInTheDocument()
+    expect(within(responsaveis).getByText('Sem responsável')).toBeInTheDocument()
+    expect(within(responsaveis).getByText('5 · 71,43%')).toBeInTheDocument()
   })
 
   it('aplica período personalizado somente após submissão', () => {
