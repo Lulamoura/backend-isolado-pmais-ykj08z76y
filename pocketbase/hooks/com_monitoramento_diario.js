@@ -45,7 +45,10 @@ routerAdd(
       10000,
     )
 
-    var notesByDeal = {}, activitiesByDeal = {}, recoveriesByDeal = {}, externalByDeal = {}
+    var notesByDeal = {},
+      activitiesByDeal = {},
+      recoveriesByDeal = {},
+      externalByDeal = {}
     var i
     for (i = 0; i < notes.length; i++) {
       var noteDeal = notes[i].getString('negocio_id')
@@ -86,7 +89,7 @@ routerAdd(
     for (i = 0; i < links.length; i++)
       externalByDeal[links[i].getString('record_id')] = links[i].getString('external_id') || null
 
-    var deals = safeRecords('com_negocios', "inativo=false", '-valor,titulo,id', 10000)
+    var deals = safeRecords('com_negocios', 'inativo=false', '-valor,titulo,id', 10000)
     var output = []
     for (i = 0; i < deals.length; i++) {
       var d = deals[i]
