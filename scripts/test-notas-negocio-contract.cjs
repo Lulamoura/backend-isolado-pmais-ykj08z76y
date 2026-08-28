@@ -3,6 +3,10 @@ const assert = require('node:assert/strict')
 const migration = fs.readFileSync('pocketbase/migrations/202608280530_notas_negocio.js', 'utf8')
 const hook = fs.readFileSync('pocketbase/hooks/com_notas_negocio.js', 'utf8')
 const relay = fs.readFileSync('pocketbase/hooks/ac_native_relay.js', 'utf8')
+assert.ok(
+  hook.trimStart().startsWith('routerAdd('),
+  'hook callbacks must not depend on top-level helpers',
+)
 assert.match(migration, /com_notas_negocio/)
 assert.match(migration, /UNIQUE INDEX idx_com_notas_negocio_external/)
 assert.match(hook, /\/backend\/v1\/negocios\/\{id\}\/notas/)

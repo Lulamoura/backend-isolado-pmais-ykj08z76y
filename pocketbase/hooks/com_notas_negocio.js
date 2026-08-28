@@ -1,16 +1,3 @@
-function notasPodeLerNegocio(actor, negocio) {
-  if (!actor || !actor.getBool('ativo_comercial')) return false
-  var slug = ''
-  try {
-    slug = $app.findRecordById('com_perfis', actor.getString('perfil_id')).getString('slug')
-  } catch (_) {}
-  if (slug === 'superadministrador') return true
-  if (negocio.getString('responsavel_id') === actor.id) return true
-  return (
-    actor.getString('equipe_id') && actor.getString('equipe_id') === negocio.getString('equipe_id')
-  )
-}
-
 routerAdd('GET', '/backend/v1/negocios/{id}/notas', function (e) {
   if (!e.auth) return e.unauthorizedError('Autenticacao necessaria')
   var negocio
@@ -19,7 +6,17 @@ routerAdd('GET', '/backend/v1/negocios/{id}/notas', function (e) {
   } catch (_) {
     return e.notFoundError('Negocio nao encontrado')
   }
-  if (!notasPodeLerNegocio(e.auth, negocio)) return e.forbiddenError('Acesso negado')
+  if (!e.auth.getBool('ativo_comercial')) return e.forbiddenError('Acesso negado')
+  var slug = ''
+  try {
+    slug = $app.findRecordById('com_perfis', e.auth.getString('perfil_id')).getString('slug')
+  } catch (_) {}
+  var podeLer =
+    slug === 'superadministrador' ||
+    negocio.getString('responsavel_id') === e.auth.id ||
+    (e.auth.getString('equipe_id') &&
+      e.auth.getString('equipe_id') === negocio.getString('equipe_id'))
+  if (!podeLer) return e.forbiddenError('Acesso negado')
   var records = $app.findRecordsByFilter(
     'com_notas_negocio',
     "negocio_id='" + negocio.id + "'",
