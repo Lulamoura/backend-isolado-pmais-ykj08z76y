@@ -596,6 +596,13 @@ routerAdd(
   'POST',
   '/backend/v1/integracao/ac/reconciliacao/executar',
   function (e) {
+    function actionDateKey(value) {
+      var text = String(value || '').trim()
+      var civilDate = text.match(/^(\d{4}-\d{2}-\d{2})/)
+      if (civilDate) return civilDate[1]
+      var timestamp = Date.parse(text)
+      return isNaN(timestamp) ? text : new Date(timestamp).toISOString().slice(0, 10)
+    }
     function canonicalLossReason(value) {
       var normalized = String(value || '')
         .trim()

@@ -127,6 +127,10 @@ const checks = [
       reconciliationHook.includes('EXECUCAO_REVERTIDA'),
   ],
   [
+    'simulação e execução definem actionDateKey em seus próprios escopos',
+    (reconciliationHook.match(/function actionDateKey\(value\)/g) || []).length === 2,
+  ],
+  [
     'simulação e itens do plano usam persistência atômica transacional',
     (reconciliationHook.match(/\$app\.runInTransaction/g) || []).length === 2 &&
       reconciliationHook.includes("planned.set('evento_tipo', 'reconciliation_plan_item')") &&
