@@ -1,6 +1,6 @@
 const fs = require('node:fs')
 const assert = require('node:assert/strict')
-const migration = fs.readFileSync('pocketbase/migrations/0007_notas_negocio.js', 'utf8')
+const migration = fs.readFileSync('pocketbase/migrations/202608280530_notas_negocio.js', 'utf8')
 const hook = fs.readFileSync('pocketbase/hooks/com_notas_negocio.js', 'utf8')
 const relay = fs.readFileSync('pocketbase/hooks/ac_native_relay.js', 'utf8')
 assert.match(migration, /com_notas_negocio/)
