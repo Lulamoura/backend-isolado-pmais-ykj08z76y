@@ -134,6 +134,7 @@ export default function OrdensExecucao() {
                 <CommercialContextCard
                   contexto={item.contexto}
                   etapa="ganho"
+                  negocioId={item.negocio.id}
                   showNextAction={false}
                   showReadOnlyNotice={false}
                 />

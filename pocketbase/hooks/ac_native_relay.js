@@ -126,7 +126,7 @@ routerAdd(
       return e.json(400, { error: String(parseError).replace('Error: ', '') })
     }
     var eventType = clean(form.type, 40)
-    if (eventType !== 'deal_add' && eventType !== 'deal_update')
+    if (eventType !== 'deal_add' && eventType !== 'deal_update' && eventType !== 'deal_note_add')
       return e.json(202, { received: true, ignored: true, reason: 'EVENTO_FORA_DO_ESCOPO' })
     var dealId = clean(form['deal[id]'] || form.dealid || form.id, 40)
     if (!/^[0-9]+$/.test(dealId)) return e.json(400, { error: 'DEAL_ID_INVALIDO' })
@@ -135,6 +135,83 @@ routerAdd(
     var apiKey = $secrets.get('AC_API_KEY') || ''
     var pbUrl = String($secrets.get('PB_INSTANCE_URL') || '').replace(/\/$/, '')
     if (!apiUrl || !apiKey || !pbUrl) return e.json(503, { error: 'CONFIGURACAO_SERVIDOR_AUSENTE' })
+
+    if (eventType === 'deal_note_add') {
+      var noteId = clean(form['note[id]'], 80)
+      if (!/^[0-9]+$/.test(noteId)) return e.json(400, { error: 'NOTE_ID_INVALIDO' })
+      var note
+      try {
+        note = apiCall(apiUrl, apiKey, '/api/3/notes/' + encodeURIComponent(noteId)).note || null
+      } catch (noteFetchError) {
+        return e.json(502, { error: 'CONSULTA_NOTA_AC_FALHOU' })
+      }
+      if (
+        !note ||
+        String(note.reltype || '').toLowerCase() !== 'deal' ||
+        String(note.relid) !== dealId
+      )
+        return e.json(422, { error: 'NOTA_FORA_DO_NEGOCIO' })
+      var businessLink
+      try {
+        businessLink = $app.findFirstRecordByFilter(
+          'com_vinculos_externos',
+          "sistema_origem='activecampaign' && external_type='business' && external_id='" +
+            dealId +
+            "'",
+        )
+      } catch (_) {
+        return e.json(200, {
+          received: true,
+          ignored: true,
+          reason: 'NEGOCIO_NAO_ESPELHADO',
+          deal_id: dealId,
+        })
+      }
+      var existingNote = null
+      try {
+        existingNote = $app.findFirstRecordByData('com_notas_negocio', 'external_id', noteId)
+      } catch (_) {}
+      if (existingNote)
+        return e.json(200, {
+          received: true,
+          ignored: false,
+          replay: true,
+          note_id: noteId,
+          deal_id: dealId,
+        })
+      var notesCollection = $app.findCollectionByNameOrId('com_notas_negocio')
+      var noteRecord = new Record(notesCollection)
+      noteRecord.set('negocio_id', businessLink.getString('record_id'))
+      noteRecord.set('external_id', noteId)
+      noteRecord.set('texto', String(note.note || ''))
+      noteRecord.set('autor_external_id', String(note.userid || ''))
+      noteRecord.set('criada_em', note.cdate)
+      noteRecord.set('alterada_em', note.mdate || null)
+      noteRecord.set('origem', 'activecampaign')
+      try {
+        $app.save(noteRecord)
+      } catch (saveNoteError) {
+        try {
+          $app.findFirstRecordByData('com_notas_negocio', 'external_id', noteId)
+          return e.json(200, {
+            received: true,
+            ignored: false,
+            replay: true,
+            note_id: noteId,
+            deal_id: dealId,
+          })
+        } catch (_) {
+          return e.json(500, { error: 'PERSISTENCIA_NOTA_FALHOU' })
+        }
+      }
+      return e.json(200, {
+        received: true,
+        ignored: false,
+        replay: false,
+        note_id: noteId,
+        deal_id: dealId,
+      })
+    }
 
     var deal,
       contact,

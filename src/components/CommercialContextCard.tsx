@@ -1,5 +1,6 @@
 import { AlertTriangle, Building2, CalendarClock, Contact, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { BusinessNotesDialog } from '@/components/BusinessNotesDialog'
 import {
   actionStatus,
   ageInDays,
@@ -23,11 +24,13 @@ const commercialLabel = (value: string) => {
 export function CommercialContextCard({
   contexto,
   etapa,
+  negocioId,
   showNextAction = true,
   showReadOnlyNotice = true,
 }: {
   contexto: CommercialContext
   etapa: string
+  negocioId?: string
   showNextAction?: boolean
   showReadOnlyNotice?: boolean
 }) {
@@ -98,6 +101,7 @@ export function CommercialContextCard({
           {alerts.join(' · ')}
         </div>
       )}
+      {negocioId && <BusinessNotesDialog negocioId={negocioId} />}
       {showReadOnlyNotice && contexto.somente_leitura && (
         <p className="text-xs text-muted-foreground">
           Base real em somente leitura durante a pré-operação.

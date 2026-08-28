@@ -196,6 +196,7 @@ export default function Fechamentos() {
                 <CommercialContextCard
                   contexto={item.contexto}
                   etapa={item.negocio.etapa}
+                  negocioId={item.negocio.id}
                   showNextAction={!terminal}
                   showReadOnlyNotice={!terminal}
                 />
