@@ -48,7 +48,14 @@ function processDealRecoveryAgenda({
   }
 
   const isProspect = String(stage || '') === 'prospects'
-  const resultado = dealStatus === '1' ? 'ganho' : isProspect ? 'desqualificado' : 'perdido'
+  const resultado =
+    dealStatus === '0'
+      ? ''
+      : dealStatus === '1'
+        ? 'ganho'
+        : isProspect
+          ? 'desqualificado'
+          : 'perdido'
 
   if (resultado !== 'perdido' || !actionDateKey(recoveryAt) || !responsibleId) {
     return { agendaCreated: false, agendaUpdated: false, agenda: null }
