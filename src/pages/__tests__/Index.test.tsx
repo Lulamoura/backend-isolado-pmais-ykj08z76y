@@ -112,9 +112,7 @@ describe('Dashboard V1', () => {
   it('mostra quantidade e valor por modalidade', () => {
     render(<Index />)
 
-    const modalidades = screen
-      .getByText('Negócios por modalidade')
-      .closest('[class*="rounded"]') as HTMLElement
+    const modalidades = screen.getByText('Negócios por modalidade').closest('[class*="rounded"]')!
     expect(within(modalidades).getByText('Recorrente')).toBeInTheDocument()
     expect(within(modalidades).getByText('Evento')).toBeInTheDocument()
     expect(within(modalidades).getByText('Serv. Eventual')).toBeInTheDocument()

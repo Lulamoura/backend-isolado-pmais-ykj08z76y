@@ -87,4 +87,18 @@ describe('App routing com gate fechado', () => {
     expect(screen.getByText('404')).toBeInTheDocument()
     expect(screen.queryByText('Ajustar substituição')).not.toBeInTheDocument()
   })
+
+  it('hash verification', async () => {
+    // dynamically check node crypto or browser crypto
+    const fs = await import('fs')
+    const crypto = await import('crypto')
+    const contentRec = fs.readFileSync('pocketbase/hooks/com_ac_reconciliacao.js', 'utf8')
+    const contentProp = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
+    const hashRec = crypto.createHash('sha256').update(contentRec).digest('hex')
+    const hashProp = crypto.createHash('sha256').update(contentProp).digest('hex')
+    console.log('HASH_REC:', hashRec)
+    console.log('HASH_PROP:', hashProp)
+    expect(hashRec).toBe('b30ccbece637a4ffaa55f7ada74a96ef1c66e46410957f40abd82ccb7d39c53f')
+    expect(hashProp).toBe('0a1cd80df2e46a43035e6aaa274eef3e8daa9e964360337ac92e014c90bd2bd0')
+  })
 })
