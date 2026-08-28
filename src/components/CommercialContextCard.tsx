@@ -6,6 +6,7 @@ import {
   ageInDays,
   formatDate,
   formatMoney,
+  followUpPendente,
   type CommercialContext,
 } from '@/lib/commercial-context'
 
@@ -42,6 +43,9 @@ export function CommercialContextCard({
         ? 'border-amber-300 bg-amber-50'
         : 'border-emerald-300 bg-emerald-50'
   const age = ageInDays(contexto.crm_created_at)
+  const hasPendingFollowUp =
+    contexto.follow_up_pendente ??
+    followUpPendente(contexto.proxima_acao_reagendada_em, contexto.ultima_nota_em)
   const alerts = [
     showNextAction && status === 'vencida' ? 'Próxima ação vencida' : '',
     showNextAction && status === 'ausente' ? 'Sem próxima ação' : '',
@@ -94,6 +98,12 @@ export function CommercialContextCard({
           CRM atualizado em {formatDate(contexto.crm_updated_at)}
           {contexto.fonte_prospeccao ? ` · Fonte: ${contexto.fonte_prospeccao}` : ''}
         </p>
+      )}
+      {hasPendingFollowUp && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Follow-up pendente — Data da Ação reagendada sem nota nova.</span>
+        </div>
       )}
       {alerts.length > 0 && (
         <div className="flex items-start gap-2 text-xs font-medium text-amber-700">

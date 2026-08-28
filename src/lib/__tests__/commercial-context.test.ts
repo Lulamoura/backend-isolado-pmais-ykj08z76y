@@ -5,6 +5,7 @@ import {
   commercialActionCardClass,
   commercialOutcomeCardClass,
   filterAndSortCommercial,
+  followUpPendente,
   type CommercialContext,
 } from '@/lib/commercial-context'
 
@@ -43,6 +44,16 @@ describe('contexto comercial', () => {
 
   it('calcula o tempo de vida a partir da criação no CRM', () => {
     expect(ageInDays('2026-08-14T12:00:00Z', new Date('2026-08-24T12:00:00Z'))).toBe(10)
+  })
+
+  it('mantém follow-up pendente quando a nota é anterior ao reagendamento', () => {
+    expect(followUpPendente('2026-08-28T10:00:00Z', '2026-08-28T09:59:59Z')).toBe(true)
+    expect(followUpPendente('2026-08-28T10:00:00Z', null)).toBe(true)
+  })
+
+  it('comprova o follow-up somente com nota posterior ao reagendamento', () => {
+    expect(followUpPendente('2026-08-28T10:00:00Z', '2026-08-28T10:00:01Z')).toBe(false)
+    expect(followUpPendente(null, '2026-08-28T10:00:01Z')).toBe(false)
   })
 
   it('aplica as barras semânticas da próxima ação e do fechamento', () => {

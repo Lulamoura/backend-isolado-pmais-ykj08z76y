@@ -13,6 +13,9 @@ export interface CommercialContext {
   fase_crm: string | null
   fonte_prospeccao: string | null
   proxima_acao_em: string | null
+  follow_up_pendente?: boolean
+  proxima_acao_reagendada_em?: string | null
+  ultima_nota_em?: string | null
   crm_created_at: string | null
   crm_updated_at: string | null
   origem_canal: string | null
@@ -49,6 +52,16 @@ export const actionStatus = (value: string | null, now = new Date()): ActionStat
   if (!target) return 'ausente'
   const today = recifeDateKey(now)
   return target < today ? 'vencida' : target === today ? 'hoje' : 'futura'
+}
+
+export const followUpPendente = (
+  reagendadaEm: string | null | undefined,
+  ultimaNotaEm: string | null | undefined,
+) => {
+  const reagendamento = validDate(reagendadaEm ?? null)
+  if (!reagendamento) return false
+  const nota = validDate(ultimaNotaEm ?? null)
+  return !nota || nota.getTime() <= reagendamento.getTime()
 }
 
 export const commercialActionCardClass = (value: string | null, now = new Date()) => {
