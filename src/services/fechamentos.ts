@@ -55,8 +55,8 @@ export const listarFechamentos = () =>
 export const decidirFechamento = (body: Record<string, unknown>) =>
   pb.send('/backend/v1/fechamentos/decidir', { method: 'POST', body })
 
-export const reativarFechamento = (body: Record<string, unknown>) =>
-  pb.send('/backend/v1/fechamentos/reativar', { method: 'POST', body })
+export const descartarRecuperacao = (body: Record<string, unknown>) =>
+  pb.send('/backend/v1/fechamentos/recuperacao/descartar', { method: 'POST', body })
 
 export const novaChaveFechamento = (acao: string, id: string) =>
   `fechamento:${acao}:${id}:${Date.now()}:${crypto.randomUUID()}`
