@@ -19,7 +19,8 @@
     "test:frontend": "vitest run",
     "test:t62": "node scripts/test-t62-least-privilege.cjs",
     "test:t6ac8r": "node scripts/test-t6-ac-contract.cjs && node scripts/test-t6-ac-reconciliation-core.cjs && node scripts/test-t6-ac8r-preload.cjs",
-    "test:t6ac9": "node scripts/test-t6-ac9-native-relay.cjs"
+    "test:t6ac9": "node scripts/test-t6-ac9-native-relay.cjs",
+    "test:notas": "node scripts/test-notas-negocio-contract.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
