@@ -195,9 +195,10 @@ routerAdd(
                   encodeURIComponent(pipelineId) +
                   '&filters[stage]=' +
                   encodeURIComponent(negotiationStageId) +
-                  '&filters[status]=0',
+                  '&filters[status]=0' +
+                  '&orders[id]=ASC',
               )
-            : list('/api/3/deals', 'deals', true, '')
+            : list('/api/3/deals', 'deals', true, '&orders[id]=ASC')
         var selectedDeals = []
         for (var di = 0; di < candidateDeals.length; di++) {
           var candidate = candidateDeals[di]
@@ -388,6 +389,18 @@ routerAdd(
       return e.json(502, { error: 'CONSULTA_AC_FALHOU', detail: String(fetchError).slice(0, 120) })
     }
 
+    var uniqueEvents = [],
+      seenEventIds = {}
+    for (var ui = 0; ui < events.length; ui++) {
+      var evId = String(events[ui].event_id || '')
+      if (evId) {
+        if (seenEventIds[evId]) continue
+        seenEventIds[evId] = true
+      }
+      uniqueEvents.push(events[ui])
+    }
+    events = uniqueEvents
+
     var incomingCompanies = {},
       incomingContacts = {}
     for (var incoming = 0; incoming < events.length; incoming++) {
@@ -505,56 +518,67 @@ routerAdd(
     // O fingerprint precisa representar o conteúdo, não a ordem incidental do JSON.
     var fingerprint = $security.sha256(canonicalize(planCore))
     var expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
-    var execCol = $app.findCollectionByNameOrId('com_execucoes_sincronizacao')
-    var dry = new Record(execCol)
-    dry.set('sistema_origem', 'activecampaign')
-    dry.set('status', 'simulated')
-    dry.set(
-      'payload',
-      JSON.stringify({
-        actor_id: actor.id,
-        fingerprint: fingerprint,
-        expires_at: expiresAt,
-        counts: counts,
-        plan: { cursor_from: planCore.cursor_from, cursor_to: planCore.cursor_to },
-        mode: requestedMode,
-      }).slice(0, 4000),
-    )
-    dry.set('inicio', new Date().toISOString())
-    dry.set('fim', new Date().toISOString())
-    $app.save(dry)
-    var planEventCol = $app.findCollectionByNameOrId('com_eventos_integracao')
-    for (var p = 0; p < actions.length; p++) {
-      var planned = new Record(planEventCol)
-      planned.set('sistema_origem', 'activecampaign')
-      planned.set('evento_tipo', 'reconciliation_plan_item')
-      planned.set('external_id', dry.id)
-      planned.set(
-        'idempotency_key',
-        $security.sha256('dry-run|' + dry.id + '|' + actions[p].event.event_id),
-      )
-      planned.set('payload', JSON.stringify(actions[p]).slice(0, 4000))
-      planned.set('status', 'planned')
-      $app.save(planned)
-      if (actions[p].kind === 'error' || actions[p].kind === 'conflict') {
-        var quality = new Record($app.findCollectionByNameOrId('com_ocorrencias_qualidade'))
-        quality.set('execucao_id', dry.id)
-        quality.set('tipo', 'reconciliation_' + actions[p].kind)
-        quality.set('severidade', actions[p].kind === 'conflict' ? 'critical' : 'error')
-        quality.set(
-          'descricao',
-          'Evento bloqueado na simulacao: ' +
-            actions[p].event.entity_type +
-            ':' +
-            actions[p].event.entity_id,
+    var dryId = ''
+    try {
+      $app.runInTransaction(function (tx) {
+        var execCol = tx.findCollectionByNameOrId('com_execucoes_sincronizacao')
+        var dry = new Record(execCol)
+        dry.set('sistema_origem', 'activecampaign')
+        dry.set('status', 'simulated')
+        dry.set(
+          'payload',
+          JSON.stringify({
+            actor_id: actor.id,
+            fingerprint: fingerprint,
+            expires_at: expiresAt,
+            counts: counts,
+            plan: { cursor_from: planCore.cursor_from, cursor_to: planCore.cursor_to },
+            mode: requestedMode,
+          }).slice(0, 4000),
         )
-        quality.set('resolvida', false)
-        $app.save(quality)
-      }
+        dry.set('inicio', new Date().toISOString())
+        dry.set('fim', new Date().toISOString())
+        tx.save(dry)
+        dryId = dry.id
+        var planEventCol = tx.findCollectionByNameOrId('com_eventos_integracao')
+        for (var p = 0; p < actions.length; p++) {
+          var planned = new Record(planEventCol)
+          planned.set('sistema_origem', 'activecampaign')
+          planned.set('evento_tipo', 'reconciliation_plan_item')
+          planned.set('external_id', dry.id)
+          planned.set(
+            'idempotency_key',
+            $security.sha256('dry-run|' + dry.id + '|' + actions[p].event.event_id),
+          )
+          planned.set('payload', JSON.stringify(actions[p]).slice(0, 4000))
+          planned.set('status', 'planned')
+          tx.save(planned)
+          if (actions[p].kind === 'error' || actions[p].kind === 'conflict') {
+            var quality = new Record(tx.findCollectionByNameOrId('com_ocorrencias_qualidade'))
+            quality.set('execucao_id', dry.id)
+            quality.set('tipo', 'reconciliation_' + actions[p].kind)
+            quality.set('severidade', actions[p].kind === 'conflict' ? 'critical' : 'error')
+            quality.set(
+              'descricao',
+              'Evento bloqueado na simulacao: ' +
+                actions[p].event.entity_type +
+                ':' +
+                actions[p].event.entity_id,
+            )
+            quality.set('resolvida', false)
+            tx.save(quality)
+          }
+        }
+      })
+    } catch (saveError) {
+      return e.json(500, {
+        error: 'SIMULACAO_FALHOU',
+        detail: String(saveError).slice(0, 120),
+      })
     }
     var blocked = counts.conflict > 0 || counts.error > 0
     return e.json(200, {
-      dry_run_id: dry.id,
+      dry_run_id: dryId,
       fingerprint: fingerprint,
       cursor_from: planCore.cursor_from,
       cursor_to: planCore.cursor_to,

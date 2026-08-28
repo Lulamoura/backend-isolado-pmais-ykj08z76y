@@ -40,8 +40,20 @@ function planReconciliation({
   cursor = null,
   dependencies = null,
 }) {
+  // Deduplicação defensiva por event_id
+  const uniqueEvents = []
+  const seenEventIds = new Set()
+  for (const ev of events) {
+    const evId = String(ev?.event_id || '')
+    if (evId) {
+      if (seenEventIds.has(evId)) continue
+      seenEventIds.add(evId)
+    }
+    uniqueEvents.push(ev)
+  }
+
   const actions = []
-  for (const event of events) {
+  for (const event of uniqueEvents) {
     const invalid = validateEnvelope(event)
     const externalKey = `${event.entity_type}:${event.entity_id}`
     if (invalid) {
@@ -101,6 +113,33 @@ function planReconciliation({
   return { ...plan, fingerprint: hash(plan) }
 }
 
+function simulateReconciliationPersistence({ dryRunId, actions, failAt = -1, state = null }) {
+  const next = state ? structuredClone(state) : { dry_runs: {}, plan_items: {}, quality_issues: [] }
+  const backup = structuredClone(next)
+  try {
+    if (failAt === 0) throw new Error('SIMULATION_PERSISTENCE_FAILED')
+    next.dry_runs[dryRunId] = { id: dryRunId, status: 'simulated' }
+    const seenItemKeys = new Set()
+    for (let p = 0; p < actions.length; p++) {
+      if (failAt === p + 1) throw new Error('SIMULATION_PERSISTENCE_FAILED')
+      const itemKey = hash(
+        `dry-run|${dryRunId}|${actions[p].event_id || actions[p].event?.event_id}`,
+      )
+      if (seenItemKeys.has(itemKey)) throw new Error('idempotency_key: Value must be unique.')
+      seenItemKeys.add(itemKey)
+      next.plan_items[itemKey] = {
+        dry_run_id: dryRunId,
+        idempotency_key: itemKey,
+        action: actions[p],
+      }
+    }
+    return { success: true, state: next }
+  } catch (err) {
+    // Atomic rollback
+    return { success: false, state: backup, error: err.message }
+  }
+}
+
 function executePlan({ plan, fingerprint, state, failAt = -1, lockHeld = false, cursor = null }) {
   if (plan.fingerprint !== fingerprint) throw new Error('FINGERPRINT_OBSOLETO')
   if (lockHeld) throw new Error('RECONCILIACAO_EM_ANDAMENTO')
@@ -123,4 +162,11 @@ function executePlan({ plan, fingerprint, state, failAt = -1, lockHeld = false, 
   }
 }
 
-module.exports = { canonical, hash, validateEnvelope, planReconciliation, executePlan }
+module.exports = {
+  canonical,
+  hash,
+  validateEnvelope,
+  planReconciliation,
+  simulateReconciliationPersistence,
+  executePlan,
+}

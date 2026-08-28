@@ -1,5 +1,9 @@
 const assert = require('node:assert/strict')
-const { planReconciliation, executePlan } = require('./lib/ac-reconciliation-core.cjs')
+const {
+  planReconciliation,
+  simulateReconciliationPersistence,
+  executePlan,
+} = require('./lib/ac-reconciliation-core.cjs')
 
 const event = (id, version, data = { title: `Negócio ${version}` }) => ({
   schema_version: '1',
@@ -126,4 +130,96 @@ assert.equal(recovered.counts.create, 1)
 const invalid = planReconciliation({ events: [{ event_id: 'incompleto' }] })
 assert.equal(invalid.counts.error, 1)
 
-console.log('PASS T6.AC reconciliation core 14/14')
+// ================= TESTES ESPECÍFICOS DE DEDUPLICAÇÃO E ATOMICIDADE =================
+
+// 1. Sobreposição do mesmo deal em duas páginas com mesmo id/mdate (mesmo event_id) -> um único evento e simulação sem colisão
+{
+  const duplicateEvents = [
+    event('100', '2026-08-28T10:00:00.000Z'),
+    event('100', '2026-08-28T10:00:00.000Z'),
+  ]
+  const dedupPlan = planReconciliation({ events: duplicateEvents })
+  assert.equal(
+    dedupPlan.actions.length,
+    1,
+    'Eventos duplicados devem ser deduplicados por event_id',
+  )
+  assert.equal(dedupPlan.counts.create, 1)
+
+  // A persistência da simulação não colide a chave de idempotência
+  const simResult = simulateReconciliationPersistence({
+    dryRunId: 'dry_100',
+    actions: dedupPlan.actions,
+  })
+  assert.equal(simResult.success, true)
+  assert.equal(Object.keys(simResult.state.plan_items).length, 1)
+}
+
+// 2. Mesmo negócio com event_id / source_version diferentes -> preservar ambos
+{
+  const distinctVersionEvents = [
+    event('200', '2026-08-28T10:00:00.000Z', { title: 'Versão 1' }),
+    event('200', '2026-08-28T11:00:00.000Z', { title: 'Versão 2' }),
+  ]
+  const multiVersionPlan = planReconciliation({ events: distinctVersionEvents })
+  assert.equal(
+    multiVersionPlan.actions.length,
+    2,
+    'Eventos com event_id / source_version distintas devem ser preservados',
+  )
+
+  const simResult = simulateReconciliationPersistence({
+    dryRunId: 'dry_200',
+    actions: multiVersionPlan.actions,
+  })
+  assert.equal(simResult.success, true)
+  assert.equal(Object.keys(simResult.state.plan_items).length, 2)
+}
+
+// 3. Chaves dos itens do plano (idempotency_key) sempre únicas
+{
+  const multiEvents = [event('301', '1'), event('302', '1'), event('303', '1')]
+  const multiPlan = planReconciliation({ events: multiEvents })
+  const simResult = simulateReconciliationPersistence({
+    dryRunId: 'dry_300',
+    actions: multiPlan.actions,
+  })
+  assert.equal(simResult.success, true)
+  const itemKeys = Object.keys(simResult.state.plan_items)
+  assert.equal(itemKeys.length, 3)
+  const uniqueKeys = new Set(itemKeys)
+  assert.equal(
+    uniqueKeys.size,
+    3,
+    'Todas as chaves de idempotência dos itens de plano devem ser estritamente únicas',
+  )
+}
+
+// 4. Falha de persistência não deixa dry-run nem plano parcial (atomicidade)
+{
+  const multiEvents = [event('401', '1'), event('402', '1')]
+  const multiPlan = planReconciliation({ events: multiEvents })
+  const initialState = { dry_runs: {}, plan_items: {}, quality_issues: [] }
+
+  // Falha no meio da transação de persistência da simulação
+  const failedSimResult = simulateReconciliationPersistence({
+    dryRunId: 'dry_400',
+    actions: multiPlan.actions,
+    failAt: 2, // falha no segundo item
+    state: initialState,
+  })
+
+  assert.equal(failedSimResult.success, false)
+  assert.equal(
+    Object.keys(failedSimResult.state.dry_runs).length,
+    0,
+    'Dry-run não deve ficar persistido em caso de erro',
+  )
+  assert.equal(
+    Object.keys(failedSimResult.state.plan_items).length,
+    0,
+    'Itens do plano não devem ficar órfãos em caso de erro',
+  )
+}
+
+console.log('PASS T6.AC reconciliation core 18/18')

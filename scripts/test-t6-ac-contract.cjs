@@ -127,6 +127,23 @@ const checks = [
       reconciliationHook.includes('EXECUCAO_REVERTIDA'),
   ],
   [
+    'simulação e itens do plano usam persistência atômica transacional',
+    (reconciliationHook.match(/\$app\.runInTransaction/g) || []).length === 2 &&
+      reconciliationHook.includes("planned.set('evento_tipo', 'reconciliation_plan_item')") &&
+      reconciliationHook.includes('tx.save(planned)'),
+  ],
+  [
+    'paginação de deals é deterministicamente ordenada por orders[id]=ASC',
+    reconciliationHook.includes("list('/api/3/deals', 'deals', true, '&orders[id]=ASC')") &&
+      reconciliationHook.includes("'&orders[id]=ASC'"),
+  ],
+  [
+    'reconciliador deduplica defensivamente events por event_id antes de actions',
+    reconciliationHook.includes('var uniqueEvents = []') &&
+      reconciliationHook.includes('seenEventIds = {}') &&
+      reconciliationHook.includes('seenEventIds[evId] = true'),
+  ],
+  [
     'interface exige simulação anterior',
     reconciliationUi.includes('Verificar atualizações') &&
       reconciliationUi.includes('Confirmar reconciliação') &&
