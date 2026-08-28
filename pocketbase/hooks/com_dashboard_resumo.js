@@ -27,7 +27,15 @@ routerAdd(
     }
 
     function validarQuery(query) {
-      var allow = ['inicio', 'fim', 'equipe_id', 'responsavel_id', 'modalidade', 'incluir_inativos']
+      var allow = [
+        'inicio',
+        'fim',
+        'equipe_id',
+        'responsavel_id',
+        'modalidade',
+        'situacao',
+        'incluir_inativos',
+      ]
       var q = query || {}
       var keys = Object.keys(q)
       for (var i = 0; i < keys.length; i++) {
@@ -54,6 +62,11 @@ routerAdd(
         q.incluir_inativos !== 'false'
       )
         return { valido: false, erro: 'VALIDATION' }
+      if (
+        q.situacao !== undefined &&
+        ['negociacao', 'ganhos', 'perdidos', 'aguardando_oe'].indexOf(q.situacao) === -1
+      )
+        return { valido: false, erro: 'VALIDATION' }
       return {
         valido: true,
         params: {
@@ -62,6 +75,7 @@ routerAdd(
           equipe_id: q.equipe_id || '',
           responsavel_id: q.responsavel_id || '',
           modalidade: q.modalidade || '',
+          situacao: q.situacao || '',
           incluir_inativos: q.incluir_inativos === 'true',
         },
       }
@@ -281,6 +295,13 @@ routerAdd(
       if (params.equipe_id) parts.push("equipe_id = '" + params.equipe_id + "'")
       if (params.responsavel_id) parts.push("responsavel_id = '" + params.responsavel_id + "'")
       if (params.modalidade) parts.push("modalidade = '" + params.modalidade + "'")
+      if (params.situacao === 'negociacao') parts.push("etapa = 'negociacao' && resultado = ''")
+      if (params.situacao === 'ganhos') parts.push("resultado = 'ganho'")
+      if (params.situacao === 'perdidos') parts.push("resultado = 'perdido'")
+      if (params.situacao === 'aguardando_oe')
+        parts.push(
+          "resultado = 'ganho' && (oe_numero = '' || oe_data_envio = '' || oe_responsavel_envio_id = '')",
+        )
       if (scope === 'proprios') parts.push("responsavel_id = '" + actorId + "'")
       if (scope === 'equipe') {
         var ors = []
@@ -483,6 +504,7 @@ routerAdd(
         equipe_id: validated.params.equipe_id || null,
         responsavel_id: validated.params.responsavel_id || null,
         modalidade: validated.params.modalidade || null,
+        situacao: validated.params.situacao || null,
         incluir_inativos: validated.params.incluir_inativos,
       },
       escopo: scope,

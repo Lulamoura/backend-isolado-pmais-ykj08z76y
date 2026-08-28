@@ -105,8 +105,17 @@ assert(
     equipe_id: 'abc123def456ghi',
     responsavel_id: 'xyz123def456abc',
     modalidade: 'evento',
+    situacao: 'aguardando_oe',
     incluir_inativos: 'true',
   }).valido === true,
+)
+assert(
+  'B8 rejeita situação desconhecida',
+  x.validarQuery({ situacao: 'em_aprovacao' }).valido === false,
+)
+assert(
+  'B9 Todos permanece representado pela ausência do parâmetro',
+  x.validarQuery({}).params.situacao === '',
 )
 
 assert(
@@ -138,6 +147,29 @@ assert(
 )
 assert('D5 percentual retorna N/D', x.percentual(1, 0) === null)
 assert('D6 percentual usa duas casas', x.percentual(1, 3) === 33.33)
+
+assert(
+  'D7 filtro negociação usa etapa ativa sem terminal',
+  x
+    .comporFiltro({ situacao: 'negociacao' }, 'todos', '', [])
+    .includes("etapa = 'negociacao' && resultado = ''"),
+)
+assert(
+  'D8 filtro ganhos usa resultado canônico',
+  x.comporFiltro({ situacao: 'ganhos' }, 'todos', '', []).includes("resultado = 'ganho'"),
+)
+assert(
+  'D9 filtro perdidos usa resultado canônico',
+  x.comporFiltro({ situacao: 'perdidos' }, 'todos', '', []).includes("resultado = 'perdido'"),
+)
+assert(
+  'D10 aguardando OE exige ganho com referência incompleta',
+  x
+    .comporFiltro({ situacao: 'aguardando_oe' }, 'todos', '', [])
+    .includes(
+      "resultado = 'ganho' && (oe_numero = '' || oe_data_envio = '' || oe_responsavel_envio_id = '')",
+    ),
+)
 
 var resumo = x.agregarNegocios([
   {
