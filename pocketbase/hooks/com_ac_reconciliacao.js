@@ -91,7 +91,7 @@ routerAdd(
       var sourceVersion = version(modified)
       events.push({
         schema_version: '1',
-        context_revision: entityType === 'business' ? '6' : '1',
+        context_revision: entityType === 'business' ? '7' : '1',
         event_id:
           'ac:' +
           entityType +
@@ -99,7 +99,7 @@ routerAdd(
           entityId +
           ':' +
           sourceVersion +
-          (entityType === 'business' ? ':ctx6' : ''),
+          (entityType === 'business' ? ':ctx7' : ''),
         source: 'activecampaign',
         entity_type: entityType,
         entity_id: String(entityId),
@@ -369,6 +369,7 @@ routerAdd(
             source: customFields['Fonte de Prospecção'] || '',
             loss_reason: customFields['Motivo Perda'] || '',
             closed_at: terminalAt,
+            recovery_at: customFields['Data de Recuperação Comercial'] || '',
             initial_load_scope:
               requestedMode === 'initial_open_negotiation' ? 'open_negotiation' : '',
           },
@@ -896,6 +897,59 @@ routerAdd(
             binding.set('collection_name', collectionName)
             binding.set('record_id', target.id)
             tx.save(binding)
+          }
+          if (
+            ev.entity_type === 'business' &&
+            target.getString('resultado') === 'perdido' &&
+            ev.data &&
+            actionDateKey(ev.data.recovery_at)
+          ) {
+            var recoveryDate = actionDateKey(ev.data.recovery_at)
+            var recoveryKey = 'activecampaign:recovery:' + ev.entity_id
+            var recoveryResponsibleId = target.getString('responsavel_id')
+            if (recoveryResponsibleId) {
+              var recoveryContext = JSON.stringify({
+                origem: 'activecampaign',
+                campo: 'Data de Recuperação Comercial',
+                external_deal_id: String(ev.entity_id),
+              })
+              var existingAgenda = null
+              try {
+                existingAgenda = tx.findFirstRecordByData(
+                  'com_recuperacao_agendas',
+                  'creation_idempotency_key',
+                  recoveryKey,
+                )
+              } catch (_) {}
+              if (!existingAgenda) {
+                try {
+                  existingAgenda = tx.findFirstRecordByFilter(
+                    'com_recuperacao_agendas',
+                    "negocio_perdido_id='" + target.id + "' && estado='ativa'",
+                  )
+                } catch (_) {}
+              }
+              if (existingAgenda) {
+                existingAgenda.set('data_alvo', recoveryDate)
+                existingAgenda.set('antecedencia_dias', 0)
+                existingAgenda.set('responsavel_id', recoveryResponsibleId)
+                existingAgenda.set('autor_id', recoveryResponsibleId)
+                existingAgenda.set('estado', 'ativa')
+                existingAgenda.set('contexto', recoveryContext)
+                tx.save(existingAgenda)
+              } else {
+                var newAgenda = new Record(tx.findCollectionByNameOrId('com_recuperacao_agendas'))
+                newAgenda.set('negocio_perdido_id', target.id)
+                newAgenda.set('data_alvo', recoveryDate)
+                newAgenda.set('antecedencia_dias', 0)
+                newAgenda.set('responsavel_id', recoveryResponsibleId)
+                newAgenda.set('autor_id', recoveryResponsibleId)
+                newAgenda.set('estado', 'ativa')
+                newAgenda.set('contexto', recoveryContext)
+                newAgenda.set('creation_idempotency_key', recoveryKey)
+                tx.save(newAgenda)
+              }
+            }
           }
           var eventRecord = new Record(tx.findCollectionByNameOrId('com_eventos_integracao'))
           eventRecord.set('sistema_origem', 'activecampaign')

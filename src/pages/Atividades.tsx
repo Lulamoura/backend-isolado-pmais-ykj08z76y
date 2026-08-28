@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { BusinessNotesDialog } from '@/components/BusinessNotesDialog'
 import {
   Dialog,
   DialogContent,
@@ -322,7 +323,8 @@ export default function Atividades() {
                     Planejar próxima ação
                   </Button>
                 )}
-              </CardContent>
+                <BusinessNotesDialog negocioId={item.negocio.id} />
+              </CardContent>{' '}
             </Card>
           ))}
         </div>

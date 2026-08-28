@@ -76,10 +76,19 @@ const checks = [
   ],
   [
     'novo contexto comercial reprocessa negócios já sincronizados sem duplicação',
-    relay.includes("context_revision: type === 'business' ? '6' : '1'") &&
-      relay.includes("type === 'business' ? ':ctx6' : ''") &&
-      reconciler.includes("context_revision: entityType === 'business' ? '6' : '1'") &&
-      reconciler.includes("entityType === 'business' ? ':ctx6' : ''"),
+    relay.includes("context_revision: type === 'business' ? '7' : '1'") &&
+      relay.includes("type === 'business' ? ':ctx7' : ''") &&
+      reconciler.includes("context_revision: entityType === 'business' ? '7' : '1'") &&
+      reconciler.includes("entityType === 'business' ? ':ctx7' : ''"),
+  ],
+  [
+    'relay e reconciliação transportam Data de Recuperação Comercial para agenda',
+    relay.includes("customByLabel['Data de Recuperação Comercial']") &&
+      reconciler.includes("customFields['Data de Recuperação Comercial']") &&
+      webhook.includes("'com_recuperacao_agendas'") &&
+      webhook.includes("'activecampaign:recovery:'") &&
+      reconciler.includes("'com_recuperacao_agendas'") &&
+      reconciler.includes("'activecampaign:recovery:'"),
   ],
   [
     'webhook preserva o valor inteiro em centavos',

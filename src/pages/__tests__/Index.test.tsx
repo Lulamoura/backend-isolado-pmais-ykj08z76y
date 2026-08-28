@@ -127,9 +127,9 @@ describe('Dashboard V1', () => {
     render(<Index />)
 
     const modalidades = screen.getByText('Negócios por modalidade').closest('[class*="rounded"]')!
-    expect(within(modalidades).getByText('Recorrente')).toBeInTheDocument()
-    expect(within(modalidades).getByText('Evento')).toBeInTheDocument()
-    expect(within(modalidades).getByText('Serv. Eventual')).toBeInTheDocument()
+    expect(within(modalidades as HTMLElement).getByText('Recorrente')).toBeInTheDocument()
+    expect(within(modalidades as HTMLElement).getByText('Evento')).toBeInTheDocument()
+    expect(within(modalidades as HTMLElement).getByText('Serv. Eventual')).toBeInTheDocument()
   })
 
   it('mostra os gráficos de negócios por fonte de prospecção e responsável', () => {

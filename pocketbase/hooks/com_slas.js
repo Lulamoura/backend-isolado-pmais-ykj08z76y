@@ -236,16 +236,69 @@ routerAdd(
         )
       )
         continue
+      function relacionado(collection, id, fields) {
+        if (!id) return null
+        try {
+          var record = $app.findRecordById(collection, id),
+            result = { id: record.id }
+          for (var ri = 0; ri < fields.length; ri++)
+            result[fields[ri]] = record.getString(fields[ri]) || null
+          return result
+        } catch (_) {
+          return null
+        }
+      }
+      function acompanhamento(negocio) {
+        var reagendamento = null,
+          nota = null
+        try {
+          reagendamento = $app.findRecordsByFilter(
+            'com_negocio_historico',
+            "negocio_id='" + negocio.id + "' && origem_alteracao='activecampaign_data_acao'",
+            '-reagendada_em,-created',
+            1,
+            0,
+          )[0]
+        } catch (_) {}
+        try {
+          nota = $app.findRecordsByFilter(
+            'com_notas_negocio',
+            "negocio_id='" + negocio.id + "'",
+            '-criada_em,-id',
+            1,
+            0,
+          )[0]
+        } catch (_) {}
+        var reagendadaEm = reagendamento ? reagendamento.getString('reagendada_em') : ''
+        var ultimaNotaEm = nota ? nota.getString('criada_em') : ''
+        return {
+          follow_up_pendente:
+            !!reagendadaEm && (!ultimaNotaEm || new Date(ultimaNotaEm) <= new Date(reagendadaEm)),
+          proxima_acao_reagendada_em: reagendadaEm || null,
+          ultima_nota_em: ultimaNotaEm || null,
+        }
+      }
       var dono = null,
         empresa = null,
-        externalId = null
+        contato = null,
+        externalId = null,
+        somenteLeitura = false
       try {
         var ur = $app.findRecordById('users', n.getString('responsavel_id'))
-        dono = { id: ur.id, nome: ur.getString('name') || ur.getString('email') }
+        dono = { id: ur.id, name: ur.getString('name') || ur.getString('email') }
       } catch (_) {}
       try {
         var er = $app.findRecordById('com_empresas', n.getString('empresa_id'))
         empresa = { id: er.id, nome: er.getString('nome') }
+      } catch (_) {}
+      try {
+        var cr = $app.findRecordById('com_contatos', n.getString('contato_principal_id'))
+        contato = {
+          id: cr.id,
+          nome: cr.getString('nome') || null,
+          email: cr.getString('email') || null,
+          telefone: cr.getString('telefone') || null,
+        }
       } catch (_) {}
       try {
         externalId = $app
@@ -257,15 +310,43 @@ routerAdd(
           )
           .getString('external_id')
       } catch (_) {}
+      try {
+        var preopParam = $app.findFirstRecordByData(
+          'com_parametros',
+          'chave',
+          'ac_preoperation_read_only',
+        )
+        somenteLeitura = preopParam.getBool('ativo') && preopParam.getString('valor') === 'true'
+      } catch (_) {}
+      var followUp = acompanhamento(n)
+      var contextoComercial = {
+        external_id: externalId,
+        empresa: empresa,
+        contato: contato,
+        responsavel: dono,
+        valor_centavos: Number(n.get('valor') || 0),
+        modalidade: n.getString('modalidade') || null,
+        fase_crm: n.getString('fase_crm') || null,
+        fonte_prospeccao: n.getString('fonte_prospeccao') || null,
+        proxima_acao_em: proximaAcao || n.getString('proxima_acao_em') || null,
+        follow_up_pendente: followUp.follow_up_pendente,
+        proxima_acao_reagendada_em: followUp.proxima_acao_reagendada_em,
+        ultima_nota_em: followUp.ultima_nota_em,
+        crm_created_at: n.getString('crm_created_at') || null,
+        crm_updated_at: n.getString('crm_updated_at') || null,
+        origem_canal: n.getString('origem_canal') || null,
+        somente_leitura: somenteLeitura && n.getString('origem_canal') === 'activecampaign',
+      }
       itens.push({
         negocio: {
           id: n.id,
           external_id: externalId,
           titulo: n.getString('titulo'),
           etapa: etapa,
-          empresa: empresa,
-          responsavel: dono,
+          empresa: empresa ? { id: empresa.id, nome: empresa.nome } : null,
+          responsavel: dono ? { id: dono.id, nome: dono.name } : null,
         },
+        contexto: contextoComercial,
         marco_inicial: marco || null,
         vence_em: vence ? vence.toISOString() : null,
         situacao: situacao,

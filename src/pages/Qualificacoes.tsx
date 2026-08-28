@@ -36,6 +36,7 @@ import {
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { commercialActionCardClass } from '@/lib/commercial-context'
 import pb from '@/lib/pocketbase/client'
+import { BusinessNotesDialog } from '@/components/BusinessNotesDialog'
 
 type Decisao = 'qualificada' | 'desqualificada'
 
@@ -324,6 +325,7 @@ export default function Qualificacoes() {
                       </Button>
                     </div>
                   )}
+                  <BusinessNotesDialog negocioId={item.id} />
                 </CardContent>
               </Card>
             )

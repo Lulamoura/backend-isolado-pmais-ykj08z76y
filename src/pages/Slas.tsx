@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock3 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock3 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -7,18 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { listarSlas, type FilaSla, type FiltroSla } from '@/services/slas'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { SlaParametrosDialog } from '@/components/SlaParametrosDialog'
+import { CommercialContextCard } from '@/components/CommercialContextCard'
+import { commercialActionCardClass, type CommercialContext } from '@/lib/commercial-context'
 
 const label = {
   vencido: 'Vencido',
   alerta: 'Em alerta',
   no_prazo: 'No prazo',
   nao_calculavel: 'SLA não calculável',
-}
-
-const etapaLabel: Record<string, string> = {
-  prospects: 'Prospect',
-  producao_proposta: 'Produção de Proposta',
-  negociacao: 'Negociação',
 }
 
 function explicacao(item: FilaSla['itens'][number], antecedencia: number) {
@@ -132,71 +128,92 @@ export default function Slas() {
           </Button>
         ))}
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5" />
-            Agenda de vencimentos
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {dados && dados.itens.length === 0 && (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Nenhum SLA encontrado para este filtro. Ações vencidas são acompanhadas na fila de
-              próximas ações.
+      {dados && dados.itens.length === 0 ? (
+        <Card>
+          <CardContent className="py-14 text-center">
+            <p className="font-semibold">Nenhum SLA encontrado para este filtro</p>
+            <p className="text-sm text-muted-foreground">
+              Ações vencidas são acompanhadas na fila de próximas ações.
             </p>
-          )}
-          {(dados?.itens ?? []).map((i) => (
-            <div
-              key={i.negocio.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
-            >
-              <div>
-                <p className="font-medium">
-                  {i.negocio.external_id ? `Negócio AC #${i.negocio.external_id} — ` : ''}
-                  {i.negocio.empresa?.nome || i.negocio.titulo}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Fase: {etapaLabel[i.negocio.etapa] || i.negocio.etapa || 'não informada'} · Regra:{' '}
-                  {i.negocio.etapa === 'negociacao'
-                    ? `crítico após ${i.dias_uteis} dia(s) útil(eis) de atraso`
-                    : `${i.dias_uteis} dia(s) útil(eis)`}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Responsável: {i.negocio.responsavel?.nome || 'não informado'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Marco da etapa:{' '}
-                  {i.marco_inicial
-                    ? new Date(i.marco_inicial).toLocaleString('pt-BR')
-                    : 'não comprovado'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Próxima ação:{' '}
-                  {i.proxima_acao_em
-                    ? i.proxima_acao_em.slice(0, 10).split('-').reverse().join('/')
-                    : 'não informada'}
-                </p>
-              </div>
-              <div className="text-right">
-                <Badge variant={i.situacao === 'vencido' ? 'destructive' : 'secondary'}>
-                  {label[i.situacao]}
-                </Badge>
-                <p className="mt-1 text-xs">
-                  {i.vence_em
-                    ? i.negocio.etapa === 'negociacao'
-                      ? `Crítico em ${i.vence_em.slice(0, 10).split('-').reverse().join('/')}`
-                      : new Date(i.vence_em).toLocaleString('pt-BR')
-                    : 'Sem vencimento calculado'}
-                </p>
-                <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-                  {explicacao(i, dados?.parametros.antecedencia ?? 1)}
-                </p>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {(dados?.itens ?? []).map((i) => {
+            const contextoPadrao: CommercialContext = i.contexto || {
+              external_id: i.negocio.external_id,
+              empresa: i.negocio.empresa,
+              contato: null,
+              responsavel: i.negocio.responsavel
+                ? { id: i.negocio.responsavel.id, name: i.negocio.responsavel.nome }
+                : null,
+              valor_centavos: 0,
+              modalidade: null,
+              fase_crm: null,
+              fonte_prospeccao: null,
+              proxima_acao_em: i.proxima_acao_em,
+              crm_created_at: null,
+              crm_updated_at: null,
+              origem_canal: null,
+              somente_leitura: false,
+            }
+            return (
+              <Card
+                key={i.negocio.id}
+                className={commercialActionCardClass(
+                  i.proxima_acao_em || contextoPadrao.proxima_acao_em,
+                )}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base">{i.negocio.titulo}</CardTitle>
+                      <p className="text-xs text-muted-foreground">
+                        Regra:{' '}
+                        {i.negocio.etapa === 'negociacao'
+                          ? `crítico após ${i.dias_uteis} dia(s) útil(eis) de atraso`
+                          : `${i.dias_uteis} dia(s) útil(eis)`}
+                      </p>
+                    </div>
+                    <Badge variant={i.situacao === 'vencido' ? 'destructive' : 'secondary'}>
+                      {label[i.situacao]}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <CommercialContextCard
+                    contexto={contextoPadrao}
+                    etapa={i.negocio.etapa}
+                    negocioId={i.negocio.id}
+                  />
+                  <div className="rounded-md border bg-slate-50/80 p-3 text-xs space-y-1">
+                    <p className="font-medium text-slate-800">
+                      Situação do SLA: {label[i.situacao]}
+                    </p>
+                    <p className="text-muted-foreground">
+                      Marco inicial:{' '}
+                      {i.marco_inicial
+                        ? new Date(i.marco_inicial).toLocaleString('pt-BR')
+                        : 'não comprovado'}
+                    </p>
+                    <p className="text-muted-foreground">
+                      Vencimento:{' '}
+                      {i.vence_em
+                        ? i.negocio.etapa === 'negociacao'
+                          ? `Crítico em ${i.vence_em.slice(0, 10).split('-').reverse().join('/')}`
+                          : new Date(i.vence_em).toLocaleString('pt-BR')
+                        : 'Sem vencimento calculado'}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {explicacao(i, dados?.parametros.antecedencia ?? 1)}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
       {dados && isSuperAdmin ? (
         <SlaParametrosDialog
           open={parametrosOpen}

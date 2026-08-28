@@ -73,9 +73,9 @@ routerAdd(
       var sourceVersion = clean(modified, 80) || new Date(0).toISOString()
       return {
         schema_version: '1',
-        context_revision: type === 'business' ? '6' : '1',
+        context_revision: type === 'business' ? '7' : '1',
         event_id:
-          'ac:' + type + ':' + id + ':' + sourceVersion + (type === 'business' ? ':ctx6' : ''),
+          'ac:' + type + ':' + id + ':' + sourceVersion + (type === 'business' ? ':ctx7' : ''),
         source: 'activecampaign',
         entity_type: type,
         entity_id: String(id),
@@ -334,6 +334,7 @@ routerAdd(
         source: customByLabel['Fonte de Prospecção'] || '',
         loss_reason: customByLabel['Motivo Perda'] || '',
         closed_at: terminalAt,
+        recovery_at: customByLabel['Data de Recuperação Comercial'] || '',
         prospect_cutoff_applied: canonicalStage === 'prospects',
       },
       {

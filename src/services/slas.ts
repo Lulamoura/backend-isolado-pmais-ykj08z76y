@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import type { CommercialContext } from '@/lib/commercial-context'
 
 export type SituacaoSla = 'vencido' | 'alerta' | 'no_prazo' | 'nao_calculavel'
 export type FiltroSla = SituacaoSla | 'todas' | 'atencao'
@@ -11,6 +12,7 @@ export interface ItemSla {
     empresa: { id: string; nome: string } | null
     responsavel: { id: string; nome: string } | null
   }
+  contexto?: CommercialContext
   marco_inicial: string | null
   vence_em: string | null
   situacao: SituacaoSla
