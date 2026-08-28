@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T05:53:18.263Z",
+  "generatedAt": "2026-08-28T09:10:04.946Z",
   "collections": [
     {
       "name": "users",
@@ -904,30 +904,6 @@
           "system": false
         },
         {
-          "name": "reagendamento_external_id",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "data_acao_anterior",
-          "type": "date",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "data_acao_nova",
-          "type": "date",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "reagendada_em",
-          "type": "date",
-          "required": false,
-          "system": false
-        },
-        {
           "name": "created",
           "type": "autodate",
           "required": false,
@@ -954,13 +930,37 @@
           "required": false,
           "system": false,
           "selectValues": ["prospects", "producao_proposta", "negociacao"]
+        },
+        {
+          "name": "reagendamento_external_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_acao_anterior",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_acao_nova",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reagendada_em",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_com_negocio_historico_negocio ON com_negocio_historico (negocio_id)",
         "CREATE INDEX idx_com_negocio_historico_created ON com_negocio_historico (created)",
-        "CREATE UNIQUE INDEX idx_com_negocio_historico_reagendamento_external ON com_negocio_historico (reagendamento_external_id)",
-        "CREATE INDEX idx_com_negocio_historico_reagendamento_data ON com_negocio_historico (negocio_id, reagendada_em)"
+        "CREATE UNIQUE INDEX `idx_com_negocio_historico_reagendamento_external` ON `com_negocio_historico` (reagendamento_external_id)",
+        "CREATE INDEX `idx_com_negocio_historico_reagendamento_data` ON `com_negocio_historico` (negocio_id, reagendada_em)"
       ]
     },
     {
