@@ -1,23 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-
-// Mock do módulo de feature-flags: MUTATIONS_ENABLED = false, mantendo a
-// implementação real de assertMutationsEnabled e MutationsDisabledError.
-vi.mock('@/lib/feature-flags', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/feature-flags')>('@/lib/feature-flags')
-  return {
-    ...actual,
-    MUTATIONS_ENABLED: false,
-  }
-})
+import { describe, it, expect } from 'vitest'
+import {
+  MUTATIONS_ENABLED,
+  assertMutationsEnabled,
+  MutationsDisabledError,
+} from '@/lib/feature-flags'
 
 describe('assertMutationsEnabled', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+  it('MUTATIONS_ENABLED está ativo (true) por padrão para o piloto no Preview', () => {
+    expect(MUTATIONS_ENABLED).toBe(true)
   })
 
-  it('lança MutationsDisabledError quando MUTATIONS_ENABLED=false', async () => {
-    const { assertMutationsEnabled, MutationsDisabledError } = await import('@/lib/feature-flags')
-    expect(() => assertMutationsEnabled('/backend/v1/substituicoes/criar')).toThrow(
+  it('permite execução normal quando habilitado (padrão)', () => {
+    expect(() => assertMutationsEnabled('/backend/v1/substituicoes/criar')).not.toThrow()
+  })
+
+  it('lança MutationsDisabledError quando chamado com enabled=false', () => {
+    expect(() => assertMutationsEnabled('/backend/v1/substituicoes/criar', false)).toThrow(
       MutationsDisabledError,
     )
   })

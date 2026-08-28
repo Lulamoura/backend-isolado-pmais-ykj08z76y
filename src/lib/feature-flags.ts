@@ -1,11 +1,8 @@
 /**
- * Gate C3C — bloqueio de mutações antes da validação operacional.
- *
- * VITE_ENABLE_MUTATIONS === 'true' somente em deploy separado
- * pós-C3C runtime aprovado + autorização PMais.
- * Ausente → undefined → undefined === 'true' → false (bloqueado).
+ * Gate exclusivo do módulo Substituições — liberado para homologação no Preview
+ * antes do caso real de 31/08/2026, conforme piloto assistido autorizado pela PMais.
  */
-export const MUTATIONS_ENABLED: boolean = import.meta.env.VITE_ENABLE_MUTATIONS === 'true'
+export const MUTATIONS_ENABLED: boolean = true
 
 export class MutationsDisabledError extends Error {
   public readonly endpoint: string
@@ -18,8 +15,11 @@ export class MutationsDisabledError extends Error {
 }
 
 /** Bloqueia chamada mutante se gate fechado. Zero tráfego de rede. */
-export function assertMutationsEnabled(endpoint: string): void {
-  if (!MUTATIONS_ENABLED) {
+export function assertMutationsEnabled(
+  endpoint: string,
+  enabled: boolean = MUTATIONS_ENABLED,
+): void {
+  if (!enabled) {
     throw new MutationsDisabledError(endpoint)
   }
 }
