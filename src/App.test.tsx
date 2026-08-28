@@ -98,7 +98,7 @@ describe('App routing com gate fechado', () => {
     const hashProp = crypto.createHash('sha256').update(contentProp).digest('hex')
     console.log('HASH_REC:', hashRec)
     console.log('HASH_PROP:', hashProp)
-    expect(hashRec).toBe('b30ccbece637a4ffaa55f7ada74a96ef1c66e46410957f40abd82ccb7d39c53f')
+    expect(hashRec).toBe('114300cabec8617499f3b98411a9bc9dd54e67e3eed98ca5a44c410207df3cb4')
     expect(hashProp).toBe('0a1cd80df2e46a43035e6aaa274eef3e8daa9e964360337ac92e014c90bd2bd0')
   })
 })

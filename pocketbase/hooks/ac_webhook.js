@@ -37,6 +37,13 @@ routerAdd(
       var text = String(value || '').trim()
       return text.length <= max ? text : ''
     }
+    function actionDateKey(value) {
+      var text = String(value || '').trim()
+      var civilDate = text.match(/^(\d{4}-\d{2}-\d{2})/)
+      if (civilDate) return civilDate[1]
+      var timestamp = Date.parse(text)
+      return isNaN(timestamp) ? text : new Date(timestamp).toISOString().slice(0, 10)
+    }
     function canonicalLossReason(value) {
       var normalized = clean(value, 120).toLowerCase().replace(/\s+/g, ' ')
       var aliases = {
@@ -287,7 +294,12 @@ routerAdd(
           target.set('origem_canal', 'activecampaign')
           target.set('crm_created_at', event.data.crm_created_at || '')
           target.set('crm_updated_at', event.data.crm_updated_at || '')
-          if (binding && previousNextAction && nextAction && previousNextAction !== nextAction) {
+          if (
+            binding &&
+            actionDateKey(previousNextAction) &&
+            actionDateKey(nextAction) &&
+            actionDateKey(previousNextAction) !== actionDateKey(nextAction)
+          ) {
             var actionHistory = new Record(tx.findCollectionByNameOrId('com_negocio_historico'))
             actionHistory.set('negocio_id', target.id)
             actionHistory.set('justificativa', 'Data da Acao reagendada no ActiveCampaign')

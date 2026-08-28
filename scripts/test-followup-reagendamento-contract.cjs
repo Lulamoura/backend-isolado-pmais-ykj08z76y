@@ -14,7 +14,9 @@ const orders = fs.readFileSync('pocketbase/hooks/com_ordens_execucao.js', 'utf8'
 assert.match(migration, /reagendamento_external_id/)
 assert.match(migration, /UNIQUE INDEX idx_com_negocio_historico_reagendamento_external/)
 for (const source of [webhook, reconciliation]) {
-  assert.match(source, /previousNextAction && nextAction && previousNextAction !== nextAction/)
+  assert.match(source, /function actionDateKey\(value\)/)
+  assert.match(source, /text\.match\(\/\^\(\\d\{4\}-\\d\{2\}-\\d\{2\}\)\//)
+  assert.match(source, /actionDateKey\(previousNextAction\) !== actionDateKey\(nextAction\)/)
   assert.match(source, /activecampaign_data_acao/)
   assert.match(source, /:next_action/)
 }
