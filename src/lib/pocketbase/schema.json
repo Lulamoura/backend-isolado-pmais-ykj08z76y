@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-25T18:56:13.966Z",
+  "generatedAt": "2026-08-28T05:40:31.090Z",
   "collections": [
     {
       "name": "users",
@@ -685,25 +685,6 @@
           "selectValues": ["pendente", "qualificada", "desqualificada"]
         },
         {
-          "name": "qualificacao_responsavel_id",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "users"
-        },
-        {
-          "name": "qualificacao_assumida_em",
-          "type": "date",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "qualificacao_decidida_em",
-          "type": "date",
-          "required": false,
-          "system": false
-        },
-        {
           "name": "origem_canal",
           "type": "text",
           "required": false,
@@ -839,6 +820,25 @@
           "type": "date",
           "required": false,
           "system": false
+        },
+        {
+          "name": "qualificacao_responsavel_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "qualificacao_assumida_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "qualificacao_decidida_em",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -849,8 +849,7 @@
         "CREATE INDEX idx_com_negocios_created ON com_negocios (created)",
         "CREATE INDEX `idx_com_negocios_etapa` ON `com_negocios` (etapa)",
         "CREATE INDEX `idx_com_negocios_resultado` ON `com_negocios` (resultado)",
-        "CREATE INDEX `idx_com_negocios_inativo` ON `com_negocios` (inativo)",
-        "CREATE INDEX idx_com_negocios_qualificacao_responsavel ON com_negocios (qualificacao_responsavel_id, qualificacao)"
+        "CREATE INDEX `idx_com_negocios_inativo` ON `com_negocios` (inativo)"
       ]
     },
     {
@@ -2892,6 +2891,72 @@
       ],
       "indexes": [
         "CREATE UNIQUE INDEX idx_com_calendario_feriados_data ON com_calendario_feriados (data)"
+      ]
+    },
+    {
+      "name": "com_notas_negocio",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "negocio_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_negocios"
+        },
+        {
+          "name": "external_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "texto",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "autor_external_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criada_em",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "alterada_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "text",
+          "required": true,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_notas_negocio_external ON com_notas_negocio (external_id)",
+        "CREATE INDEX idx_com_notas_negocio_negocio_data ON com_notas_negocio (negocio_id, criada_em)"
       ]
     }
   ]
