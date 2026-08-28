@@ -372,7 +372,7 @@ routerAdd(
             }
             if (existingAgenda) {
               existingAgenda.set('data_alvo', recoveryDate)
-              existingAgenda.set('antecedencia_dias', 0)
+              existingAgenda.set('antecedencia_dias', 60)
               existingAgenda.set('responsavel_id', recoveryResponsibleId)
               existingAgenda.set('autor_id', recoveryResponsibleId)
               existingAgenda.set('estado', 'ativa')
@@ -382,7 +382,7 @@ routerAdd(
               var newAgenda = new Record(tx.findCollectionByNameOrId('com_recuperacao_agendas'))
               newAgenda.set('negocio_perdido_id', target.id)
               newAgenda.set('data_alvo', recoveryDate)
-              newAgenda.set('antecedencia_dias', 0)
+              newAgenda.set('antecedencia_dias', 60)
               newAgenda.set('responsavel_id', recoveryResponsibleId)
               newAgenda.set('autor_id', recoveryResponsibleId)
               newAgenda.set('estado', 'ativa')

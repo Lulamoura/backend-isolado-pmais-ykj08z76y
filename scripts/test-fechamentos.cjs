@@ -43,6 +43,13 @@ const checks = [
     hook.includes('antecedencia_dias') && hook.includes('60'),
   ],
   [
+    'reconciliação e webhook usam antecedência de sessenta dias',
+    read('pocketbase/hooks/ac_webhook.js').includes("newAgenda.set('antecedencia_dias', 60)") &&
+      read('pocketbase/hooks/com_ac_reconciliacao.js').includes(
+        "newAgenda.set('antecedencia_dias', 60)",
+      ),
+  ],
+  [
     'reativação cria novo negócio vinculado',
     hook.includes("set('negocio_original_id'") && hook.includes("set('negocio_novo_id'"),
   ],

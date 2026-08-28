@@ -252,8 +252,11 @@ routerAdd(
       )
       for (var ci = 0; ci < customRows.length; ci++) {
         if (String(customRows[ci].dealId || '') !== dealId) continue
-        var label = labels[String(customRows[ci].customFieldId)] || ''
-        if (label) customByLabel[label] = clean(customRows[ci].fieldValue, 500)
+        var fieldId = String(customRows[ci].customFieldId || '')
+        var fieldVal = clean(customRows[ci].fieldValue, 500)
+        if (fieldId) customByLabel['meta:' + fieldId] = fieldVal
+        var label = labels[fieldId] || ''
+        if (label) customByLabel[label] = fieldVal
       }
     } catch (fetchError) {
       return e.json(502, { error: 'CONSULTA_AC_FALHOU', detail: String(fetchError).slice(0, 120) })
@@ -334,7 +337,8 @@ routerAdd(
         source: customByLabel['Fonte de Prospecção'] || '',
         loss_reason: customByLabel['Motivo Perda'] || '',
         closed_at: terminalAt,
-        recovery_at: customByLabel['Data de Recuperação Comercial'] || '',
+        recovery_at:
+          customByLabel['meta:42'] || customByLabel['Data de Recuperação Comercial'] || '',
         prospect_cutoff_applied: canonicalStage === 'prospects',
       },
       {

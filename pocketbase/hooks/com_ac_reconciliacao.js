@@ -282,9 +282,11 @@ routerAdd(
           var customDealId = String(customRows[cr].dealId || '')
           if (!selectedDealIds[customDealId]) continue
           if (!customByDeal[customDealId]) customByDeal[customDealId] = {}
-          customByDeal[customDealId][fieldLabels[String(customRows[cr].customFieldId)]] = String(
-            customRows[cr].fieldValue || '',
-          ).trim()
+          var fieldId = String(customRows[cr].customFieldId || '')
+          var fieldVal = String(customRows[cr].fieldValue || '').trim()
+          if (fieldId) customByDeal[customDealId]['meta:' + fieldId] = fieldVal
+          var labelKey = fieldLabels[fieldId] || ''
+          if (labelKey) customByDeal[customDealId][labelKey] = fieldVal
         }
       }
       for (var a = 0; a < accounts.length; a++)
@@ -369,7 +371,8 @@ routerAdd(
             source: customFields['Fonte de Prospecção'] || '',
             loss_reason: customFields['Motivo Perda'] || '',
             closed_at: terminalAt,
-            recovery_at: customFields['Data de Recuperação Comercial'] || '',
+            recovery_at:
+              customFields['meta:42'] || customFields['Data de Recuperação Comercial'] || '',
             initial_load_scope:
               requestedMode === 'initial_open_negotiation' ? 'open_negotiation' : '',
           },
@@ -931,7 +934,7 @@ routerAdd(
               }
               if (existingAgenda) {
                 existingAgenda.set('data_alvo', recoveryDate)
-                existingAgenda.set('antecedencia_dias', 0)
+                existingAgenda.set('antecedencia_dias', 60)
                 existingAgenda.set('responsavel_id', recoveryResponsibleId)
                 existingAgenda.set('autor_id', recoveryResponsibleId)
                 existingAgenda.set('estado', 'ativa')
@@ -941,7 +944,7 @@ routerAdd(
                 var newAgenda = new Record(tx.findCollectionByNameOrId('com_recuperacao_agendas'))
                 newAgenda.set('negocio_perdido_id', target.id)
                 newAgenda.set('data_alvo', recoveryDate)
-                newAgenda.set('antecedencia_dias', 0)
+                newAgenda.set('antecedencia_dias', 60)
                 newAgenda.set('responsavel_id', recoveryResponsibleId)
                 newAgenda.set('autor_id', recoveryResponsibleId)
                 newAgenda.set('estado', 'ativa')

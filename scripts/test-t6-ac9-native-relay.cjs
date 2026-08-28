@@ -83,12 +83,32 @@ const checks = [
   ],
   [
     'relay e reconciliação transportam Data de Recuperação Comercial para agenda',
-    relay.includes("customByLabel['Data de Recuperação Comercial']") &&
-      reconciler.includes("customFields['Data de Recuperação Comercial']") &&
+    (relay.includes("customByLabel['meta:42']") ||
+      relay.includes("customByLabel['Data de Recuperação Comercial']")) &&
+      (reconciler.includes("customFields['meta:42']") ||
+        reconciler.includes("customFields['Data de Recuperação Comercial']")) &&
       webhook.includes("'com_recuperacao_agendas'") &&
       webhook.includes("'activecampaign:recovery:'") &&
       reconciler.includes("'com_recuperacao_agendas'") &&
       reconciler.includes("'activecampaign:recovery:'"),
+  ],
+  [
+    'recuperação comercial canônica pelo meta ID 42 com fallback de rótulo',
+    relay.includes("customByLabel['meta:42'] || customByLabel['Data de Recuperação Comercial']") &&
+      reconciler.includes(
+        "customFields['meta:42'] || customFields['Data de Recuperação Comercial']",
+      ),
+  ],
+  [
+    'agenda criada com antecedência canônica de 60 dias no webhook e reconciliação',
+    webhook.includes("existingAgenda.set('antecedencia_dias', 60)") &&
+      webhook.includes("newAgenda.set('antecedencia_dias', 60)") &&
+      !webhook.includes("existingAgenda.set('antecedencia_dias', 0)") &&
+      !webhook.includes("newAgenda.set('antecedencia_dias', 0)") &&
+      reconciler.includes("existingAgenda.set('antecedencia_dias', 60)") &&
+      reconciler.includes("newAgenda.set('antecedencia_dias', 60)") &&
+      !reconciler.includes("existingAgenda.set('antecedencia_dias', 0)") &&
+      !reconciler.includes("newAgenda.set('antecedencia_dias', 0)"),
   ],
   [
     'webhook preserva o valor inteiro em centavos',
