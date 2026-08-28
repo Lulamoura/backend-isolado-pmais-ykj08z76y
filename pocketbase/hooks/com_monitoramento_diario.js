@@ -100,7 +100,7 @@ routerAdd(
         responsavel: owner
           ? { id: owner.id, nome: owner.getString('name'), email: owner.getString('email') }
           : null,
-        valor: d.getFloat('valor'),
+        valor: Number(d.get('valor') || 0),
         modalidade: d.getString('modalidade') || null,
         etapa: d.getString('etapa') || null,
         fase_crm: d.getString('fase_crm') || null,
