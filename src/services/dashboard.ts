@@ -6,6 +6,7 @@ export interface DashboardResumoParams {
   equipe_id?: string
   responsavel_id?: string
   modalidade?: 'recorrente' | 'evento' | 'serv_eventual'
+  situacao?: 'negociacao' | 'ganhos' | 'perdidos' | 'aguardando_oe'
   incluir_inativos?: boolean
 }
 
@@ -73,6 +74,7 @@ export interface DashboardResumoResponse {
     equipe_id: string | null
     responsavel_id: string | null
     modalidade: string | null
+    situacao: string | null
     incluir_inativos: boolean
   }
   escopo: 'proprios' | 'equipe' | 'todos'
@@ -92,6 +94,7 @@ function toQueryParams(params: DashboardResumoParams): Record<string, string> {
   if (params.equipe_id !== undefined) query.equipe_id = params.equipe_id
   if (params.responsavel_id !== undefined) query.responsavel_id = params.responsavel_id
   if (params.modalidade !== undefined) query.modalidade = params.modalidade
+  if (params.situacao !== undefined) query.situacao = params.situacao
   if (params.incluir_inativos !== undefined) {
     query.incluir_inativos = String(params.incluir_inativos)
   }

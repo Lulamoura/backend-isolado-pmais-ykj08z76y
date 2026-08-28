@@ -18,7 +18,13 @@ const dashboardResponse = {
     data_civil: 'America/Recife',
     campo: 'created',
   },
-  filtros: { equipe_id: null, responsavel_id: null, modalidade: null, incluir_inativos: false },
+  filtros: {
+    equipe_id: null,
+    responsavel_id: null,
+    modalidade: null,
+    situacao: null,
+    incluir_inativos: false,
+  },
   escopo: 'todos',
   opcoes_filtro: {
     equipes: [{ id: 'team1', nome: 'Equipe Recife' }],
@@ -152,13 +158,15 @@ describe('Dashboard V1', () => {
     expect(useDashboardResumo).toHaveBeenLastCalledWith({ inicio: '2026-01-01', fim: '2026-06-30' })
   })
 
-  it('aplica e limpa filtros de equipe, responsável e negócios inativos', async () => {
+  it('aplica e limpa filtros de equipe, responsável, situação e negócios inativos', async () => {
     render(<Index />)
 
     fireEvent.click(await screen.findByRole('combobox', { name: 'Equipe' }))
     fireEvent.click(await screen.findByRole('option', { name: 'Equipe Recife' }))
     fireEvent.click(screen.getByRole('combobox', { name: 'Responsável' }))
     fireEvent.click(await screen.findByRole('option', { name: 'Bruno Inativo (inativo)' }))
+    fireEvent.click(screen.getByRole('combobox', { name: 'Situação' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Aguardando OE' }))
     fireEvent.click(screen.getByRole('switch', { name: 'Incluir negócios inativos' }))
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }))
 
@@ -167,6 +175,7 @@ describe('Dashboard V1', () => {
       fim: expect.any(String),
       equipe_id: 'team1',
       responsavel_id: 'user2',
+      situacao: 'aguardando_oe',
       incluir_inativos: true,
     })
 

@@ -269,10 +269,14 @@ export default function Index() {
     equipe_id: 'todos',
     responsavel_id: 'todos',
     modalidade: 'todas',
+    situacao: 'todos',
     incluir_inativos: false,
   })
   const [filters, setFilters] = useState<
-    Pick<DashboardResumoParams, 'equipe_id' | 'responsavel_id' | 'modalidade' | 'incluir_inativos'>
+    Pick<
+      DashboardResumoParams,
+      'equipe_id' | 'responsavel_id' | 'modalidade' | 'situacao' | 'incluir_inativos'
+    >
   >({})
   const [filterOptions, setFilterOptions] = useState({
     equipes: [] as Array<{ id: string; nome: string }>,
@@ -310,6 +314,11 @@ export default function Index() {
         : {
             modalidade: draftFilters.modalidade as 'recorrente' | 'evento' | 'serv_eventual',
           }),
+      ...(draftFilters.situacao === 'todos'
+        ? {}
+        : {
+            situacao: draftFilters.situacao as NonNullable<DashboardResumoParams['situacao']>,
+          }),
       ...(draftFilters.incluir_inativos ? { incluir_inativos: true } : {}),
     })
   }
@@ -319,6 +328,7 @@ export default function Index() {
       equipe_id: 'todos',
       responsavel_id: 'todos',
       modalidade: 'todas',
+      situacao: 'todos',
       incluir_inativos: false,
     })
     setFilters({})
@@ -415,13 +425,14 @@ export default function Index() {
             </CardTitle>
           </div>
           <p className="text-xs text-slate-500">
-            Refine os indicadores por equipe, responsável, modalidade e situação cadastral.
+            Refine os indicadores por equipe, responsável, modalidade, situação comercial e
+            cadastro.
           </p>
         </CardHeader>
         <CardContent>
           <form
             onSubmit={applyFilters}
-            className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_0.8fr_auto_auto] xl:items-end"
+            className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 xl:items-end"
           >
             <div className="space-y-1.5">
               <Label htmlFor="dashboard-equipe">Equipe</Label>
@@ -484,6 +495,27 @@ export default function Index() {
                       {responsavel.ativo ? '' : ' (inativo)'}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="dashboard-situacao">Situação</Label>
+              <Select
+                value={draftFilters.situacao}
+                onValueChange={(value) =>
+                  setDraftFilters((current) => ({ ...current, situacao: value }))
+                }
+              >
+                <SelectTrigger id="dashboard-situacao" aria-label="Situação">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="negociacao">Negociação</SelectItem>
+                  <SelectItem value="ganhos">Ganhos</SelectItem>
+                  <SelectItem value="perdidos">Perdidos</SelectItem>
+                  <SelectItem value="aguardando_oe">Aguardando OE</SelectItem>
                 </SelectContent>
               </Select>
             </div>
