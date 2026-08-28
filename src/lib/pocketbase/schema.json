@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T08:15:58.348Z",
+  "generatedAt": "2026-08-28T08:22:18.579Z",
   "collections": [
     {
       "name": "users",
@@ -29,19 +29,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "perfil_id",
@@ -109,19 +104,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -169,19 +159,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -235,19 +220,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -285,30 +265,21 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "proprios",
-            "equipe",
-            "todos"
-          ]
+          "selectValues": ["proprios", "equipe", "todos"]
         },
         {
           "name": "created",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -353,30 +324,21 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "proprios",
-            "equipe",
-            "todos"
-          ]
+          "selectValues": ["proprios", "equipe", "todos"]
         },
         {
           "name": "created",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "ativo",
@@ -450,19 +412,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "tipo",
@@ -559,11 +516,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "ativo",
-            "inativo",
-            "prospecto"
-          ]
+          "selectValues": ["ativo", "inativo", "prospecto"]
         },
         {
           "name": "equipe_id",
@@ -602,19 +555,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -679,41 +627,28 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "etapa",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "prospects",
-            "producao_proposta",
-            "negociacao"
-          ]
+          "selectValues": ["prospects", "producao_proposta", "negociacao"]
         },
         {
           "name": "resultado",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "ganho",
-            "perdido",
-            "desqualificado"
-          ]
+          "selectValues": ["ganho", "perdido", "desqualificado"]
         },
         {
           "name": "inativo",
@@ -726,10 +661,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "ganho",
-            "perdido"
-          ]
+          "selectValues": ["ganho", "perdido"]
         },
         {
           "name": "contato_principal_id",
@@ -743,21 +675,14 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "pendente",
-            "pre_qualificada"
-          ]
+          "selectValues": ["pendente", "pre_qualificada"]
         },
         {
           "name": "qualificacao",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "pendente",
-            "qualificada",
-            "desqualificada"
-          ]
+          "selectValues": ["pendente", "qualificada", "desqualificada"]
         },
         {
           "name": "origem_canal",
@@ -834,11 +759,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "recorrente",
-            "evento",
-            "serv_eventual"
-          ]
+          "selectValues": ["recorrente", "evento", "serv_eventual"]
         },
         {
           "name": "necessidade",
@@ -987,41 +908,28 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "etapa_anterior",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "prospects",
-            "producao_proposta",
-            "negociacao"
-          ]
+          "selectValues": ["prospects", "producao_proposta", "negociacao"]
         },
         {
           "name": "etapa_novo",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "prospects",
-            "producao_proposta",
-            "negociacao"
-          ]
+          "selectValues": ["prospects", "producao_proposta", "negociacao"]
         }
       ],
       "indexes": [
@@ -1064,12 +972,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "create",
-            "update",
-            "inactivate",
-            "delete"
-          ]
+          "selectValues": ["create", "update", "inactivate", "delete"]
         },
         {
           "name": "valor_anterior",
@@ -1100,19 +1003,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "perfil",
@@ -1296,19 +1194,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -1363,19 +1256,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -1447,19 +1335,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -1526,19 +1409,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -1580,19 +1458,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "external_type",
@@ -1664,19 +1537,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -1730,19 +1598,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "idempotency_key",
@@ -1792,19 +1655,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -1859,19 +1717,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -1967,19 +1820,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "allowed_internal_calls",
@@ -2124,19 +1972,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "resposta_truncated",
@@ -2241,12 +2084,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "executando",
-            "concluido",
-            "rejeitado",
-            "abandonado"
-          ]
+          "selectValues": ["executando", "concluido", "rejeitado", "abandonado"]
         },
         {
           "name": "codigo_retorno",
@@ -2307,19 +2145,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -2358,32 +2191,21 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "pendente",
-            "qualificada",
-            "desqualificada"
-          ]
+          "selectValues": ["pendente", "qualificada", "desqualificada"]
         },
         {
           "name": "estado_novo",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "pendente",
-            "qualificada",
-            "desqualificada"
-          ]
+          "selectValues": ["pendente", "qualificada", "desqualificada"]
         },
         {
           "name": "tipo_entrada",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "pendente",
-            "pre_qualificada"
-          ]
+          "selectValues": ["pendente", "pre_qualificada"]
         },
         {
           "name": "motivo",
@@ -2429,19 +2251,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -2488,30 +2305,21 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "ativa",
-            "arquivada",
-            "cancelada"
-          ]
+          "selectValues": ["ativa", "arquivada", "cancelada"]
         },
         {
           "name": "created",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -2547,24 +2355,14 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "rascunho",
-            "enviada",
-            "aceita",
-            "recusada",
-            "cancelada"
-          ]
+          "selectValues": ["rascunho", "enviada", "aceita", "recusada", "cancelada"]
         },
         {
           "name": "modalidade",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "recorrente",
-            "evento",
-            "serv_eventual"
-          ]
+          "selectValues": ["recorrente", "evento", "serv_eventual"]
         },
         {
           "name": "valor_total_centavos",
@@ -2595,12 +2393,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "email",
-            "provelo",
-            "whatsapp",
-            "presencial"
-          ]
+          "selectValues": ["email", "provelo", "whatsapp", "presencial"]
         },
         {
           "name": "validade",
@@ -2632,11 +2425,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "nao_rastreavel",
-            "nao_lida",
-            "lida"
-          ]
+          "selectValues": ["nao_rastreavel", "nao_lida", "lida"]
         },
         {
           "name": "primeira_leitura_em",
@@ -2680,19 +2469,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -2762,24 +2546,14 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "telefone",
-            "email",
-            "whatsapp",
-            "presencial",
-            "video"
-          ]
+          "selectValues": ["telefone", "email", "whatsapp", "presencial", "video"]
         },
         {
           "name": "estado",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "planejada",
-            "realizada",
-            "cancelada"
-          ]
+          "selectValues": ["planejada", "realizada", "cancelada"]
         },
         {
           "name": "planejada_para",
@@ -2823,19 +2597,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "atividade_origem_id",
@@ -2900,12 +2669,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "ativa",
-            "concluida_por_reativacao",
-            "adiada",
-            "descartada"
-          ]
+          "selectValues": ["ativa", "concluida_por_reativacao", "adiada", "descartada"]
         },
         {
           "name": "motivo_adiamento_descarte",
@@ -2938,19 +2702,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "agenda_origem_id",
@@ -3016,10 +2775,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "integral",
-            "por_negocios"
-          ]
+          "selectValues": ["integral", "por_negocios"]
         },
         {
           "name": "negocios_cobertos",
@@ -3033,11 +2789,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "ferias",
-            "licenca",
-            "falta"
-          ]
+          "selectValues": ["ferias", "licenca", "falta"]
         },
         {
           "name": "observacao",
@@ -3075,19 +2827,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -3132,19 +2879,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
