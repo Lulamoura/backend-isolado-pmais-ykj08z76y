@@ -162,6 +162,36 @@
             return null
           }
         }
+        function acompanhamento() {
+          var reagendamento = null,
+            nota = null
+          try {
+            reagendamento = app.findRecordsByFilter(
+              'com_negocio_historico',
+              "negocio_id='" + negocio.id + "' && origem_alteracao='activecampaign_data_acao'",
+              '-reagendada_em,-created',
+              1,
+              0,
+            )[0]
+          } catch (_) {}
+          try {
+            nota = app.findRecordsByFilter(
+              'com_notas_negocio',
+              "negocio_id='" + negocio.id + "'",
+              '-criada_em,-id',
+              1,
+              0,
+            )[0]
+          } catch (_) {}
+          var reagendadaEm = reagendamento ? reagendamento.getString('reagendada_em') : ''
+          var ultimaNotaEm = nota ? nota.getString('criada_em') : ''
+          return {
+            follow_up_pendente:
+              !!reagendadaEm && (!ultimaNotaEm || new Date(ultimaNotaEm) <= new Date(reagendadaEm)),
+            proxima_acao_reagendada_em: reagendadaEm || null,
+            ultima_nota_em: ultimaNotaEm || null,
+          }
+        }
         var somenteLeitura = false
         // O ID externo é referência operacional obrigatória nos cards do pipeline.
         var externalId = null
@@ -183,6 +213,7 @@
           )
           somenteLeitura = parametro.getBool('ativo') && parametro.getString('valor') === 'true'
         } catch (_) {}
+        var followUp = acompanhamento()
         return {
           external_id: externalId,
           empresa: relacionado('com_empresas', negocio.getString('empresa_id'), ['nome']),
@@ -197,6 +228,9 @@
           fase_crm: negocio.getString('fase_crm') || null,
           fonte_prospeccao: negocio.getString('fonte_prospeccao') || null,
           proxima_acao_em: negocio.getString('proxima_acao_em') || null,
+          follow_up_pendente: followUp.follow_up_pendente,
+          proxima_acao_reagendada_em: followUp.proxima_acao_reagendada_em,
+          ultima_nota_em: followUp.ultima_nota_em,
           crm_created_at: negocio.getString('crm_created_at') || null,
           crm_updated_at: negocio.getString('crm_updated_at') || null,
           origem_canal: negocio.getString('origem_canal') || null,

@@ -775,6 +775,10 @@ routerAdd(
               )
             var dealStatus = String(ev.data.status)
             var previousStage = target.getString('etapa')
+            var previousNextAction = target.getString('proxima_acao_em')
+            var nextAction = String(ev.data.next_action_at || '')
+              .trim()
+              .slice(0, 80)
             if (dealStatus !== '0' && dealStatus !== '1' && dealStatus !== '2')
               throw new Error('STATUS_AC_INVALIDO')
             target.set('titulo', ev.data.title || 'Negocio importado')
@@ -785,7 +789,21 @@ routerAdd(
             target.set('origem_canal', 'activecampaign')
             target.set('crm_created_at', ev.data.crm_created_at || '')
             target.set('crm_updated_at', ev.data.crm_updated_at || '')
-            target.set('proxima_acao_em', ev.data.next_action_at || '')
+            if (binding && previousNextAction && nextAction && previousNextAction !== nextAction) {
+              var actionHistory = new Record(tx.findCollectionByNameOrId('com_negocio_historico'))
+              actionHistory.set('negocio_id', target.id)
+              actionHistory.set('justificativa', 'Data da Acao reagendada no ActiveCampaign')
+              actionHistory.set('origem_alteracao', 'activecampaign_data_acao')
+              actionHistory.set('data_acao_anterior', previousNextAction)
+              actionHistory.set('data_acao_nova', nextAction)
+              actionHistory.set(
+                'reagendada_em',
+                ev.data.crm_updated_at || ev.occurred_at || new Date().toISOString(),
+              )
+              actionHistory.set('reagendamento_external_id', ev.event_id + ':next_action')
+              tx.save(actionHistory)
+            }
+            target.set('proxima_acao_em', nextAction)
             target.set(
               'fase_crm',
               String(ev.data.phase || '')

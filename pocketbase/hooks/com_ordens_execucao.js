@@ -58,6 +58,36 @@
           return null
         }
       }
+      function acompanhamento(negocio) {
+        var reagendamento = null,
+          nota = null
+        try {
+          reagendamento = $app.findRecordsByFilter(
+            'com_negocio_historico',
+            "negocio_id='" + negocio.id + "' && origem_alteracao='activecampaign_data_acao'",
+            '-reagendada_em,-created',
+            1,
+            0,
+          )[0]
+        } catch (_) {}
+        try {
+          nota = $app.findRecordsByFilter(
+            'com_notas_negocio',
+            "negocio_id='" + negocio.id + "'",
+            '-criada_em,-id',
+            1,
+            0,
+          )[0]
+        } catch (_) {}
+        var reagendadaEm = reagendamento ? reagendamento.getString('reagendada_em') : ''
+        var ultimaNotaEm = nota ? nota.getString('criada_em') : ''
+        return {
+          follow_up_pendente:
+            !!reagendadaEm && (!ultimaNotaEm || new Date(ultimaNotaEm) <= new Date(reagendadaEm)),
+          proxima_acao_reagendada_em: reagendadaEm || null,
+          ultima_nota_em: ultimaNotaEm || null,
+        }
+      }
       var ator = e.auth
       if (!ator || !ator.getBool('ativo_comercial'))
         return e.forbiddenError('Usuario comercial necessario')
@@ -91,6 +121,7 @@
           var usuario = $app.findRecordById('users', negocio.getString('oe_responsavel_envio_id'))
           responsavelEnvio = { id: usuario.id, name: usuario.getString('name') }
         } catch (_) {}
+        var followUp = acompanhamento(negocio)
         itens.push({
           negocio: {
             id: negocio.id,
@@ -120,6 +151,9 @@
             crm_created_at: negocio.getString('crm_created_at') || null,
             crm_updated_at: negocio.getString('crm_updated_at') || null,
             proxima_acao_em: negocio.getString('proxima_acao_em') || null,
+            follow_up_pendente: followUp.follow_up_pendente,
+            proxima_acao_reagendada_em: followUp.proxima_acao_reagendada_em,
+            ultima_nota_em: followUp.ultima_nota_em,
             fonte_prospeccao: negocio.getString('fonte_prospeccao') || null,
             origem_canal: negocio.getString('origem_canal') || null,
             somente_leitura: perfil === 'leitura-executiva',
