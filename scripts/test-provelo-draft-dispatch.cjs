@@ -70,6 +70,13 @@ const checks = [
       adminHook.includes("findFirstRecordByData('com_integracao_provelo'") &&
       adminHook.includes("profile !== 'superadministrador'"),
   ],
+  [
+    'alteração administrativa é atômica e usa o schema canônico de auditoria',
+    adminHook.includes('$app.runInTransaction(function (tx)') &&
+      adminHook.includes("audit.set('acao', 'update')") &&
+      adminHook.includes("audit.set('usuario_id', e.auth.id)") &&
+      !adminHook.includes("audit.set('ator_id'"),
+  ],
 ]
 
 let passed = 0
