@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T22:34:26.670Z",
+  "generatedAt": "2026-08-30T20:00:17.877Z",
   "collections": [
     {
       "name": "users",
@@ -2984,6 +2984,74 @@
         "CREATE UNIQUE INDEX idx_com_notas_negocio_external ON com_notas_negocio (external_id)",
         "CREATE INDEX idx_com_notas_negocio_negocio_data ON com_notas_negocio (negocio_id, criada_em)"
       ]
+    },
+    {
+      "name": "com_integracao_provelo",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "provedor",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "endpoint",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "endpoint_hash",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "habilitada",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultima_alteracao_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultima_alteracao_por",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultimo_sucesso_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultima_falha_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultimo_incerto_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": []
     }
   ]
 }
