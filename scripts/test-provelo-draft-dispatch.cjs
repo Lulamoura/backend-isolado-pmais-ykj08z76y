@@ -7,6 +7,10 @@ const migration = fs.readFileSync(
   path.join(root, 'pocketbase/migrations/202608301900_provelo_integration_config.js'),
   'utf8',
 )
+const adminHook = fs.readFileSync(
+  path.join(root, 'pocketbase/hooks/provelo_integration_admin.js'),
+  'utf8',
+)
 const dispatchBlock = relay.slice(
   relay.indexOf('var dispatch = new Record'),
   relay.indexOf('var body', relay.indexOf('var dispatch = new Record')),
@@ -59,6 +63,12 @@ const checks = [
   [
     'logs persistidos não incluem email, vendedor, valor ou URL',
     !/(contactEmail|ownerCode|webhookUrl|ValorServico)/.test(dispatchBlock),
+  ],
+  [
+    'hook administrativo não depende de declarações de topo no JSVM',
+    !/^function\s+provelo/m.test(adminHook) &&
+      adminHook.includes("findFirstRecordByData('com_integracao_provelo'") &&
+      adminHook.includes("profile !== 'superadministrador'"),
   ],
 ]
 

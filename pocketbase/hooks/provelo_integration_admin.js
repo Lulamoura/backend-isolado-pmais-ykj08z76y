@@ -1,38 +1,24 @@
-function proveloProfile(app, user) {
-  try {
-    return app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
-  } catch (_) {
-    return ''
-  }
-}
-function proveloConfig(app) {
-  return app.findFirstRecordByData('com_integracao_provelo', 'provedor', 'make-provelo')
-}
-function proveloStatus(record) {
-  return {
-    provider: 'Make/Provelo',
-    enabled: record.getBool('habilitada'),
-    configured: !!record.getString('endpoint'),
-    fingerprint: record.getString('endpoint_hash').slice(0, 12),
-    updated_at: record.getString('ultima_alteracao_em') || null,
-    last_success_at: record.getString('ultimo_sucesso_em') || null,
-    last_failure_at: record.getString('ultima_falha_em') || null,
-    last_uncertain_at: record.getString('ultimo_incerto_em') || null,
-  }
-}
-function requireProveloAdmin(e) {
-  return (
-    e.auth &&
-    e.auth.getBool('ativo_comercial') &&
-    proveloProfile($app, e.auth) === 'superadministrador'
-  )
-}
 routerAdd(
   'GET',
   '/backend/v1/integracao/provelo/configuracao',
   function (e) {
-    if (!requireProveloAdmin(e)) return e.forbiddenError('SuperAdmin necessario')
-    return e.json(200, proveloStatus(proveloConfig($app)))
+    var profile = ''
+    try {
+      profile = $app.findRecordById('com_perfis', e.auth.getString('perfil_id')).getString('slug')
+    } catch (_) {}
+    if (!e.auth.getBool('ativo_comercial') || profile !== 'superadministrador')
+      return e.forbiddenError('SuperAdmin necessario')
+    var record = $app.findFirstRecordByData('com_integracao_provelo', 'provedor', 'make-provelo')
+    return e.json(200, {
+      provider: 'Make/Provelo',
+      enabled: record.getBool('habilitada'),
+      configured: !!record.getString('endpoint'),
+      fingerprint: record.getString('endpoint_hash').slice(0, 12),
+      updated_at: record.getString('ultima_alteracao_em') || null,
+      last_success_at: record.getString('ultimo_sucesso_em') || null,
+      last_failure_at: record.getString('ultima_falha_em') || null,
+      last_uncertain_at: record.getString('ultimo_incerto_em') || null,
+    })
   },
   $apis.requireAuth('users'),
 )
@@ -41,7 +27,12 @@ routerAdd(
   'POST',
   '/backend/v1/integracao/provelo/configuracao',
   function (e) {
-    if (!requireProveloAdmin(e)) return e.forbiddenError('SuperAdmin necessario')
+    var profile = ''
+    try {
+      profile = $app.findRecordById('com_perfis', e.auth.getString('perfil_id')).getString('slug')
+    } catch (_) {}
+    if (!e.auth.getBool('ativo_comercial') || profile !== 'superadministrador')
+      return e.forbiddenError('SuperAdmin necessario')
     var body
     try {
       body = JSON.parse(toString(e.request.body))
@@ -50,7 +41,7 @@ routerAdd(
     }
     var action = String(body.action || ''),
       confirmation = String(body.confirmation || '')
-    var record = proveloConfig($app)
+    var record = $app.findFirstRecordByData('com_integracao_provelo', 'provedor', 'make-provelo')
     if (action === 'replace_url') {
       var endpoint = String(body.url || '').trim()
       if (confirmation !== 'SUBSTITUIR URL PROVELO')
@@ -80,7 +71,16 @@ routerAdd(
     audit.set('escopo', 'integracao')
     audit.set('snapshot_hash', $security.sha256(action + '|' + record.getString('endpoint_hash')))
     $app.save(audit)
-    return e.json(200, proveloStatus(record))
+    return e.json(200, {
+      provider: 'Make/Provelo',
+      enabled: record.getBool('habilitada'),
+      configured: !!record.getString('endpoint'),
+      fingerprint: record.getString('endpoint_hash').slice(0, 12),
+      updated_at: record.getString('ultima_alteracao_em') || null,
+      last_success_at: record.getString('ultimo_sucesso_em') || null,
+      last_failure_at: record.getString('ultima_falha_em') || null,
+      last_uncertain_at: record.getString('ultimo_incerto_em') || null,
+    })
   },
   $apis.requireAuth('users'),
 )
