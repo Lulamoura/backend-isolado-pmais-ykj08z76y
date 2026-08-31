@@ -70,7 +70,13 @@ function scenario(options = {}) {
       const draft = events.find((item) => item.getString('evento_tipo') === 'draft_requested')
       assert.equal(draft && draft.getString('status'), 'pending', 'pending must precede HTTP')
       if (options.timeout) throw new Error('timeout')
-      return { statusCode: options.statusCode || 200 }
+      return {
+        statusCode: options.statusCode || 200,
+        json:
+          options.responseJson === undefined
+            ? { success: true, ProveloID: 'synthetic-provelo-id' }
+            : options.responseJson,
+      }
     },
   }
   const sandbox = {
@@ -167,6 +173,15 @@ assert.equal(failure.result.accepted, false)
 assert.equal(failure.result.uncertain, false)
 assert.equal(findEvent(failure, 'draft_requested').getString('status'), 'failed')
 
+const missingAck = scenario({ enabled: true, responseJson: {} })
+assert.equal(missingAck.result.accepted, false)
+assert.equal(missingAck.result.uncertain, true)
+assert.equal(findEvent(missingAck, 'draft_requested').getString('status'), 'uncertain')
+assert.equal(
+  JSON.parse(findEvent(missingAck, 'draft_requested').getString('payload')).result,
+  'ack_missing',
+)
+
 const uncertain = scenario({ enabled: true, timeout: true })
 assert.equal(uncertain.result.accepted, false)
 assert.equal(uncertain.result.uncertain, true)
@@ -176,7 +191,7 @@ assert.equal(
   'timeout',
 )
 
-for (const state of [gateOff, replay, success, failure, uncertain]) {
+for (const state of [gateOff, replay, success, failure, missingAck, uncertain]) {
   for (const event of state.events) {
     const payload = event.getString('payload')
     assert.ok(!payload.includes('synthetic@example.invalid'))
@@ -185,4 +200,4 @@ for (const state of [gateOff, replay, success, failure, uncertain]) {
   }
 }
 
-console.log('PASS Provelo dispatcher behavioral scenarios 12/12')
+console.log('PASS Provelo dispatcher behavioral scenarios 13/13')

@@ -64,6 +64,12 @@ const checks = [
       !relay.includes('PROVELO_RETRY'),
   ],
   [
+    'HTTP 2xx sem confirmação explícita permanece incerto',
+    relay.includes('responseJson.success !== true || !confirmedProveloId') &&
+      relay.includes("result: 'ack_missing'") &&
+      relay.includes('responseJson.ProveloID || responseJson.provelo_id || responseJson.id'),
+  ],
+  [
     'decisões sem tentativa são auditadas sem dados pessoais',
     relay.includes("event.set('evento_tipo', 'draft_skipped')") &&
       relay.includes("event.set('status', 'processed')") &&
