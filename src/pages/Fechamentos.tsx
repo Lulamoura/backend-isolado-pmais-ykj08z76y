@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Ban, ExternalLink, RefreshCw, Trophy, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSearchParams } from 'react-router-dom'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -43,6 +44,8 @@ const motivos: Array<{ value: MotivoPerda; label: string }> = [
 ]
 
 export default function Fechamentos() {
+  const [searchParams] = useSearchParams()
+  const somenteRecuperacoes = searchParams.get('recuperacao') === 'acionavel'
   const { perfilSlug } = useIsSuperAdmin()
   const somenteLeituraPerfil = perfilSlug === 'leitura-executiva'
   const [itens, setItens] = useState<ItemFechamento[]>([])
@@ -62,13 +65,13 @@ export default function Fechamentos() {
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
-      setItens((await listarFechamentos()).itens)
+      setItens((await listarFechamentos(somenteRecuperacoes ? 'acionavel' : 'todas')).itens)
     } catch (_) {
       toast.error('Não foi possível carregar os fechamentos.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [somenteRecuperacoes])
   useEffect(() => void carregar(), [carregar])
   const itensVisiveis = useMemo(
     () =>
@@ -139,8 +142,14 @@ export default function Fechamentos() {
     <div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Ganho, perda e reativação</h1>
-          <p className="text-sm text-slate-500">Decisões terminais e recuperação auditáveis</p>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {somenteRecuperacoes ? 'Oportunidades para Recuperar' : 'Ganho, perda e reativação'}
+          </h1>
+          <p className="text-sm text-slate-500">
+            {somenteRecuperacoes
+              ? 'Perdas com Data de Recuperação Comercial vencida ou prevista para hoje'
+              : 'Decisões terminais e recuperação auditáveis'}
+          </p>
         </div>
         <Button variant="outline" onClick={() => void carregar()} disabled={loading}>
           <RefreshCw className="mr-2 h-4 w-4" /> Atualizar

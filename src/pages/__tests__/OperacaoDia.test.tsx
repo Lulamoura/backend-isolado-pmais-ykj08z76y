@@ -46,7 +46,9 @@ describe('Operação do Dia', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByText('1 sem ação · 1 vencida(s)')).toBeInTheDocument()
+    expect(await screen.findByText('1 sem data · 1 vencida(s) · 1 hoje')).toBeInTheDocument()
+    expect(listarFilaAtividades).toHaveBeenCalledWith('todas', 'dia')
+    expect(listarFechamentos).toHaveBeenCalledWith('acionavel')
     expect(screen.getByText('1 vencido(s) · 1 em alerta · prazo da etapa')).toBeInTheDocument()
     expect(listarSlas).toHaveBeenCalledWith('atencao')
     expect(screen.getByText('Leitura de propostas: Não rastreável')).toBeInTheDocument()
@@ -62,7 +64,7 @@ describe('Operação do Dia', () => {
     )
 
     expect(await screen.findByText('Resumo parcialmente disponível')).toBeInTheDocument()
-    expect(screen.getByText('1 sem ação · 1 vencida(s)')).toBeInTheDocument()
+    expect(screen.getByText('1 sem data · 1 vencida(s) · 1 hoje')).toBeInTheDocument()
   })
 
   it('não consulta nem apresenta ordens de execução ao perfil de negociação própria', async () => {
@@ -73,7 +75,7 @@ describe('Operação do Dia', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByText('1 sem ação · 1 vencida(s)')).toBeInTheDocument()
+    expect(await screen.findByText('1 sem data · 1 vencida(s) · 1 hoje')).toBeInTheDocument()
     expect(listarOrdensExecucao).not.toHaveBeenCalled()
     expect(screen.queryByText('Ganhos aguardando OE')).not.toBeInTheDocument()
   })

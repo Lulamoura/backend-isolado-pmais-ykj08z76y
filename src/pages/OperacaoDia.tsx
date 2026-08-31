@@ -21,6 +21,7 @@ import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 type OperationSummary = {
   semProximaAcao: number
   acoesVencidas: number
+  acoesHoje: number
   slasVencidos: number
   slasAlerta: number
   aguardandoOe: number
@@ -30,6 +31,7 @@ type OperationSummary = {
 const EMPTY: OperationSummary = {
   semProximaAcao: 0,
   acoesVencidas: 0,
+  acoesHoje: 0,
   slasVencidos: 0,
   slasAlerta: 0,
   aguardandoOe: 0,
@@ -47,12 +49,12 @@ export default function OperacaoDia() {
     let active = true
     setLoading(true)
     Promise.allSettled([
-      listarFilaAtividades('todas'),
+      listarFilaAtividades('todas', 'dia'),
       listarSlas('atencao'),
       perfilSlug === 'negociacao-propria'
         ? Promise.resolve({ itens: [], responsaveis_envio: [] })
         : listarOrdensExecucao(),
-      listarFechamentos(),
+      listarFechamentos('acionavel'),
     ]).then((results) => {
       if (!active) return
       const [activities, slas, orders, closings] = results
@@ -65,6 +67,10 @@ export default function OperacaoDia() {
         acoesVencidas:
           activities.status === 'fulfilled'
             ? activities.value.itens.filter((item) => item.situacao === 'vencida').length
+            : 0,
+        acoesHoje:
+          activities.status === 'fulfilled'
+            ? activities.value.itens.filter((item) => item.situacao === 'programada').length
             : 0,
         slasVencidos:
           slas.status === 'fulfilled'
@@ -93,10 +99,10 @@ export default function OperacaoDia() {
 
   const cards = [
     {
-      title: 'Próximas ações',
-      value: summary.semProximaAcao + summary.acoesVencidas,
-      detail: `${summary.semProximaAcao} sem ação · ${summary.acoesVencidas} vencida(s)`,
-      path: '/atividades',
+      title: 'Ações do Dia',
+      value: summary.semProximaAcao + summary.acoesVencidas + summary.acoesHoje,
+      detail: `${summary.semProximaAcao} sem data · ${summary.acoesVencidas} vencida(s) · ${summary.acoesHoje} hoje`,
+      path: '/atividades?escopo=dia',
       icon: CalendarClock,
       tone: 'text-rose-700 bg-rose-50',
     },
@@ -120,7 +126,7 @@ export default function OperacaoDia() {
       title: 'Oportunidades para recuperar',
       value: summary.recuperacoes,
       detail: 'Agendas de recuperação ativas',
-      path: '/fechamentos',
+      path: '/fechamentos?recuperacao=acionavel',
       icon: Trophy,
       tone: 'text-emerald-700 bg-emerald-50',
     },

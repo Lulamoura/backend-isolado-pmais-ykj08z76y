@@ -47,9 +47,10 @@ export interface ItemFechamento {
   }
 }
 
-export const listarFechamentos = () =>
+export const listarFechamentos = (recuperacao: 'todas' | 'acionavel' = 'todas') =>
   pb.send<{ itens: ItemFechamento[] }>('/backend/v1/fechamentos/fila', {
     method: 'GET',
+    query: { recuperacao },
   })
 
 export const decidirFechamento = (body: Record<string, unknown>) =>

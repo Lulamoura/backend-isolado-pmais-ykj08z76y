@@ -21,6 +21,7 @@
     "test:t6ac8r": "node scripts/test-t6-ac-contract.cjs && node scripts/test-t6-ac-reconciliation-core.cjs && node scripts/test-t6-ac8r-preload.cjs && node scripts/test-t6-ac-recuperacao.cjs",
     "test:t6ac9": "node scripts/test-t6-ac9-native-relay.cjs && node scripts/test-t6-ac-recuperacao.cjs",
     "test:provelo": "node scripts/test-provelo-draft-dispatch.cjs",
+    "test:operacao-dia": "node scripts/test-operacao-dia-recovery-contract.cjs",
     "test:notas": "node scripts/test-notas-negocio-contract.cjs"
   },
   "dependencies": {

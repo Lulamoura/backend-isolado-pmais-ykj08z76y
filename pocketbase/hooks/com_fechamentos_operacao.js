@@ -51,6 +51,9 @@
         }
         return total
       }
+      function hojeRecife() {
+        return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      }
       function fechamentoContexto(negocio) {
         function relacionado(collection, id, fields) {
           if (!id) return null
@@ -148,9 +151,21 @@
       var ator = e.auth
       if (!ator || !ator.getBool('ativo_comercial'))
         return e.forbiddenError('Usuario comercial necessario')
+      var recuperacao = String(e.requestInfo().query.recuperacao || 'todas')
+      if (['todas', 'acionavel'].indexOf(recuperacao) === -1)
+        return e.json(400, { error: 'VALIDATION' })
+      var hoje = hojeRecife()
       var perfil = fechamentoPerfil(ator),
         itens = []
-      var negocios = $app.findRecordsByFilter('com_negocios', 'inativo = false', '-updated', 100, 0)
+      var filtroNegocios =
+        recuperacao === 'acionavel' ? "inativo = false && resultado = 'perdido'" : 'inativo = false'
+      var negocios = $app.findRecordsByFilter(
+        'com_negocios',
+        filtroNegocios,
+        '-updated',
+        recuperacao === 'acionavel' ? 5000 : 100,
+        0,
+      )
       for (var i = 0; i < negocios.length; i++) {
         var n = negocios[i]
         if (!fechamentoPodeAcessar(ator, perfil, n)) continue
@@ -194,6 +209,11 @@
             "negocio_perdido_id='" + n.id + "' && estado='ativa'",
           )
         } catch (_) {}
+        if (recuperacao === 'acionavel') {
+          if (n.getString('resultado') !== 'perdido' || !agenda) continue
+          var dataRecuperacao = String(agenda.getString('data_alvo') || '').slice(0, 10)
+          if (!dataRecuperacao || dataRecuperacao > hoje) continue
+        }
         var janela =
           tentativas.length > 1
             ? diasUteisEntre(
@@ -234,6 +254,17 @@
                 estado: agenda.getString('estado'),
               }
             : null,
+        })
+      }
+      if (recuperacao === 'acionavel') {
+        itens.sort(function (a, b) {
+          var dataA = String((a.agenda && a.agenda.data_alvo) || '').slice(0, 10)
+          var dataB = String((b.agenda && b.agenda.data_alvo) || '').slice(0, 10)
+          if (dataA !== dataB) return dataA < dataB ? -1 : 1
+          var responsavelA = String(a.negocio.responsavel_id || '')
+          var responsavelB = String(b.negocio.responsavel_id || '')
+          if (responsavelA !== responsavelB) return responsavelA.localeCompare(responsavelB)
+          return String(a.negocio.id).localeCompare(String(b.negocio.id))
         })
       }
       return e.json(200, { itens: itens })
