@@ -3,6 +3,7 @@ routerAdd(
   "POST",
   "/backend/v1/integracao/provelo/transport-probe",
   function (e) {
+    var PROBE_VERSION = "2026-08-31-transport-probe-r1";
     var profile = "";
     try {
       profile = $app
@@ -49,6 +50,7 @@ routerAdd(
 
     return e.json(200, {
       executed: true,
+      probe_version: PROBE_VERSION,
       status: response.statusCode,
       request_body_sha256: $security.sha256(body),
       request_body_length: body.length,
