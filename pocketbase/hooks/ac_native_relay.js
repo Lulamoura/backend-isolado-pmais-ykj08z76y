@@ -555,6 +555,8 @@ routerAdd(
     return e.json(200, {
       relay: 'ac-native-relay-v1',
       contract_version: '2026-08-31-r3.2',
+      pipeline_aliases_version: '2026-08-31-r1',
+      accepted_pipeline_names: ['Proposta Qualificada', 'Propostas Qualificadas'],
       provelo_dispatcher: true,
       skip_audit: true,
       terminal_states: ['processed', 'failed', 'uncertain'],
