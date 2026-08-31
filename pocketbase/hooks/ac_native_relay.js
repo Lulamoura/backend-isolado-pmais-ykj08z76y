@@ -84,26 +84,50 @@ routerAdd(
       groups.unshift(integer || '0')
       return (cents < 0 ? '-' : '') + groups.join('.') + ',' + decimal
     }
+    function recordProveloSkip(deal, reason) {
+      var sourceVersion = clean(deal.mdate || deal.cdate, 80) || new Date(0).toISOString()
+      var idempotencyKey = $security.sha256(
+        'provelo-skip|' + String(deal.id) + '|' + sourceVersion + '|' + reason,
+      )
+      try {
+        $app.findFirstRecordByData('com_eventos_integracao', 'idempotency_key', idempotencyKey)
+        return { attempted: false, reason: reason, audit_recorded: true, replay: true }
+      } catch (_) {}
+      try {
+        var event = new Record($app.findCollectionByNameOrId('com_eventos_integracao'))
+        event.set('sistema_origem', 'provelo')
+        event.set('evento_tipo', 'draft_skipped')
+        event.set('external_id', 'business:' + String(deal.id))
+        event.set('idempotency_key', idempotencyKey)
+        event.set(
+          'payload',
+          JSON.stringify({ deal_id: String(deal.id), attempted: false, reason: reason }),
+        )
+        event.set('status', 'processed')
+        $app.save(event)
+        return { attempted: false, reason: reason, audit_recorded: true, replay: false }
+      } catch (_) {
+        return { attempted: false, reason: reason, audit_recorded: false }
+      }
+    }
     function proveloDispatch(deal, pipeline, stageName, contact, customByLabel) {
       var config = null
       try {
         config = $app.findFirstRecordByData('com_integracao_provelo', 'provedor', 'make-provelo')
       } catch (_) {}
-      if (!config || !config.getBool('habilitada'))
-        return { attempted: false, reason: 'GATE_DESLIGADO' }
+      if (!config || !config.getBool('habilitada')) return recordProveloSkip(deal, 'GATE_DESLIGADO')
       var pipelineTitle = clean(pipeline && pipeline.title, 160)
       var modality = clean(customByLabel['Modalidade'], 120)
       var proveloId = clean(customByLabel['ProveloID'], 160)
       var ownerCode = clean(customByLabel['Responsável'], 120)
       var contactEmail = clean(contact && contact.email, 240)
       if (pipelineTitle.toLowerCase().indexOf('proposta qualificada') === -1)
-        return { attempted: false, reason: 'PIPELINE_FORA_DO_ESCOPO' }
+        return recordProveloSkip(deal, 'PIPELINE_FORA_DO_ESCOPO')
       if (String(stageName || '').toLowerCase() !== 'negociação')
-        return { attempted: false, reason: 'ETAPA_FORA_DO_ESCOPO' }
-      if (proveloId) return { attempted: false, reason: 'PROVELO_ID_EXISTENTE' }
-      if (!modality) return { attempted: false, reason: 'MODALIDADE_AUSENTE' }
-      if (!contactEmail || !ownerCode)
-        return { attempted: false, reason: 'DADOS_OBRIGATORIOS_AUSENTES' }
+        return recordProveloSkip(deal, 'ETAPA_FORA_DO_ESCOPO')
+      if (proveloId) return recordProveloSkip(deal, 'PROVELO_ID_EXISTENTE')
+      if (!modality) return recordProveloSkip(deal, 'MODALIDADE_AUSENTE')
+      if (!contactEmail || !ownerCode) return recordProveloSkip(deal, 'DADOS_OBRIGATORIOS_AUSENTES')
 
       var idempotencyKey = $security.sha256('provelo-draft|' + String(deal.id))
       var prior = null
@@ -114,12 +138,11 @@ routerAdd(
           idempotencyKey,
         )
       } catch (_) {}
-      if (prior)
-        return {
-          attempted: false,
-          reason: 'DISPATCH_JA_REGISTRADO',
-          status: prior.getString('status'),
-        }
+      if (prior) {
+        var replay = recordProveloSkip(deal, 'DISPATCH_JA_REGISTRADO')
+        replay.status = prior.getString('status')
+        return replay
+      }
 
       var webhookUrl = clean(config.getString('endpoint'), 1000)
       if (!/^https:\/\/hook\.us1\.make\.com\/[A-Za-z0-9_-]+$/.test(webhookUrl))
@@ -161,6 +184,9 @@ routerAdd(
       } catch (_) {
         config.set('ultimo_incerto_em', new Date().toISOString())
         $app.save(config)
+        dispatch.set('status', 'uncertain')
+        dispatch.set('payload', JSON.stringify({ deal_id: String(deal.id), result: 'timeout' }))
+        $app.save(dispatch)
         return { attempted: true, accepted: false, uncertain: true }
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -510,4 +536,25 @@ routerAdd(
     })
   },
   $apis.bodyLimit(131072),
+)
+
+routerAdd(
+  'GET',
+  '/backend/v1/integracao/ac/relay-v1/runtime-status',
+  function (e) {
+    var profile = ''
+    try {
+      profile = $app.findRecordById('com_perfis', e.auth.getString('perfil_id')).getString('slug')
+    } catch (_) {}
+    if (!e.auth.getBool('ativo_comercial') || profile !== 'superadministrador')
+      return e.forbiddenError('SuperAdmin necessario')
+    return e.json(200, {
+      relay: 'ac-native-relay-v1',
+      contract_version: '2026-08-31-r3.2',
+      provelo_dispatcher: true,
+      skip_audit: true,
+      terminal_states: ['processed', 'failed', 'uncertain'],
+    })
+  },
+  $apis.requireAuth('users'),
 )
