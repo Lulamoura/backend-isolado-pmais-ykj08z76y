@@ -8,6 +8,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSearchParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -82,6 +83,8 @@ function dataLocal(value: string | null) {
 }
 
 export default function Atividades() {
+  const [searchParams] = useSearchParams()
+  const escopoDia = searchParams.get('escopo') === 'dia'
   const [itens, setItens] = useState<ItemFilaAtividade[]>([])
   const [filtro, setFiltro] = useState<SituacaoAtividade | 'todas'>('todas')
   const [loading, setLoading] = useState(true)
@@ -98,14 +101,14 @@ export default function Atividades() {
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await listarFilaAtividades(filtro)
+      const response = await listarFilaAtividades(filtro, escopoDia ? 'dia' : 'todas')
       setItens(response.itens)
     } catch (_) {
       toast.error('Não foi possível carregar a fila de próximas ações.')
     } finally {
       setLoading(false)
     }
-  }, [filtro])
+  }, [escopoDia, filtro])
 
   useEffect(() => void carregar(), [carregar])
 
@@ -185,8 +188,14 @@ export default function Atividades() {
     <div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Atividades e próxima ação</h1>
-          <p className="text-sm text-muted-foreground">Fila acionável dos negócios abertos</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {escopoDia ? 'Ações do Dia' : 'Atividades e próxima ação'}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {escopoDia
+              ? 'Sem data, vencidas e previstas para hoje, em ordem de urgência'
+              : 'Fila acionável dos negócios abertos'}
+          </p>
         </div>
         <Button
           variant="outline"
@@ -222,7 +231,9 @@ export default function Atividades() {
             <CalendarClock className="h-5 w-5 text-emerald-600" />
             <div>
               <p className="text-2xl font-bold">{totais.programadas}</p>
-              <p className="text-xs text-muted-foreground">Programadas</p>
+              <p className="text-xs text-muted-foreground">
+                {escopoDia ? 'Ações para hoje' : 'Programadas'}
+              </p>
             </div>
           </CardContent>
         </Card>

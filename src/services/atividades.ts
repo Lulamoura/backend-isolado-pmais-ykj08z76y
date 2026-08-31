@@ -46,10 +46,13 @@ export interface FilaAtividadesResponse {
   total: number
 }
 
-export function listarFilaAtividades(situacao: SituacaoAtividade | 'todas' = 'todas') {
+export function listarFilaAtividades(
+  situacao: SituacaoAtividade | 'todas' = 'todas',
+  escopoTemporal: 'todas' | 'dia' = 'todas',
+) {
   return pb.send<FilaAtividadesResponse>('/backend/v1/atividades/fila', {
     method: 'GET',
-    query: { pagina: '1', por_pagina: '100', situacao },
+    query: { pagina: '1', por_pagina: '100', situacao, escopo_temporal: escopoTemporal },
   })
 }
 

@@ -56,13 +56,15 @@ routerAdd(
     var pagina = Number(e.requestInfo().query.pagina || 1)
     var porPagina = Number(e.requestInfo().query.por_pagina || 20)
     var situacao = String(e.requestInfo().query.situacao || 'todas')
+    var escopoTemporal = String(e.requestInfo().query.escopo_temporal || 'todas')
     if (
       !Number.isInteger(pagina) ||
       pagina < 1 ||
       !Number.isInteger(porPagina) ||
       porPagina < 1 ||
       porPagina > 100 ||
-      ['todas', 'sem_proxima_acao', 'vencida', 'programada'].indexOf(situacao) === -1
+      ['todas', 'sem_proxima_acao', 'vencida', 'programada'].indexOf(situacao) === -1 ||
+      ['todas', 'dia'].indexOf(escopoTemporal) === -1
     )
       return e.json(400, { error: 'VALIDATION' })
 
@@ -134,6 +136,8 @@ routerAdd(
         }
       }
       if (situacao !== 'todas' && estadoFila !== situacao) continue
+      var dataProxima = proxima ? dataCivil(proxima.planejada_para) : ''
+      if (escopoTemporal === 'dia' && estadoFila === 'programada' && dataProxima !== hoje) continue
       var empresa = null
       try {
         var er = $app.findRecordById('com_empresas', negocio.getString('empresa_id'))
@@ -165,6 +169,23 @@ routerAdd(
         proxima_acao: proxima,
       })
     }
+    var prioridade = { sem_proxima_acao: 0, vencida: 1, programada: 2 }
+    todos.sort(function (a, b) {
+      var rank = prioridade[a.situacao] - prioridade[b.situacao]
+      if (rank) return rank
+      var dataA = dataCivil(a.proxima_acao && a.proxima_acao.planejada_para)
+      var dataB = dataCivil(b.proxima_acao && b.proxima_acao.planejada_para)
+      if (dataA !== dataB) return dataA < dataB ? -1 : 1
+      var responsavelA = String((a.negocio.responsavel && a.negocio.responsavel.nome) || '')
+      var responsavelB = String((b.negocio.responsavel && b.negocio.responsavel.nome) || '')
+      if (responsavelA !== responsavelB) return responsavelA.localeCompare(responsavelB)
+      var empresaA = String((a.negocio.empresa && a.negocio.empresa.nome) || '')
+      var empresaB = String((b.negocio.empresa && b.negocio.empresa.nome) || '')
+      if (empresaA !== empresaB) return empresaA.localeCompare(empresaB)
+      return String(a.negocio.external_id || a.negocio.id).localeCompare(
+        String(b.negocio.external_id || b.negocio.id),
+      )
+    })
     var inicio = (pagina - 1) * porPagina
     return e.json(200, {
       itens: todos.slice(inicio, inicio + porPagina),
