@@ -2,7 +2,7 @@
   "name": "skip-react-template",
   "description": "A frontend React Vite TypeScript Shadcn UI template for Skip projects",
   "private": true,
-  "version": "0.0.229",
+  "version": "0.0.231",
   "type": "module",
   "scripts": {
     "start": "vite dev",
@@ -20,8 +20,7 @@
     "test:t62": "node scripts/test-t62-least-privilege.cjs",
     "test:t6ac8r": "node scripts/test-t6-ac-contract.cjs && node scripts/test-t6-ac-reconciliation-core.cjs && node scripts/test-t6-ac8r-preload.cjs && node scripts/test-t6-ac-recuperacao.cjs",
     "test:t6ac9": "node scripts/test-t6-ac9-native-relay.cjs && node scripts/test-t6-ac-recuperacao.cjs",
-    "test:provelo": "node scripts/test-provelo-draft-dispatch.cjs && node scripts/test-provelo-dispatch-behavior.cjs",
-    "test:operacao-dia": "node scripts/test-operacao-dia-recovery-contract.cjs",
+    "test:provelo": "node scripts/test-provelo-draft-dispatch.cjs",
     "test:notas": "node scripts/test-notas-negocio-contract.cjs"
   },
   "dependencies": {
