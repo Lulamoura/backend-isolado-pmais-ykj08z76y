@@ -82,7 +82,14 @@ routerAdd(
         integer = integer.slice(0, -3)
       }
       groups.unshift(integer || '0')
-      return (cents < 0 ? '-' : '') + groups.join('.') + ',' + decimal
+      var formatted = (cents < 0 ? '-' : '') + groups.join('.') + ',' + decimal
+      // O Formatter do Zapier entrega o valor ao cenário Provelo em um campo
+      // de largura fixa (10 caracteres), preenchido com espaços à esquerda.
+      // O cenário do fornecedor responde "Accepted" mesmo quando não consegue
+      // interpretar o bundle; por isso precisamos preservar o contrato byte a
+      // byte que foi comprovado em produção.
+      while (formatted.length < 10) formatted = ' ' + formatted
+      return formatted
     }
     function recordProveloSkip(deal, reason) {
       var sourceVersion = clean(deal.mdate || deal.cdate, 80) || new Date(0).toISOString()
@@ -91,7 +98,12 @@ routerAdd(
       )
       try {
         $app.findFirstRecordByData('com_eventos_integracao', 'idempotency_key', idempotencyKey)
-        return { attempted: false, reason: reason, audit_recorded: true, replay: true }
+        return {
+          attempted: false,
+          reason: reason,
+          audit_recorded: true,
+          replay: true,
+        }
       } catch (_) {}
       try {
         var event = new Record($app.findCollectionByNameOrId('com_eventos_integracao'))
@@ -101,11 +113,20 @@ routerAdd(
         event.set('idempotency_key', idempotencyKey)
         event.set(
           'payload',
-          JSON.stringify({ deal_id: String(deal.id), attempted: false, reason: reason }),
+          JSON.stringify({
+            deal_id: String(deal.id),
+            attempted: false,
+            reason: reason,
+          }),
         )
         event.set('status', 'processed')
         $app.save(event)
-        return { attempted: false, reason: reason, audit_recorded: true, replay: false }
+        return {
+          attempted: false,
+          reason: reason,
+          audit_recorded: true,
+          replay: false,
+        }
       } catch (_) {
         return { attempted: false, reason: reason, audit_recorded: false }
       }
@@ -181,7 +202,9 @@ routerAdd(
         response = $http.send({
           url: webhookUrl,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: body,
           timeout: 20,
         })
@@ -199,17 +222,44 @@ routerAdd(
         dispatch.set('status', 'failed')
         dispatch.set(
           'payload',
-          JSON.stringify({ deal_id: String(deal.id), http_status: response.statusCode }),
+          JSON.stringify({
+            deal_id: String(deal.id),
+            http_status: response.statusCode,
+          }),
         )
         $app.save(dispatch)
         return { attempted: true, accepted: false, uncertain: false }
+      }
+      var responseJson = response.json || {}
+      var confirmedProveloId = clean(
+        responseJson.ProveloID || responseJson.provelo_id || responseJson.id,
+        160,
+      )
+      if (responseJson.success !== true || !confirmedProveloId) {
+        config.set('ultimo_incerto_em', new Date().toISOString())
+        $app.save(config)
+        dispatch.set('status', 'uncertain')
+        dispatch.set(
+          'payload',
+          JSON.stringify({
+            deal_id: String(deal.id),
+            http_status: response.statusCode,
+            result: 'ack_missing',
+          }),
+        )
+        $app.save(dispatch)
+        return { attempted: true, accepted: false, uncertain: true }
       }
       config.set('ultimo_sucesso_em', new Date().toISOString())
       $app.save(config)
       dispatch.set('status', 'processed')
       dispatch.set(
         'payload',
-        JSON.stringify({ deal_id: String(deal.id), http_status: response.statusCode }),
+        JSON.stringify({
+          deal_id: String(deal.id),
+          http_status: response.statusCode,
+          provelo_id: confirmedProveloId,
+        }),
       )
       $app.save(dispatch)
       return { attempted: true, accepted: true, uncertain: false }
@@ -251,7 +301,11 @@ routerAdd(
     }
 
     if (!paramTrue('ac_webhook_enabled'))
-      return e.json(503, { error: 'WEBHOOK_DESABILITADO', enabled: false, relay: 'v1' })
+      return e.json(503, {
+        error: 'WEBHOOK_DESABILITADO',
+        enabled: false,
+        relay: 'v1',
+      })
     var contentType = String(e.request.header.get('Content-Type') || '').toLowerCase()
     if (contentType.indexOf('application/x-www-form-urlencoded') === -1)
       return e.json(400, { error: 'CONTENT_TYPE_INVALIDO' })
@@ -272,7 +326,11 @@ routerAdd(
     }
     var eventType = clean(form.type, 40)
     if (eventType !== 'deal_add' && eventType !== 'deal_update' && eventType !== 'deal_note_add')
-      return e.json(202, { received: true, ignored: true, reason: 'EVENTO_FORA_DO_ESCOPO' })
+      return e.json(202, {
+        received: true,
+        ignored: true,
+        reason: 'EVENTO_FORA_DO_ESCOPO',
+      })
     var dealId = clean(form['deal[id]'] || form.dealid || form.id, 40)
     if (!/^[0-9]+$/.test(dealId)) return e.json(400, { error: 'DEAL_ID_INVALIDO' })
 
@@ -408,7 +466,10 @@ routerAdd(
         if (label) customByLabel[label] = fieldVal
       }
     } catch (fetchError) {
-      return e.json(502, { error: 'CONSULTA_AC_FALHOU', detail: String(fetchError).slice(0, 120) })
+      return e.json(502, {
+        error: 'CONSULTA_AC_FALHOU',
+        detail: String(fetchError).slice(0, 120),
+      })
     }
 
     var stageTitle = clean(stage.title, 120).toLowerCase()
@@ -554,10 +615,11 @@ routerAdd(
       return e.forbiddenError('SuperAdmin necessario')
     return e.json(200, {
       relay: 'ac-native-relay-v1',
-      contract_version: '2026-08-31-r3.2',
+      contract_version: '2026-08-31-r3.3',
       pipeline_aliases_version: '2026-08-31-r1',
       accepted_pipeline_names: ['Proposta Qualificada', 'Propostas Qualificadas'],
       provelo_dispatcher: true,
+      provelo_transport_version: 'zapier-json-fixed-width-v1',
       skip_audit: true,
       terminal_states: ['processed', 'failed', 'uncertain'],
     })
