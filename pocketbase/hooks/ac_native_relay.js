@@ -121,7 +121,11 @@ routerAdd(
       var proveloId = clean(customByLabel['ProveloID'], 160)
       var ownerCode = clean(customByLabel['Responsável'], 120)
       var contactEmail = clean(contact && contact.email, 240)
-      if (pipelineTitle.toLowerCase().indexOf('proposta qualificada') === -1)
+      var pipelineNormalized = pipelineTitle.toLowerCase()
+      if (
+        pipelineNormalized.indexOf('proposta qualificada') === -1 &&
+        pipelineNormalized.indexOf('propostas qualificadas') === -1
+      )
         return recordProveloSkip(deal, 'PIPELINE_FORA_DO_ESCOPO')
       if (String(stageName || '').toLowerCase() !== 'negociação')
         return recordProveloSkip(deal, 'ETAPA_FORA_DO_ESCOPO')

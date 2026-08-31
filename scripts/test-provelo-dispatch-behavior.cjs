@@ -152,6 +152,16 @@ assert.deepEqual(JSON.parse(JSON.stringify(success.result)), {
 assert.equal(findEvent(success, 'draft_requested').getString('status'), 'processed')
 assert.ok(success.saves.some((item) => item.snapshot.status === 'pending'))
 
+const successWithRealPipelineName = scenario({
+  enabled: true,
+  pipeline: 'Propostas Qualificadas',
+})
+assert.equal(successWithRealPipelineName.result.accepted, true)
+assert.equal(
+  findEvent(successWithRealPipelineName, 'draft_requested').getString('status'),
+  'processed',
+)
+
 const failure = scenario({ enabled: true, statusCode: 503 })
 assert.equal(failure.result.accepted, false)
 assert.equal(failure.result.uncertain, false)
@@ -175,4 +185,4 @@ for (const state of [gateOff, replay, success, failure, uncertain]) {
   }
 }
 
-console.log('PASS Provelo dispatcher behavioral scenarios 11/11')
+console.log('PASS Provelo dispatcher behavioral scenarios 12/12')
