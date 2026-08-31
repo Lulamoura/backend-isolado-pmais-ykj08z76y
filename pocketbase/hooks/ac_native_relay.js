@@ -82,7 +82,14 @@ routerAdd(
         integer = integer.slice(0, -3)
       }
       groups.unshift(integer || '0')
-      return (cents < 0 ? '-' : '') + groups.join('.') + ',' + decimal
+      var formatted = (cents < 0 ? '-' : '') + groups.join('.') + ',' + decimal
+      // O Formatter do Zapier entrega o valor ao cenário Provelo em um campo
+      // de largura fixa (10 caracteres), preenchido com espaços à esquerda.
+      // O cenário do fornecedor responde "Accepted" mesmo quando não consegue
+      // interpretar o bundle; por isso precisamos preservar o contrato byte a
+      // byte que foi comprovado em produção.
+      while (formatted.length < 10) formatted = ' ' + formatted
+      return formatted
     }
     function recordProveloSkip(deal, reason) {
       var sourceVersion = clean(deal.mdate || deal.cdate, 80) || new Date(0).toISOString()
@@ -197,7 +204,6 @@ routerAdd(
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Accept: 'application/json',
           },
           body: body,
           timeout: 20,
@@ -609,10 +615,11 @@ routerAdd(
       return e.forbiddenError('SuperAdmin necessario')
     return e.json(200, {
       relay: 'ac-native-relay-v1',
-      contract_version: '2026-08-31-r3.2',
+      contract_version: '2026-08-31-r3.3',
       pipeline_aliases_version: '2026-08-31-r1',
       accepted_pipeline_names: ['Proposta Qualificada', 'Propostas Qualificadas'],
       provelo_dispatcher: true,
+      provelo_transport_version: 'zapier-json-fixed-width-v1',
       skip_audit: true,
       terminal_states: ['processed', 'failed', 'uncertain'],
     })

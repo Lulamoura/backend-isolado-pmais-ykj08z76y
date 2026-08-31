@@ -65,8 +65,10 @@ function scenario(options = {}) {
       saves.push({ record, snapshot: { ...record.data } })
     },
   }
+  let requestConfig = null
   const http = {
-    send() {
+    send(config) {
+      requestConfig = config
       const draft = events.find((item) => item.getString('evento_tipo') === 'draft_requested')
       assert.equal(draft && draft.getString('status'), 'pending', 'pending must precede HTTP')
       if (options.timeout) throw new Error('timeout')
@@ -109,7 +111,7 @@ function scenario(options = {}) {
     Responsável: options.owner === undefined ? 'synthetic-owner' : options.owner,
   }
   const result = proveloDispatch(deal, pipeline, stage, contact, custom)
-  return { result, events, saves, config }
+  return { result, events, saves, config, requestConfig }
 }
 
 function findEvent(state, type) {
@@ -157,6 +159,16 @@ assert.deepEqual(JSON.parse(JSON.stringify(success.result)), {
 })
 assert.equal(findEvent(success, 'draft_requested').getString('status'), 'processed')
 assert.ok(success.saves.some((item) => item.snapshot.status === 'pending'))
+assert.deepEqual(JSON.parse(success.requestConfig.body), {
+  DealId: '4812',
+  Modalidade: 'Serv. Eventual',
+  Email: 'synthetic@example.invalid',
+  Vendedor: 'synthetic-owner',
+  ValorServico: '  1.234,56',
+})
+assert.deepEqual(JSON.parse(JSON.stringify(success.requestConfig.headers)), {
+  'Content-Type': 'application/json',
+})
 
 const successWithRealPipelineName = scenario({
   enabled: true,

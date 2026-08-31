@@ -85,8 +85,9 @@ const checks = [
   [
     'runtime expõe marcador administrativo seguro no mesmo hook',
     relay.includes("'/backend/v1/integracao/ac/relay-v1/runtime-status'") &&
-      relay.includes("contract_version: '2026-08-31-r3.2'") &&
+      relay.includes("contract_version: '2026-08-31-r3.3'") &&
       relay.includes('provelo_dispatcher: true') &&
+      relay.includes("provelo_transport_version: 'zapier-json-fixed-width-v1'") &&
       relay.includes("$apis.requireAuth('users')"),
   ],
   [
