@@ -121,7 +121,11 @@ routerAdd(
       var proveloId = clean(customByLabel['ProveloID'], 160)
       var ownerCode = clean(customByLabel['Responsável'], 120)
       var contactEmail = clean(contact && contact.email, 240)
-      if (pipelineTitle.toLowerCase().indexOf('proposta qualificada') === -1)
+      var pipelineNormalized = pipelineTitle.toLowerCase()
+      if (
+        pipelineNormalized.indexOf('proposta qualificada') === -1 &&
+        pipelineNormalized.indexOf('propostas qualificadas') === -1
+      )
         return recordProveloSkip(deal, 'PIPELINE_FORA_DO_ESCOPO')
       if (String(stageName || '').toLowerCase() !== 'negociação')
         return recordProveloSkip(deal, 'ETAPA_FORA_DO_ESCOPO')
@@ -551,6 +555,8 @@ routerAdd(
     return e.json(200, {
       relay: 'ac-native-relay-v1',
       contract_version: '2026-08-31-r3.2',
+      pipeline_aliases_version: '2026-08-31-r1',
+      accepted_pipeline_names: ['Proposta Qualificada', 'Propostas Qualificadas'],
       provelo_dispatcher: true,
       skip_audit: true,
       terminal_states: ['processed', 'failed', 'uncertain'],

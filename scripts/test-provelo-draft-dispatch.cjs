@@ -22,6 +22,7 @@ const checks = [
   [
     'pipeline e etapa seguem o Zap publicado',
     relay.includes("indexOf('proposta qualificada')") &&
+      relay.includes("indexOf('propostas qualificadas')") &&
       relay.includes("!== 'negociação'") &&
       relay.includes("'/api/3/dealGroups/'"),
   ],
