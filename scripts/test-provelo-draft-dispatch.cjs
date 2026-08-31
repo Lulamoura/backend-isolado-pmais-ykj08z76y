@@ -29,7 +29,7 @@ const checks = [
     'modalidade é obrigatória e ProveloID impede duplicação',
     relay.includes("customByLabel['Modalidade']") &&
       relay.includes("customByLabel['ProveloID']") &&
-      relay.includes("reason: 'PROVELO_ID_EXISTENTE'"),
+      relay.includes("recordProveloSkip(deal, 'PROVELO_ID_EXISTENTE')"),
   ],
   [
     'contrato replica cinco campos do Zapier',
@@ -49,7 +49,7 @@ const checks = [
     'dispatch usa idempotência estável por negócio',
     relay.includes("$security.sha256('provelo-draft|' + String(deal.id))") &&
       relay.includes("'idempotency_key'") &&
-      relay.includes("reason: 'DISPATCH_JA_REGISTRADO'"),
+      relay.includes("recordProveloSkip(deal, 'DISPATCH_JA_REGISTRADO')"),
   ],
   [
     'intenção pending é persistida antes do POST',
@@ -58,7 +58,29 @@ const checks = [
   ],
   [
     'timeout não produz retry cego',
-    relay.includes('PROVELO_RESULTADO_INCERTO') && !relay.includes('PROVELO_RETRY'),
+    relay.includes('PROVELO_RESULTADO_INCERTO') &&
+      relay.includes("dispatch.set('status', 'uncertain')") &&
+      !relay.includes('PROVELO_RETRY'),
+  ],
+  [
+    'decisões sem tentativa são auditadas sem dados pessoais',
+    relay.includes("event.set('evento_tipo', 'draft_skipped')") &&
+      relay.includes("event.set('status', 'processed')") &&
+      relay.includes('attempted: false') &&
+      relay.includes("'provelo-skip|' + String(deal.id)") &&
+      !/(contactEmail|ownerCode|webhookUrl|ValorServico)/.test(
+        relay.slice(
+          relay.indexOf('function recordProveloSkip'),
+          relay.indexOf('function proveloDispatch'),
+        ),
+      ),
+  ],
+  [
+    'runtime expõe marcador administrativo seguro no mesmo hook',
+    relay.includes("'/backend/v1/integracao/ac/relay-v1/runtime-status'") &&
+      relay.includes("contract_version: '2026-08-31-r3.2'") &&
+      relay.includes('provelo_dispatcher: true') &&
+      relay.includes("$apis.requireAuth('users')"),
   ],
   [
     'logs persistidos não incluem email, vendedor, valor ou URL',
