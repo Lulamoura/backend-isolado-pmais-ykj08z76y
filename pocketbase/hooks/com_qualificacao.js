@@ -1,4 +1,5 @@
 // T4.1 — decisão explícita e auditável de qualificação.
+// Runtime reload marker: 2026-09-01T13:20Z (diagnóstico seguro de etapa transacional).
 // GET  /backend/v1/qualificacoes/pendentes
 // POST /backend/v1/qualificacoes/assumir
 // POST /backend/v1/qualificacoes/decidir
