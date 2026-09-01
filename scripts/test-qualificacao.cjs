@@ -72,7 +72,8 @@ var checks = [
   ['outro exige justificativa', source.includes("motivo === 'outro' && !justificativa")],
   ['qualificação avança etapa', source.includes("negocio.set('etapa', 'producao_proposta')")],
   [
-    'desqualificação encerra sem marcador financeiro',
+    'desqualificação encerra sem etapa ativa e sem marcador financeiro',
+    source.includes("negocio.set('etapa', '')") &&
     source.includes("negocio.set('resultado', 'desqualificado')") &&
       !source.includes("set('valor', 1)"),
   ],
