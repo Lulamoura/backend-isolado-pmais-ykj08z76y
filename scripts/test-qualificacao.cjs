@@ -74,7 +74,7 @@ var checks = [
   [
     'desqualificação encerra sem etapa ativa e sem marcador financeiro',
     source.includes("negocio.set('etapa', '')") &&
-    source.includes("negocio.set('resultado', 'desqualificado')") &&
+      source.includes("negocio.set('resultado', 'desqualificado')") &&
       !source.includes("set('valor', 1)"),
   ],
   ['decisão não pode ser repetida', source.includes('JA_DECIDIDO')],
