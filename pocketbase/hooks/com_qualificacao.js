@@ -586,6 +586,7 @@ routerAdd(
     var payloadHash = $security.sha256(canonicalize(payload))
     var resposta = null
     var txError = ''
+    var txStep = 'PRE_TRANSACAO'
 
     // Replay conhecido é resolvido antes de abrir uma nova transação. Em
     // SQLite, tentar o INSERT duplicado dentro da transação pode invalidar o
@@ -622,6 +623,7 @@ routerAdd(
 
     try {
       $app.runInTransaction(function (txApp) {
+        txStep = 'IDEMPOTENCIA_INICIAL'
         var idemCol = txApp.findCollectionByNameOrId('com_idempotencia')
         var idem = new Record(idemCol)
         idem.set('command_idempotency_key', body.command_idempotency_key)
@@ -660,6 +662,7 @@ routerAdd(
           return
         }
 
+        txStep = 'CARREGAR_CONTEXTO'
         var usuarioTx = txApp.findRecordById('users', ator.id)
         if (!usuarioTx.getBool('ativo_comercial')) throw new Error('FORBIDDEN')
         var perfilTx = ''
@@ -711,8 +714,10 @@ routerAdd(
           negocio.set('resultado', 'desqualificado')
           negocio.set('inativo', true)
         }
+        txStep = 'SALVAR_NEGOCIO'
         txApp.save(negocio)
 
+        txStep = 'SALVAR_HISTORICO'
         var histCol = txApp.findCollectionByNameOrId('com_qualificacao_historico')
         var hist = new Record(histCol)
         hist.set('negocio_id', negocio.id)
@@ -726,6 +731,7 @@ routerAdd(
         hist.set('data_hora_efetiva', new Date())
         txApp.save(hist)
 
+        txStep = 'SALVAR_AUDITORIA'
         var evidencia = {
           negocio_id: negocio.id,
           estado_anterior: anteriorEstado,
@@ -754,6 +760,7 @@ routerAdd(
         aud.set('sequencia', 1)
         txApp.save(aud)
 
+        txStep = 'FINALIZAR_IDEMPOTENCIA'
         resposta = {
           negocio_id: negocio.id,
           qualificacao: body.decisao,
@@ -769,6 +776,7 @@ routerAdd(
       })
     } catch (err) {
       txError = String(err).substring(0, 500)
+      $app.logger().error('decidir_qualificacao failed', 'step', txStep, 'error', txError)
     }
 
     if (txError.indexOf('STALE_WRITE') !== -1) return e.json(409, { error: 'STALE_WRITE' })
@@ -780,7 +788,12 @@ routerAdd(
       return e.json(423, { error: 'PREOPERACAO_SOMENTE_LEITURA' })
     if (txError.indexOf('QUALIFICACAO_NAO_ASSUMIDA') !== -1)
       return e.json(409, { error: 'QUALIFICACAO_NAO_ASSUMIDA' })
-    if (txError) return e.json(500, { error: 'INTERNAL', message: 'Falha ao registrar decisao' })
+    if (txError)
+      return e.json(500, {
+        error: 'INTERNAL',
+        message: 'Falha ao registrar decisao',
+        diagnostic_stage: txStep,
+      })
     return e.json(200, resposta)
   },
   $apis.requireAuth(),

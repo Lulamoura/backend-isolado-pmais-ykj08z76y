@@ -78,6 +78,15 @@ var checks = [
       !source.includes("set('valor', 1)"),
   ],
   ['decisão não pode ser repetida', source.includes('JA_DECIDIDO')],
+  [
+    'falha interna informa etapa segura e registra diagnóstico no servidor',
+    source.includes("diagnostic_stage: txStep") &&
+      source.includes("'decidir_qualificacao failed'") &&
+      source.includes("txStep = 'SALVAR_NEGOCIO'") &&
+      source.includes("txStep = 'SALVAR_HISTORICO'") &&
+      source.includes("txStep = 'SALVAR_AUDITORIA'") &&
+      source.includes("txStep = 'FINALIZAR_IDEMPOTENCIA'"),
+  ],
   ['autor sempre derivado da autenticação', source.includes("hist.set('autor_id', ator.id)")],
   [
     'marcador de teste só aceita valor booleano verdadeiro',
