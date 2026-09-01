@@ -706,7 +706,8 @@ routerAdd(
           negocio.set('resultado', '')
           negocio.set('inativo', false)
         } else {
-          negocio.set('etapa', 'prospects')
+          // Resultado terminal não pode coexistir com etapa ativa.
+          negocio.set('etapa', '')
           negocio.set('resultado', 'desqualificado')
           negocio.set('inativo', true)
         }
