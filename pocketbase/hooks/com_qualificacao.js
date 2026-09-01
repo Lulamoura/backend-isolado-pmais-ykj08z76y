@@ -5,40 +5,6 @@
 // POST /backend/v1/qualificacoes/decidir
 // POST /backend/v1/qualificacoes/devolver
 
-function comQualificacaoGarantirCampos() {
-  var negocios = $app.findCollectionByNameOrId('com_negocios')
-  var alterado = false
-  if (!negocios.fields.getByName('qualificacao_responsavel_id')) {
-    negocios.fields.add(
-      new RelationField({
-        name: 'qualificacao_responsavel_id',
-        collectionId: '_pb_users_auth_',
-        maxSelect: 1,
-        cascadeDelete: false,
-        required: false,
-      }),
-    )
-    alterado = true
-  }
-  if (!negocios.fields.getByName('qualificacao_assumida_em')) {
-    negocios.fields.add(new DateField({ name: 'qualificacao_assumida_em', required: false }))
-    alterado = true
-  }
-  if (!negocios.fields.getByName('qualificacao_decidida_em')) {
-    negocios.fields.add(new DateField({ name: 'qualificacao_decidida_em', required: false }))
-    alterado = true
-  }
-  if (alterado) {
-    negocios.indexes = Array.from(
-      new Set([
-        ...(negocios.indexes || []),
-        'CREATE INDEX idx_com_negocios_qualificacao_responsavel ON com_negocios (qualificacao_responsavel_id, qualificacao)',
-      ]),
-    )
-    $app.save(negocios)
-  }
-}
-
 routerAdd(
   'GET',
   '/backend/v1/qualificacoes/pendentes',
@@ -47,7 +13,41 @@ routerAdd(
     if (!ator) return e.unauthorizedError('Autenticacao necessaria')
     if (!ator.getBool('ativo_comercial')) return e.forbiddenError('Usuario comercial inativo')
     try {
-      comQualificacaoGarantirCampos()
+      var negociosSchema = $app.findCollectionByNameOrId('com_negocios')
+      var schemaAlterado = false
+      if (!negociosSchema.fields.getByName('qualificacao_responsavel_id')) {
+        negociosSchema.fields.add(
+          new RelationField({
+            name: 'qualificacao_responsavel_id',
+            collectionId: '_pb_users_auth_',
+            maxSelect: 1,
+            cascadeDelete: false,
+            required: false,
+          }),
+        )
+        schemaAlterado = true
+      }
+      if (!negociosSchema.fields.getByName('qualificacao_assumida_em')) {
+        negociosSchema.fields.add(
+          new DateField({ name: 'qualificacao_assumida_em', required: false }),
+        )
+        schemaAlterado = true
+      }
+      if (!negociosSchema.fields.getByName('qualificacao_decidida_em')) {
+        negociosSchema.fields.add(
+          new DateField({ name: 'qualificacao_decidida_em', required: false }),
+        )
+        schemaAlterado = true
+      }
+      if (schemaAlterado) {
+        negociosSchema.indexes = Array.from(
+          new Set([
+            ...(negociosSchema.indexes || []),
+            'CREATE INDEX idx_com_negocios_qualificacao_responsavel ON com_negocios (qualificacao_responsavel_id, qualificacao)',
+          ]),
+        )
+        $app.save(negociosSchema)
+      }
     } catch (_) {
       return e.json(503, { error: 'QUALIFICACAO_SCHEMA_INDISPONIVEL' })
     }

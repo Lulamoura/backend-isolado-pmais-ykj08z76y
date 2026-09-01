@@ -40,10 +40,10 @@ var checks = [
   ['autenticação obrigatória', source.includes('$apis.requireAuth()')],
   ['somente usuários comerciais ativos', source.includes("getBool('ativo_comercial')")],
   [
-    'runtime materializa esquema ausente de forma idempotente',
-    source.includes('function comQualificacaoGarantirCampos()') &&
-      source.includes("if (!negocios.fields.getByName('qualificacao_responsavel_id'))") &&
-      source.includes('$app.save(negocios)') &&
+    'runtime materializa esquema ausente inline e de forma idempotente',
+    !source.includes('function comQualificacaoGarantirCampos()') &&
+      source.includes("if (!negociosSchema.fields.getByName('qualificacao_responsavel_id'))") &&
+      source.includes('$app.save(negociosSchema)') &&
       source.includes('QUALIFICACAO_SCHEMA_INDISPONIVEL'),
   ],
   [
