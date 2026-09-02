@@ -73,5 +73,33 @@ export const obterTimelineProposta = (negocioId: string) =>
     `/backend/v1/propostas/${negocioId}/timeline`,
     { method: 'GET' },
   )
+export interface PublicacaoPropostaInterna {
+  id: string
+  versao_id: string
+  token_prefix: string
+  publicada_em: string
+  expira_em: string
+  estado: 'ativa' | 'expirada' | 'revogada'
+}
+export const publicarProposta = (negocioId: string, updatedEsperado: string) =>
+  pb.send<{ token: string; expira_em: string; estado: string }>(
+    `/backend/v1/propostas/${negocioId}/publicar`,
+    {
+      method: 'POST',
+      body: {
+        updated_esperado: updatedEsperado,
+        command_idempotency_key: novaChaveProposta(negocioId, 'publicar'),
+      },
+    },
+  )
+export const revogarPublicacaoProposta = (negocioId: string) =>
+  pb.send(`/backend/v1/propostas/${negocioId}/revogar`, {
+    method: 'POST',
+    body: { command_idempotency_key: novaChaveProposta(negocioId, 'revogar') },
+  })
+export const listarPublicacoesProposta = (negocioId: string) =>
+  pb.send<{ itens: PublicacaoPropostaInterna[] }>(`/backend/v1/propostas/${negocioId}/publicacao`, {
+    method: 'GET',
+  })
 export const novaChaveProposta = (id: string, tipo: string) =>
   `proposta:${tipo}:${id}:${Date.now()}:${crypto.randomUUID()}`

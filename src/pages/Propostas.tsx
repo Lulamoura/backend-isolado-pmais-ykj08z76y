@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileCheck2, FileUp, History, RefreshCw } from 'lucide-react'
+import { FileCheck2, FileUp, History, Link2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,8 @@ import {
   criarVersaoPdfProposta,
   novaChaveProposta,
   obterTimelineProposta,
+  publicarProposta,
+  revogarPublicacaoProposta,
   registrarEventoProposta,
   type EventoProposta,
   type ItemProposta,
@@ -47,6 +49,7 @@ export default function Propostas() {
   const [arquivos, setArquivos] = useState<Record<string, File | null>>({})
   const [timelines, setTimelines] = useState<Record<string, VersaoPropostaInterna[]>>({})
   const [enviandoPdf, setEnviandoPdf] = useState<string | null>(null)
+  const [linksPublicos, setLinksPublicos] = useState<Record<string, string>>({})
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
@@ -135,6 +138,27 @@ export default function Propostas() {
       toast.error('Não foi possível criar a versão do PDF.')
     } finally {
       setEnviandoPdf(null)
+    }
+  }
+  const publicar = async (item: ItemProposta) => {
+    if (!item.proposta) return
+    try {
+      const resultado = await publicarProposta(item.negocio.id, item.proposta.updated)
+      const link = `${window.location.origin}/p/${resultado.token}`
+      setLinksPublicos((atual) => ({ ...atual, [item.negocio.id]: link }))
+      await navigator.clipboard.writeText(link)
+      toast.success('Link seguro criado e copiado. O gate público permanece desligado.')
+    } catch (_) {
+      toast.error('Não foi possível publicar a proposta.')
+    }
+  }
+  const revogar = async (item: ItemProposta) => {
+    try {
+      await revogarPublicacaoProposta(item.negocio.id)
+      setLinksPublicos((atual) => ({ ...atual, [item.negocio.id]: '' }))
+      toast.success('Link da proposta revogado.')
+    } catch (_) {
+      toast.error('Não foi possível revogar o link.')
     }
   }
   return (
@@ -258,6 +282,29 @@ export default function Propostas() {
                         </p>
                       </div>
                     ))}
+                  </div>
+                )}
+                {p && p.estado === 'rascunho' && !somenteNegociacao && !somenteLeituraPerfil && (
+                  <div className="space-y-2 rounded-md border border-dashed p-3">
+                    <p className="text-sm font-medium">Publicação segura</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" onClick={() => void publicar(item)}>
+                        <Link2 className="mr-2 h-4 w-4" />
+                        Gerar link
+                      </Button>
+                      {linksPublicos[item.negocio.id] && (
+                        <Button size="sm" variant="destructive" onClick={() => void revogar(item)}>
+                          Revogar link
+                        </Button>
+                      )}
+                    </div>
+                    {linksPublicos[item.negocio.id] && (
+                      <Input
+                        readOnly
+                        value={linksPublicos[item.negocio.id]}
+                        aria-label="Link seguro da proposta"
+                      />
+                    )}
                   </div>
                 )}
                 {podeDevolverQualificacao && item.negocio.etapa === 'producao_proposta' && (
