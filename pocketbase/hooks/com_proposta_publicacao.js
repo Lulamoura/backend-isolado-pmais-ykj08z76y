@@ -104,10 +104,8 @@ routerAdd(
         idem.set('executor_id', 'pb-primary')
         idem.set('lease_ate', new Date(Date.now() + 300000))
         idem.set('tentativa', 1)
-        idem.set('claim_version', 1)
         idem.set('inicio_em', new Date())
         idem.set('resultado', {})
-        idem.set('registros_afetados', [])
         tx.save(idem)
         etapa = 'autorizacao'
         var user = tx.findRecordById('users', ator.id),
@@ -177,11 +175,9 @@ routerAdd(
         aud.set('acao', 'create')
         aud.set('usuario_id', ator.id)
         aud.set('comando', 'proposta_publicada')
-        aud.set('command_idempotency_key', body.command_idempotency_key)
         aud.set('evento_em', agora)
         aud.set('justificativa', 'Publicação controlada da proposta')
         aud.set('perfil', slugTx)
-        aud.set('escopo', 'proposta')
         aud.set('origem', 'server-side')
         aud.set('evidencia_estruturada', evidencia)
         aud.set('snapshot_hash', $security.sha256(canonicalize(evidencia)))
@@ -216,32 +212,15 @@ routerAdd(
       return e.json(201, resposta)
     } catch (err) {
       var m = String(err && err.message ? err.message : err)
-      for (
-        var i = 0;
-        i <
-        ['FORBIDDEN', 'STALE_WRITE', 'NAO_PREPARADA', 'PDF_OBRIGATORIO', 'APROVACAO_OBRIGATORIA'];
-        i++
-      )
-        if (
-          m.indexOf(
-            [
-              'FORBIDDEN',
-              'STALE_WRITE',
-              'NAO_PREPARADA',
-              'PDF_OBRIGATORIO',
-              'APROVACAO_OBRIGATORIA',
-            ][i],
-          ) >= 0
-        )
-          return e.json(i === 0 ? 403 : 409, {
-            error: [
-              'FORBIDDEN',
-              'STALE_WRITE',
-              'NAO_PREPARADA',
-              'PDF_OBRIGATORIO',
-              'APROVACAO_OBRIGATORIA',
-            ][i],
-          })
+      var codigos = [
+        'FORBIDDEN',
+        'STALE_WRITE',
+        'NAO_PREPARADA',
+        'PDF_OBRIGATORIO',
+        'APROVACAO_OBRIGATORIA',
+      ]
+      for (var ci = 0; ci < codigos.length; ci++)
+        if (m.indexOf(codigos[ci]) >= 0) return e.json(409, { error: codigos[ci] })
       return e.json(500, { error: 'PUBLICAR_PROPOSTA', stage: etapa || 'desconhecida' })
     }
   },
