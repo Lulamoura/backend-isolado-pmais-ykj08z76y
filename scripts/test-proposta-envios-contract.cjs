@@ -24,8 +24,8 @@ const checks = [
     hook.includes("'Idempotency-Key': chave") && hook.includes('command_idempotency_key'),
   ],
   [
-    'reply-to e remetente',
-    hook.includes('reply_to: replyTo') && hook.includes('spok@lulamoura.com.br'),
+    'reply-to e remetente corporativo verificado',
+    hook.includes('reply_to: replyTo') && hook.includes('nao-responda@pmaisservicos.com.br'),
   ],
   ['PDF não anexado', !hook.includes('attachments') && hook.includes('Acessar proposta')],
   [
