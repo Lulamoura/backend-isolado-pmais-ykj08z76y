@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-01T13:54:45.652Z",
+  "generatedAt": "2026-09-02T18:42:30.189Z",
   "collections": [
     {
       "name": "users",
@@ -2346,6 +2346,57 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "versao_publicada_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "com_proposta_versoes"
+        },
+        {
+          "name": "publicacao_estado",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["nao_publicada", "publicada", "expirada", "revogada"]
+        },
+        {
+          "name": "primeiro_acesso_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultimo_acesso_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_acessos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_downloads",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "decisao_publica",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pendente", "aceita", "recusada"]
+        },
+        {
+          "name": "decisao_publica_motivo",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -2503,6 +2554,86 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "arquivo_pdf",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo_sha256",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo_bytes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo_paginas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_snapshot",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_snapshot",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_snapshot",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone_snapshot",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_snapshot",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aprovacao_estado",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["nao_exigida", "pendente", "aprovada", "reprovada"]
+        },
+        {
+          "name": "aprovada_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "aprovada_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reprovacao_motivo",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -2510,7 +2641,8 @@
         "CREATE UNIQUE INDEX idx_com_proposta_versoes_proposta_numero ON com_proposta_versoes (proposta_id, numero)",
         "CREATE UNIQUE INDEX idx_com_proposta_versoes_proposta_aceita ON com_proposta_versoes (proposta_id) WHERE estado = 'aceita'",
         "CREATE INDEX idx_com_proposta_versoes_proposta_numero_idx ON com_proposta_versoes (proposta_id, numero)",
-        "CREATE INDEX idx_com_proposta_versoes_estado ON com_proposta_versoes (estado)"
+        "CREATE INDEX idx_com_proposta_versoes_estado ON com_proposta_versoes (estado)",
+        "CREATE INDEX idx_com_proposta_versoes_sha256 ON com_proposta_versoes (arquivo_sha256)"
       ]
     },
     {
@@ -3052,6 +3184,279 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "com_proposta_publicacoes",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "proposta_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_propostas"
+        },
+        {
+          "name": "versao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_proposta_versoes"
+        },
+        {
+          "name": "token_hash",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "token_prefix",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "publicada_em",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "expira_em",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "revogada_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "revogada_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "estado",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["ativa", "expirada", "revogada"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_proposta_publicacoes_token_hash ON com_proposta_publicacoes (token_hash)",
+        "CREATE UNIQUE INDEX idx_com_proposta_publicacoes_ativa ON com_proposta_publicacoes (proposta_id) WHERE estado = 'ativa'",
+        "CREATE INDEX idx_com_proposta_publicacoes_expira ON com_proposta_publicacoes (estado, expira_em)"
+      ]
+    },
+    {
+      "name": "com_proposta_eventos_publicos",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "publicacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_proposta_publicacoes"
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "pagina_acessada",
+            "pdf_baixado",
+            "duvida_iniciada",
+            "aceite_confirmado",
+            "recusa_confirmada"
+          ]
+        },
+        {
+          "name": "ocorrido_em",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "chave_idempotencia",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_proposta_eventos_publicos_idem ON com_proposta_eventos_publicos (chave_idempotencia)",
+        "CREATE INDEX idx_com_proposta_eventos_publicos_timeline ON com_proposta_eventos_publicos (publicacao_id, ocorrido_em)"
+      ]
+    },
+    {
+      "name": "com_proposta_envios",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "proposta_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_propostas"
+        },
+        {
+          "name": "versao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_proposta_versoes"
+        },
+        {
+          "name": "publicacao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "com_proposta_publicacoes"
+        },
+        {
+          "name": "canal",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["email", "whatsapp_assistido"]
+        },
+        {
+          "name": "destinatario",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assunto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mensagem_snapshot",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reply_to",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["solicitado", "enviando", "enviado", "falhou"]
+        },
+        {
+          "name": "provider_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "erro_codigo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tentativa",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "enviado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "command_idempotency_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_proposta_envios_idem ON com_proposta_envios (command_idempotency_key)",
+        "CREATE INDEX idx_com_proposta_envios_timeline ON com_proposta_envios (proposta_id, created)"
+      ]
     }
   ]
 }
