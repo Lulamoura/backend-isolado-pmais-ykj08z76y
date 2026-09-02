@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Building2, ChevronRight, KeyRound, LogOut } from 'lucide-react'
+import { ChevronRight, KeyRound, LogOut } from 'lucide-react'
+import logoPmais from '@/assets/logo-fundo-branco-22f07.png'
 
 import { ChangePasswordDialog } from '@/components/foundation/ChangePasswordDialog'
 import { ModuleTabs } from '@/components/ModuleTabs'
@@ -119,7 +120,12 @@ function LayoutContent() {
             className="flex items-center gap-3 overflow-hidden p-3.5 group-data-[collapsible=icon]:p-1"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md">
-              <Building2 aria-hidden="true" className="h-5 w-5" />
+              <img
+                src={logoPmais}
+                alt=""
+                aria-hidden="true"
+                className="h-full w-full rounded-xl object-contain"
+              />
             </span>
             <span className="min-w-0 group-data-[collapsible=icon]:hidden">
               <span className="block truncate text-lg font-bold tracking-tight text-white">
