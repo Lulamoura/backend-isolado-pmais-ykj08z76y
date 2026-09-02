@@ -314,7 +314,26 @@ routerAdd(
           20,
           0,
         ),
-        itens = []
+        itens = [],
+        eventosPublicos = []
+      try {
+        for (var pi = 0; pi < rows.length; pi++) {
+          var eventosRows = $app.findRecordsByFilter(
+            'com_proposta_eventos_publicos',
+            "publicacao_id='" + rows[pi].id + "'",
+            '-ocorrido_em',
+            200,
+            0,
+          )
+          for (var ei = 0; ei < eventosRows.length; ei++)
+            eventosPublicos.push({
+              id: eventosRows[ei].id,
+              publicacao_id: eventosRows[ei].getString('publicacao_id'),
+              tipo: eventosRows[ei].getString('tipo'),
+              ocorrido_em: eventosRows[ei].getString('ocorrido_em'),
+            })
+        }
+      } catch (_) {}
       for (var i = 0; i < rows.length; i++)
         itens.push({
           id: rows[i].id,
@@ -324,7 +343,16 @@ routerAdd(
           expira_em: rows[i].getString('expira_em'),
           estado: rows[i].getString('estado'),
         })
-      return e.json(200, { itens: itens })
+      return e.json(200, {
+        itens: itens,
+        total_acessos: Number(proposta.get('total_acessos') || 0),
+        total_downloads: Number(proposta.get('total_downloads') || 0),
+        primeiro_acesso_em: proposta.getString('primeiro_acesso_em') || null,
+        ultimo_acesso_em: proposta.getString('ultimo_acesso_em') || null,
+        decisao: proposta.getString('decisao_publica') || 'pendente',
+        decisao_motivo: proposta.getString('decisao_publica_motivo') || null,
+        eventos_publicos: eventosPublicos,
+      })
     } catch (_) {
       return e.json(404, { error: 'PROPOSTA_NAO_ENCONTRADA' })
     }
@@ -363,6 +391,33 @@ routerAdd('GET', '/backend/v1/public/propostas/{token}', (e) => {
       return indisponivel()
     var proposta = $app.findRecordById('com_propostas', pub.getString('proposta_id')),
       versao = $app.findRecordById('com_proposta_versoes', pub.getString('versao_id'))
+    var agora = new Date(),
+      chaveAcesso = $security.sha256(
+        pub.id + ':pagina_acessada:' + String(Math.floor(agora.getTime() / 300000)),
+      )
+    try {
+      $app.runInTransaction(function (tx) {
+        try {
+          tx.findFirstRecordByData(
+            'com_proposta_eventos_publicos',
+            'chave_idempotencia',
+            chaveAcesso,
+          )
+          return
+        } catch (_) {}
+        var evento = new Record(tx.findCollectionByNameOrId('com_proposta_eventos_publicos')),
+          propostaTx = tx.findRecordById('com_propostas', proposta.id)
+        evento.set('publicacao_id', pub.id)
+        evento.set('tipo', 'pagina_acessada')
+        evento.set('ocorrido_em', agora)
+        evento.set('chave_idempotencia', chaveAcesso)
+        tx.save(evento)
+        if (!propostaTx.getString('primeiro_acesso_em')) propostaTx.set('primeiro_acesso_em', agora)
+        propostaTx.set('ultimo_acesso_em', agora)
+        propostaTx.set('total_acessos', Number(propostaTx.get('total_acessos') || 0) + 1)
+        tx.save(propostaTx)
+      })
+    } catch (_) {}
     return e.json(200, {
       identificador: proposta.getString('identificador'),
       numero: versao.getInt('numero'),
@@ -376,6 +431,166 @@ routerAdd('GET', '/backend/v1/public/propostas/{token}', (e) => {
       decisao: proposta.getString('decisao_publica') || 'pendente',
     })
   } catch (_) {
+    return indisponivel()
+  }
+})
+
+routerAdd('GET', '/backend/v1/public/propostas/{token}/pdf', (e) => {
+  function gate(app) {
+    try {
+      var p = app.findFirstRecordByData(
+        'com_parametros',
+        'chave',
+        'proposta.pagina_publica_habilitada',
+      )
+      return p.getBool('ativo') && p.getString('valor') === 'true'
+    } catch (_) {
+      return false
+    }
+  }
+  function indisponivel() {
+    return e.json(404, { error: 'PROPOSTA_INDISPONIVEL' })
+  }
+  e.response.header().set('X-Robots-Tag', 'noindex, nofollow, noarchive')
+  e.response.header().set('Cache-Control', 'no-store')
+  if (!gate($app)) return indisponivel()
+  var token = e.request.pathValue('token')
+  if (!token || token.length !== 64) return indisponivel()
+  var fsys = null,
+    reader = null
+  try {
+    var pub = $app.findFirstRecordByData(
+      'com_proposta_publicacoes',
+      'token_hash',
+      $security.sha256(token),
+    )
+    if (pub.getString('estado') !== 'ativa' || new Date(pub.getString('expira_em')) <= new Date())
+      return indisponivel()
+    var versao = $app.findRecordById('com_proposta_versoes', pub.getString('versao_id')),
+      arquivo = versao.getString('arquivo_pdf')
+    if (!arquivo) return indisponivel()
+    var agora = new Date(),
+      chaveDownload = $security.sha256(
+        pub.id + ':pdf_baixado:' + String(Math.floor(agora.getTime() / 60000)),
+      )
+    try {
+      $app.runInTransaction(function (tx) {
+        try {
+          tx.findFirstRecordByData(
+            'com_proposta_eventos_publicos',
+            'chave_idempotencia',
+            chaveDownload,
+          )
+          return
+        } catch (_) {}
+        var evento = new Record(tx.findCollectionByNameOrId('com_proposta_eventos_publicos')),
+          propostaTx = tx.findRecordById('com_propostas', pub.getString('proposta_id'))
+        evento.set('publicacao_id', pub.id)
+        evento.set('tipo', 'pdf_baixado')
+        evento.set('ocorrido_em', agora)
+        evento.set('chave_idempotencia', chaveDownload)
+        tx.save(evento)
+        propostaTx.set('total_downloads', Number(propostaTx.get('total_downloads') || 0) + 1)
+        tx.save(propostaTx)
+      })
+    } catch (_) {}
+    fsys = $app.newFilesystem()
+    reader = fsys.getReader(versao.baseFilesPath() + '/' + arquivo)
+    e.response.header().set('Content-Disposition', 'attachment; filename="proposta-pmais.pdf"')
+    e.stream(200, 'application/pdf', reader)
+  } catch (_) {
+    if (!e.response.written) return indisponivel()
+  } finally {
+    try {
+      if (reader) reader.close()
+    } catch (_) {}
+    try {
+      if (fsys) fsys.close()
+    } catch (_) {}
+  }
+})
+
+routerAdd('POST', '/backend/v1/public/propostas/{token}/decisao', (e) => {
+  function gate(app) {
+    try {
+      var p = app.findFirstRecordByData(
+        'com_parametros',
+        'chave',
+        'proposta.pagina_publica_habilitada',
+      )
+      return p.getBool('ativo') && p.getString('valor') === 'true'
+    } catch (_) {
+      return false
+    }
+  }
+  function indisponivel() {
+    return e.json(404, { error: 'PROPOSTA_INDISPONIVEL' })
+  }
+  e.response.header().set('X-Robots-Tag', 'noindex, nofollow, noarchive')
+  e.response.header().set('Cache-Control', 'no-store')
+  if (!gate($app)) return indisponivel()
+  var token = e.request.pathValue('token')
+  if (!token || token.length !== 64) return indisponivel()
+  var body = {}
+  try {
+    body = JSON.parse(toString(e.request.body))
+  } catch (_) {
+    return e.json(400, { error: 'VALIDATION' })
+  }
+  var decisao = String(body.decisao || ''),
+    motivo = String(body.motivo || '').trim(),
+    comandoId = String(body.command_idempotency_key || '')
+  if (
+    (decisao !== 'aceita' && decisao !== 'recusada') ||
+    !comandoId ||
+    comandoId.length > 128 ||
+    (decisao === 'recusada' && motivo.length < 5) ||
+    motivo.length > 1000
+  )
+    return e.json(400, { error: 'VALIDATION' })
+  try {
+    var pub = $app.findFirstRecordByData(
+      'com_proposta_publicacoes',
+      'token_hash',
+      $security.sha256(token),
+    )
+    if (pub.getString('estado') !== 'ativa' || new Date(pub.getString('expira_em')) <= new Date())
+      return indisponivel()
+    var chave = $security.sha256(pub.id + ':decisao:' + comandoId),
+      resposta = null
+    $app.runInTransaction(function (tx) {
+      var proposta = tx.findRecordById('com_propostas', pub.getString('proposta_id')),
+        atual = proposta.getString('decisao_publica') || 'pendente'
+      try {
+        var anterior = tx.findFirstRecordByData(
+          'com_proposta_eventos_publicos',
+          'chave_idempotencia',
+          chave,
+        )
+        resposta = {
+          decisao: anterior.getString('tipo') === 'aceite_confirmado' ? 'aceita' : 'recusada',
+          replay: true,
+        }
+        return
+      } catch (_) {}
+      if (atual !== 'pendente') throw new Error('JA_DECIDIDA:' + atual)
+      var agora = new Date(),
+        evento = new Record(tx.findCollectionByNameOrId('com_proposta_eventos_publicos'))
+      proposta.set('decisao_publica', decisao)
+      proposta.set('decisao_publica_motivo', decisao === 'recusada' ? motivo : '')
+      tx.save(proposta)
+      evento.set('publicacao_id', pub.id)
+      evento.set('tipo', decisao === 'aceita' ? 'aceite_confirmado' : 'recusa_confirmada')
+      evento.set('ocorrido_em', agora)
+      evento.set('chave_idempotencia', chave)
+      tx.save(evento)
+      resposta = { decisao: decisao, decidido_em: agora.toISOString(), replay: false }
+    })
+    return e.json(200, resposta)
+  } catch (err) {
+    var mensagem = String(err && err.message ? err.message : err)
+    if (mensagem.indexOf('JA_DECIDIDA:') >= 0)
+      return e.json(409, { error: 'DECISAO_JA_REGISTRADA' })
     return indisponivel()
   }
 })
