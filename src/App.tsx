@@ -17,6 +17,7 @@ import Slas from './pages/Slas'
 import Propostas from './pages/Propostas'
 import Fechamentos from './pages/Fechamentos'
 import OrdensExecucao from './pages/OrdensExecucao'
+import PropostaPublica from './pages/PropostaPublica'
 
 import NotFound from './pages/NotFound'
 import AccessDenied from './pages/AccessDenied'
@@ -58,6 +59,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <Routes>
+            <Route path="/p/:token" element={<PropostaPublica />} />
             <Route path="/login" element={<Login />} />
             <Route element={<Layout />}>
               <Route
