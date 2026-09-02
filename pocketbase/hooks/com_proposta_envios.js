@@ -158,6 +158,244 @@ routerAdd(
   $apis.requireAuth(),
 )
 
+// Rota temporária do QA controlado Lote F. Será removida após a limpeza comprovada.
+routerAdd(
+  'POST',
+  '/backend/v1/propostas/qa-f/criar',
+  (e) => {
+    function superadmin(app, user) {
+      try {
+        return (
+          app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug') ===
+          'superadministrador'
+        )
+      } catch (_) {
+        return false
+      }
+    }
+    if (!e.auth || !e.auth.getBool('ativo_comercial') || !superadmin($app, e.auth))
+      return e.json(403, { error: 'FORBIDDEN' })
+    var body = {}
+    try {
+      body = JSON.parse(toString(e.request.body))
+    } catch (_) {
+      return e.json(400, { error: 'VALIDATION' })
+    }
+    if (body.confirmacao !== 'CRIAR TESTE DESCARTAVEL LOTE F')
+      return e.json(400, { error: 'CONFIRMACAO' })
+    try {
+      $app.findRecordById('com_negocios', 'lotefnegocio001')
+      return e.json(409, { error: 'TESTE_JA_EXISTE' })
+    } catch (_) {}
+    try {
+      var empresa = new Record($app.findCollectionByNameOrId('com_empresas'))
+      empresa.id = 'lotefempresa001'
+      empresa.set('nome', '[TESTE LOTE F] Cliente descartável')
+      empresa.set('email', 'luiz.moura@pmaisservicos.com.br')
+      empresa.set('telefone', '81999999999')
+      empresa.set('status', 'ativo')
+      empresa.set('equipe_id', e.auth.getString('equipe_id'))
+      empresa.set('responsavel_id', e.auth.id)
+      $app.save(empresa)
+      var negocio = new Record($app.findCollectionByNameOrId('com_negocios'))
+      negocio.id = 'lotefnegocio001'
+      negocio.set('titulo', '[TESTE LOTE F] Proposta descartável')
+      negocio.set('empresa_id', empresa.id)
+      negocio.set('equipe_id', e.auth.getString('equipe_id'))
+      negocio.set('responsavel_id', e.auth.id)
+      negocio.set('valor', 1000)
+      negocio.set('descricao', 'QA controlado da proposta nativa')
+      negocio.set('etapa', 'producao_proposta')
+      negocio.set('inativo', false)
+      negocio.set('tipo_entrada', 'pre_qualificada')
+      negocio.set('qualificacao', 'qualificada')
+      negocio.set('prospectivo', true)
+      negocio.set('modalidade', 'serv_eventual')
+      negocio.set('origem_canal', 'qa_controlado')
+      $app.save(negocio)
+      return e.json(201, {
+        empresa_id: empresa.id,
+        negocio_id: negocio.id,
+        negocio_updated: negocio.getString('updated'),
+      })
+    } catch (err) {
+      try {
+        $app.delete($app.findRecordById('com_empresas', 'lotefempresa001'))
+      } catch (_) {}
+      return e.json(500, { error: 'QA_CRIAR' })
+    }
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'POST',
+  '/backend/v1/propostas/qa-f/limpar',
+  (e) => {
+    function superadmin(app, user) {
+      try {
+        return (
+          app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug') ===
+          'superadministrador'
+        )
+      } catch (_) {
+        return false
+      }
+    }
+    function apagarFiltro(app, colecao, filtro) {
+      var rows = []
+      try {
+        rows = app.findRecordsByFilter(colecao, filtro, '', 1000, 0)
+      } catch (_) {}
+      for (var i = 0; i < rows.length; i++)
+        try {
+          app.delete(rows[i])
+        } catch (_) {}
+    }
+    if (!e.auth || !e.auth.getBool('ativo_comercial') || !superadmin($app, e.auth))
+      return e.json(403, { error: 'FORBIDDEN' })
+    var body = {}
+    try {
+      body = JSON.parse(toString(e.request.body))
+    } catch (_) {
+      return e.json(400, { error: 'VALIDATION' })
+    }
+    if (body.confirmacao !== 'ELIMINAR TESTE DESCARTAVEL LOTE F')
+      return e.json(400, { error: 'CONFIRMACAO' })
+    try {
+      var proposta = null,
+        versoes = [],
+        pubs = []
+      try {
+        proposta = $app.findFirstRecordByData('com_propostas', 'negocio_id', 'lotefnegocio001')
+      } catch (_) {}
+      if (proposta) {
+        try {
+          versoes = $app.findRecordsByFilter(
+            'com_proposta_versoes',
+            "proposta_id='" + proposta.id + "'",
+            '',
+            100,
+            0,
+          )
+        } catch (_) {}
+        try {
+          pubs = $app.findRecordsByFilter(
+            'com_proposta_publicacoes',
+            "proposta_id='" + proposta.id + "'",
+            '',
+            100,
+            0,
+          )
+        } catch (_) {}
+      }
+      if (proposta) apagarFiltro($app, 'com_proposta_envios', "proposta_id='" + proposta.id + "'")
+      for (var p = 0; p < pubs.length; p++)
+        apagarFiltro($app, 'com_proposta_eventos_publicos', "publicacao_id='" + pubs[p].id + "'")
+      for (var p2 = 0; p2 < pubs.length; p2++)
+        try {
+          $app.delete(pubs[p2])
+        } catch (_) {}
+      for (var v = 0; v < versoes.length; v++)
+        apagarFiltro($app, 'com_auditoria', "record_id='" + versoes[v].id + "'")
+      for (var v2 = 0; v2 < versoes.length; v2++)
+        try {
+          $app.delete(versoes[v2])
+        } catch (_) {}
+      if (proposta)
+        try {
+          $app.delete(proposta)
+        } catch (_) {}
+      apagarFiltro($app, 'com_atividades', "negocio_id='lotefnegocio001'")
+      apagarFiltro($app, 'com_negocio_historico', "negocio_id='lotefnegocio001'")
+      apagarFiltro($app, 'com_auditoria', "record_id='lotefnegocio001'")
+      apagarFiltro($app, 'com_auditoria', "record_id='lotefempresa001'")
+      var idems = []
+      try {
+        idems = $app.findRecordsByFilter(
+          'com_idempotencia',
+          "command_idempotency_key~'lotef-'",
+          '',
+          1000,
+          0,
+        )
+      } catch (_) {}
+      for (var z = 0; z < idems.length; z++)
+        try {
+          $app.delete(idems[z])
+        } catch (_) {}
+      try {
+        $app.delete($app.findRecordById('com_negocios', 'lotefnegocio001'))
+      } catch (_) {}
+      try {
+        $app.delete($app.findRecordById('com_empresas', 'lotefempresa001'))
+      } catch (_) {}
+      var restante = false
+      try {
+        $app.findRecordById('com_negocios', 'lotefnegocio001')
+        restante = true
+      } catch (_) {}
+      try {
+        $app.findRecordById('com_empresas', 'lotefempresa001')
+        restante = true
+      } catch (_) {}
+      return e.json(restante ? 500 : 200, { limpo: !restante })
+    } catch (_) {
+      return e.json(500, { error: 'QA_LIMPAR' })
+    }
+  },
+  $apis.requireAuth(),
+)
+
+routerAdd(
+  'POST',
+  '/backend/v1/propostas/qa-f/gates',
+  (e) => {
+    function superadmin(app, user) {
+      try {
+        return (
+          app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug') ===
+          'superadministrador'
+        )
+      } catch (_) {
+        return false
+      }
+    }
+    if (!e.auth || !e.auth.getBool('ativo_comercial') || !superadmin($app, e.auth))
+      return e.json(403, { error: 'FORBIDDEN' })
+    var body = {}
+    try {
+      body = JSON.parse(toString(e.request.body))
+    } catch (_) {
+      return e.json(400, { error: 'VALIDATION' })
+    }
+    if (
+      body.confirmacao !== 'ALTERAR GATES TEMPORARIOS LOTE F' ||
+      typeof body.pagina_publica !== 'boolean' ||
+      typeof body.email !== 'boolean'
+    )
+      return e.json(400, { error: 'CONFIRMACAO' })
+    try {
+      var p = $app.findFirstRecordByData(
+          'com_parametros',
+          'chave',
+          'proposta.pagina_publica_habilitada',
+        ),
+        m = $app.findFirstRecordByData('com_parametros', 'chave', 'proposta.email_habilitado')
+      p.set('valor', body.pagina_publica ? 'true' : 'false')
+      p.set('justificativa', '[TESTE LOTE F] gate temporário')
+      m.set('valor', body.email ? 'true' : 'false')
+      m.set('justificativa', '[TESTE LOTE F] gate temporário')
+      $app.save(p)
+      $app.save(m)
+      return e.json(200, { pagina_publica: p.getString('valor'), email: m.getString('valor') })
+    } catch (_) {
+      return e.json(500, { error: 'QA_GATES' })
+    }
+  },
+  $apis.requireAuth(),
+)
+
 routerAdd(
   'POST',
   '/backend/v1/propostas/{negocioId}/preparar-whatsapp',
