@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileCheck2, RefreshCw } from 'lucide-react'
+import { FileCheck2, FileUp, History, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,10 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   listarPropostas,
+  criarVersaoPdfProposta,
   novaChaveProposta,
+  obterTimelineProposta,
   registrarEventoProposta,
   type EventoProposta,
   type ItemProposta,
+  type VersaoPropostaInterna,
 } from '@/services/propostas'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { devolverQualificacao } from '@/services/qualificacoes'
@@ -41,6 +44,9 @@ export default function Propostas() {
   const [periodoInicio, setPeriodoInicio] = useState('')
   const [periodoFim, setPeriodoFim] = useState('')
   const [motivoDevolucao, setMotivoDevolucao] = useState<Record<string, string>>({})
+  const [arquivos, setArquivos] = useState<Record<string, File | null>>({})
+  const [timelines, setTimelines] = useState<Record<string, VersaoPropostaInterna[]>>({})
+  const [enviandoPdf, setEnviandoPdf] = useState<string | null>(null)
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
@@ -105,6 +111,30 @@ export default function Propostas() {
       await carregar()
     } catch (_) {
       toast.error('O negócio não pôde ser devolvido para Qualificação.')
+    }
+  }
+  const carregarTimeline = async (negocioId: string) => {
+    try {
+      const timeline = await obterTimelineProposta(negocioId)
+      setTimelines((atual) => ({ ...atual, [negocioId]: timeline.versoes }))
+    } catch (_) {
+      toast.error('Não foi possível carregar o histórico de versões.')
+    }
+  }
+  const enviarPdf = async (item: ItemProposta) => {
+    const arquivo = arquivos[item.negocio.id]
+    if (!arquivo || !item.proposta) return
+    setEnviandoPdf(item.negocio.id)
+    try {
+      await criarVersaoPdfProposta(item.negocio.id, item.proposta.updated, arquivo)
+      setArquivos((atual) => ({ ...atual, [item.negocio.id]: null }))
+      toast.success('Nova versão privada do PDF criada.')
+      await carregar()
+      await carregarTimeline(item.negocio.id)
+    } catch (_) {
+      toast.error('Não foi possível criar a versão do PDF.')
+    } finally {
+      setEnviandoPdf(null)
     }
   }
   return (
@@ -176,6 +206,58 @@ export default function Propostas() {
                       Aprovada: {p.aprovada ? 'Sim' : 'Não'} · Visualizada:{' '}
                       {p.visualizada ? 'Sim' : 'Não'}
                     </p>
+                  </div>
+                )}
+                {p && p.estado === 'rascunho' && !somenteNegociacao && !somenteLeituraPerfil && (
+                  <div className="space-y-2 rounded-md border p-3">
+                    <Label htmlFor={`pdf-${item.negocio.id}`}>Nova versão do PDF</Label>
+                    <Input
+                      id={`pdf-${item.negocio.id}`}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      onChange={(event) =>
+                        setArquivos((atual) => ({
+                          ...atual,
+                          [item.negocio.id]: event.target.files?.[0] ?? null,
+                        }))
+                      }
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        disabled={!arquivos[item.negocio.id] || enviandoPdf === item.negocio.id}
+                        onClick={() => void enviarPdf(item)}
+                      >
+                        <FileUp className="mr-2 h-4 w-4" />
+                        Criar versão privada
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void carregarTimeline(item.negocio.id)}
+                      >
+                        <History className="mr-2 h-4 w-4" />
+                        Ver histórico
+                      </Button>
+                    </div>
+                    {(timelines[item.negocio.id] || []).map((versao) => (
+                      <div key={versao.id} className="rounded border bg-muted/30 p-2 text-xs">
+                        <p>
+                          Versão {versao.numero} · {versao.arquivo_nome || 'sem PDF'} ·{' '}
+                          {versao.arquivo_bytes
+                            ? `${(versao.arquivo_bytes / 1024 / 1024).toFixed(2)} MB`
+                            : '—'}
+                        </p>
+                        {versao.arquivo_sha256 && (
+                          <p className="truncate font-mono text-muted-foreground">
+                            SHA-256: {versao.arquivo_sha256}
+                          </p>
+                        )}
+                        <p className="text-muted-foreground">
+                          {versao.eventos.length} evento(s) auditável(is)
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 )}
                 {podeDevolverQualificacao && item.negocio.etapa === 'producao_proposta' && (

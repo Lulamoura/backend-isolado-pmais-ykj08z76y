@@ -39,5 +39,39 @@ export const listarPropostas = () =>
   })
 export const registrarEventoProposta = (body: Record<string, unknown>) =>
   pb.send('/backend/v1/propostas/eventos', { method: 'POST', body })
+export interface VersaoPropostaInterna {
+  id: string
+  numero: number
+  estado: string
+  arquivo_nome: string | null
+  arquivo_sha256: string | null
+  arquivo_bytes: number
+  aprovacao_estado: string | null
+  created: string
+  updated: string
+  eventos: Array<{
+    id: string
+    tipo: string
+    autor_id: string
+    data_hora: string
+    justificativa: string | null
+  }>
+}
+export const criarVersaoPdfProposta = (
+  negocioId: string,
+  updatedEsperado: string,
+  arquivo: File,
+) => {
+  const body = new FormData()
+  body.append('arquivo_pdf', arquivo)
+  body.append('updated_esperado', updatedEsperado)
+  body.append('command_idempotency_key', novaChaveProposta(negocioId, 'versao-pdf'))
+  return pb.send(`/backend/v1/propostas/${negocioId}/versoes`, { method: 'POST', body })
+}
+export const obterTimelineProposta = (negocioId: string) =>
+  pb.send<{ proposta_id: string; versoes: VersaoPropostaInterna[] }>(
+    `/backend/v1/propostas/${negocioId}/timeline`,
+    { method: 'GET' },
+  )
 export const novaChaveProposta = (id: string, tipo: string) =>
   `proposta:${tipo}:${id}:${Date.now()}:${crypto.randomUUID()}`
