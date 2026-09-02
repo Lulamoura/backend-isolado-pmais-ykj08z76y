@@ -18,6 +18,7 @@ const checks = [
     'Resend backend only',
     hook.includes('https://api.resend.com/emails') && !service.includes('RESEND_API_KEY'),
   ],
+  ['Resend com User-Agent obrigatório', hook.includes("'User-Agent': 'PMais-Comercial/1.0'")],
   [
     'idempotência provider',
     hook.includes("'Idempotency-Key': chave") && hook.includes('command_idempotency_key'),

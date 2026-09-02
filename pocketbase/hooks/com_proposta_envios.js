@@ -116,6 +116,7 @@ routerAdd(
           Authorization: 'Bearer ' + apiKey,
           'Content-Type': 'application/json',
           'Idempotency-Key': chave,
+          'User-Agent': 'PMais-Comercial/1.0',
         },
         body: JSON.stringify({
           from: 'PMais Serviços <spok@lulamoura.com.br>',
