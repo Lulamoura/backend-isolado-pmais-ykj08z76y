@@ -26,7 +26,8 @@
     "test:proposta-publica-foundation": "node scripts/test-proposta-publica-foundation.cjs",
     "test:proposta-arquivos": "node scripts/test-proposta-arquivos-contract.cjs",
     "test:proposta-publicacao": "node scripts/test-proposta-publicacao-contract.cjs",
-    "test:proposta-decisao": "node scripts/test-proposta-decisao-contract.cjs"
+    "test:proposta-decisao": "node scripts/test-proposta-decisao-contract.cjs",
+    "test:proposta-envios": "node scripts/test-proposta-envios-contract.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

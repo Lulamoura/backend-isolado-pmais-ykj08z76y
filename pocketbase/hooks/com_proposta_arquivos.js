@@ -354,6 +354,11 @@ routerAdd(
       eventosPublicos.sort(function (a, b) {
         return String(a.ocorrido_em).localeCompare(String(b.ocorrido_em))
       })
+      var envios = []
+      try {
+        var enviosRows = $app.findRecordsByFilter('com_proposta_envios', "proposta_id='" + proposta.id + "'", 'created', 200, 0)
+        for (var xi = 0; xi < enviosRows.length; xi++) envios.push({ id: enviosRows[xi].id, canal: enviosRows[xi].getString('canal'), destinatario: enviosRows[xi].getString('destinatario') || null, assunto: enviosRows[xi].getString('assunto') || null, estado: enviosRows[xi].getString('estado'), provider_id: enviosRows[xi].getString('provider_id') || null, erro_codigo: enviosRows[xi].getString('erro_codigo') || null, enviado_em: enviosRows[xi].getString('enviado_em') || null, created: enviosRows[xi].getString('created') })
+      } catch (_) {}
       return e.json(200, {
         proposta_id: proposta.id,
         versoes: itens,
@@ -362,6 +367,7 @@ routerAdd(
         decisao: proposta.getString('decisao_publica') || 'pendente',
         decisao_motivo: proposta.getString('decisao_publica_motivo') || null,
         eventos_publicos: eventosPublicos,
+        envios: envios,
       })
     } catch (_) {
       return e.json(404, { error: 'PROPOSTA_NAO_ENCONTRADA' })
