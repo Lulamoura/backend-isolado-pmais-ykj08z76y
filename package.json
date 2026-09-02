@@ -22,7 +22,8 @@
     "test:t6ac9": "node scripts/test-t6-ac9-native-relay.cjs && node scripts/test-t6-ac-recuperacao.cjs",
     "test:provelo": "node scripts/test-provelo-draft-dispatch.cjs && node scripts/test-provelo-dispatch-behavior.cjs",
     "test:operacao-dia": "node scripts/test-operacao-dia-recovery-contract.cjs",
-    "test:notas": "node scripts/test-notas-negocio-contract.cjs"
+    "test:notas": "node scripts/test-notas-negocio-contract.cjs",
+    "test:proposta-publica-foundation": "node scripts/test-proposta-publica-foundation.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
