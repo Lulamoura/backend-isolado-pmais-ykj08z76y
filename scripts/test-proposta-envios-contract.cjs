@@ -8,7 +8,7 @@ const checks = [
   ['Resend backend only', hook.includes('https://api.resend.com/emails') && !service.includes('RESEND_API_KEY')],
   ['Resend com User-Agent obrigatório', hook.includes("'User-Agent': 'PMais-Comercial/1.0'")],
   ['idempotência provider', hook.includes("'Idempotency-Key': chave") && hook.includes('command_idempotency_key')],
-  ['reply-to e remetente', hook.includes('reply_to: replyTo') && hook.includes('spok@lulamoura.com.br')],
+  ['reply-to e remetente corporativo verificado', hook.includes('reply_to: replyTo') && hook.includes('nao-responda@pmaisservicos.com.br')],
   ['PDF não anexado', !hook.includes('attachments') && hook.includes('Acessar proposta')],
   ['token não persiste no snapshot', hook.includes('[LINK_SEGURO_NAO_PERSISTIDO]') && !hook.includes("mensagem_snapshot', mensagem)" )],
   ['WhatsApp somente assistido', hook.includes('https://wa.me/') && !hook.includes('graph.facebook.com')],

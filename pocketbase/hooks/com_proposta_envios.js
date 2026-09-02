@@ -67,7 +67,7 @@ routerAdd(
         url: 'https://api.resend.com/emails', method: 'POST', timeout: 20,
         headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json', 'Idempotency-Key': chave, 'User-Agent': 'PMais-Comercial/1.0' },
         body: JSON.stringify({
-          from: 'PMais Serviços <spok@lulamoura.com.br>', to: [destinatario], reply_to: replyTo, subject: assunto,
+          from: 'PMais Serviços <nao-responda@pmaisservicos.com.br>', to: [destinatario], reply_to: replyTo, subject: assunto,
           html: '<p>Olá,</p><p>Segue a proposta comercial da PMais para sua análise.</p><p><a href="' + String(body.link_publico) + '">Acessar proposta</a></p><p>Atenciosamente,<br>Equipe PMais</p>',
           text: 'Segue a proposta comercial da PMais para sua análise: ' + String(body.link_publico),
         }),
