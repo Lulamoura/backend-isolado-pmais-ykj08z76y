@@ -119,7 +119,7 @@ function LayoutContent() {
             to="/"
             className="flex items-center gap-3 overflow-hidden p-3.5 group-data-[collapsible=icon]:p-1"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 p-1 text-white shadow-md">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-2 shadow-sm ring-1 ring-slate-200">
               <img
                 src={logoPmais}
                 alt=""
