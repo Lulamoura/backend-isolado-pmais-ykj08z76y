@@ -6,6 +6,7 @@ const checks = [
   ['duas rotas autenticadas', hook.includes('/enviar-email') && hook.includes('/preparar-whatsapp') && (hook.match(/\$apis\.requireAuth\(\)/g) || []).length === 2],
   ['gate antes do segredo e HTTP', hook.indexOf("proposta.email_habilitado") < hook.indexOf("$secrets.get('RESEND_API_KEY')") && hook.indexOf("proposta.email_habilitado") < hook.indexOf('$http.send')],
   ['Resend backend only', hook.includes('https://api.resend.com/emails') && !service.includes('RESEND_API_KEY')],
+  ['Resend com User-Agent obrigatório', hook.includes("'User-Agent': 'PMais-Comercial/1.0'")],
   ['idempotência provider', hook.includes("'Idempotency-Key': chave") && hook.includes('command_idempotency_key')],
   ['reply-to e remetente', hook.includes('reply_to: replyTo') && hook.includes('spok@lulamoura.com.br')],
   ['PDF não anexado', !hook.includes('attachments') && hook.includes('Acessar proposta')],
