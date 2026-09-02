@@ -57,6 +57,21 @@ export interface VersaoPropostaInterna {
     justificativa: string | null
   }>
 }
+export interface EventoPublicoProposta {
+  id: string
+  publicacao_id: string
+  tipo: string
+  ocorrido_em: string
+}
+export interface TimelinePropostaInterna {
+  proposta_id: string
+  versoes: VersaoPropostaInterna[]
+  total_acessos: number
+  total_downloads: number
+  decisao: 'pendente' | 'aceita' | 'recusada'
+  decisao_motivo: string | null
+  eventos_publicos: EventoPublicoProposta[]
+}
 export const criarVersaoPdfProposta = (
   negocioId: string,
   updatedEsperado: string,
@@ -69,10 +84,7 @@ export const criarVersaoPdfProposta = (
   return pb.send(`/backend/v1/propostas/${negocioId}/versoes`, { method: 'POST', body })
 }
 export const obterTimelineProposta = (negocioId: string) =>
-  pb.send<{ proposta_id: string; versoes: VersaoPropostaInterna[] }>(
-    `/backend/v1/propostas/${negocioId}/timeline`,
-    { method: 'GET' },
-  )
+  pb.send<TimelinePropostaInterna>(`/backend/v1/propostas/${negocioId}/timeline`, { method: 'GET' })
 export interface PublicacaoPropostaInterna {
   id: string
   versao_id: string

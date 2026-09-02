@@ -16,7 +16,7 @@ import {
   registrarEventoProposta,
   type EventoProposta,
   type ItemProposta,
-  type VersaoPropostaInterna,
+  type TimelinePropostaInterna,
 } from '@/services/propostas'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { devolverQualificacao } from '@/services/qualificacoes'
@@ -47,7 +47,7 @@ export default function Propostas() {
   const [periodoFim, setPeriodoFim] = useState('')
   const [motivoDevolucao, setMotivoDevolucao] = useState<Record<string, string>>({})
   const [arquivos, setArquivos] = useState<Record<string, File | null>>({})
-  const [timelines, setTimelines] = useState<Record<string, VersaoPropostaInterna[]>>({})
+  const [timelines, setTimelines] = useState<Record<string, TimelinePropostaInterna>>({})
   const [enviandoPdf, setEnviandoPdf] = useState<string | null>(null)
   const [linksPublicos, setLinksPublicos] = useState<Record<string, string>>({})
   const carregar = useCallback(async () => {
@@ -119,7 +119,7 @@ export default function Propostas() {
   const carregarTimeline = async (negocioId: string) => {
     try {
       const timeline = await obterTimelineProposta(negocioId)
-      setTimelines((atual) => ({ ...atual, [negocioId]: timeline.versoes }))
+      setTimelines((atual) => ({ ...atual, [negocioId]: timeline }))
     } catch (_) {
       toast.error('Não foi possível carregar o histórico de versões.')
     }
@@ -264,7 +264,20 @@ export default function Propostas() {
                         Ver histórico
                       </Button>
                     </div>
-                    {(timelines[item.negocio.id] || []).map((versao) => (
+                    {timelines[item.negocio.id] && (
+                      <div className="rounded border bg-primary/5 p-2 text-xs">
+                        <p className="font-medium">Acompanhamento público</p>
+                        <p>
+                          {timelines[item.negocio.id].total_acessos} acesso(s) ·{' '}
+                          {timelines[item.negocio.id].total_downloads} download(s) · decisão:{' '}
+                          {timelines[item.negocio.id].decisao}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {timelines[item.negocio.id].eventos_publicos.length} evento(s) público(s)
+                        </p>
+                      </div>
+                    )}
+                    {(timelines[item.negocio.id]?.versoes || []).map((versao) => (
                       <div key={versao.id} className="rounded border bg-muted/30 p-2 text-xs">
                         <p>
                           Versão {versao.numero} · {versao.arquivo_nome || 'sem PDF'} ·{' '}

@@ -325,7 +325,44 @@ routerAdd(
           eventos: eventos,
         })
       }
-      return e.json(200, { proposta_id: proposta.id, versoes: itens })
+      var eventosPublicos = []
+      try {
+        var publicacoes = $app.findRecordsByFilter(
+          'com_proposta_publicacoes',
+          "proposta_id='" + proposta.id + "'",
+          '',
+          100,
+          0,
+        )
+        for (var pi = 0; pi < publicacoes.length; pi++) {
+          var eventosRows = $app.findRecordsByFilter(
+            'com_proposta_eventos_publicos',
+            "publicacao_id='" + publicacoes[pi].id + "'",
+            'ocorrido_em',
+            200,
+            0,
+          )
+          for (var ei = 0; ei < eventosRows.length; ei++)
+            eventosPublicos.push({
+              id: eventosRows[ei].id,
+              publicacao_id: publicacoes[pi].id,
+              tipo: eventosRows[ei].getString('tipo'),
+              ocorrido_em: eventosRows[ei].getString('ocorrido_em'),
+            })
+        }
+      } catch (_) {}
+      eventosPublicos.sort(function (a, b) {
+        return String(a.ocorrido_em).localeCompare(String(b.ocorrido_em))
+      })
+      return e.json(200, {
+        proposta_id: proposta.id,
+        versoes: itens,
+        total_acessos: Number(proposta.get('total_acessos') || 0),
+        total_downloads: Number(proposta.get('total_downloads') || 0),
+        decisao: proposta.getString('decisao_publica') || 'pendente',
+        decisao_motivo: proposta.getString('decisao_publica_motivo') || null,
+        eventos_publicos: eventosPublicos,
+      })
     } catch (_) {
       return e.json(404, { error: 'PROPOSTA_NAO_ENCONTRADA' })
     }
