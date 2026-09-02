@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileCheck2, FileUp, History, Link2, RefreshCw } from 'lucide-react'
+import { FileCheck2, FileUp, History, Link2, Mail, MessageCircle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,9 +9,11 @@ import { Label } from '@/components/ui/label'
 import {
   listarPropostas,
   criarVersaoPdfProposta,
+  enviarPropostaPorEmail,
   novaChaveProposta,
   obterTimelineProposta,
   publicarProposta,
+  prepararPropostaWhatsApp,
   revogarPublicacaoProposta,
   registrarEventoProposta,
   type EventoProposta,
@@ -50,6 +52,8 @@ export default function Propostas() {
   const [timelines, setTimelines] = useState<Record<string, TimelinePropostaInterna>>({})
   const [enviandoPdf, setEnviandoPdf] = useState<string | null>(null)
   const [linksPublicos, setLinksPublicos] = useState<Record<string, string>>({})
+  const [destinosEmail, setDestinosEmail] = useState<Record<string, string>>({})
+  const [destinosWhatsApp, setDestinosWhatsApp] = useState<Record<string, string>>({})
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
@@ -159,6 +163,31 @@ export default function Propostas() {
       toast.success('Link da proposta revogado.')
     } catch (_) {
       toast.error('Não foi possível revogar o link.')
+    }
+  }
+  const enviarEmail = async (item: ItemProposta) => {
+    const email = destinosEmail[item.negocio.id]?.trim()
+    const link = linksPublicos[item.negocio.id]
+    if (!email || !link) return
+    try {
+      await enviarPropostaPorEmail(item.negocio.id, email, link)
+      toast.success('Envio solicitado com rastreamento.')
+      await carregarTimeline(item.negocio.id)
+    } catch (_) {
+      toast.info('O envio por e-mail permanece desabilitado neste ambiente.')
+    }
+  }
+  const prepararWhatsApp = async (item: ItemProposta) => {
+    const telefone = destinosWhatsApp[item.negocio.id]?.trim()
+    const link = linksPublicos[item.negocio.id]
+    if (!telefone || !link) return
+    try {
+      const resultado = await prepararPropostaWhatsApp(item.negocio.id, telefone, link)
+      window.open(resultado.url_whatsapp, '_blank', 'noopener,noreferrer')
+      toast.success('Mensagem preparada. O envio depende da confirmação no WhatsApp.')
+      await carregarTimeline(item.negocio.id)
+    } catch (_) {
+      toast.error('Não foi possível preparar o compartilhamento.')
     }
   }
   return (
@@ -312,11 +341,66 @@ export default function Propostas() {
                       )}
                     </div>
                     {linksPublicos[item.negocio.id] && (
-                      <Input
-                        readOnly
-                        value={linksPublicos[item.negocio.id]}
-                        aria-label="Link seguro da proposta"
-                      />
+                      <div className="space-y-3">
+                        <Input
+                          readOnly
+                          value={linksPublicos[item.negocio.id]}
+                          aria-label="Link seguro da proposta"
+                        />
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor={`email-proposta-${item.negocio.id}`}>
+                              E-mail do cliente
+                            </Label>
+                            <Input
+                              id={`email-proposta-${item.negocio.id}`}
+                              type="email"
+                              value={destinosEmail[item.negocio.id] || ''}
+                              onChange={(event) =>
+                                setDestinosEmail((atual) => ({
+                                  ...atual,
+                                  [item.negocio.id]: event.target.value,
+                                }))
+                              }
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!destinosEmail[item.negocio.id]?.trim()}
+                              onClick={() => void enviarEmail(item)}
+                            >
+                              <Mail className="mr-2 h-4 w-4" />
+                              Enviar por e-mail
+                            </Button>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`whatsapp-proposta-${item.negocio.id}`}>
+                              WhatsApp do cliente
+                            </Label>
+                            <Input
+                              id={`whatsapp-proposta-${item.negocio.id}`}
+                              inputMode="tel"
+                              placeholder="5581999999999"
+                              value={destinosWhatsApp[item.negocio.id] || ''}
+                              onChange={(event) =>
+                                setDestinosWhatsApp((atual) => ({
+                                  ...atual,
+                                  [item.negocio.id]: event.target.value,
+                                }))
+                              }
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!destinosWhatsApp[item.negocio.id]?.trim()}
+                              onClick={() => void prepararWhatsApp(item)}
+                            >
+                              <MessageCircle className="mr-2 h-4 w-4" />
+                              Preparar WhatsApp
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}

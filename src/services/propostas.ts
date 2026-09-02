@@ -71,6 +71,17 @@ export interface TimelinePropostaInterna {
   decisao: 'pendente' | 'aceita' | 'recusada'
   decisao_motivo: string | null
   eventos_publicos: EventoPublicoProposta[]
+  envios: Array<{
+    id: string
+    canal: string
+    destinatario: string | null
+    assunto: string | null
+    estado: string
+    provider_id: string | null
+    erro_codigo: string | null
+    enviado_em: string | null
+    created: string
+  }>
 }
 export const criarVersaoPdfProposta = (
   negocioId: string,
@@ -113,5 +124,34 @@ export const listarPublicacoesProposta = (negocioId: string) =>
   pb.send<{ itens: PublicacaoPropostaInterna[] }>(`/backend/v1/propostas/${negocioId}/publicacao`, {
     method: 'GET',
   })
+export const enviarPropostaPorEmail = (
+  negocioId: string,
+  destinatario: string,
+  linkPublico: string,
+) =>
+  pb.send(`/backend/v1/propostas/${negocioId}/enviar-email`, {
+    method: 'POST',
+    body: {
+      destinatario,
+      link_publico: linkPublico,
+      command_idempotency_key: novaChaveProposta(negocioId, 'email'),
+    },
+  })
+export const prepararPropostaWhatsApp = (
+  negocioId: string,
+  telefone: string,
+  linkPublico: string,
+) =>
+  pb.send<{ mensagem: string; url_whatsapp: string }>(
+    `/backend/v1/propostas/${negocioId}/preparar-whatsapp`,
+    {
+      method: 'POST',
+      body: {
+        telefone,
+        link_publico: linkPublico,
+        command_idempotency_key: novaChaveProposta(negocioId, 'whatsapp'),
+      },
+    },
+  )
 export const novaChaveProposta = (id: string, tipo: string) =>
   `proposta:${tipo}:${id}:${Date.now()}:${crypto.randomUUID()}`
