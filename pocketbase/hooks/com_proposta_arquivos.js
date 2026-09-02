@@ -1,4 +1,5 @@
 // Proposta nativa V1 — upload privado, versoes imutaveis e timeline interna.
+// Lote B: materializado e validado no backend candidato / Preview.
 
 routerAdd(
   'POST',
