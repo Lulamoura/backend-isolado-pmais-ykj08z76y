@@ -123,14 +123,6 @@ routerAdd('POST', '/backend/v1/propostas/qa-f/limpar', (e) => {
   } catch (_) { return e.json(500,{error:'QA_LIMPAR'}) }
 }, $apis.requireAuth())
 
-routerAdd('POST', '/backend/v1/propostas/qa-f/gates', (e) => {
-  function superadmin(app, user) { try { return app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug') === 'superadministrador' } catch (_) { return false } }
-  if (!e.auth || !e.auth.getBool('ativo_comercial') || !superadmin($app, e.auth)) return e.json(403,{error:'FORBIDDEN'})
-  var body={};try{body=JSON.parse(toString(e.request.body))}catch(_){return e.json(400,{error:'VALIDATION'})}
-  if(body.confirmacao!=='ALTERAR GATES TEMPORARIOS LOTE F'||typeof body.pagina_publica!=='boolean'||typeof body.email!=='boolean')return e.json(400,{error:'CONFIRMACAO'})
-  try{var p=$app.findFirstRecordByData('com_parametros','chave','proposta.pagina_publica_habilitada'),m=$app.findFirstRecordByData('com_parametros','chave','proposta.email_habilitado');p.set('valor',body.pagina_publica?'true':'false');p.set('justificativa','[TESTE LOTE F] gate temporário');m.set('valor',body.email?'true':'false');m.set('justificativa','[TESTE LOTE F] gate temporário');$app.save(p);$app.save(m);return e.json(200,{pagina_publica:p.getString('valor'),email:m.getString('valor')})}catch(_){return e.json(500,{error:'QA_GATES'})}
-}, $apis.requireAuth())
-
 routerAdd(
   'POST',
   '/backend/v1/propostas/{negocioId}/preparar-whatsapp',
