@@ -39,6 +39,7 @@ export default function Propostas() {
   const podeDevolverQualificacao =
     perfilSlug === 'superadministrador' || perfilSlug === 'gestor-comercial'
   const [itens, setItens] = useState<ItemProposta[]>([])
+  const [aprovacaoObrigatoria, setAprovacaoObrigatoria] = useState(false)
   const [loading, setLoading] = useState(true)
   const [valores, setValores] = useState<Record<string, string>>({})
   const [busca, setBusca] = useState('')
@@ -57,7 +58,9 @@ export default function Propostas() {
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
-      setItens((await listarPropostas()).itens)
+      const resultado = await listarPropostas()
+      setItens(resultado.itens)
+      setAprovacaoObrigatoria(resultado.configuracao.aprovacao_interna_obrigatoria)
     } catch (_) {
       toast.error('Não foi possível carregar as propostas.')
     } finally {
@@ -90,7 +93,7 @@ export default function Propostas() {
     }
     if (tipo === 'preparar') {
       body.modalidade = item.contexto.modalidade
-      body.valor_total_centavos = Math.round(Number(entrada) * 100)
+      body.valor_total_centavos = item.contexto.valor_centavos
     }
     if (tipo === 'emitir') {
       body.destinatario = entrada
@@ -256,8 +259,10 @@ export default function Propostas() {
                       {reais(p.valor_total_centavos)} · versão {p.numero}
                     </p>
                     <p className="text-muted-foreground">
-                      Aprovada: {p.aprovada ? 'Sim' : 'Não'} · Visualizada:{' '}
-                      {p.visualizada ? 'Sim' : 'Não'}
+                      {aprovacaoObrigatoria
+                        ? `Aprovada: ${p.aprovada ? 'Sim' : 'Não'}`
+                        : 'Aprovação interna: não exigida'}{' '}
+                      · Visualizada: {p.visualizada ? 'Sim' : 'Não'}
                     </p>
                   </div>
                 )}
@@ -329,8 +334,17 @@ export default function Propostas() {
                 {p && p.estado === 'rascunho' && !somenteNegociacao && !somenteLeituraPerfil && (
                   <div className="space-y-2 rounded-md border border-dashed p-3">
                     <p className="text-sm font-medium">Publicação segura</p>
+                    <p className="text-xs text-muted-foreground">
+                      1. Crie a versão privada do PDF · 2. Gere o link · 3. Envie por e-mail ou
+                      prepare o WhatsApp
+                    </p>
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => void publicar(item)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!p.pdf_disponivel}
+                        onClick={() => void publicar(item)}
+                      >
                         <Link2 className="mr-2 h-4 w-4" />
                         Gerar link
                       </Button>
@@ -429,47 +443,56 @@ export default function Propostas() {
                     </Button>
                   </div>
                 )}
-                {!somenteNegociacao && !somenteLeituraPerfil && !item.contexto.somente_leitura && (
-                  <div className="space-y-2">
-                    <Label htmlFor={`proposta-${item.negocio.id}`}>
-                      {!p
-                        ? 'Valor total em reais'
-                        : p.estado === 'rascunho' && p.aprovada
+                {!somenteNegociacao &&
+                  !somenteLeituraPerfil &&
+                  !item.contexto.somente_leitura &&
+                  p &&
+                  ((p.estado === 'rascunho' && p.aprovada && aprovacaoObrigatoria) ||
+                    p.estado === 'enviada') && (
+                    <div className="space-y-2">
+                      <Label htmlFor={`proposta-${item.negocio.id}`}>
+                        {p.estado === 'rascunho' && p.aprovada
                           ? 'Destinatário para emissão'
                           : p.estado === 'enviada'
                             ? 'Evidência da decisão'
                             : 'Informação complementar'}
-                    </Label>
-                    <Input
-                      id={`proposta-${item.negocio.id}`}
-                      value={valores[item.negocio.id] ?? ''}
-                      onChange={(e) =>
-                        setValores((v) => ({
-                          ...v,
-                          [item.negocio.id]: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                )}
+                      </Label>
+                      <Input
+                        id={`proposta-${item.negocio.id}`}
+                        value={valores[item.negocio.id] ?? ''}
+                        onChange={(e) =>
+                          setValores((v) => ({
+                            ...v,
+                            [item.negocio.id]: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  )}
                 {!somenteNegociacao && !somenteLeituraPerfil && !item.contexto.somente_leitura && (
                   <div className="flex flex-wrap gap-2">
                     {!p && (
-                      <Button
-                        size="sm"
-                        disabled={!Number(valores[item.negocio.id])}
-                        onClick={() => void executar(item, 'preparar')}
-                      >
-                        <FileCheck2 className="mr-2 h-4 w-4" />
-                        Preparar
-                      </Button>
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          Valor da proposta: {reais(item.contexto.valor_centavos)} — sincronizado do
+                          ActiveCampaign
+                        </p>
+                        <Button
+                          size="sm"
+                          disabled={item.contexto.valor_centavos <= 0 || !item.contexto.modalidade}
+                          onClick={() => void executar(item, 'preparar')}
+                        >
+                          <FileCheck2 className="mr-2 h-4 w-4" />
+                          Preparar proposta
+                        </Button>
+                      </div>
                     )}
-                    {p?.estado === 'rascunho' && !p.aprovada && (
+                    {p?.estado === 'rascunho' && !p.aprovada && aprovacaoObrigatoria && (
                       <Button size="sm" onClick={() => void executar(item, 'aprovar')}>
                         Aprovar
                       </Button>
                     )}
-                    {p?.estado === 'rascunho' && p.aprovada && (
+                    {p?.estado === 'rascunho' && p.aprovada && aprovacaoObrigatoria && (
                       <Button
                         size="sm"
                         disabled={!valores[item.negocio.id]?.trim()}

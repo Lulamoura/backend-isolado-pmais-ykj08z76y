@@ -149,6 +149,18 @@
         } catch (_) {}
         return eventos
       }
+      function aprovacaoInternaObrigatoria(app) {
+        try {
+          var parametro = app.findFirstRecordByData(
+            'com_parametros',
+            'chave',
+            'proposta.aprovacao_interna_obrigatoria',
+          )
+          return parametro.getBool('ativo') && parametro.getString('valor') === 'true'
+        } catch (_) {
+          return false
+        }
+      }
       function propostaContexto(app, negocio) {
         function relacionado(collection, id, fields) {
           if (!id) return null
@@ -291,6 +303,8 @@
                     modalidade: versao.getString('modalidade'),
                     valor_total_centavos: versao.getInt('valor_total_centavos'),
                     valor_mensal_centavos: versao.getInt('valor_mensal_centavos'),
+                    pdf_disponivel:
+                      !!versao.getString('arquivo_pdf') && !!versao.getString('arquivo_sha256'),
                     destinatario: versao.getString('destinatario') || null,
                     canal_envio: versao.getString('canal_envio') || null,
                     updated: versao.getString('updated'),
@@ -305,7 +319,12 @@
                 : null,
           })
         }
-        return e.json(200, { itens: itens })
+        return e.json(200, {
+          itens: itens,
+          configuracao: {
+            aprovacao_interna_obrigatoria: aprovacaoInternaObrigatoria($app),
+          },
+        })
       } catch (err) {
         return e.json(500, { error: 'FILA_PROPOSTAS' })
       }
@@ -413,9 +432,7 @@
         return e.json(400, { error: 'VALIDATION' })
       if (
         body.tipo === 'preparar' &&
-        (['recorrente', 'evento', 'serv_eventual'].indexOf(body.modalidade) < 0 ||
-          !Number.isInteger(Number(body.valor_total_centavos)) ||
-          Number(body.valor_total_centavos) < 0)
+        ['recorrente', 'evento', 'serv_eventual'].indexOf(body.modalidade) < 0
       )
         return e.json(400, { error: 'DADOS_PROPOSTA_OBRIGATORIOS' })
       if (
@@ -524,6 +541,9 @@
             if (proposta || versao) throw new Error('JA_PREPARADA')
             if (negocio.getString('updated') !== body.updated_esperado)
               throw new Error('STALE_WRITE')
+            var valorNegocioCentavos = Number(negocio.get('valor') || 0)
+            if (!Number.isInteger(valorNegocioCentavos) || valorNegocioCentavos <= 0)
+              throw new Error('DADOS_PROPOSTA_OBRIGATORIOS')
             proposta = new Record(tx.findCollectionByNameOrId('com_propostas'))
             proposta.set('negocio_id', negocio.id)
             proposta.set('identificador', 'PROP-' + negocio.id.toUpperCase())
@@ -536,7 +556,7 @@
             versao.set('numero', 1)
             versao.set('estado', 'rascunho')
             versao.set('modalidade', body.modalidade)
-            versao.set('valor_total_centavos', Number(body.valor_total_centavos))
+            versao.set('valor_total_centavos', valorNegocioCentavos)
             if (body.valor_mensal_centavos)
               versao.set('valor_mensal_centavos', Number(body.valor_mensal_centavos))
             versao.set('creation_idempotency_key', body.command_idempotency_key)

@@ -20,6 +20,7 @@ export interface ItemProposta {
     modalidade: 'recorrente' | 'evento' | 'serv_eventual'
     valor_total_centavos: number
     valor_mensal_centavos: number
+    pdf_disponivel: boolean
     destinatario: string | null
     canal_envio: string | null
     updated: string
@@ -33,10 +34,16 @@ export interface ItemProposta {
     }>
   }
 }
+export interface ConfiguracaoPropostas {
+  aprovacao_interna_obrigatoria: boolean
+}
 export const listarPropostas = () =>
-  pb.send<{ itens: ItemProposta[] }>('/backend/v1/propostas/fila', {
-    method: 'GET',
-  })
+  pb.send<{ itens: ItemProposta[]; configuracao: ConfiguracaoPropostas }>(
+    '/backend/v1/propostas/fila',
+    {
+      method: 'GET',
+    },
+  )
 export const registrarEventoProposta = (body: Record<string, unknown>) =>
   pb.send('/backend/v1/propostas/eventos', { method: 'POST', body })
 export interface VersaoPropostaInterna {
