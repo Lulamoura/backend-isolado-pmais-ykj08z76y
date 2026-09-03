@@ -1,13 +1,19 @@
 const fs = require('node:fs')
 
 const page = fs.readFileSync('src/pages/Propostas.tsx', 'utf8')
+const contextCard = fs.readFileSync('src/components/CommercialContextCard.tsx', 'utf8')
 const hook = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
 const service = fs.readFileSync('src/services/propostas.ts', 'utf8')
 
 const checks = [
   ['card oferece Lançar proposta', page.includes('Lançar proposta')],
   ['card oferece Histórico', page.includes('Histórico')],
-  ['card oculta Notas nesta tela', page.includes('showNotes={false}')],
+  [
+    'card preserva Notas em modal',
+    !page.includes('showNotes={false}') &&
+      contextCard.includes('showNotes = true') &&
+      contextCard.includes('<BusinessNotesDialog negocioId={negocioId} />'),
+  ],
   [
     'operações usam modal',
     page.includes('<DialogContent') && page.includes("modo: 'operacao' | 'historico'"),

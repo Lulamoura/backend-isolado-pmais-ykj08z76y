@@ -351,7 +351,6 @@ export default function Propostas() {
                   contexto={item.contexto}
                   etapa={item.negocio.etapa}
                   negocioId={item.negocio.id}
-                  showNotes={false}
                   showReadOnlyNotice={false}
                 />
                 <div className="flex flex-wrap items-center gap-2">
