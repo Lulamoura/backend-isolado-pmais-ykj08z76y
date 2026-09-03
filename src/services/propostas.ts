@@ -27,6 +27,7 @@ export interface ItemProposta {
     aprovada: boolean
     visualizada: boolean
     aberta: boolean
+    enviada_sistema: boolean
     primeiro_acesso_publicacao_em: string | null
     eventos: Array<{
       id: string

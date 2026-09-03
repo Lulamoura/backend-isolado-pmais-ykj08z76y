@@ -18,6 +18,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   listarPropostas,
   criarVersaoPdfProposta,
   configurarIdentificacaoVisitante,
@@ -44,6 +51,15 @@ import {
 
 const reais = (centavos: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(centavos / 100)
+const dataHora = (valor: string | null) =>
+  valor ? new Date(valor).toLocaleString('pt-BR') : 'Data não informada'
+const rotuloEventoPublico: Record<string, string> = {
+  pagina_acessada: 'Proposta aberta',
+  pdf_visualizado: 'PDF visualizado',
+  pdf_baixado: 'PDF baixado',
+  proposta_aceita: 'Proposta aceita',
+  proposta_recusada: 'Proposta recusada',
+}
 export default function Propostas() {
   const { isSuperAdmin, perfilSlug } = useIsSuperAdmin()
   const somenteNegociacao = perfilSlug === 'negociacao-propria'
@@ -69,6 +85,10 @@ export default function Propostas() {
   const [linksPublicos, setLinksPublicos] = useState<Record<string, string>>({})
   const [destinosEmail, setDestinosEmail] = useState<Record<string, string>>({})
   const [destinosWhatsApp, setDestinosWhatsApp] = useState<Record<string, string>>({})
+  const [modalProposta, setModalProposta] = useState<{
+    negocioId: string
+    modo: 'operacao' | 'historico'
+  } | null>(null)
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
@@ -146,6 +166,10 @@ export default function Propostas() {
     } catch (_) {
       toast.error('Não foi possível carregar o histórico de versões.')
     }
+  }
+  const abrirModal = (negocioId: string, modo: 'operacao' | 'historico') => {
+    setModalProposta({ negocioId, modo })
+    if (modo === 'historico') void carregarTimeline(negocioId)
   }
   const enviarPdf = async (item: ItemProposta) => {
     const arquivo = arquivos[item.negocio.id]
@@ -329,279 +353,353 @@ export default function Propostas() {
                   negocioId={item.negocio.id}
                   showReadOnlyNotice={false}
                 />
-                {p && (
-                  <div className="text-sm">
-                    <p>
-                      {reais(p.valor_total_centavos)} · versão {p.numero}
-                    </p>
-                    <p className="text-muted-foreground">
-                      {aprovacaoObrigatoria
-                        ? `Aprovada: ${p.aprovada ? 'Sim' : 'Não'}`
-                        : 'Aprovação interna: não exigida'}{' '}
-                      · Visualizada: {p.visualizada ? 'Sim' : 'Não'}
-                    </p>
-                  </div>
-                )}
-                {p && p.estado === 'rascunho' && !somenteNegociacao && !somenteLeituraPerfil && (
-                  <div className="space-y-2 rounded-md border p-3">
-                    <Label htmlFor={`pdf-${item.negocio.id}`}>Nova versão do PDF</Label>
-                    <Input
-                      id={`pdf-${item.negocio.id}`}
-                      type="file"
-                      accept="application/pdf,.pdf"
-                      onChange={(event) =>
-                        setArquivos((atual) => ({
-                          ...atual,
-                          [item.negocio.id]: event.target.files?.[0] ?? null,
-                        }))
-                      }
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        disabled={!arquivos[item.negocio.id] || enviandoPdf === item.negocio.id}
-                        onClick={() => void enviarPdf(item)}
-                      >
-                        <FileUp className="mr-2 h-4 w-4" />
-                        Criar versão privada
+                <div className="flex flex-wrap items-center gap-2">
+                  {!somenteNegociacao &&
+                    !somenteLeituraPerfil &&
+                    !item.contexto.somente_leitura && (
+                      <Button size="sm" onClick={() => abrirModal(item.negocio.id, 'operacao')}>
+                        <FileCheck2 className="mr-2 h-4 w-4" />
+                        Lançar proposta
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => void carregarTimeline(item.negocio.id)}
-                      >
-                        <History className="mr-2 h-4 w-4" />
-                        Ver histórico
-                      </Button>
-                    </div>
-                    {timelines[item.negocio.id] && (
-                      <div className="rounded border bg-primary/5 p-2 text-xs">
-                        <p className="font-medium">Acompanhamento público</p>
-                        <p>
-                          {timelines[item.negocio.id].total_acessos} acesso(s) ·{' '}
-                          {timelines[item.negocio.id].total_downloads} download(s) · decisão:{' '}
-                          {timelines[item.negocio.id].decisao}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {timelines[item.negocio.id].eventos_publicos.length} evento(s) público(s)
-                        </p>
-                      </div>
                     )}
-                    {(timelines[item.negocio.id]?.versoes || []).map((versao) => (
-                      <div key={versao.id} className="rounded border bg-muted/30 p-2 text-xs">
-                        <p>
-                          Versão {versao.numero} · {versao.arquivo_nome || 'sem PDF'} ·{' '}
-                          {versao.arquivo_bytes
-                            ? `${(versao.arquivo_bytes / 1024 / 1024).toFixed(2)} MB`
-                            : '—'}
-                        </p>
-                        {versao.arquivo_sha256 && (
-                          <p className="truncate font-mono text-muted-foreground">
-                            SHA-256: {versao.arquivo_sha256}
-                          </p>
-                        )}
-                        <p className="text-muted-foreground">
-                          {versao.eventos.length} evento(s) auditável(is)
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {p && p.estado === 'rascunho' && !somenteNegociacao && !somenteLeituraPerfil && (
-                  <div className="space-y-2 rounded-md border border-dashed p-3">
-                    <p className="text-sm font-medium">Publicação segura</p>
-                    <p className="text-xs text-muted-foreground">
-                      1. Crie a versão privada do PDF · 2. Gere o link · 3. Envie por e-mail ou
-                      prepare o WhatsApp
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!p.pdf_disponivel}
-                        onClick={() => void publicar(item)}
-                      >
-                        <Link2 className="mr-2 h-4 w-4" />
-                        Gerar link
-                      </Button>
-                      {linksPublicos[item.negocio.id] && (
-                        <Button size="sm" variant="destructive" onClick={() => void revogar(item)}>
-                          Revogar link
-                        </Button>
-                      )}
-                    </div>
-                    {linksPublicos[item.negocio.id] && (
-                      <div className="space-y-3">
-                        <Input
-                          readOnly
-                          value={linksPublicos[item.negocio.id]}
-                          aria-label="Link seguro da proposta"
-                        />
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor={`email-proposta-${item.negocio.id}`}>
-                              E-mail do cliente
-                            </Label>
-                            <Input
-                              id={`email-proposta-${item.negocio.id}`}
-                              type="email"
-                              value={destinosEmail[item.negocio.id] || ''}
-                              onChange={(event) =>
-                                setDestinosEmail((atual) => ({
-                                  ...atual,
-                                  [item.negocio.id]: event.target.value,
-                                }))
-                              }
-                            />
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!destinosEmail[item.negocio.id]?.trim()}
-                              onClick={() => void enviarEmail(item)}
-                            >
-                              <Mail className="mr-2 h-4 w-4" />
-                              Enviar por e-mail
-                            </Button>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor={`whatsapp-proposta-${item.negocio.id}`}>
-                              WhatsApp do cliente
-                            </Label>
-                            <Input
-                              id={`whatsapp-proposta-${item.negocio.id}`}
-                              inputMode="tel"
-                              placeholder="5581999999999"
-                              value={destinosWhatsApp[item.negocio.id] || ''}
-                              onChange={(event) =>
-                                setDestinosWhatsApp((atual) => ({
-                                  ...atual,
-                                  [item.negocio.id]: event.target.value,
-                                }))
-                              }
-                            />
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!destinosWhatsApp[item.negocio.id]?.trim()}
-                              onClick={() => void prepararWhatsApp(item)}
-                            >
-                              <MessageCircle className="mr-2 h-4 w-4" />
-                              Preparar WhatsApp
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {podeDevolverQualificacao && item.negocio.etapa === 'producao_proposta' && (
-                  <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-                    <Label htmlFor={`devolver-${item.negocio.id}`}>
-                      Motivo para devolver à Qualificação
-                    </Label>
-                    <Input
-                      id={`devolver-${item.negocio.id}`}
-                      value={motivoDevolucao[item.negocio.id] || ''}
-                      onChange={(event) =>
-                        setMotivoDevolucao((atual) => ({
-                          ...atual,
-                          [item.negocio.id]: event.target.value,
-                        }))
-                      }
-                    />
+                  {p && (
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={!motivoDevolucao[item.negocio.id]?.trim()}
-                      onClick={() => void devolver(item)}
+                      onClick={() => abrirModal(item.negocio.id, 'historico')}
                     >
-                      Devolver para Qualificação
+                      <History className="mr-2 h-4 w-4" />
+                      Histórico
                     </Button>
-                  </div>
-                )}
-                {!somenteNegociacao &&
-                  !somenteLeituraPerfil &&
-                  !item.contexto.somente_leitura &&
-                  p &&
-                  ((p.estado === 'rascunho' && p.aprovada && aprovacaoObrigatoria) ||
-                    p.estado === 'enviada') && (
-                    <div className="space-y-2">
-                      <Label htmlFor={`proposta-${item.negocio.id}`}>
-                        {p.estado === 'rascunho' && p.aprovada
-                          ? 'Destinatário para emissão'
-                          : p.estado === 'enviada'
-                            ? 'Evidência da decisão'
-                            : 'Informação complementar'}
-                      </Label>
-                      <Input
-                        id={`proposta-${item.negocio.id}`}
-                        value={valores[item.negocio.id] ?? ''}
-                        onChange={(e) =>
-                          setValores((v) => ({
-                            ...v,
-                            [item.negocio.id]: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
                   )}
-                {!somenteNegociacao && !somenteLeituraPerfil && !item.contexto.somente_leitura && (
-                  <div className="flex flex-wrap gap-2">
-                    {!p && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">
-                          Valor da proposta: {reais(item.contexto.valor_centavos)} — sincronizado do
-                          ActiveCampaign
-                        </p>
-                        <Button
-                          size="sm"
-                          disabled={item.contexto.valor_centavos <= 0 || !item.contexto.modalidade}
-                          onClick={() => void executar(item, 'preparar')}
-                        >
-                          <FileCheck2 className="mr-2 h-4 w-4" />
-                          Lançar proposta
-                        </Button>
+                  {p?.enviada_sistema && (
+                    <span
+                      className="inline-flex items-center text-xs text-muted-foreground"
+                      title="Enviada por e-mail pelo sistema"
+                    >
+                      <Mail className="mr-1 h-4 w-4" /> Enviada
+                    </span>
+                  )}
+                </div>
+                <Dialog
+                  open={modalProposta?.negocioId === item.negocio.id}
+                  onOpenChange={(aberta) => !aberta && setModalProposta(null)}
+                >
+                  <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {modalProposta?.modo === 'historico'
+                          ? 'Histórico da proposta'
+                          : 'Lançar proposta'}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {item.contexto.empresa.nome} · negócio {item.contexto.external_id}
+                      </DialogDescription>
+                    </DialogHeader>
+                    {modalProposta?.modo === 'historico' ? (
+                      <div className="space-y-4">
+                        {!timelines[item.negocio.id] ? (
+                          <p className="text-sm text-muted-foreground">Carregando histórico…</p>
+                        ) : (
+                          <>
+                            <div className="grid gap-2 rounded-md bg-muted p-3 text-sm sm:grid-cols-3">
+                              <p>{timelines[item.negocio.id].total_acessos} acesso(s)</p>
+                              <p>{timelines[item.negocio.id].total_downloads} download(s)</p>
+                              <p>Decisão: {timelines[item.negocio.id].decisao}</p>
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="font-medium">Versões</h3>
+                              {timelines[item.negocio.id].versoes.map((versao) => (
+                                <div key={versao.id} className="rounded-md border p-3 text-sm">
+                                  <p className="font-medium">
+                                    Versão {versao.numero} —{' '}
+                                    {versao.arquivo_bytes ? 'PDF lançado' : 'PDF pendente'}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    {dataHora(versao.created)}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="font-medium">Acessos e ações do cliente</h3>
+                              {timelines[item.negocio.id].eventos_publicos.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                  Nenhum acesso registrado.
+                                </p>
+                              ) : (
+                                [...timelines[item.negocio.id].eventos_publicos]
+                                  .reverse()
+                                  .map((evento) => (
+                                    <div key={evento.id} className="rounded-md border p-3 text-sm">
+                                      <p className="font-medium">
+                                        {rotuloEventoPublico[evento.tipo] || 'Ação registrada'}
+                                      </p>
+                                      <p className="text-muted-foreground">
+                                        {evento.visitante_nome || 'Visitante não identificado'} ·{' '}
+                                        {dataHora(evento.ocorrido_em)}
+                                      </p>
+                                    </div>
+                                  ))
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="font-medium">Envios</h3>
+                              {timelines[item.negocio.id].envios.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                  Nenhum envio pelo sistema.
+                                </p>
+                              ) : (
+                                [...timelines[item.negocio.id].envios].reverse().map((envio) => (
+                                  <div key={envio.id} className="rounded-md border p-3 text-sm">
+                                    <p className="font-medium">
+                                      {envio.canal === 'email' ? 'E-mail' : 'WhatsApp'} —{' '}
+                                      {envio.estado}
+                                    </p>
+                                    <p className="text-muted-foreground">
+                                      {envio.destinatario || 'Destinatário não informado'} ·{' '}
+                                      {dataHora(envio.enviado_em || envio.created)}
+                                    </p>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-5">
+                        {!p ? (
+                          <div className="space-y-3 rounded-md border p-4">
+                            <p className="text-sm">
+                              Valor da proposta: {reais(item.contexto.valor_centavos)} —
+                              sincronizado do ActiveCampaign
+                            </p>
+                            <Button
+                              disabled={
+                                item.contexto.valor_centavos <= 0 || !item.contexto.modalidade
+                              }
+                              onClick={() => void executar(item, 'preparar')}
+                            >
+                              Iniciar lançamento
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="rounded-md bg-muted p-3">
+                              <p className="font-medium">
+                                Versão {p.numero} —{' '}
+                                {p.pdf_disponivel ? 'PDF lançado' : 'PDF pendente'}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {reais(p.valor_total_centavos)}
+                              </p>
+                            </div>
+                            {p.estado === 'rascunho' && !p.aprovada && aprovacaoObrigatoria && (
+                              <Button onClick={() => void executar(item, 'aprovar')}>
+                                Aprovar
+                              </Button>
+                            )}
+                            {p.estado === 'rascunho' && p.aprovada && aprovacaoObrigatoria && (
+                              <p className="text-sm text-muted-foreground">
+                                Aprovação interna concluída.
+                              </p>
+                            )}
+                            {p.estado === 'rascunho' && (
+                              <div className="space-y-3 rounded-md border p-4">
+                                <p className="text-sm text-muted-foreground">
+                                  Crie a versão privada do PDF, gere o link e escolha o canal de
+                                  envio.
+                                </p>
+                                <Label htmlFor={`pdf-${item.negocio.id}`}>Lançar novo PDF</Label>
+                                <Input
+                                  id={`pdf-${item.negocio.id}`}
+                                  type="file"
+                                  accept="application/pdf,.pdf"
+                                  onChange={(event) =>
+                                    setArquivos((atual) => ({
+                                      ...atual,
+                                      [item.negocio.id]: event.target.files?.[0] ?? null,
+                                    }))
+                                  }
+                                />
+                                <Button
+                                  disabled={
+                                    !arquivos[item.negocio.id] || enviandoPdf === item.negocio.id
+                                  }
+                                  onClick={() => void enviarPdf(item)}
+                                >
+                                  <FileUp className="mr-2 h-4 w-4" />
+                                  Lançar PDF
+                                </Button>
+                              </div>
+                            )}
+                            {p.estado === 'rascunho' && (
+                              <div className="space-y-3 rounded-md border p-4">
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    variant="outline"
+                                    disabled={!p.pdf_disponivel}
+                                    onClick={() => void publicar(item)}
+                                  >
+                                    <Link2 className="mr-2 h-4 w-4" /> Gerar link
+                                  </Button>
+                                  {linksPublicos[item.negocio.id] && (
+                                    <Button
+                                      variant="destructive"
+                                      onClick={() => void revogar(item)}
+                                    >
+                                      Revogar link
+                                    </Button>
+                                  )}
+                                </div>
+                                {linksPublicos[item.negocio.id] && (
+                                  <div className="space-y-4">
+                                    <Input
+                                      readOnly
+                                      value={linksPublicos[item.negocio.id]}
+                                      aria-label="Link seguro da proposta"
+                                    />
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                      <div className="space-y-2">
+                                        <Label htmlFor={`email-proposta-${item.negocio.id}`}>
+                                          E-mail do cliente
+                                        </Label>
+                                        <Input
+                                          id={`email-proposta-${item.negocio.id}`}
+                                          type="email"
+                                          value={destinosEmail[item.negocio.id] || ''}
+                                          onChange={(event) =>
+                                            setDestinosEmail((atual) => ({
+                                              ...atual,
+                                              [item.negocio.id]: event.target.value,
+                                            }))
+                                          }
+                                        />
+                                        <Button
+                                          variant="outline"
+                                          disabled={!destinosEmail[item.negocio.id]?.trim()}
+                                          onClick={() => void enviarEmail(item)}
+                                        >
+                                          <Mail className="mr-2 h-4 w-4" /> Enviar por e-mail
+                                        </Button>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label htmlFor={`whatsapp-proposta-${item.negocio.id}`}>
+                                          WhatsApp do cliente
+                                        </Label>
+                                        <Input
+                                          id={`whatsapp-proposta-${item.negocio.id}`}
+                                          inputMode="tel"
+                                          placeholder="5581999999999"
+                                          value={destinosWhatsApp[item.negocio.id] || ''}
+                                          onChange={(event) =>
+                                            setDestinosWhatsApp((atual) => ({
+                                              ...atual,
+                                              [item.negocio.id]: event.target.value,
+                                            }))
+                                          }
+                                        />
+                                        <Button
+                                          variant="outline"
+                                          disabled={!destinosWhatsApp[item.negocio.id]?.trim()}
+                                          onClick={() => void prepararWhatsApp(item)}
+                                        >
+                                          <MessageCircle className="mr-2 h-4 w-4" /> Preparar
+                                          WhatsApp
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {p.estado === 'rascunho' && p.aprovada && aprovacaoObrigatoria && (
+                              <div className="space-y-2 rounded-md border p-4">
+                                <Label htmlFor={`proposta-${item.negocio.id}`}>
+                                  Destinatário para emissão
+                                </Label>
+                                <Input
+                                  id={`proposta-${item.negocio.id}`}
+                                  value={valores[item.negocio.id] || ''}
+                                  onChange={(event) =>
+                                    setValores((atual) => ({
+                                      ...atual,
+                                      [item.negocio.id]: event.target.value,
+                                    }))
+                                  }
+                                />
+                                <Button
+                                  disabled={!valores[item.negocio.id]?.trim()}
+                                  onClick={() => void executar(item, 'emitir')}
+                                >
+                                  Emitir
+                                </Button>
+                              </div>
+                            )}
+                            {p.estado === 'enviada' && (
+                              <div className="space-y-2 rounded-md border p-4">
+                                <Label htmlFor={`proposta-${item.negocio.id}`}>
+                                  Evidência da decisão
+                                </Label>
+                                <Input
+                                  id={`proposta-${item.negocio.id}`}
+                                  value={valores[item.negocio.id] || ''}
+                                  onChange={(event) =>
+                                    setValores((atual) => ({
+                                      ...atual,
+                                      [item.negocio.id]: event.target.value,
+                                    }))
+                                  }
+                                />
+                                <div className="flex flex-wrap gap-2">
+                                  {!p.visualizada && (
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => void executar(item, 'visualizar')}
+                                    >
+                                      Registrar visualização
+                                    </Button>
+                                  )}
+                                  <Button
+                                    disabled={!valores[item.negocio.id]?.trim()}
+                                    onClick={() => void executar(item, 'decidir')}
+                                  >
+                                    Registrar aceite
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {podeDevolverQualificacao && item.negocio.etapa === 'producao_proposta' && (
+                          <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+                            <Label htmlFor={`devolver-${item.negocio.id}`}>
+                              Motivo para devolver à Qualificação
+                            </Label>
+                            <Input
+                              id={`devolver-${item.negocio.id}`}
+                              value={motivoDevolucao[item.negocio.id] || ''}
+                              onChange={(event) =>
+                                setMotivoDevolucao((atual) => ({
+                                  ...atual,
+                                  [item.negocio.id]: event.target.value,
+                                }))
+                              }
+                            />
+                            <Button
+                              variant="outline"
+                              disabled={!motivoDevolucao[item.negocio.id]?.trim()}
+                              onClick={() => void devolver(item)}
+                            >
+                              Devolver para Qualificação
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     )}
-                    {p?.estado === 'rascunho' && !p.aprovada && aprovacaoObrigatoria && (
-                      <Button size="sm" onClick={() => void executar(item, 'aprovar')}>
-                        Aprovar
-                      </Button>
-                    )}
-                    {p?.estado === 'rascunho' && p.aprovada && aprovacaoObrigatoria && (
-                      <Button
-                        size="sm"
-                        disabled={!valores[item.negocio.id]?.trim()}
-                        onClick={() => void executar(item, 'emitir')}
-                      >
-                        Emitir
-                      </Button>
-                    )}
-                    {p?.estado === 'enviada' && !p.visualizada && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => void executar(item, 'visualizar')}
-                      >
-                        Registrar visualização
-                      </Button>
-                    )}
-                    {p?.estado === 'enviada' && (
-                      <Button
-                        size="sm"
-                        disabled={!valores[item.negocio.id]?.trim()}
-                        onClick={() => void executar(item, 'decidir')}
-                      >
-                        Registrar aceite
-                      </Button>
-                    )}
-                  </div>
-                )}
-                {p && (
-                  <p className="text-xs text-muted-foreground">
-                    {p.eventos.length} evento(s) permanente(s) no histórico
-                  </p>
-                )}
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           )

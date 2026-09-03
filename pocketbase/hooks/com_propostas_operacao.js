@@ -268,7 +268,8 @@
             versao = null,
             eventos = [],
             abertaPublicacao = false,
-            primeiroAcessoPublicacaoEm = null
+            primeiroAcessoPublicacaoEm = null,
+            enviadaSistema = false
           if (['producao_proposta', 'negociacao'].indexOf(n.getString('etapa')) < 0) continue
           if (!propostaPodeAcessar(ator, perfil, n)) continue
           try {
@@ -299,6 +300,16 @@
               abertaPublicacao = acessosPublicacao.length > 0
               if (abertaPublicacao)
                 primeiroAcessoPublicacaoEm = acessosPublicacao[0].getString('ocorrido_em')
+            } catch (_) {}
+            try {
+              var enviosSistema = $app.findRecordsByFilter(
+                'com_proposta_envios',
+                "proposta_id='" + proposta.id + "' && canal='email' && estado='enviado'",
+                '-enviado_em',
+                1,
+                0,
+              )
+              enviadaSistema = enviosSistema.length > 0
             } catch (_) {}
           } catch (_) {}
           itens.push({
@@ -333,6 +344,7 @@
                       return x.tipo === 'visualizada'
                     }),
                     aberta: abertaPublicacao,
+                    enviada_sistema: enviadaSistema,
                     primeiro_acesso_publicacao_em: primeiroAcessoPublicacaoEm,
                     eventos: eventos,
                   }
