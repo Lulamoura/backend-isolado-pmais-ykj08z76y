@@ -53,13 +53,13 @@ function MobilePdfPages({ url }: { url: string }) {
     const container = containerRef.current
     if (!container || !url) return
     let ativo = true
+    if (!GlobalWorkerOptions.workerPort) GlobalWorkerOptions.workerPort = new PdfWorker()
     const loadingTask = getDocument(url)
     const renderTasks: Array<{ cancel: () => void }> = []
     container.replaceChildren()
     setRenderizadas(0)
     setTotal(0)
     setFalhou(false)
-    if (!GlobalWorkerOptions.workerPort) GlobalWorkerOptions.workerPort = new PdfWorker()
 
     void loadingTask.promise
       .then(async (pdf) => {
