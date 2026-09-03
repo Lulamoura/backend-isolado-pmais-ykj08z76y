@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { FileText, Loader2 } from 'lucide-react'
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist'
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker'
 import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,8 +43,6 @@ const acessoIdDaPagina = () => {
   return propostaAccessId
 }
 
-GlobalWorkerOptions.workerSrc = pdfWorkerUrl
-
 function MobilePdfPages({ url }: { url: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [renderizadas, setRenderizadas] = useState(0)
@@ -61,6 +59,7 @@ function MobilePdfPages({ url }: { url: string }) {
     setRenderizadas(0)
     setTotal(0)
     setFalhou(false)
+    if (!GlobalWorkerOptions.workerPort) GlobalWorkerOptions.workerPort = new PdfWorker()
 
     void loadingTask.promise
       .then(async (pdf) => {
