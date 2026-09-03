@@ -25,13 +25,27 @@ const checks = [
   ['histórico reúne envios', page.includes('<h3 className="font-medium">Envios</h3>')],
   [
     'envio e abertura são estados distintos',
-    page.includes('p?.enviada_sistema') && page.includes('p.aberta'),
+    page.includes("? 'Enviada'") && page.includes("p.aberta ? 'Aberta' : 'Não Aberta'"),
+  ],
+  [
+    'não aberta fica vermelha somente após 24 horas do envio',
+    page.includes('Date.now() - envioSistemaEm >= 24 * 60 * 60 * 1000') &&
+      page.includes('border-red-200 bg-red-50 text-red-700'),
+  ],
+  [
+    'aberta usa indicador azul',
+    page.includes('border-blue-200 bg-blue-50 text-blue-700'),
   ],
   [
     'backend calcula envio pelo sistema',
     hook.includes('enviadaSistema') && hook.includes("canal='email' && estado='enviado'"),
   ],
   ['cliente tipa envio pelo sistema', service.includes('enviada_sistema: boolean')],
+  [
+    'backend e cliente expõem data do último envio',
+    hook.includes('ultimo_envio_sistema_em: ultimoEnvioSistemaEm') &&
+      service.includes('ultimo_envio_sistema_em: string | null'),
+  ],
 ]
 
 let passed = 0

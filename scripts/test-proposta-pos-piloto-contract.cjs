@@ -61,7 +61,7 @@ const checks = [
       publicPage.includes('Baixar proposta em PDF') &&
       publicPage.includes('<iframe'),
   ],
-  ['card usa indicador binário', internalPage.includes("p.aberta ? 'Aberta' : 'Não aberta'")],
+  ['card usa indicador binário', internalPage.includes("p.aberta ? 'Aberta' : 'Não Aberta'")],
   [
     'nova terminologia visível',
     internalPage.includes('Lançar proposta') && !internalPage.includes('Preparar proposta'),
