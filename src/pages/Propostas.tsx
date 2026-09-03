@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileCheck2, FileUp, History, Link2, Mail, MessageCircle, RefreshCw } from 'lucide-react'
+import {
+  Eye,
+  EyeOff,
+  FileCheck2,
+  FileUp,
+  History,
+  Link2,
+  Mail,
+  MessageCircle,
+  RefreshCw,
+  Settings2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,6 +20,7 @@ import { Label } from '@/components/ui/label'
 import {
   listarPropostas,
   criarVersaoPdfProposta,
+  configurarIdentificacaoVisitante,
   enviarPropostaPorEmail,
   novaChaveProposta,
   obterTimelineProposta,
@@ -33,13 +45,15 @@ import {
 const reais = (centavos: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(centavos / 100)
 export default function Propostas() {
-  const { perfilSlug } = useIsSuperAdmin()
+  const { isSuperAdmin, perfilSlug } = useIsSuperAdmin()
   const somenteNegociacao = perfilSlug === 'negociacao-propria'
   const somenteLeituraPerfil = perfilSlug === 'leitura-executiva'
   const podeDevolverQualificacao =
     perfilSlug === 'superadministrador' || perfilSlug === 'gestor-comercial'
   const [itens, setItens] = useState<ItemProposta[]>([])
   const [aprovacaoObrigatoria, setAprovacaoObrigatoria] = useState(false)
+  const [identificacaoObrigatoria, setIdentificacaoObrigatoria] = useState(true)
+  const [identificacaoUpdated, setIdentificacaoUpdated] = useState('')
   const [loading, setLoading] = useState(true)
   const [valores, setValores] = useState<Record<string, string>>({})
   const [busca, setBusca] = useState('')
@@ -61,6 +75,8 @@ export default function Propostas() {
       const resultado = await listarPropostas()
       setItens(resultado.itens)
       setAprovacaoObrigatoria(resultado.configuracao.aprovacao_interna_obrigatoria)
+      setIdentificacaoObrigatoria(resultado.configuracao.identificacao_visitante_obrigatoria)
+      setIdentificacaoUpdated(resultado.configuracao.identificacao_visitante_updated)
     } catch (_) {
       toast.error('Não foi possível carregar as propostas.')
     } finally {
@@ -193,6 +209,28 @@ export default function Propostas() {
       toast.error('Não foi possível preparar o compartilhamento.')
     }
   }
+  const alterarIdentificacao = async () => {
+    const novoValor = !identificacaoObrigatoria
+    const justificativa = window.prompt(
+      `${novoValor ? 'Ativar' : 'Desativar'} a identificação obrigatória? Informe a justificativa:`,
+    )
+    if (!justificativa || justificativa.trim().length < 12) {
+      if (justificativa !== null) toast.error('A justificativa deve ter pelo menos 12 caracteres.')
+      return
+    }
+    try {
+      const resultado = await configurarIdentificacaoVisitante(
+        novoValor,
+        identificacaoUpdated,
+        justificativa.trim(),
+      )
+      setIdentificacaoObrigatoria(resultado.obrigatoria)
+      setIdentificacaoUpdated(resultado.updated)
+      toast.success('Configuração de identificação atualizada e auditada.')
+    } catch (_) {
+      toast.error('Não foi possível alterar a identificação. Atualize a página e tente novamente.')
+    }
+  }
   return (
     <div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
       <div className="flex items-center justify-between gap-3">
@@ -222,6 +260,25 @@ export default function Propostas() {
         onPeriodStart={setPeriodoInicio}
         onPeriodEnd={setPeriodoFim}
       />
+      {isSuperAdmin && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-card p-3 text-sm">
+          <div>
+            <p className="font-medium">Identificação do visitante</p>
+            <p className="text-muted-foreground">
+              Nome antes da abertura: {identificacaoObrigatoria ? 'obrigatório' : 'opcional'}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!identificacaoUpdated}
+            onClick={() => void alterarIdentificacao()}
+          >
+            <Settings2 className="mr-2 h-4 w-4" />
+            Tornar {identificacaoObrigatoria ? 'opcional' : 'obrigatório'}
+          </Button>
+        </div>
+      )}
       <div className="grid gap-4 md:grid-cols-2">
         {itensVisiveis.map((item) => {
           const p = item.proposta
@@ -238,12 +295,31 @@ export default function Propostas() {
                       {p?.identificador ?? 'Proposta originada no CRM'}
                     </CardDescription>
                   </div>
-                  <Badge variant="secondary">
-                    {p?.estado ??
-                      (item.negocio.etapa === 'negociacao'
-                        ? 'Proposta em negociação'
-                        : 'Proposta em produção')}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-2">
+                    <Badge variant="secondary">
+                      {p?.estado ??
+                        (item.negocio.etapa === 'negociacao'
+                          ? 'Proposta em negociação'
+                          : 'Proposta em produção')}
+                    </Badge>
+                    {p && (
+                      <Badge
+                        variant={p.aberta ? 'default' : 'outline'}
+                        title={
+                          p.aberta && p.primeiro_acesso_publicacao_em
+                            ? `Primeiro acesso: ${new Date(p.primeiro_acesso_publicacao_em).toLocaleString('pt-BR')}`
+                            : 'A publicação vigente ainda não foi aberta'
+                        }
+                      >
+                        {p.aberta ? (
+                          <Eye className="mr-1 h-3.5 w-3.5" />
+                        ) : (
+                          <EyeOff className="mr-1 h-3.5 w-3.5" />
+                        )}
+                        {p.aberta ? 'Aberta' : 'Não aberta'}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -483,7 +559,7 @@ export default function Propostas() {
                           onClick={() => void executar(item, 'preparar')}
                         >
                           <FileCheck2 className="mr-2 h-4 w-4" />
-                          Preparar proposta
+                          Lançar proposta
                         </Button>
                       </div>
                     )}

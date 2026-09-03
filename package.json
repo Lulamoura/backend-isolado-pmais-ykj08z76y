@@ -29,7 +29,8 @@
     "test:proposta-decisao": "node scripts/test-proposta-decisao-contract.cjs",
     "test:proposta-envios": "node scripts/test-proposta-envios-contract.cjs",
     "test:proposta-runtime-controls": "node scripts/test-proposta-runtime-controls-contract.cjs",
-    "test:proposta-usabilidade": "node scripts/test-proposta-usabilidade-contract.cjs"
+    "test:proposta-usabilidade": "node scripts/test-proposta-usabilidade-contract.cjs",
+    "test:proposta-pos-piloto": "node scripts/test-proposta-pos-piloto-contract.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

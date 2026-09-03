@@ -26,6 +26,8 @@ export interface ItemProposta {
     updated: string
     aprovada: boolean
     visualizada: boolean
+    aberta: boolean
+    primeiro_acesso_publicacao_em: string | null
     eventos: Array<{
       id: string
       tipo: string
@@ -36,6 +38,8 @@ export interface ItemProposta {
 }
 export interface ConfiguracaoPropostas {
   aprovacao_interna_obrigatoria: boolean
+  identificacao_visitante_obrigatoria: boolean
+  identificacao_visitante_updated: string
 }
 export const listarPropostas = () =>
   pb.send<{ itens: ItemProposta[]; configuracao: ConfiguracaoPropostas }>(
@@ -69,6 +73,7 @@ export interface EventoPublicoProposta {
   publicacao_id: string
   tipo: string
   ocorrido_em: string
+  visitante_nome: string | null
 }
 export interface TimelinePropostaInterna {
   proposta_id: string
@@ -160,5 +165,25 @@ export const prepararPropostaWhatsApp = (
       },
     },
   )
+export const configurarIdentificacaoVisitante = (
+  obrigatoria: boolean,
+  updatedEsperado: string,
+  justificativa: string,
+) =>
+  pb.send<{
+    obrigatoria: boolean
+    changed: boolean
+    updated: string
+    versao: number
+  }>('/backend/v1/propostas/configuracao/identificacao', {
+    method: 'POST',
+    body: {
+      obrigatoria,
+      justificativa,
+      updated_esperado: updatedEsperado,
+      confirmation: 'ALTERAR IDENTIFICACAO DE VISITANTE',
+      command_idempotency_key: `proposal-visitor-config-${Date.now()}-${crypto.randomUUID()}`,
+    },
+  })
 export const novaChaveProposta = (id: string, tipo: string) =>
   `proposta:${tipo}:${id}:${Date.now()}:${crypto.randomUUID()}`

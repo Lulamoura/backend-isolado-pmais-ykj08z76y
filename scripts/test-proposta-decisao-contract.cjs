@@ -32,10 +32,10 @@ const checks = [
     'eventos terminais distintos',
     hook.includes("'aceite_confirmado'") && hook.includes("'recusa_confirmada'"),
   ],
-  ['token forte validado nas três rotas', (hook.match(/token\.length !== 64/g) || []).length === 3],
+  ['token forte validado nas seis rotas', (hook.match(/token\.length !== 64/g) || []).length === 6],
   [
-    'gate público nas três rotas',
-    (hook.match(/if \(!gate\(\$app\)\) return indisponivel\(\)/g) || []).length === 3,
+    'gate público nas seis rotas',
+    (hook.match(/if \(!gate\(\$app\)\) return indisponivel\(\)/g) || []).length === 6,
   ],
   [
     'resposta pública sem cache e sem indexação',
