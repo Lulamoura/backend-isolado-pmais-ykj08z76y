@@ -38,7 +38,7 @@ const checks = [
   ],
   [
     'fluxo de publicação é explicado na tela',
-    page.includes('Crie a versão privada do PDF') && page.includes('Gere o link'),
+    page.includes('Crie a versão privada do PDF') && page.includes('gere o link'),
   ],
   [
     'link só pode ser gerado depois do PDF',

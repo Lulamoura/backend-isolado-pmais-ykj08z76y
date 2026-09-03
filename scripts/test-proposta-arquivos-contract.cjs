@@ -21,7 +21,7 @@ const checks = [
   ['aprovacao configuravel', hook.includes("'proposta.aprovacao_interna_obrigatoria'")],
   ['UI usa multipart', service.includes('const body = new FormData()')],
   ['UI aceita somente PDF', page.includes('accept="application/pdf,.pdf"')],
-  ['UI exibe timeline', page.includes('Ver histórico')],
+  ['UI exibe timeline', page.includes('Histórico da proposta')],
   ['nenhuma pagina publica', !hook.includes('/public/')],
   ['nenhum envio de email', !hook.includes('resend') && !hook.includes('sendMail')],
 ]
