@@ -123,7 +123,8 @@ routerAdd(
     } catch (error) {
       transactionError = String(error)
     }
-    if (transactionError.indexOf('STALE_WRITE') !== -1) return e.json(409, { error: 'STALE_WRITE' })
+    if (transactionError.indexOf('STALE_WRITE') !== -1)
+      return e.json(409, { error: 'STALE_WRITE' })
     if (transactionError) return e.json(409, { error: 'GATE_CONTROL_REVERTED' })
 
     var saved = $app.findFirstRecordByData('com_parametros', 'chave', chave)
