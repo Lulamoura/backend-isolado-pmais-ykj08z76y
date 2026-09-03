@@ -7,6 +7,7 @@ const service = fs.readFileSync('src/services/propostas.ts', 'utf8')
 const checks = [
   ['card oferece Lançar proposta', page.includes('Lançar proposta')],
   ['card oferece Histórico', page.includes('Histórico')],
+  ['card oculta Notas nesta tela', page.includes('showNotes={false}')],
   [
     'operações usam modal',
     page.includes('<DialogContent') && page.includes("modo: 'operacao' | 'historico'"),

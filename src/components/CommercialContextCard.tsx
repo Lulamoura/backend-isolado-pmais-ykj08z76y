@@ -27,12 +27,14 @@ export function CommercialContextCard({
   etapa,
   negocioId,
   showNextAction = true,
+  showNotes = true,
   showReadOnlyNotice = true,
 }: {
   contexto: CommercialContext
   etapa: string
   negocioId?: string
   showNextAction?: boolean
+  showNotes?: boolean
   showReadOnlyNotice?: boolean
 }) {
   const status = actionStatus(contexto.proxima_acao_em)
@@ -111,7 +113,7 @@ export function CommercialContextCard({
           {alerts.join(' · ')}
         </div>
       )}
-      {negocioId && <BusinessNotesDialog negocioId={negocioId} />}
+      {showNotes && negocioId && <BusinessNotesDialog negocioId={negocioId} />}
       {showReadOnlyNotice && contexto.somente_leitura && (
         <p className="text-xs text-muted-foreground">
           Base real em somente leitura durante a pré-operação.
