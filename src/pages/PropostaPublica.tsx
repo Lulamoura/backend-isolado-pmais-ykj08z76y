@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { FileText, Loader2 } from 'lucide-react'
+import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist'
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -40,6 +43,92 @@ const acessoIdDaPagina = () => {
   return propostaAccessId
 }
 
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl
+
+function MobilePdfPages({ url }: { url: string }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [renderizadas, setRenderizadas] = useState(0)
+  const [total, setTotal] = useState(0)
+  const [falhou, setFalhou] = useState(false)
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || !url) return
+    let ativo = true
+    const loadingTask = getDocument(url)
+    const renderTasks: Array<{ cancel: () => void }> = []
+    container.replaceChildren()
+    setRenderizadas(0)
+    setTotal(0)
+    setFalhou(false)
+
+    void loadingTask.promise
+      .then(async (pdf) => {
+        if (!ativo) return
+        setTotal(pdf.numPages)
+        for (let numero = 1; numero <= pdf.numPages && ativo; numero += 1) {
+          const pagina = await pdf.getPage(numero)
+          const base = pagina.getViewport({ scale: 1 })
+          const largura = Math.max(280, container.clientWidth)
+          const viewport = pagina.getViewport({ scale: largura / base.width })
+          const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
+          const wrapper = document.createElement('section')
+          wrapper.className = 'overflow-hidden rounded-md border bg-white shadow-sm'
+          wrapper.setAttribute('aria-label', `Página ${numero} de ${pdf.numPages}`)
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.floor(viewport.width * pixelRatio)
+          canvas.height = Math.floor(viewport.height * pixelRatio)
+          canvas.style.width = `${Math.floor(viewport.width)}px`
+          canvas.style.height = `${Math.floor(viewport.height)}px`
+          canvas.className = 'block h-auto max-w-full'
+          wrapper.appendChild(canvas)
+          container.appendChild(wrapper)
+          const context = canvas.getContext('2d')
+          if (!context) throw new Error('Canvas indisponível')
+          const task = pagina.render({
+            canvasContext: context,
+            viewport,
+            transform: pixelRatio === 1 ? undefined : [pixelRatio, 0, 0, pixelRatio, 0, 0],
+          })
+          renderTasks.push(task)
+          await task.promise
+          if (ativo) setRenderizadas(numero)
+        }
+      })
+      .catch(() => ativo && setFalhou(true))
+
+    return () => {
+      ativo = false
+      renderTasks.forEach((task) => task.cancel())
+      void loadingTask.destroy()
+      container.replaceChildren()
+    }
+  }, [url])
+
+  if (falhou)
+    return (
+      <p className="rounded-md border bg-muted p-4 text-sm text-muted-foreground">
+        Não foi possível montar as páginas no celular. Use “Baixar proposta em PDF”.
+      </p>
+    )
+
+  return (
+    <div className="space-y-3">
+      {renderizadas < total || total === 0 ? (
+        <p className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Preparando páginas {total ? `${renderizadas + 1} de ${total}` : 'do PDF'}…
+        </p>
+      ) : (
+        <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <FileText className="h-4 w-4" /> {total} página(s) — role para continuar
+        </p>
+      )}
+      <div ref={containerRef} className="space-y-4" />
+    </div>
+  )
+}
+
 export default function PropostaPublica() {
   const { token = '' } = useParams()
   const [dados, setDados] = useState<PropostaPublicaDados | null>(null)
@@ -55,8 +144,19 @@ export default function PropostaPublica() {
   const [pdfUrl, setPdfUrl] = useState('')
   const [pdfErro, setPdfErro] = useState(false)
   const [baixando, setBaixando] = useState(false)
+  const [visualizacaoMovel, setVisualizacaoMovel] = useState(
+    () => window.matchMedia('(max-width: 639px)').matches,
+  )
   const acessoId = useMemo(acessoIdDaPagina, [])
   const storageKey = publicacaoId ? `pmais-proposta-visitante:${publicacaoId}` : ''
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 639px)')
+    const atualizar = () => setVisualizacaoMovel(media.matches)
+    atualizar()
+    media.addEventListener('change', atualizar)
+    return () => media.removeEventListener('change', atualizar)
+  }, [])
 
   const acessar = async (nome: string, preflightPublicacaoId = publicacaoId) => {
     const nomeNormalizado = nome.replace(/\s+/g, ' ').trim()
@@ -331,11 +431,15 @@ export default function PropostaPublica() {
           </CardHeader>
           <CardContent>
             {pdfUrl ? (
-              <iframe
-                className="h-[70vh] min-h-[520px] w-full rounded-md border bg-white"
-                src={pdfUrl}
-                title="Visualização da proposta em PDF"
-              />
+              visualizacaoMovel ? (
+                <MobilePdfPages url={pdfUrl} />
+              ) : (
+                <iframe
+                  className="h-[70vh] min-h-[520px] w-full rounded-md border bg-white"
+                  src={pdfUrl}
+                  title="Visualização da proposta em PDF"
+                />
+              )
             ) : pdfErro ? (
               <p className="rounded-md border bg-muted p-4 text-sm text-muted-foreground">
                 A visualização no navegador não está disponível. Use o botão “Baixar proposta em

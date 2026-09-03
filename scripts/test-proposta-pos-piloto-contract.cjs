@@ -56,10 +56,15 @@ const checks = [
     publicPage.includes('localStorage') && publicPage.includes('visitanteNome'),
   ],
   [
-    'UI mostra PDF por rolagem e download',
+    'UI móvel renderiza todas as páginas por rolagem e preserva o iframe no computador',
     publicPage.includes('Visualização da proposta em PDF') &&
       publicPage.includes('Baixar proposta em PDF') &&
-      publicPage.includes('<iframe'),
+      publicPage.includes('<iframe') &&
+      publicPage.includes('MobilePdfPages') &&
+      publicPage.includes('getDocument(url)') &&
+      publicPage.includes('pagina.render({') &&
+      publicPage.includes("window.matchMedia('(max-width: 639px)')") &&
+      publicPage.includes('visualizacaoMovel ? ('),
   ],
   ['card usa indicador binário', internalPage.includes("p.aberta ? 'Aberta' : 'Não Aberta'")],
   [
