@@ -21,17 +21,41 @@ const checks = [
   ['versão usa rótulo amigável', page.includes("'PDF lançado' : 'PDF pendente'")],
   ['nome físico não aparece na interface', !page.includes('arquivo_nome')],
   ['hash não aparece na interface', !page.includes('arquivo_sha256') && !page.includes('SHA-256:')],
-  ['histórico reúne acessos', page.includes('Acessos e ações do cliente')],
-  ['histórico reúne envios', page.includes('<h3 className="font-medium">Envios</h3>')],
+  [
+    'histórico reúne acessos na linha do tempo',
+    page.includes("evento.tipo === 'pagina_acessada'") && page.includes('Linha do tempo'),
+  ],
+  [
+    'histórico reúne envios na linha do tempo',
+    page.includes('...timeline.envios.map') && page.includes("tipo: 'envio'"),
+  ],
+  [
+    'card mostra etapa comercial em vez da origem técnica',
+    page.includes('Proposta em Negociação') && !page.includes('Proposta originada no CRM'),
+  ],
   [
     'envio e abertura são estados distintos',
-    page.includes('p?.enviada_sistema') && page.includes('p.aberta'),
+    page.includes("? 'Enviada'") && page.includes("p.aberta ? 'Aberta' : 'Não Aberta'"),
+  ],
+  [
+    'não aberta fica vermelha somente após 24 horas do envio',
+    page.includes('Date.now() - envioSistemaEm >= 24 * 60 * 60 * 1000') &&
+      page.includes('border-red-200 bg-red-50 text-red-700'),
+  ],
+  [
+    'aberta usa indicador azul',
+    page.includes('border-blue-200 bg-blue-50 text-blue-700'),
   ],
   [
     'backend calcula envio pelo sistema',
     hook.includes('enviadaSistema') && hook.includes("canal='email' && estado='enviado'"),
   ],
   ['cliente tipa envio pelo sistema', service.includes('enviada_sistema: boolean')],
+  [
+    'backend e cliente expõem data do último envio',
+    hook.includes('ultimo_envio_sistema_em: ultimoEnvioSistemaEm') &&
+      service.includes('ultimo_envio_sistema_em: string | null'),
+  ],
 ]
 
 let passed = 0
