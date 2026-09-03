@@ -42,10 +42,7 @@ const checks = [
     page.includes('Date.now() - envioSistemaEm >= 24 * 60 * 60 * 1000') &&
       page.includes('border-red-200 bg-red-50 text-red-700'),
   ],
-  [
-    'aberta usa indicador azul',
-    page.includes('border-blue-200 bg-blue-50 text-blue-700'),
-  ],
+  ['aberta usa indicador azul', page.includes('border-blue-200 bg-blue-50 text-blue-700')],
   [
     'backend calcula envio pelo sistema',
     hook.includes('enviadaSistema') && hook.includes("canal='email' && estado='enviado'"),
