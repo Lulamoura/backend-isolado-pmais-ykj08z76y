@@ -331,6 +331,7 @@ routerAdd(
               publicacao_id: eventosRows[ei].getString('publicacao_id'),
               tipo: eventosRows[ei].getString('tipo'),
               ocorrido_em: eventosRows[ei].getString('ocorrido_em'),
+              visitante_nome: eventosRows[ei].getString('visitante_nome') || null,
             })
         }
       } catch (_) {}
@@ -376,6 +377,18 @@ routerAdd('GET', '/backend/v1/public/propostas/{token}', (e) => {
   function indisponivel() {
     return e.json(404, { error: 'PROPOSTA_INDISPONIVEL' })
   }
+  function identificacaoObrigatoria(app) {
+    try {
+      var p = app.findFirstRecordByData(
+        'com_parametros',
+        'chave',
+        'proposta.identificacao_visitante_obrigatoria',
+      )
+      return p.getBool('ativo') && p.getString('valor') === 'true'
+    } catch (_) {
+      return true
+    }
+  }
   e.response.header().set('X-Robots-Tag', 'noindex, nofollow, noarchive')
   e.response.header().set('Cache-Control', 'no-store')
   if (!gate($app)) return indisponivel()
@@ -389,6 +402,8 @@ routerAdd('GET', '/backend/v1/public/propostas/{token}', (e) => {
     )
     if (pub.getString('estado') !== 'ativa' || new Date(pub.getString('expira_em')) <= new Date())
       return indisponivel()
+    if (identificacaoObrigatoria($app))
+      return e.json(200, { identificacao_obrigatoria: true, publicacao_id: pub.id })
     var proposta = $app.findRecordById('com_propostas', pub.getString('proposta_id')),
       versao = $app.findRecordById('com_proposta_versoes', pub.getString('versao_id'))
     var agora = new Date(),
@@ -419,6 +434,8 @@ routerAdd('GET', '/backend/v1/public/propostas/{token}', (e) => {
       })
     } catch (_) {}
     return e.json(200, {
+      identificacao_obrigatoria: false,
+      publicacao_id: pub.id,
       identificador: proposta.getString('identificador'),
       numero: versao.getInt('numero'),
       cliente: versao.getString('cliente_snapshot'),
@@ -435,7 +452,296 @@ routerAdd('GET', '/backend/v1/public/propostas/{token}', (e) => {
   }
 })
 
-routerAdd('GET', '/backend/v1/public/propostas/{token}/pdf', (e) => {
+routerAdd('POST', '/backend/v1/public/propostas/{token}/acessar', (e) => {
+  function gate(app) {
+    try {
+      var p = app.findFirstRecordByData(
+        'com_parametros',
+        'chave',
+        'proposta.pagina_publica_habilitada',
+      )
+      return p.getBool('ativo') && p.getString('valor') === 'true'
+    } catch (_) {
+      return false
+    }
+  }
+  function identificacaoObrigatoria(app) {
+    try {
+      var p = app.findFirstRecordByData(
+        'com_parametros',
+        'chave',
+        'proposta.identificacao_visitante_obrigatoria',
+      )
+      return p.getBool('ativo') && p.getString('valor') === 'true'
+    } catch (_) {
+      return true
+    }
+  }
+  function indisponivel() {
+    return e.json(404, { error: 'PROPOSTA_INDISPONIVEL' })
+  }
+  e.response.header().set('X-Robots-Tag', 'noindex, nofollow, noarchive')
+  e.response.header().set('Cache-Control', 'no-store')
+  if (!gate($app)) return indisponivel()
+  var token = e.request.pathValue('token')
+  if (!token || token.length !== 64) return indisponivel()
+  var body = {}
+  try {
+    body = JSON.parse(toString(e.request.body))
+  } catch (_) {
+    return e.json(400, { error: 'VALIDATION' })
+  }
+  var nome = String(body.visitante_nome || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  var acessoId = String(body.acesso_id || '')
+  var exigeNome = identificacaoObrigatoria($app)
+  if (
+    (exigeNome && (nome.length < 2 || nome.length > 120)) ||
+    (!exigeNome && nome.length > 120) ||
+    /[\u0000-\u001f\u007f]/.test(nome) ||
+    !/^[A-Za-z0-9_-]{16,128}$/.test(acessoId)
+  )
+    return e.json(400, { error: 'IDENTIFICACAO_INVALIDA' })
+  try {
+    var pub = $app.findFirstRecordByData(
+      'com_proposta_publicacoes',
+      'token_hash',
+      $security.sha256(token),
+    )
+    if (pub.getString('estado') !== 'ativa' || new Date(pub.getString('expira_em')) <= new Date())
+      return indisponivel()
+    var proposta = $app.findRecordById('com_propostas', pub.getString('proposta_id')),
+      versao = $app.findRecordById('com_proposta_versoes', pub.getString('versao_id')),
+      agora = new Date(),
+      chaveAcesso = $security.sha256(pub.id + ':pagina_acessada:' + acessoId)
+    try {
+      $app.runInTransaction(function (tx) {
+        try {
+          tx.findFirstRecordByData(
+            'com_proposta_eventos_publicos',
+            'chave_idempotencia',
+            chaveAcesso,
+          )
+          return
+        } catch (_) {}
+        var evento = new Record(tx.findCollectionByNameOrId('com_proposta_eventos_publicos')),
+          propostaTx = tx.findRecordById('com_propostas', proposta.id)
+        evento.set('publicacao_id', pub.id)
+        evento.set('tipo', 'pagina_acessada')
+        evento.set('ocorrido_em', agora)
+        evento.set('chave_idempotencia', chaveAcesso)
+        evento.set('visitante_nome', nome)
+        tx.save(evento)
+        if (!propostaTx.getString('primeiro_acesso_em')) propostaTx.set('primeiro_acesso_em', agora)
+        propostaTx.set('ultimo_acesso_em', agora)
+        propostaTx.set('total_acessos', Number(propostaTx.get('total_acessos') || 0) + 1)
+        tx.save(propostaTx)
+      })
+    } catch (_) {}
+    return e.json(200, {
+      identificacao_obrigatoria: exigeNome,
+      publicacao_id: pub.id,
+      identificador: proposta.getString('identificador'),
+      numero: versao.getInt('numero'),
+      cliente: versao.getString('cliente_snapshot'),
+      contato: versao.getString('contato_snapshot'),
+      responsavel: versao.getString('responsavel_snapshot'),
+      modalidade: versao.getString('modalidade'),
+      valor_total_centavos: Number(versao.get('valor_total_centavos') || 0),
+      validade: versao.getString('validade') || null,
+      expira_em: pub.getString('expira_em'),
+      decisao: proposta.getString('decisao_publica') || 'pendente',
+      visitante_nome: nome || null,
+    })
+  } catch (_) {
+    return indisponivel()
+  }
+})
+
+routerAdd('POST', '/backend/v1/public/propostas/{token}/pdf', (e) => {
+  function gate(app) {
+    try {
+      var p = app.findFirstRecordByData(
+        'com_parametros',
+        'chave',
+        'proposta.pagina_publica_habilitada',
+      )
+      return p.getBool('ativo') && p.getString('valor') === 'true'
+    } catch (_) {
+      return false
+    }
+  }
+  function indisponivel() {
+    return e.json(404, { error: 'PROPOSTA_INDISPONIVEL' })
+  }
+  function identificacaoObrigatoria(app) {
+    try {
+      var p = app.findFirstRecordByData(
+        'com_parametros',
+        'chave',
+        'proposta.identificacao_visitante_obrigatoria',
+      )
+      return p.getBool('ativo') && p.getString('valor') === 'true'
+    } catch (_) {
+      return true
+    }
+  }
+  e.response.header().set('X-Robots-Tag', 'noindex, nofollow, noarchive')
+  e.response.header().set('Cache-Control', 'no-store')
+  if (!gate($app)) return indisponivel()
+  var token = e.request.pathValue('token')
+  if (!token || token.length !== 64) return indisponivel()
+  var body = {}
+  try {
+    body = JSON.parse(toString(e.request.body))
+  } catch (_) {
+    return e.json(400, { error: 'VALIDATION' })
+  }
+  var nome = String(body.visitante_nome || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  var acessoId = String(body.acesso_id || '')
+  if (
+    (identificacaoObrigatoria($app) && (nome.length < 2 || nome.length > 120)) ||
+    nome.length > 120 ||
+    /[\u0000-\u001f\u007f]/.test(nome) ||
+    !/^[A-Za-z0-9_-]{16,128}$/.test(acessoId)
+  )
+    return e.json(400, { error: 'IDENTIFICACAO_INVALIDA' })
+  var fsys = null,
+    reader = null
+  try {
+    var pub = $app.findFirstRecordByData(
+      'com_proposta_publicacoes',
+      'token_hash',
+      $security.sha256(token),
+    )
+    if (pub.getString('estado') !== 'ativa' || new Date(pub.getString('expira_em')) <= new Date())
+      return indisponivel()
+    var versao = $app.findRecordById('com_proposta_versoes', pub.getString('versao_id')),
+      arquivo = versao.getString('arquivo_pdf')
+    if (!arquivo) return indisponivel()
+    var agora = new Date(),
+      chaveDownload = $security.sha256(pub.id + ':pdf_baixado:' + acessoId)
+    try {
+      $app.runInTransaction(function (tx) {
+        try {
+          tx.findFirstRecordByData(
+            'com_proposta_eventos_publicos',
+            'chave_idempotencia',
+            chaveDownload,
+          )
+          return
+        } catch (_) {}
+        var evento = new Record(tx.findCollectionByNameOrId('com_proposta_eventos_publicos')),
+          propostaTx = tx.findRecordById('com_propostas', pub.getString('proposta_id'))
+        evento.set('publicacao_id', pub.id)
+        evento.set('tipo', 'pdf_baixado')
+        evento.set('ocorrido_em', agora)
+        evento.set('chave_idempotencia', chaveDownload)
+        evento.set('visitante_nome', nome)
+        tx.save(evento)
+        propostaTx.set('total_downloads', Number(propostaTx.get('total_downloads') || 0) + 1)
+        tx.save(propostaTx)
+      })
+    } catch (_) {}
+    fsys = $app.newFilesystem()
+    reader = fsys.getReader(versao.baseFilesPath() + '/' + arquivo)
+    e.response.header().set('Content-Disposition', 'attachment; filename="proposta-pmais.pdf"')
+    e.stream(200, 'application/pdf', reader)
+  } catch (_) {
+    if (!e.response.written) return indisponivel()
+  } finally {
+    try {
+      if (reader) reader.close()
+    } catch (_) {}
+    try {
+      if (fsys) fsys.close()
+    } catch (_) {}
+  }
+})
+
+routerAdd('POST', '/backend/v1/public/propostas/{token}/pdf/visualizar', (e) => {
+  function gate(app) {
+    try {
+      var p = app.findFirstRecordByData(
+        'com_parametros',
+        'chave',
+        'proposta.pagina_publica_habilitada',
+      )
+      return p.getBool('ativo') && p.getString('valor') === 'true'
+    } catch (_) {
+      return false
+    }
+  }
+  function indisponivel() {
+    return e.json(404, { error: 'PROPOSTA_INDISPONIVEL' })
+  }
+  function identificacaoObrigatoria(app) {
+    try {
+      var p = app.findFirstRecordByData(
+        'com_parametros',
+        'chave',
+        'proposta.identificacao_visitante_obrigatoria',
+      )
+      return p.getBool('ativo') && p.getString('valor') === 'true'
+    } catch (_) {
+      return true
+    }
+  }
+  e.response.header().set('X-Robots-Tag', 'noindex, nofollow, noarchive')
+  e.response.header().set('Cache-Control', 'no-store')
+  if (!gate($app)) return indisponivel()
+  var token = e.request.pathValue('token')
+  if (!token || token.length !== 64) return indisponivel()
+  var body = {}
+  try {
+    body = JSON.parse(toString(e.request.body))
+  } catch (_) {
+    return e.json(400, { error: 'VALIDATION' })
+  }
+  var nome = String(body.visitante_nome || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  var acessoId = String(body.acesso_id || '')
+  if (
+    (identificacaoObrigatoria($app) && (nome.length < 2 || nome.length > 120)) ||
+    nome.length > 120 ||
+    /[\u0000-\u001f\u007f]/.test(nome) ||
+    !/^[A-Za-z0-9_-]{16,128}$/.test(acessoId)
+  )
+    return e.json(400, { error: 'IDENTIFICACAO_INVALIDA' })
+  var fsys = null,
+    reader = null
+  try {
+    var pub = $app.findFirstRecordByData(
+      'com_proposta_publicacoes',
+      'token_hash',
+      $security.sha256(token),
+    )
+    if (pub.getString('estado') !== 'ativa' || new Date(pub.getString('expira_em')) <= new Date())
+      return indisponivel()
+    var versao = $app.findRecordById('com_proposta_versoes', pub.getString('versao_id')),
+      arquivo = versao.getString('arquivo_pdf')
+    if (!arquivo) return indisponivel()
+    fsys = $app.newFilesystem()
+    reader = fsys.getReader(versao.baseFilesPath() + '/' + arquivo)
+    e.response.header().set('Content-Disposition', 'inline; filename="proposta-pmais.pdf"')
+    e.stream(200, 'application/pdf', reader)
+  } catch (_) {
+    if (!e.response.written) return indisponivel()
+  } finally {
+    try {
+      if (reader) reader.close()
+    } catch (_) {}
+    try {
+      if (fsys) fsys.close()
+    } catch (_) {}
+  }
+})
+
+routerAdd('POST', '/backend/v1/public/propostas/{token}/visualizacao', (e) => {
   function gate(app) {
     try {
       var p = app.findFirstRecordByData(
@@ -456,8 +762,22 @@ routerAdd('GET', '/backend/v1/public/propostas/{token}/pdf', (e) => {
   if (!gate($app)) return indisponivel()
   var token = e.request.pathValue('token')
   if (!token || token.length !== 64) return indisponivel()
-  var fsys = null,
-    reader = null
+  var body = {}
+  try {
+    body = JSON.parse(toString(e.request.body))
+  } catch (_) {
+    return e.json(400, { error: 'VALIDATION' })
+  }
+  var nome = String(body.visitante_nome || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  var visualizacaoId = String(body.visualizacao_id || '')
+  if (
+    nome.length > 120 ||
+    /[\u0000-\u001f\u007f]/.test(nome) ||
+    !/^[A-Za-z0-9_-]{16,128}$/.test(visualizacaoId)
+  )
+    return e.json(400, { error: 'VALIDATION' })
   try {
     var pub = $app.findFirstRecordByData(
       'com_proposta_publicacoes',
@@ -466,47 +786,25 @@ routerAdd('GET', '/backend/v1/public/propostas/{token}/pdf', (e) => {
     )
     if (pub.getString('estado') !== 'ativa' || new Date(pub.getString('expira_em')) <= new Date())
       return indisponivel()
-    var versao = $app.findRecordById('com_proposta_versoes', pub.getString('versao_id')),
-      arquivo = versao.getString('arquivo_pdf')
-    if (!arquivo) return indisponivel()
-    var agora = new Date(),
-      chaveDownload = $security.sha256(
-        pub.id + ':pdf_baixado:' + String(Math.floor(agora.getTime() / 60000)),
+    var chave = $security.sha256(pub.id + ':pdf_visualizado:' + visualizacaoId)
+    try {
+      var existente = $app.findFirstRecordByData(
+        'com_proposta_eventos_publicos',
+        'chave_idempotencia',
+        chave,
       )
-    try {
-      $app.runInTransaction(function (tx) {
-        try {
-          tx.findFirstRecordByData(
-            'com_proposta_eventos_publicos',
-            'chave_idempotencia',
-            chaveDownload,
-          )
-          return
-        } catch (_) {}
-        var evento = new Record(tx.findCollectionByNameOrId('com_proposta_eventos_publicos')),
-          propostaTx = tx.findRecordById('com_propostas', pub.getString('proposta_id'))
-        evento.set('publicacao_id', pub.id)
-        evento.set('tipo', 'pdf_baixado')
-        evento.set('ocorrido_em', agora)
-        evento.set('chave_idempotencia', chaveDownload)
-        tx.save(evento)
-        propostaTx.set('total_downloads', Number(propostaTx.get('total_downloads') || 0) + 1)
-        tx.save(propostaTx)
-      })
+      return e.json(200, { evento_id: existente.id, replay: true })
     } catch (_) {}
-    fsys = $app.newFilesystem()
-    reader = fsys.getReader(versao.baseFilesPath() + '/' + arquivo)
-    e.response.header().set('Content-Disposition', 'attachment; filename="proposta-pmais.pdf"')
-    e.stream(200, 'application/pdf', reader)
+    var evento = new Record($app.findCollectionByNameOrId('com_proposta_eventos_publicos'))
+    evento.set('publicacao_id', pub.id)
+    evento.set('tipo', 'pdf_visualizado')
+    evento.set('ocorrido_em', new Date())
+    evento.set('chave_idempotencia', chave)
+    evento.set('visitante_nome', nome)
+    $app.save(evento)
+    return e.json(201, { evento_id: evento.id, replay: false })
   } catch (_) {
-    if (!e.response.written) return indisponivel()
-  } finally {
-    try {
-      if (reader) reader.close()
-    } catch (_) {}
-    try {
-      if (fsys) fsys.close()
-    } catch (_) {}
+    return indisponivel()
   }
 })
 

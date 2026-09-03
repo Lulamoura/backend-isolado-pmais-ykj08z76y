@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
 interface PropostaPublicaDados {
+  identificacao_obrigatoria: boolean
+  publicacao_id: string
   identificador: string
   numero: number
   cliente: string
@@ -16,25 +20,180 @@ interface PropostaPublicaDados {
   validade: string | null
   expira_em: string
   decisao: string
+  visitante_nome?: string | null
 }
+
+interface PreflightPublico {
+  identificacao_obrigatoria: boolean
+  publicacao_id: string
+  identificador?: string
+}
+
 const reais = (valor: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor / 100)
+
+const acessoIdDaPagina = () => {
+  const state = (window.history.state || {}) as Record<string, unknown>
+  if (typeof state.propostaAccessId === 'string') return state.propostaAccessId
+  const propostaAccessId = crypto.randomUUID()
+  window.history.replaceState({ ...state, propostaAccessId }, '')
+  return propostaAccessId
+}
+
 export default function PropostaPublica() {
   const { token = '' } = useParams()
   const [dados, setDados] = useState<PropostaPublicaDados | null>(null)
+  const [publicacaoId, setPublicacaoId] = useState('')
+  const [identificacaoObrigatoria, setIdentificacaoObrigatoria] = useState(true)
+  const [visitanteNome, setVisitanteNome] = useState('')
+  const [nomeDigitado, setNomeDigitado] = useState('')
+  const [solicitarNome, setSolicitarNome] = useState(false)
   const [indisponivel, setIndisponivel] = useState(false)
   const [motivo, setMotivo] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+  const [pdfUrl, setPdfUrl] = useState('')
+  const [pdfErro, setPdfErro] = useState(false)
+  const [baixando, setBaixando] = useState(false)
+  const acessoId = useMemo(acessoIdDaPagina, [])
+  const storageKey = publicacaoId ? `pmais-proposta-visitante:${publicacaoId}` : ''
+
+  const acessar = async (nome: string, preflightPublicacaoId = publicacaoId) => {
+    const nomeNormalizado = nome.replace(/\s+/g, ' ').trim()
+    const resposta = await pb.send<PropostaPublicaDados>(
+      `/backend/v1/public/propostas/${encodeURIComponent(token)}/acessar`,
+      {
+        method: 'POST',
+        body: { visitante_nome: nomeNormalizado, acesso_id: acessoId },
+      },
+    )
+    const key = `pmais-proposta-visitante:${preflightPublicacaoId || resposta.publicacao_id}`
+    if (nomeNormalizado) localStorage.setItem(key, nomeNormalizado)
+    setVisitanteNome(nomeNormalizado)
+    setDados(resposta)
+    setSolicitarNome(false)
+  }
+
   useEffect(() => {
     document.title = 'Proposta comercial | PMais'
+    let ativo = true
     void pb
-      .send<PropostaPublicaDados>(`/backend/v1/public/propostas/${encodeURIComponent(token)}`, {
+      .send<PreflightPublico>(`/backend/v1/public/propostas/${encodeURIComponent(token)}`, {
         method: 'GET',
       })
-      .then(setDados)
-      .catch(() => setIndisponivel(true))
+      .then(async (resposta) => {
+        if (!ativo) return
+        setPublicacaoId(resposta.publicacao_id)
+        setIdentificacaoObrigatoria(resposta.identificacao_obrigatoria)
+        if (!resposta.identificacao_obrigatoria && resposta.identificador) {
+          setDados(resposta as PropostaPublicaDados)
+          return
+        }
+        const key = `pmais-proposta-visitante:${resposta.publicacao_id}`
+        const nomeSalvo = localStorage.getItem(key)?.trim() || ''
+        if (nomeSalvo) await acessar(nomeSalvo, resposta.publicacao_id)
+        else if (ativo) setSolicitarNome(true)
+      })
+      .catch(() => ativo && setIndisponivel(true))
+    return () => {
+      ativo = false
+    }
+    // acessoId representa um único carregamento; não repetir por mudanças de estado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
+
+  useEffect(() => {
+    if (!dados) return
+    let ativo = true
+    let objectUrl = ''
+    const carregarPdf = async () => {
+      try {
+        const response = await fetch(
+          `${pb.baseURL}/backend/v1/public/propostas/${encodeURIComponent(token)}/pdf/visualizar`,
+          {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ visitante_nome: visitanteNome, acesso_id: acessoId }),
+            cache: 'no-store',
+          },
+        )
+        if (!response.ok) throw new Error('PDF indisponível')
+        const blob = await response.blob()
+        if (!ativo || blob.type !== 'application/pdf') throw new Error('PDF inválido')
+        objectUrl = URL.createObjectURL(blob)
+        setPdfUrl(objectUrl)
+        await pb.send(`/backend/v1/public/propostas/${encodeURIComponent(token)}/visualizacao`, {
+          method: 'POST',
+          body: {
+            visitante_nome: visitanteNome,
+            visualizacao_id: `${acessoId}-pdf`,
+          },
+        })
+      } catch (_) {
+        if (ativo) setPdfErro(true)
+      }
+    }
+    void carregarPdf()
+    return () => {
+      ativo = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [acessoId, dados, token, visitanteNome])
+
+  const confirmarNome = async () => {
+    setErro('')
+    const nome = nomeDigitado.replace(/\s+/g, ' ').trim()
+    if (identificacaoObrigatoria && (nome.length < 2 || nome.length > 120)) {
+      setErro('Informe seu nome para continuar.')
+      return
+    }
+    setSalvando(true)
+    try {
+      await acessar(nome)
+    } catch (_) {
+      setErro('Não foi possível abrir a proposta. Atualize a página e verifique o link.')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const alterarNome = () => {
+    if (storageKey) localStorage.removeItem(storageKey)
+    setNomeDigitado(visitanteNome)
+    setDados(null)
+    setPdfUrl('')
+    setPdfErro(false)
+    setSolicitarNome(true)
+  }
+
+  const baixarPdf = async () => {
+    setBaixando(true)
+    setErro('')
+    try {
+      const response = await fetch(
+        `${pb.baseURL}/backend/v1/public/propostas/${encodeURIComponent(token)}/pdf`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ visitante_nome: visitanteNome, acesso_id: acessoId }),
+          cache: 'no-store',
+        },
+      )
+      if (!response.ok) throw new Error('Download indisponível')
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = 'proposta-pmais.pdf'
+      anchor.click()
+      URL.revokeObjectURL(url)
+    } catch (_) {
+      setErro('Não foi possível baixar o PDF. Atualize a página e tente novamente.')
+    } finally {
+      setBaixando(false)
+    }
+  }
+
   const decidir = async (decisao: 'aceita' | 'recusada') => {
     setErro('')
     if (decisao === 'recusada' && motivo.trim().length < 5) {
@@ -58,6 +217,7 @@ export default function PropostaPublica() {
       setSalvando(false)
     }
   }
+
   if (indisponivel)
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
@@ -74,15 +234,57 @@ export default function PropostaPublica() {
         </Card>
       </main>
     )
+
+  if (solicitarNome)
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <p className="text-sm font-semibold uppercase tracking-widest text-primary">
+              PMais Serviços
+            </p>
+            <CardTitle>Identificação para acesso</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Informe seu nome para visualizar a proposta. O nome, a data e a hora do acesso serão
+              registrados no histórico comercial.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="visitante-nome">Seu nome</Label>
+              <Input
+                id="visitante-nome"
+                autoComplete="name"
+                maxLength={120}
+                value={nomeDigitado}
+                onChange={(event) => setNomeDigitado(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') void confirmarNome()
+                }}
+              />
+            </div>
+            {erro && <p className="text-sm text-destructive">{erro}</p>}
+            <Button className="w-full" disabled={salvando} onClick={() => void confirmarNome()}>
+              Visualizar proposta
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              O nome é informado pelo visitante e não constitui validação formal de identidade.
+            </p>
+          </CardContent>
+        </Card>
+      </main>
+    )
+
   if (!dados)
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
         <p>Carregando proposta…</p>
       </main>
     )
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10">
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <header className="text-center">
           <p className="text-sm font-semibold uppercase tracking-widest text-primary">
             PMais Serviços
@@ -91,6 +293,14 @@ export default function PropostaPublica() {
           <p className="text-muted-foreground">
             {dados.identificador} · versão {dados.numero}
           </p>
+          {visitanteNome && (
+            <div className="mt-2 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <span>Acesso identificado como {visitanteNome}</span>
+              <Button variant="link" size="sm" onClick={alterarNome}>
+                Alterar nome
+              </Button>
+            </div>
+          )}
         </header>
         <Card>
           <CardContent className="grid gap-5 p-6 sm:grid-cols-2">
@@ -113,21 +323,37 @@ export default function PropostaPublica() {
           </CardContent>
         </Card>
         <Card>
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+            <CardTitle>Visualização da proposta em PDF</CardTitle>
+            <Button variant="outline" disabled={baixando} onClick={() => void baixarPdf()}>
+              Baixar proposta em PDF
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {pdfUrl ? (
+              <iframe
+                className="h-[70vh] min-h-[520px] w-full rounded-md border bg-white"
+                src={pdfUrl}
+                title="Visualização da proposta em PDF"
+              />
+            ) : pdfErro ? (
+              <p className="rounded-md border bg-muted p-4 text-sm text-muted-foreground">
+                A visualização no navegador não está disponível. Use o botão “Baixar proposta em
+                PDF”.
+              </p>
+            ) : (
+              <p className="py-12 text-center text-sm text-muted-foreground">Carregando PDF…</p>
+            )}
+            {erro && <p className="mt-3 text-sm text-destructive">{erro}</p>}
+          </CardContent>
+        </Card>
+        <Card>
           <CardHeader>
-            <CardTitle>Documento e decisão</CardTitle>
+            <CardTitle>Decisão</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button asChild variant="outline">
-              <a
-                href={`${pb.baseURL}/backend/v1/public/propostas/${encodeURIComponent(token)}/pdf`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Baixar proposta em PDF
-              </a>
-            </Button>
             {dados.decisao === 'pendente' ? (
-              <div className="space-y-3 border-t pt-4">
+              <div className="space-y-3">
                 <p className="font-medium">Registre sua decisão sobre esta proposta</p>
                 <Textarea
                   value={motivo}

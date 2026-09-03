@@ -266,7 +266,9 @@
           var n = negocios[i],
             proposta = null,
             versao = null,
-            eventos = []
+            eventos = [],
+            abertaPublicacao = false,
+            primeiroAcessoPublicacaoEm = null
           if (['producao_proposta', 'negociacao'].indexOf(n.getString('etapa')) < 0) continue
           if (!propostaPodeAcessar(ator, perfil, n)) continue
           try {
@@ -282,6 +284,22 @@
               versao = versoes[0]
               eventos = propostaEventos($app, versao.id)
             }
+            try {
+              var publicacaoAtiva = $app.findFirstRecordByFilter(
+                'com_proposta_publicacoes',
+                "proposta_id='" + proposta.id + "' && estado='ativa'",
+              )
+              var acessosPublicacao = $app.findRecordsByFilter(
+                'com_proposta_eventos_publicos',
+                "publicacao_id='" + publicacaoAtiva.id + "' && tipo='pagina_acessada'",
+                'ocorrido_em',
+                1,
+                0,
+              )
+              abertaPublicacao = acessosPublicacao.length > 0
+              if (abertaPublicacao)
+                primeiroAcessoPublicacaoEm = acessosPublicacao[0].getString('ocorrido_em')
+            } catch (_) {}
           } catch (_) {}
           itens.push({
             negocio: {
@@ -314,15 +332,32 @@
                     visualizada: eventos.some(function (x) {
                       return x.tipo === 'visualizada'
                     }),
+                    aberta: abertaPublicacao,
+                    primeiro_acesso_publicacao_em: primeiroAcessoPublicacaoEm,
                     eventos: eventos,
                   }
                 : null,
           })
         }
+        var identificacaoObrigatoria = true,
+          identificacaoUpdated = ''
+        try {
+          var identificacaoParametro = $app.findFirstRecordByData(
+            'com_parametros',
+            'chave',
+            'proposta.identificacao_visitante_obrigatoria',
+          )
+          identificacaoObrigatoria =
+            identificacaoParametro.getBool('ativo') &&
+            identificacaoParametro.getString('valor') === 'true'
+          identificacaoUpdated = identificacaoParametro.getString('updated')
+        } catch (_) {}
         return e.json(200, {
           itens: itens,
           configuracao: {
             aprovacao_interna_obrigatoria: aprovacaoInternaObrigatoria($app),
+            identificacao_visitante_obrigatoria: identificacaoObrigatoria,
+            identificacao_visitante_updated: identificacaoUpdated,
           },
         })
       } catch (err) {

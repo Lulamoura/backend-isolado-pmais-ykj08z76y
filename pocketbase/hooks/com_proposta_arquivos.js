@@ -348,6 +348,7 @@ routerAdd(
               publicacao_id: publicacoes[pi].id,
               tipo: eventosRows[ei].getString('tipo'),
               ocorrido_em: eventosRows[ei].getString('ocorrido_em'),
+              visitante_nome: eventosRows[ei].getString('visitante_nome') || null,
             })
         }
       } catch (_) {}
