@@ -21,8 +21,18 @@ const checks = [
   ['versão usa rótulo amigável', page.includes("'PDF lançado' : 'PDF pendente'")],
   ['nome físico não aparece na interface', !page.includes('arquivo_nome')],
   ['hash não aparece na interface', !page.includes('arquivo_sha256') && !page.includes('SHA-256:')],
-  ['histórico reúne acessos', page.includes('Acessos e ações do cliente')],
-  ['histórico reúne envios', page.includes('<h3 className="font-medium">Envios</h3>')],
+  [
+    'histórico reúne acessos na linha do tempo',
+    page.includes("evento.tipo === 'pagina_acessada'") && page.includes('Linha do tempo'),
+  ],
+  [
+    'histórico reúne envios na linha do tempo',
+    page.includes('...timeline.envios.map') && page.includes("tipo: 'envio'"),
+  ],
+  [
+    'card mostra etapa comercial em vez da origem técnica',
+    page.includes('Proposta em Negociação') && !page.includes('Proposta originada no CRM'),
+  ],
   [
     'envio e abertura são estados distintos',
     page.includes("? 'Enviada'") && page.includes("p.aberta ? 'Aberta' : 'Não Aberta'"),

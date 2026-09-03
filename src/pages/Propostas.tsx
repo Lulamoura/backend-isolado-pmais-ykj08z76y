@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  CalendarClock,
+  CheckCircle2,
+  Download,
   Eye,
   EyeOff,
   FileCheck2,
   FileUp,
   History,
   Link2,
+  Mail,
   MessageCircle,
   RefreshCw,
   Settings2,
+  UserRound,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -58,6 +63,13 @@ const rotuloEventoPublico: Record<string, string> = {
   pdf_baixado: 'PDF baixado',
   proposta_aceita: 'Proposta aceita',
   proposta_recusada: 'Proposta recusada',
+}
+const rotuloEtapaComercial = (etapa: string) =>
+  etapa === 'negociacao' ? 'Proposta em Negociação' : 'Proposta em Produção'
+const rotuloDecisao: Record<string, string> = {
+  pendente: 'Pendente',
+  aceita: 'Aceita',
+  recusada: 'Recusada',
 }
 export default function Propostas() {
   const { isSuperAdmin, perfilSlug } = useIsSuperAdmin()
@@ -305,14 +317,45 @@ export default function Propostas() {
       <div className="grid gap-4 md:grid-cols-2">
         {itensVisiveis.map((item) => {
           const p = item.proposta
+          const timeline = timelines[item.negocio.id]
+          const acessos = timeline?.eventos_publicos.filter(
+            (evento) => evento.tipo === 'pagina_acessada',
+          )
+          const primeiroAcesso = acessos?.[0]?.ocorrido_em ?? null
+          const ultimoAcesso = acessos?.[acessos.length - 1]?.ocorrido_em ?? null
+          const eventosHistorico = timeline
+            ? [
+                ...timeline.versoes.map((versao) => ({
+                  id: `versao-${versao.id}`,
+                  ocorridoEm: versao.created,
+                  titulo: `Versão ${versao.numero} — ${versao.arquivo_bytes ? 'PDF lançado' : 'PDF pendente'}`,
+                  detalhe: 'Versão registrada na proposta',
+                  tipo: 'versao',
+                })),
+                ...timeline.envios.map((envio) => ({
+                  id: `envio-${envio.id}`,
+                  ocorridoEm: envio.enviado_em || envio.created,
+                  titulo: `${envio.canal === 'email' ? 'E-mail' : 'WhatsApp'} ${envio.estado}`,
+                  detalhe: envio.destinatario || 'Destinatário não informado',
+                  tipo: 'envio',
+                })),
+                ...timeline.eventos_publicos.map((evento) => ({
+                  id: `evento-${evento.id}`,
+                  ocorridoEm: evento.ocorrido_em,
+                  titulo: rotuloEventoPublico[evento.tipo] || 'Ação registrada',
+                  detalhe: evento.visitante_nome || 'Visitante não identificado',
+                  tipo: evento.tipo,
+                })),
+              ].sort((a, b) => new Date(b.ocorridoEm).getTime() - new Date(a.ocorridoEm).getTime())
+            : []
           const envioSistemaEm = p?.ultimo_envio_sistema_em
             ? new Date(p.ultimo_envio_sistema_em).getTime()
             : null
           const naoAbertaAtrasada = Boolean(
             p?.enviada_sistema &&
-              !p.aberta &&
-              envioSistemaEm &&
-              Date.now() - envioSistemaEm >= 24 * 60 * 60 * 1000,
+            !p.aberta &&
+            envioSistemaEm &&
+            Date.now() - envioSistemaEm >= 24 * 60 * 60 * 1000,
           )
           const estadoProposta = p
             ? p.enviada_sistema
@@ -332,9 +375,7 @@ export default function Propostas() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle className="text-base">{item.negocio.titulo}</CardTitle>
-                    <CardDescription>
-                      {p?.identificador ?? 'Proposta originada no CRM'}
-                    </CardDescription>
+                    <CardDescription>{rotuloEtapaComercial(item.negocio.etapa)}</CardDescription>
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <Badge variant="secondary">{estadoProposta}</Badge>
@@ -396,7 +437,7 @@ export default function Propostas() {
                   open={modalProposta?.negocioId === item.negocio.id}
                   onOpenChange={(aberta) => !aberta && setModalProposta(null)}
                 >
-                  <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+                  <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>
                         {modalProposta?.modo === 'historico'
@@ -408,72 +449,131 @@ export default function Propostas() {
                       </DialogDescription>
                     </DialogHeader>
                     {modalProposta?.modo === 'historico' ? (
-                      <div className="space-y-4">
-                        {!timelines[item.negocio.id] ? (
+                      <div className="space-y-5">
+                        {!timeline ? (
                           <p className="text-sm text-muted-foreground">Carregando histórico…</p>
                         ) : (
                           <>
-                            <div className="grid gap-2 rounded-md bg-muted p-3 text-sm sm:grid-cols-3">
-                              <p>{timelines[item.negocio.id].total_acessos} acesso(s)</p>
-                              <p>{timelines[item.negocio.id].total_downloads} download(s)</p>
-                              <p>Decisão: {timelines[item.negocio.id].decisao}</p>
-                            </div>
-                            <div className="space-y-2">
-                              <h3 className="font-medium">Versões</h3>
-                              {timelines[item.negocio.id].versoes.map((versao) => (
-                                <div key={versao.id} className="rounded-md border p-3 text-sm">
-                                  <p className="font-medium">
-                                    Versão {versao.numero} —{' '}
-                                    {versao.arquivo_bytes ? 'PDF lançado' : 'PDF pendente'}
-                                  </p>
-                                  <p className="text-muted-foreground">
-                                    {dataHora(versao.created)}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="space-y-2">
-                              <h3 className="font-medium">Acessos e ações do cliente</h3>
-                              {timelines[item.negocio.id].eventos_publicos.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">
-                                  Nenhum acesso registrado.
+                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                              <div className="rounded-lg border bg-card p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  Estado
                                 </p>
-                              ) : (
-                                [...timelines[item.negocio.id].eventos_publicos]
-                                  .reverse()
-                                  .map((evento) => (
-                                    <div key={evento.id} className="rounded-md border p-3 text-sm">
-                                      <p className="font-medium">
-                                        {rotuloEventoPublico[evento.tipo] || 'Ação registrada'}
-                                      </p>
-                                      <p className="text-muted-foreground">
-                                        {evento.visitante_nome || 'Visitante não identificado'} ·{' '}
-                                        {dataHora(evento.ocorrido_em)}
-                                      </p>
-                                    </div>
-                                  ))
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <h3 className="font-medium">Envios</h3>
-                              {timelines[item.negocio.id].envios.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">
-                                  Nenhum envio pelo sistema.
+                                <p className="mt-2 font-semibold">{estadoProposta}</p>
+                              </div>
+                              <div className="rounded-lg border bg-card p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  Acessos
                                 </p>
-                              ) : (
-                                [...timelines[item.negocio.id].envios].reverse().map((envio) => (
-                                  <div key={envio.id} className="rounded-md border p-3 text-sm">
-                                    <p className="font-medium">
-                                      {envio.canal === 'email' ? 'E-mail' : 'WhatsApp'} —{' '}
-                                      {envio.estado}
+                                <p className="mt-2 text-xl font-semibold">
+                                  {timeline.total_acessos}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border bg-card p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  Primeiro acesso
+                                </p>
+                                <p className="mt-2 text-sm font-medium">
+                                  {dataHora(primeiroAcesso)}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border bg-card p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  Último acesso
+                                </p>
+                                <p className="mt-2 text-sm font-medium">{dataHora(ultimoAcesso)}</p>
+                              </div>
+                            </div>
+                            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                              <section className="rounded-lg border p-4 sm:p-5">
+                                <h3 className="font-semibold">Linha do tempo</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                  Lançamento, envio, acesso e ações em ordem cronológica.
+                                </p>
+                                <div className="mt-5 space-y-0">
+                                  {eventosHistorico.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                      Nenhum evento registrado.
                                     </p>
-                                    <p className="text-muted-foreground">
-                                      {envio.destinatario || 'Destinatário não informado'} ·{' '}
-                                      {dataHora(envio.enviado_em || envio.created)}
+                                  ) : (
+                                    eventosHistorico.map((evento, indice) => (
+                                      <div
+                                        key={evento.id}
+                                        className="relative flex gap-3 pb-5 last:pb-0"
+                                      >
+                                        {indice < eventosHistorico.length - 1 && (
+                                          <span className="absolute left-[15px] top-8 h-[calc(100%-1.5rem)] w-px bg-border" />
+                                        )}
+                                        <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
+                                          {evento.tipo === 'pagina_acessada' ? (
+                                            <Eye className="h-4 w-4" />
+                                          ) : evento.tipo === 'pdf_baixado' ? (
+                                            <Download className="h-4 w-4" />
+                                          ) : evento.tipo === 'envio' ? (
+                                            <Mail className="h-4 w-4" />
+                                          ) : (
+                                            <CheckCircle2 className="h-4 w-4" />
+                                          )}
+                                        </span>
+                                        <div className="min-w-0 pt-0.5 text-sm">
+                                          <p className="font-medium">{evento.titulo}</p>
+                                          <p className="break-words text-muted-foreground">
+                                            {evento.detalhe}
+                                          </p>
+                                          <p className="mt-1 text-xs text-muted-foreground">
+                                            {dataHora(evento.ocorridoEm)}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </section>
+                              <aside className="space-y-4">
+                                <div className="rounded-lg border p-4">
+                                  <h3 className="font-semibold">Situação</h3>
+                                  <div className="mt-3 space-y-3 text-sm">
+                                    <p className="flex items-center gap-2">
+                                      <UserRound className="h-4 w-4 text-muted-foreground" />
+                                      {acessos?.at(-1)?.visitante_nome ||
+                                        'Sem visitante identificado'}
+                                    </p>
+                                    <p className="flex items-center gap-2">
+                                      <Download className="h-4 w-4 text-muted-foreground" />
+                                      {timeline.total_downloads} download(s)
+                                    </p>
+                                    <p className="flex items-center gap-2">
+                                      <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                                      Decisão: {rotuloDecisao[timeline.decisao] || timeline.decisao}
                                     </p>
                                   </div>
-                                ))
-                              )}
+                                  {timeline.decisao_motivo && (
+                                    <p className="mt-3 rounded-md bg-muted p-3 text-sm">
+                                      {timeline.decisao_motivo}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="rounded-lg border p-4">
+                                  <h3 className="font-semibold">Ações</h3>
+                                  <p className="mt-2 text-sm text-muted-foreground">
+                                    Para gerar link, enviar ou reenviar a proposta, use Lançar
+                                    proposta.
+                                  </p>
+                                  <Button
+                                    className="mt-3 w-full"
+                                    variant="outline"
+                                    onClick={() =>
+                                      setModalProposta({
+                                        negocioId: item.negocio.id,
+                                        modo: 'operacao',
+                                      })
+                                    }
+                                  >
+                                    <FileCheck2 className="mr-2 h-4 w-4" />
+                                    Lançar proposta
+                                  </Button>
+                                </div>
+                              </aside>
                             </div>
                           </>
                         )}
