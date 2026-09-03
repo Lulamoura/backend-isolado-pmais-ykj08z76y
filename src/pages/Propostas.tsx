@@ -6,7 +6,6 @@ import {
   FileUp,
   History,
   Link2,
-  Mail,
   MessageCircle,
   RefreshCw,
   Settings2,
@@ -306,6 +305,24 @@ export default function Propostas() {
       <div className="grid gap-4 md:grid-cols-2">
         {itensVisiveis.map((item) => {
           const p = item.proposta
+          const envioSistemaEm = p?.ultimo_envio_sistema_em
+            ? new Date(p.ultimo_envio_sistema_em).getTime()
+            : null
+          const naoAbertaAtrasada = Boolean(
+            p?.enviada_sistema &&
+            !p.aberta &&
+            envioSistemaEm &&
+            Date.now() - envioSistemaEm >= 24 * 60 * 60 * 1000,
+          )
+          const estadoProposta = p
+            ? p.enviada_sistema
+              ? 'Enviada'
+              : p.estado === 'rascunho'
+                ? 'Rascunho'
+                : p.estado.charAt(0).toLocaleUpperCase('pt-BR') + p.estado.slice(1)
+            : item.negocio.etapa === 'negociacao'
+              ? 'Proposta em negociação'
+              : 'Proposta em produção'
           return (
             <Card
               key={item.negocio.id}
@@ -320,15 +337,17 @@ export default function Propostas() {
                     </CardDescription>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <Badge variant="secondary">
-                      {p?.estado ??
-                        (item.negocio.etapa === 'negociacao'
-                          ? 'Proposta em negociação'
-                          : 'Proposta em produção')}
-                    </Badge>
+                    <Badge variant="secondary">{estadoProposta}</Badge>
                     {p && (
                       <Badge
-                        variant={p.aberta ? 'default' : 'outline'}
+                        variant="outline"
+                        className={
+                          p.aberta
+                            ? 'border-blue-200 bg-blue-50 text-blue-700'
+                            : naoAbertaAtrasada
+                              ? 'border-red-200 bg-red-50 text-red-700'
+                              : undefined
+                        }
                         title={
                           p.aberta && p.primeiro_acesso_publicacao_em
                             ? `Primeiro acesso: ${new Date(p.primeiro_acesso_publicacao_em).toLocaleString('pt-BR')}`
@@ -340,7 +359,7 @@ export default function Propostas() {
                         ) : (
                           <EyeOff className="mr-1 h-3.5 w-3.5" />
                         )}
-                        {p.aberta ? 'Aberta' : 'Não aberta'}
+                        {p.aberta ? 'Aberta' : 'Não Aberta'}
                       </Badge>
                     )}
                   </div>
@@ -371,14 +390,6 @@ export default function Propostas() {
                       <History className="mr-2 h-4 w-4" />
                       Histórico
                     </Button>
-                  )}
-                  {p?.enviada_sistema && (
-                    <span
-                      className="inline-flex items-center text-xs text-muted-foreground"
-                      title="Enviada por e-mail pelo sistema"
-                    >
-                      <Mail className="mr-1 h-4 w-4" /> Enviada
-                    </span>
                   )}
                 </div>
                 <Dialog

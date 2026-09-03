@@ -28,6 +28,7 @@ export interface ItemProposta {
     visualizada: boolean
     aberta: boolean
     enviada_sistema: boolean
+    ultimo_envio_sistema_em: string | null
     primeiro_acesso_publicacao_em: string | null
     eventos: Array<{
       id: string

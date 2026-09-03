@@ -269,7 +269,8 @@
             eventos = [],
             abertaPublicacao = false,
             primeiroAcessoPublicacaoEm = null,
-            enviadaSistema = false
+            enviadaSistema = false,
+            ultimoEnvioSistemaEm = null
           if (['producao_proposta', 'negociacao'].indexOf(n.getString('etapa')) < 0) continue
           if (!propostaPodeAcessar(ator, perfil, n)) continue
           try {
@@ -310,6 +311,8 @@
                 0,
               )
               enviadaSistema = enviosSistema.length > 0
+              if (enviadaSistema)
+                ultimoEnvioSistemaEm = enviosSistema[0].getString('enviado_em') || null
             } catch (_) {}
           } catch (_) {}
           itens.push({
@@ -345,6 +348,7 @@
                     }),
                     aberta: abertaPublicacao,
                     enviada_sistema: enviadaSistema,
+                    ultimo_envio_sistema_em: ultimoEnvioSistemaEm,
                     primeiro_acesso_publicacao_em: primeiroAcessoPublicacaoEm,
                     eventos: eventos,
                   }
