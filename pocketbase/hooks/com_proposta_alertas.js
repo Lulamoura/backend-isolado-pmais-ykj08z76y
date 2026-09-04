@@ -22,6 +22,17 @@
       function contexto(app, publicacao) {
         var proposta = app.findRecordById('com_propostas', publicacao.getString('proposta_id'))
         var negocio = app.findRecordById('com_negocios', proposta.getString('negocio_id'))
+        var externalId = ''
+        try {
+          externalId = app
+            .findFirstRecordByFilter(
+              'com_vinculos_externos',
+              "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+                negocio.id +
+                "'",
+            )
+            .getString('external_id')
+        } catch (_) {}
         function nome(collection, id, field) {
           try {
             return app.findRecordById(collection, id).getString(field)
@@ -31,6 +42,7 @@
         }
         return {
           negocio: negocio,
+          external_id: externalId,
           cliente: nome('com_empresas', negocio.getString('empresa_id'), 'nome'),
         }
       }
@@ -94,7 +106,7 @@
           itens.push({
             id: eventos[i].id,
             negocio_id: ctx.negocio.id,
-            external_id: ctx.negocio.getString('external_id'),
+            external_id: ctx.external_id,
             cliente: ctx.cliente,
             visitante_nome: eventos[i].getString('visitante_nome') || null,
             ocorrido_em: eventos[i].getString('ocorrido_em'),
@@ -214,6 +226,17 @@
         var proposta = app.findRecordById('com_propostas', publicacao.getString('proposta_id'))
         var negocio = app.findRecordById('com_negocios', proposta.getString('negocio_id'))
         var versao = app.findRecordById('com_proposta_versoes', publicacao.getString('versao_id'))
+        var externalId = ''
+        try {
+          externalId = app
+            .findFirstRecordByFilter(
+              'com_vinculos_externos',
+              "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+                negocio.id +
+                "'",
+            )
+            .getString('external_id')
+        } catch (_) {}
         function nome(collection, id, field) {
           try {
             return app.findRecordById(collection, id).getString(field)
@@ -225,6 +248,7 @@
           proposta: proposta,
           negocio: negocio,
           versao: versao,
+          external_id: externalId,
           cliente: nome('com_empresas', negocio.getString('empresa_id'), 'nome'),
           responsavel: nome('users', negocio.getString('responsavel_id'), 'name'),
         }
@@ -312,7 +336,7 @@
           if (dias < limite) continue
           itens.push({
             negocio_id: ctx.negocio.id,
-            external_id: ctx.negocio.getString('external_id'),
+            external_id: ctx.external_id,
             cliente: ctx.cliente,
             data_envio: envios[i].getString('enviado_em') || envios[i].getString('created'),
             modalidade: ctx.versao.getString('modalidade'),
