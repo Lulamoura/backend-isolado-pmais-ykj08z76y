@@ -122,6 +122,23 @@ routerAdd(
         corpo.indexOf('[LINK_PROPOSTA]') >= 0
           ? corpo.replace('[LINK_PROPOSTA]', String(body.link_publico))
           : corpo + '\n\n' + String(body.link_publico)
+      var marcadorLink = '__PMAIS_LINK_PROPOSTA__'
+      var corpoHtml = corpoComLink
+        .replace(String(body.link_publico), marcadorLink)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split(/\n{2,}/)
+        .map(function (paragrafo) {
+          return '<p style="margin:0 0 16px 0">' + paragrafo.replace(/\n/g, '<br>') + '</p>'
+        })
+        .join('')
+        .replace(
+          marcadorLink,
+          '<a href="' + String(body.link_publico) + '">Visualizar proposta</a>',
+        )
       var snapshot = corpo.replace(String(body.link_publico), '[LINK_SEGURO_NAO_PERSISTIDO]')
       if (cc.length) snapshot += '\n\nCc: ' + cc.join(', ')
       var envio = new Record($app.findCollectionByNameOrId('com_proposta_envios'))
@@ -155,17 +172,7 @@ routerAdd(
           cc: cc,
           reply_to: replyTo,
           subject: assunto,
-          html:
-            '<div style="font-family:Arial,sans-serif;line-height:1.6;white-space:pre-wrap">' +
-            corpoComLink
-              .replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(
-                String(body.link_publico),
-                '<a href="' + String(body.link_publico) + '">Visualizar proposta</a>',
-              ) +
-            '</div>',
+          html: '<div style="font-family:Arial,sans-serif;line-height:1.6">' + corpoHtml + '</div>',
           text: corpoComLink,
         }),
       })
