@@ -145,6 +145,7 @@ routerAdd(
       envio.set('proposta_id', ctx.proposta.id)
       envio.set('versao_id', ctx.versao.id)
       envio.set('publicacao_id', ctx.publicacao.id)
+      envio.set('remetente_id', ator.id)
       envio.set('canal', 'email')
       envio.set('destinatario', destinatario)
       envio.set('assunto', assunto)
