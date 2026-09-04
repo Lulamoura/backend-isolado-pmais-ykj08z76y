@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CalendarClock,
   CheckCircle2,
@@ -40,6 +40,7 @@ import {
   publicarProposta,
   revogarPublicacaoProposta,
   registrarEventoProposta,
+  salvarMensagemEmailProposta,
   type EventoProposta,
   type ItemProposta,
   type TimelinePropostaInterna,
@@ -100,6 +101,7 @@ export default function Propostas() {
   const [respostasEmail, setRespostasEmail] = useState<Record<string, string>>({})
   const [assuntosEmail, setAssuntosEmail] = useState<Record<string, string>>({})
   const [mensagensEmail, setMensagensEmail] = useState<Record<string, string>>({})
+  const timersMensagem = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const [modalProposta, setModalProposta] = useState<{
     negocioId: string
     modo: 'operacao' | 'historico'
@@ -119,6 +121,12 @@ export default function Propostas() {
     }
   }, [])
   useEffect(() => void carregar(), [carregar])
+  useEffect(
+    () => () => {
+      Object.values(timersMensagem.current).forEach(clearTimeout)
+    },
+    [],
+  )
   const itensVisiveis = useMemo(
     () =>
       filterAndSortCommercial(
@@ -192,6 +200,32 @@ export default function Propostas() {
     item.contexto.contato?.email || item.proposta?.destinatario || ''
   const mensagemPadrao = (item: ItemProposta) =>
     `Olá,\n\nEncaminhamos a proposta comercial da PMais para ${item.contexto.empresa.nome || 'sua empresa'}.\n\nVocê pode visualizar o documento pelo link abaixo:\n[LINK_PROPOSTA]\n\nPermanecemos à disposição para esclarecimentos e para os próximos passos.\n\nAtenciosamente,\nEquipe Comercial PMais`
+  const mensagemAtual = (item: ItemProposta) =>
+    mensagensEmail[item.negocio.id] ??
+    item.proposta?.mensagem_email_rascunho ??
+    mensagemPadrao(item)
+  const alterarMensagem = (item: ItemProposta, mensagem: string) => {
+    const negocioId = item.negocio.id
+    setMensagensEmail((atual) => ({ ...atual, [negocioId]: mensagem }))
+    clearTimeout(timersMensagem.current[negocioId])
+    timersMensagem.current[negocioId] = setTimeout(() => {
+      void salvarMensagemEmailProposta(negocioId, mensagem).catch(() =>
+        toast.error('Não foi possível gravar a mensagem da proposta.'),
+      )
+      delete timersMensagem.current[negocioId]
+    }, 800)
+  }
+  const gravarMensagemAgora = async (item: ItemProposta) => {
+    const negocioId = item.negocio.id
+    if (!(negocioId in mensagensEmail)) return
+    clearTimeout(timersMensagem.current[negocioId])
+    delete timersMensagem.current[negocioId]
+    try {
+      await salvarMensagemEmailProposta(negocioId, mensagensEmail[negocioId])
+    } catch (_) {
+      toast.error('Não foi possível gravar a mensagem da proposta.')
+    }
+  }
   const enviarPdf = async (item: ItemProposta) => {
     const arquivo = arquivos[item.negocio.id]
     if (!arquivo || !item.proposta) return
@@ -235,7 +269,8 @@ export default function Propostas() {
     const email = (destinosEmail[item.negocio.id] ?? destinatarioPadrao(item)).trim()
     const link = linksPublicos[item.negocio.id] || (await publicar(item))
     const assunto = (assuntosEmail[item.negocio.id] || assuntoPadrao(item)).trim()
-    const corpo = (mensagensEmail[item.negocio.id] || mensagemPadrao(item)).trim()
+    await gravarMensagemAgora(item)
+    const corpo = mensagemAtual(item).trim()
     const replyTo = (
       respostasEmail[item.negocio.id] || String(pb.authStore.record?.email || '')
     ).trim()
@@ -262,10 +297,7 @@ export default function Propostas() {
   const copiarMensagemWhatsApp = async (item: ItemProposta) => {
     const link = linksPublicos[item.negocio.id] || (await publicar(item))
     if (!link) return
-    const mensagem = (mensagensEmail[item.negocio.id] || mensagemPadrao(item)).replace(
-      '[LINK_PROPOSTA]',
-      link,
-    )
+    const mensagem = mensagemAtual(item).replace('[LINK_PROPOSTA]', link)
     await navigator.clipboard.writeText(mensagem)
     toast.success('Mensagem com o link copiada para o WhatsApp.')
   }
@@ -763,13 +795,9 @@ export default function Propostas() {
                                   <Textarea
                                     id={`mensagem-proposta-${item.negocio.id}`}
                                     className="min-h-48"
-                                    value={mensagensEmail[item.negocio.id] || mensagemPadrao(item)}
-                                    onChange={(event) =>
-                                      setMensagensEmail((atual) => ({
-                                        ...atual,
-                                        [item.negocio.id]: event.target.value,
-                                      }))
-                                    }
+                                    value={mensagemAtual(item)}
+                                    onChange={(event) => alterarMensagem(item, event.target.value)}
+                                    onBlur={() => void gravarMensagemAgora(item)}
                                   />
                                   <p className="text-xs text-muted-foreground">
                                     Use [LINK_PROPOSTA] para posicionar o botão de acesso.
