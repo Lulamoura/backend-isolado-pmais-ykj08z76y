@@ -2,7 +2,7 @@ const fs = require('node:fs')
 const assert = require('node:assert/strict')
 
 const migration = fs.readFileSync(
-  'pocketbase/migrations/202609041920_proposta_email_primeira_abertura.js',
+  'pocketbase/migrations/202609041756_proposta_email_primeira_abertura.js',
   'utf8',
 )
 const hook = fs.readFileSync('pocketbase/hooks/com_proposta_abertura_email.js', 'utf8')
