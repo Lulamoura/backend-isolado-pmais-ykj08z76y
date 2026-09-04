@@ -136,12 +136,14 @@ routerAdd(
         },
         perdas_por_motivo: [],
         modalidades: [],
+        ganhos_por_modalidade: [],
         fontes_prospeccao: [],
         responsaveis: [],
       }
       var ganhosPrecificados = 0
       var perdasPorMotivo = {}
       var modalidades = {}
+      var ganhosPorModalidade = {}
       var fontesProspeccao = {}
       var responsaveis = {}
       for (var i = 0; i < items.length; i++) {
@@ -200,6 +202,15 @@ routerAdd(
               valor_centavos: 0,
             }
           modalidades[modalidade].quantidade++
+          if (situacao === 'ganho') {
+            if (!ganhosPorModalidade[modalidade])
+              ganhosPorModalidade[modalidade] = {
+                modalidade: modalidade,
+                quantidade: 0,
+                valor_centavos: 0,
+              }
+            ganhosPorModalidade[modalidade].quantidade++
+          }
         }
 
         var valor = Number(n.valor)
@@ -214,6 +225,7 @@ routerAdd(
           if (situacao === 'ganho') {
             out.valores.ganho_centavos += valor
             ganhosPrecificados++
+            if (modalidade) ganhosPorModalidade[modalidade].valor_centavos += valor
           }
           if (situacao === 'perdido') {
             out.valores.perdido_centavos += valor
@@ -266,6 +278,13 @@ routerAdd(
       out.modalidades = Object.keys(modalidades)
         .map(function (key) {
           return modalidades[key]
+        })
+        .sort(function (a, b) {
+          return b.valor_centavos - a.valor_centavos
+        })
+      out.ganhos_por_modalidade = Object.keys(ganhosPorModalidade)
+        .map(function (key) {
+          return ganhosPorModalidade[key]
         })
         .sort(function (a, b) {
           return b.valor_centavos - a.valor_centavos

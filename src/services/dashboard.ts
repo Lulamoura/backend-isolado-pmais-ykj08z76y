@@ -49,6 +49,11 @@ export interface DashboardResumo {
   }
   perdas_por_motivo: Array<{ motivo: string; quantidade: number; valor_centavos: number }>
   modalidades: Array<{ modalidade: string; quantidade: number; valor_centavos: number }>
+  ganhos_por_modalidade: Array<{
+    modalidade: string
+    quantidade: number
+    valor_centavos: number
+  }>
   fontes_prospeccao: Array<{ fonte: string; quantidade: number }>
   responsaveis: Array<{
     responsavel_id: string | null
