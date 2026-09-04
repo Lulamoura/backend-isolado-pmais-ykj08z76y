@@ -723,6 +723,30 @@ export default function Index() {
                 },
               ]}
             />
+            <DetailCard
+              title="Negócios ganhos"
+              description="Quantidade e valor dos ganhos no período, por modalidade."
+              icon={Trophy}
+              items={[
+                {
+                  label: 'Total',
+                  value: `${resumo.situacao.ganhos} · ${formatCurrency(resumo.valores.ganho_centavos)}`,
+                },
+                ...[
+                  ['recorrente', 'Recorrente'],
+                  ['evento', 'Evento'],
+                  ['serv_eventual', 'Serv. Eventual'],
+                ].map(([modalidade, label]) => {
+                  const item = resumo.ganhos_por_modalidade.find(
+                    (ganho) => ganho.modalidade === modalidade,
+                  )
+                  return {
+                    label,
+                    value: `${item?.quantidade ?? 0} · ${formatCurrency(item?.valor_centavos ?? 0)}`,
+                  }
+                }),
+              ]}
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

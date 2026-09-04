@@ -268,6 +268,12 @@ assert(
   ]),
 )
 assert(
+  'E16.1 totaliza somente ganhos por modalidade',
+  same(resumo.ganhos_por_modalidade, [
+    { modalidade: 'evento', quantidade: 1, valor_centavos: 10001 },
+  ]),
+)
+assert(
   'E17 distribui negócios por fonte de prospecção e explicita ausência',
   same(resumo.fontes_prospeccao, [
     { fonte: 'Indicação', quantidade: 2 },

@@ -72,6 +72,7 @@ const dashboardResponse = {
       { modalidade: 'evento', quantidade: 2, valor_centavos: 120000 },
       { modalidade: 'serv_eventual', quantidade: 2, valor_centavos: 80000 },
     ],
+    ganhos_por_modalidade: [{ modalidade: 'recorrente', quantidade: 1, valor_centavos: 100000 }],
     fontes_prospeccao: [
       { fonte: 'Indicação', quantidade: 4 },
       { fonte: 'Não informada', quantidade: 3 },
@@ -240,6 +241,15 @@ describe('Dashboard V1', () => {
     expect(within(valores).getByText('Ticket médio ganho')).toBeInTheDocument()
     expect(within(qualidade).getByText('Cobertura de origem')).toBeInTheDocument()
     expect(within(qualidade).getByText('Marcadores de um centavo')).toBeInTheDocument()
+  })
+
+  it('detalha os negócios ganhos por modalidade e explicita modalidades sem ganhos', () => {
+    render(<Index />)
+
+    const ganhos = screen.getByLabelText('Negócios ganhos')
+    expect(within(ganhos).getByText('Total')).toBeInTheDocument()
+    expect(within(ganhos).getAllByText('1 · R$ 1.000,00')).toHaveLength(2)
+    expect(within(ganhos).getAllByText('0 · R$ 0,00')).toHaveLength(2)
   })
 
   it('mostra estado de carregamento acessível', () => {
