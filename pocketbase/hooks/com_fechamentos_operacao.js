@@ -152,13 +152,19 @@
       if (!ator || !ator.getBool('ativo_comercial'))
         return e.forbiddenError('Usuario comercial necessario')
       var recuperacao = String(e.requestInfo().query.recuperacao || 'todas')
+      var status = String(e.requestInfo().query.status || 'todos')
       if (['todas', 'acionavel'].indexOf(recuperacao) === -1)
+        return e.json(400, { error: 'VALIDATION' })
+      if (['todos', 'ganho', 'perdido', 'reativacao'].indexOf(status) === -1)
         return e.json(400, { error: 'VALIDATION' })
       var hoje = hojeRecife()
       var perfil = fechamentoPerfil(ator),
         itens = []
       var filtroNegocios =
         recuperacao === 'acionavel' ? "inativo = false && resultado = 'perdido'" : 'inativo = false'
+      if (status === 'ganho') filtroNegocios += " && resultado = 'ganho'"
+      if (status === 'perdido') filtroNegocios += " && resultado = 'perdido'"
+      if (status === 'reativacao') filtroNegocios += " && negocio_original_id != ''"
       var negocios = $app.findRecordsByFilter(
         'com_negocios',
         filtroNegocios,
