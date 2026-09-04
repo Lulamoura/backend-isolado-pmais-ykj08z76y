@@ -54,15 +54,18 @@ function MobilePdfPages({ url }: { url: string }) {
     if (!container || !url) return
     let ativo = true
     if (!GlobalWorkerOptions.workerPort) GlobalWorkerOptions.workerPort = new PdfWorker()
-    const loadingTask = getDocument(url)
+    let loadingTask: ReturnType<typeof getDocument> | null = null
     const renderTasks: Array<{ cancel: () => void }> = []
     container.replaceChildren()
     setRenderizadas(0)
     setTotal(0)
     setFalhou(false)
 
-    void loadingTask.promise
-      .then(async (pdf) => {
+    void (async () => {
+      const arquivo = await fetch(url).then((response) => response.arrayBuffer())
+      if (!ativo) return
+      loadingTask = getDocument({ data: new Uint8Array(arquivo) })
+      const pdf = await loadingTask.promise
         if (!ativo) return
         setTotal(pdf.numPages)
         for (let numero = 1; numero <= pdf.numPages && ativo; numero += 1) {
@@ -85,6 +88,7 @@ function MobilePdfPages({ url }: { url: string }) {
           const context = canvas.getContext('2d')
           if (!context) throw new Error('Canvas indisponível')
           const task = pagina.render({
+            canvas,
             canvasContext: context,
             viewport,
             transform: pixelRatio === 1 ? undefined : [pixelRatio, 0, 0, pixelRatio, 0, 0],
@@ -93,13 +97,15 @@ function MobilePdfPages({ url }: { url: string }) {
           await task.promise
           if (ativo) setRenderizadas(numero)
         }
-      })
-      .catch(() => ativo && setFalhou(true))
+    })().catch((error) => {
+      console.error('Falha ao montar PDF no celular', error)
+      if (ativo) setFalhou(true)
+    })
 
     return () => {
       ativo = false
       renderTasks.forEach((task) => task.cancel())
-      void loadingTask.destroy()
+      if (loadingTask) void loadingTask.destroy()
       container.replaceChildren()
     }
   }, [url])
