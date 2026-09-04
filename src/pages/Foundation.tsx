@@ -38,7 +38,7 @@ export default function Foundation() {
           <TabsTrigger value="vinculos">Vínculos</TabsTrigger>
           <TabsTrigger value="empresas">Empresas</TabsTrigger>
           <TabsTrigger value="negocios">Negócios</TabsTrigger>
-          <TabsTrigger value="parametros">Parâmetros</TabsTrigger>
+          <TabsTrigger value="parametros">Configurações</TabsTrigger>
           <TabsTrigger value="integracao">Integração ActiveCampaign</TabsTrigger>
           <TabsTrigger value="provelo">Integração Provelo</TabsTrigger>
         </TabsList>
