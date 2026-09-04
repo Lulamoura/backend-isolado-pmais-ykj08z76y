@@ -1,4 +1,5 @@
 // Proposta nativa V1 — Lote E: Resend com gate fechado e WhatsApp assistido.
+// Corretivo isolado AC 4821: gravação garantida de remetente_id = ator.id no envio de propostas.
 
 routerAdd(
   'POST',
