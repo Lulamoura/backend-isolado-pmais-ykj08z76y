@@ -1,4 +1,12 @@
-import { AlertTriangle, Building2, CalendarClock, Contact, UserRound } from 'lucide-react'
+import {
+  AlertTriangle,
+  Building2,
+  CalendarClock,
+  Contact,
+  Mail,
+  Phone,
+  UserRound,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { BusinessNotesDialog } from '@/components/BusinessNotesDialog'
 import {
@@ -68,6 +76,14 @@ export function CommercialContextCard({
         <p className="flex items-center gap-2">
           <Contact className="h-4 w-4 text-muted-foreground" />
           {contexto.contato?.nome || 'Contato não informado'}
+        </p>
+        <p className="flex items-center gap-2">
+          <Mail className="h-4 w-4 text-muted-foreground" />
+          {contexto.contato?.email || 'E-mail não informado'}
+        </p>
+        <p className="flex items-center gap-2">
+          <Phone className="h-4 w-4 text-muted-foreground" />
+          {contexto.contato?.telefone || 'Telefone não informado'}
         </p>
         <p className="flex items-center gap-2">
           <UserRound className="h-4 w-4 text-muted-foreground" />

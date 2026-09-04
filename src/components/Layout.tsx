@@ -4,6 +4,7 @@ import { ChevronRight, KeyRound, LogOut } from 'lucide-react'
 import logoPmais from '@/assets/logo-fundo-branco-22f07.png'
 
 import { ChangePasswordDialog } from '@/components/foundation/ChangePasswordDialog'
+import { ProposalNotifications } from '@/components/ProposalNotifications'
 import { ModuleTabs } from '@/components/ModuleTabs'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -239,20 +240,21 @@ function LayoutContent() {
             </h1>
           </div>
 
-          <div className="hidden items-center gap-2 sm:flex">
-            <Avatar className="h-8 w-8 bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
+          <div className="flex items-center gap-2">
+            <ProposalNotifications />
+            <Avatar className="hidden h-8 w-8 bg-gradient-to-br from-violet-600 to-indigo-600 text-white sm:flex">
               <AvatarFallback className="bg-gradient-to-br from-violet-600 to-indigo-600 text-xs font-bold text-white">
                 {userInitials}
               </AvatarFallback>
             </Avatar>
-            <span className="max-w-[160px] truncate text-sm font-medium text-slate-800">
+            <span className="hidden max-w-[160px] truncate text-sm font-medium text-slate-800 sm:inline">
               {user?.name || 'Usuário'}
             </span>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setChangePasswordOpen(true)}
-              className="h-8 w-8 text-slate-500 hover:bg-violet-50 hover:text-violet-600"
+              className="hidden h-8 w-8 text-slate-500 hover:bg-violet-50 hover:text-violet-600 sm:inline-flex"
               aria-label="Alterar minha senha"
               title="Alterar minha senha"
             >

@@ -4,7 +4,7 @@ import {
   AlertTriangle,
   CalendarClock,
   ClipboardCheck,
-  EyeOff,
+  MailWarning,
   RefreshCw,
   Trophy,
 } from 'lucide-react'
@@ -16,7 +16,16 @@ import { listarFilaAtividades } from '@/services/atividades'
 import { listarFechamentos } from '@/services/fechamentos'
 import { listarOrdensExecucao } from '@/services/ordens-execucao'
 import { listarSlas } from '@/services/slas'
+import { listarPropostasSemAbertura, type PropostaSemAbertura } from '@/services/propostas'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 type OperationSummary = {
   semProximaAcao: number
@@ -44,6 +53,8 @@ export default function OperacaoDia() {
   const [loading, setLoading] = useState(true)
   const [partialError, setPartialError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [semAbertura, setSemAbertura] = useState<PropostaSemAbertura[]>([])
+  const [limiteDiasUteis, setLimiteDiasUteis] = useState(2)
 
   useEffect(() => {
     let active = true
@@ -55,9 +66,10 @@ export default function OperacaoDia() {
         ? Promise.resolve({ itens: [], responsaveis_envio: [] })
         : listarOrdensExecucao(),
       listarFechamentos('acionavel'),
+      listarPropostasSemAbertura(),
     ]).then((results) => {
       if (!active) return
-      const [activities, slas, orders, closings] = results
+      const [activities, slas, orders, closings, proposals] = results
       setPartialError(results.some((result) => result.status === 'rejected'))
       setSummary({
         semProximaAcao:
@@ -90,6 +102,12 @@ export default function OperacaoDia() {
             ? closings.value.itens.filter((item) => item.agenda?.estado === 'ativa').length
             : 0,
       })
+      if (proposals.status === 'fulfilled') {
+        setSemAbertura(proposals.value?.itens ?? [])
+        setLimiteDiasUteis(proposals.value?.limite_dias_uteis ?? 2)
+      } else {
+        setSemAbertura([])
+      }
       setLoading(false)
     })
     return () => {
@@ -187,23 +205,68 @@ export default function OperacaoDia() {
         })}
       </section>
 
-      <Card className="border-dashed">
-        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-          <div className="flex items-start gap-3">
-            <span className="rounded-lg bg-slate-100 p-2 text-slate-600">
-              <EyeOff aria-hidden="true" className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="font-semibold text-slate-900">Leitura de propostas: Não rastreável</p>
-              <p className="mt-1 text-sm text-slate-600">
-                A Provelo não oferece integração no momento. Nenhuma abertura será inferida ou
-                simulada.
-              </p>
-            </div>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MailWarning className="h-5 w-5 text-amber-600" /> Propostas sem abertura
+            </CardTitle>
+            <p className="mt-1 text-sm text-slate-500">
+              Enviadas há pelo menos {limiteDiasUteis} dias úteis completos, sem abertura
+              registrada.
+            </p>
           </div>
           <Link to="/propostas" className="text-sm font-semibold text-violet-700 hover:underline">
-            Ver propostas emitidas
+            Ver propostas
           </Link>
+        </CardHeader>
+        <CardContent>
+          {semAbertura.length === 0 ? (
+            <p className="rounded-md bg-emerald-50 p-4 text-sm text-emerald-800">
+              Nenhuma proposta exige acompanhamento por falta de abertura.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Negócio</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Data do envio</TableHead>
+                    <TableHead>Modalidade</TableHead>
+                    <TableHead>Responsável</TableHead>
+                    <TableHead>Dias de vida</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {semAbertura.map((item) => (
+                    <TableRow key={item.negocio_id}>
+                      <TableCell>
+                        <Link
+                          className="font-medium text-violet-700 hover:underline"
+                          to={`/propostas?negocio=${item.negocio_id}`}
+                        >
+                          AC #{item.external_id || '—'}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{item.cliente || '—'}</TableCell>
+                      <TableCell>{new Date(item.data_envio).toLocaleDateString('pt-BR')}</TableCell>
+                      <TableCell>{item.modalidade || '—'}</TableCell>
+                      <TableCell>{item.responsavel || '—'}</TableCell>
+                      <TableCell>{item.dias_vida}</TableCell>
+                      <TableCell className="text-right">
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(item.valor_centavos / 100)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

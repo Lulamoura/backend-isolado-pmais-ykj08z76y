@@ -18,6 +18,7 @@ interface PropostaPublicaDados {
   cliente: string
   contato: string
   responsavel: string
+  responsavel_telefone: string
   modalidade: string
   valor_total_centavos: number
   validade: string | null
@@ -31,9 +32,6 @@ interface PreflightPublico {
   publicacao_id: string
   identificador?: string
 }
-
-const reais = (valor: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor / 100)
 
 const acessoIdDaPagina = () => {
   const state = (window.history.state || {}) as Record<string, unknown>
@@ -449,12 +447,12 @@ export default function PropostaPublica() {
               <p className="font-medium">{dados.contato || '—'}</p>
             </div>
             <div>
-              <p className="text-xs uppercase text-muted-foreground">Investimento</p>
-              <p className="text-2xl font-bold text-primary">{reais(dados.valor_total_centavos)}</p>
-            </div>
-            <div>
               <p className="text-xs uppercase text-muted-foreground">Responsável PMais</p>
               <p className="font-medium">{dados.responsavel || 'Equipe comercial'}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Telefone do responsável</p>
+              <p className="font-medium">{dados.responsavel_telefone || '—'}</p>
             </div>
           </CardContent>
         </Card>

@@ -50,6 +50,41 @@ export const listarPropostas = () =>
       method: 'GET',
     },
   )
+export interface NotificacaoAberturaProposta {
+  id: string
+  negocio_id: string
+  external_id: string
+  cliente: string
+  visitante_nome: string | null
+  ocorrido_em: string
+  lida: boolean
+}
+export const listarNotificacoesProposta = () =>
+  pb.send<{ itens: NotificacaoAberturaProposta[]; nao_lidas: number }>(
+    '/backend/v1/propostas/notificacoes',
+    { method: 'GET' },
+  )
+export const marcarNotificacoesPropostaComoLidas = (eventoIds: string[]) =>
+  pb.send('/backend/v1/propostas/notificacoes/ler', {
+    method: 'POST',
+    body: { evento_ids: eventoIds },
+  })
+export interface PropostaSemAbertura {
+  negocio_id: string
+  external_id: string
+  cliente: string
+  data_envio: string
+  modalidade: string
+  responsavel: string
+  dias_vida: number
+  valor_centavos: number
+  dias_uteis_sem_abertura: number
+}
+export const listarPropostasSemAbertura = () =>
+  pb.send<{ itens: PropostaSemAbertura[]; limite_dias_uteis: number }>(
+    '/backend/v1/propostas/sem-abertura',
+    { method: 'GET' },
+  )
 export const registrarEventoProposta = (body: Record<string, unknown>) =>
   pb.send('/backend/v1/propostas/eventos', { method: 'POST', body })
 export interface VersaoPropostaInterna {

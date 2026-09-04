@@ -10,6 +10,7 @@ export const getActiveUsers = (): Promise<RecordModel[]> =>
 export const createUser = (data: {
   name: string
   email: string
+  telefone?: string
   password: string
   passwordConfirm: string
   perfil_id?: string
@@ -27,6 +28,7 @@ export const updateUser = (
   data: {
     name?: string
     email?: string
+    telefone?: string
     perfil_id?: string
     equipe_id?: string
     ativo_comercial?: boolean

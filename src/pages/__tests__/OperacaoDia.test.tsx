@@ -6,12 +6,14 @@ const listarFilaAtividades = vi.hoisted(() => vi.fn())
 const listarSlas = vi.hoisted(() => vi.fn())
 const listarOrdensExecucao = vi.hoisted(() => vi.fn())
 const listarFechamentos = vi.hoisted(() => vi.fn())
+const listarPropostasSemAbertura = vi.hoisted(() => vi.fn())
 const perfil = vi.hoisted(() => ({ slug: 'gestor-comercial' }))
 
 vi.mock('@/services/atividades', () => ({ listarFilaAtividades }))
 vi.mock('@/services/slas', () => ({ listarSlas }))
 vi.mock('@/services/ordens-execucao', () => ({ listarOrdensExecucao }))
 vi.mock('@/services/fechamentos', () => ({ listarFechamentos }))
+vi.mock('@/services/propostas', () => ({ listarPropostasSemAbertura }))
 vi.mock('@/hooks/use-is-superadmin', () => ({
   useIsSuperAdmin: () => ({ perfilSlug: perfil.slug, loading: false, isSuperAdmin: false }),
 }))
@@ -36,6 +38,7 @@ beforeEach(() => {
   listarFechamentos.mockResolvedValue({
     itens: [{ agenda: { estado: 'ativa' } }, { agenda: null }],
   })
+  listarPropostasSemAbertura.mockResolvedValue({ itens: [], limite_dias_uteis: 2 })
 })
 
 describe('Operação do Dia', () => {
@@ -51,8 +54,9 @@ describe('Operação do Dia', () => {
     expect(listarFechamentos).toHaveBeenCalledWith('acionavel')
     expect(screen.getByText('1 vencido(s) · 1 em alerta · prazo da etapa')).toBeInTheDocument()
     expect(listarSlas).toHaveBeenCalledWith('atencao')
-    expect(screen.getByText('Leitura de propostas: Não rastreável')).toBeInTheDocument()
-    expect(screen.getByText(/Nenhuma abertura será inferida ou simulada/)).toBeInTheDocument()
+    expect(screen.getByText('Propostas sem abertura')).toBeInTheDocument()
+    expect(screen.getByText(/2 dias úteis completos/)).toBeInTheDocument()
+    expect(screen.queryByText('Leitura de propostas: Não rastreável')).not.toBeInTheDocument()
   })
 
   it('preserva os resumos disponíveis se uma fila falhar', async () => {

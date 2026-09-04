@@ -92,6 +92,7 @@ export function UsuariosTab() {
           <TableRow>
             <TableHead>Nome</TableHead>
             <TableHead>E-mail</TableHead>
+            <TableHead>Telefone</TableHead>
             <TableHead>Perfis</TableHead>
             <TableHead>Equipe</TableHead>
             <TableHead>Ativo Comercial</TableHead>
@@ -103,6 +104,7 @@ export function UsuariosTab() {
             <TableRow key={r.id}>
               <TableCell className="font-medium">{r.name || '-'}</TableCell>
               <TableCell className="text-gray-500">{r.email}</TableCell>
+              <TableCell className="text-gray-500">{r.telefone || '-'}</TableCell>
               <TableCell>
                 {userProfiles[r.id]?.length ? (
                   <div className="flex flex-wrap gap-1">
