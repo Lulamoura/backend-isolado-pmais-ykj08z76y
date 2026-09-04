@@ -47,6 +47,7 @@ function MobilePdfPages({ url }: { url: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [renderizadas, setRenderizadas] = useState(0)
   const [total, setTotal] = useState(0)
+  const [paginaAtual, setPaginaAtual] = useState(1)
   const [falhou, setFalhou] = useState(false)
 
   useEffect(() => {
@@ -60,6 +61,7 @@ function MobilePdfPages({ url }: { url: string }) {
     container.replaceChildren()
     setRenderizadas(0)
     setTotal(0)
+    setPaginaAtual(1)
     setFalhou(false)
 
     void (async () => {
@@ -77,6 +79,7 @@ function MobilePdfPages({ url }: { url: string }) {
         const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
         const wrapper = document.createElement('section')
         wrapper.className = 'overflow-hidden rounded-md border bg-white shadow-sm'
+        wrapper.dataset.pageNumber = String(numero)
         wrapper.setAttribute('aria-label', `Página ${numero} de ${pdf.numPages}`)
         const canvas = document.createElement('canvas')
         canvas.width = Math.floor(viewport.width * pixelRatio)
@@ -121,18 +124,43 @@ function MobilePdfPages({ url }: { url: string }) {
     )
 
   return (
-    <div className="space-y-3">
-      {renderizadas < total || total === 0 ? (
-        <p className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Preparando páginas {total ? `${renderizadas + 1} de ${total}` : 'do PDF'}…
-        </p>
-      ) : (
-        <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <FileText className="h-4 w-4" /> {total} página(s) — role para continuar
-        </p>
-      )}
-      <div ref={containerRef} className="space-y-4" />
+    <div className="overflow-hidden rounded-lg border bg-muted/30">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background/95 px-3 py-2 text-sm backdrop-blur">
+        <span className="font-medium">
+          Página {Math.min(paginaAtual, total || 1)} de {total || '…'}
+        </span>
+        <span className="text-xs text-muted-foreground">Role dentro do documento</span>
+      </div>
+      <div
+        className="h-[68vh] min-h-[420px] max-h-[720px] touch-pan-y overflow-y-auto overscroll-contain p-3"
+        onScroll={(event) => {
+          const viewport = event.currentTarget
+          const centro = viewport.scrollTop + viewport.clientHeight / 2
+          let paginaMaisProxima = 1
+          let distanciaMaisProxima = Number.POSITIVE_INFINITY
+          viewport.querySelectorAll<HTMLElement>('[data-page-number]').forEach((pagina) => {
+            const centroPagina = pagina.offsetTop + pagina.offsetHeight / 2
+            const distancia = Math.abs(centroPagina - centro)
+            if (distancia < distanciaMaisProxima) {
+              distanciaMaisProxima = distancia
+              paginaMaisProxima = Number(pagina.dataset.pageNumber || 1)
+            }
+          })
+          setPaginaAtual(paginaMaisProxima)
+        }}
+      >
+        {renderizadas < total || total === 0 ? (
+          <p className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Preparando páginas {total ? `${renderizadas + 1} de ${total}` : 'do PDF'}…
+          </p>
+        ) : (
+          <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <FileText className="h-4 w-4" /> {total} página(s) — role para continuar
+          </p>
+        )}
+        <div ref={containerRef} className="space-y-4" />
+      </div>
     </div>
   )
 }

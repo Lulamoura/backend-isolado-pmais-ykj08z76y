@@ -27,7 +27,19 @@ const checks = [
     'reply-to e remetente corporativo verificado',
     hook.includes('reply_to: replyTo') && hook.includes('nao-responda@pmaisservicos.com.br'),
   ],
-  ['PDF não anexado', !hook.includes('attachments') && hook.includes('Acessar proposta')],
+  [
+    'PDF não anexado',
+    !hook.includes('attachments') &&
+      (hook.includes('Acessar proposta') || hook.includes('Visualizar proposta')),
+  ],
+  [
+    'composição completa e cópia',
+    hook.includes('body.cc') &&
+      hook.includes('body.assunto') &&
+      hook.includes('body.corpo') &&
+      hook.includes('body.reply_to') &&
+      hook.includes('cc: cc'),
+  ],
   [
     'token não persiste no snapshot',
     hook.includes('[LINK_SEGURO_NAO_PERSISTIDO]') &&

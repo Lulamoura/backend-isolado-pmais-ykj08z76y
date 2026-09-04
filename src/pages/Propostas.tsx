@@ -21,6 +21,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import pb from '@/lib/pocketbase/client'
 import {
   Dialog,
   DialogContent,
@@ -36,7 +38,6 @@ import {
   novaChaveProposta,
   obterTimelineProposta,
   publicarProposta,
-  prepararPropostaWhatsApp,
   revogarPublicacaoProposta,
   registrarEventoProposta,
   type EventoProposta,
@@ -95,7 +96,10 @@ export default function Propostas() {
   const [enviandoPdf, setEnviandoPdf] = useState<string | null>(null)
   const [linksPublicos, setLinksPublicos] = useState<Record<string, string>>({})
   const [destinosEmail, setDestinosEmail] = useState<Record<string, string>>({})
-  const [destinosWhatsApp, setDestinosWhatsApp] = useState<Record<string, string>>({})
+  const [copiasEmail, setCopiasEmail] = useState<Record<string, string>>({})
+  const [respostasEmail, setRespostasEmail] = useState<Record<string, string>>({})
+  const [assuntosEmail, setAssuntosEmail] = useState<Record<string, string>>({})
+  const [mensagensEmail, setMensagensEmail] = useState<Record<string, string>>({})
   const [modalProposta, setModalProposta] = useState<{
     negocioId: string
     modo: 'operacao' | 'historico'
@@ -182,6 +186,10 @@ export default function Propostas() {
     setModalProposta({ negocioId, modo })
     if (modo === 'historico') void carregarTimeline(negocioId)
   }
+  const assuntoPadrao = (item: ItemProposta) =>
+    `Proposta comercial PMais — ${item.contexto.empresa.nome || item.negocio.titulo}`
+  const mensagemPadrao = (item: ItemProposta) =>
+    `Olá,\n\nEncaminhamos a proposta comercial da PMais para ${item.contexto.empresa.nome || 'sua empresa'}.\n\nVocê pode visualizar o documento pelo link abaixo:\n[LINK_PROPOSTA]\n\nPermanecemos à disposição para esclarecimentos e para os próximos passos.\n\nAtenciosamente,\nEquipe Comercial PMais`
   const enviarPdf = async (item: ItemProposta) => {
     const arquivo = arquivos[item.negocio.id]
     if (!arquivo || !item.proposta) return
@@ -199,15 +207,17 @@ export default function Propostas() {
     }
   }
   const publicar = async (item: ItemProposta) => {
-    if (!item.proposta) return
+    if (!item.proposta) return ''
     try {
       const resultado = await publicarProposta(item.negocio.id, item.proposta.updated)
       const link = `${window.location.origin}/p/${resultado.token}`
       setLinksPublicos((atual) => ({ ...atual, [item.negocio.id]: link }))
       await navigator.clipboard.writeText(link)
-      toast.success('Link seguro criado e copiado. O gate público permanece desligado.')
+      toast.success('Link seguro criado e copiado.')
+      return link
     } catch (_) {
       toast.error('Não foi possível publicar a proposta.')
+      return ''
     }
   }
   const revogar = async (item: ItemProposta) => {
@@ -220,29 +230,42 @@ export default function Propostas() {
     }
   }
   const enviarEmail = async (item: ItemProposta) => {
-    const email = destinosEmail[item.negocio.id]?.trim()
-    const link = linksPublicos[item.negocio.id]
-    if (!email || !link) return
+    const email = (destinosEmail[item.negocio.id] || item.proposta?.destinatario || '').trim()
+    const link = linksPublicos[item.negocio.id] || (await publicar(item))
+    const assunto = (assuntosEmail[item.negocio.id] || assuntoPadrao(item)).trim()
+    const corpo = (mensagensEmail[item.negocio.id] || mensagemPadrao(item)).trim()
+    const replyTo = (
+      respostasEmail[item.negocio.id] || String(pb.authStore.record?.email || '')
+    ).trim()
+    if (!email || !link || !assunto || !corpo || !replyTo) {
+      toast.error('Preencha destinatário, responder para, assunto e mensagem.')
+      return
+    }
+    const cc = (copiasEmail[item.negocio.id] || '')
+      .split(/[;,\n]/)
+      .map((valor) => valor.trim())
+      .filter(Boolean)
     try {
-      await enviarPropostaPorEmail(item.negocio.id, email, link)
+      await enviarPropostaPorEmail(
+        item.negocio.id,
+        { destinatario: email, cc, reply_to: replyTo, assunto, corpo },
+        link,
+      )
       toast.success('Envio solicitado com rastreamento.')
       await carregarTimeline(item.negocio.id)
     } catch (_) {
-      toast.info('O envio por e-mail permanece desabilitado neste ambiente.')
+      toast.error('Não foi possível enviar a proposta por e-mail.')
     }
   }
-  const prepararWhatsApp = async (item: ItemProposta) => {
-    const telefone = destinosWhatsApp[item.negocio.id]?.trim()
-    const link = linksPublicos[item.negocio.id]
-    if (!telefone || !link) return
-    try {
-      const resultado = await prepararPropostaWhatsApp(item.negocio.id, telefone, link)
-      window.open(resultado.url_whatsapp, '_blank', 'noopener,noreferrer')
-      toast.success('Mensagem preparada. O envio depende da confirmação no WhatsApp.')
-      await carregarTimeline(item.negocio.id)
-    } catch (_) {
-      toast.error('Não foi possível preparar o compartilhamento.')
-    }
+  const copiarMensagemWhatsApp = async (item: ItemProposta) => {
+    const link = linksPublicos[item.negocio.id] || (await publicar(item))
+    if (!link) return
+    const mensagem = (mensagensEmail[item.negocio.id] || mensagemPadrao(item)).replace(
+      '[LINK_PROPOSTA]',
+      link,
+    )
+    await navigator.clipboard.writeText(mensagem)
+    toast.success('Mensagem com o link copiada para o WhatsApp.')
   }
   const alterarIdentificacao = async () => {
     const novoValor = !identificacaoObrigatoria
@@ -647,13 +670,128 @@ export default function Propostas() {
                             )}
                             {p.estado === 'rascunho' && (
                               <div className="space-y-3 rounded-md border p-4">
+                                <div>
+                                  <h3 className="font-semibold">Publicar e enviar</h3>
+                                  <p className="text-sm text-muted-foreground">
+                                    Revise a comunicação. O PDF será acessado pelo link seguro e não
+                                    será anexado.
+                                  </p>
+                                </div>
+                                {linksPublicos[item.negocio.id] && (
+                                  <Input
+                                    readOnly
+                                    value={linksPublicos[item.negocio.id]}
+                                    aria-label="Link seguro da proposta"
+                                  />
+                                )}
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`email-proposta-${item.negocio.id}`}>
+                                      Destinatário principal
+                                    </Label>
+                                    <Input
+                                      id={`email-proposta-${item.negocio.id}`}
+                                      type="email"
+                                      value={destinosEmail[item.negocio.id] || p.destinatario || ''}
+                                      onChange={(event) =>
+                                        setDestinosEmail((atual) => ({
+                                          ...atual,
+                                          [item.negocio.id]: event.target.value,
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`cc-proposta-${item.negocio.id}`}>
+                                      Com cópia (Cc)
+                                    </Label>
+                                    <Input
+                                      id={`cc-proposta-${item.negocio.id}`}
+                                      placeholder="Separe vários e-mails por vírgula"
+                                      value={copiasEmail[item.negocio.id] || ''}
+                                      onChange={(event) =>
+                                        setCopiasEmail((atual) => ({
+                                          ...atual,
+                                          [item.negocio.id]: event.target.value,
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`reply-proposta-${item.negocio.id}`}>
+                                    Responder para
+                                  </Label>
+                                  <Input
+                                    id={`reply-proposta-${item.negocio.id}`}
+                                    type="email"
+                                    value={
+                                      respostasEmail[item.negocio.id] ||
+                                      String(pb.authStore.record?.email || '')
+                                    }
+                                    onChange={(event) =>
+                                      setRespostasEmail((atual) => ({
+                                        ...atual,
+                                        [item.negocio.id]: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`assunto-proposta-${item.negocio.id}`}>
+                                    Assunto
+                                  </Label>
+                                  <Input
+                                    id={`assunto-proposta-${item.negocio.id}`}
+                                    value={assuntosEmail[item.negocio.id] || assuntoPadrao(item)}
+                                    onChange={(event) =>
+                                      setAssuntosEmail((atual) => ({
+                                        ...atual,
+                                        [item.negocio.id]: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`mensagem-proposta-${item.negocio.id}`}>
+                                    Mensagem
+                                  </Label>
+                                  <Textarea
+                                    id={`mensagem-proposta-${item.negocio.id}`}
+                                    className="min-h-48"
+                                    value={mensagensEmail[item.negocio.id] || mensagemPadrao(item)}
+                                    onChange={(event) =>
+                                      setMensagensEmail((atual) => ({
+                                        ...atual,
+                                        [item.negocio.id]: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                  <p className="text-xs text-muted-foreground">
+                                    Use [LINK_PROPOSTA] para posicionar o botão de acesso.
+                                  </p>
+                                </div>
                                 <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    disabled={!p.pdf_disponivel}
+                                    onClick={() => void enviarEmail(item)}
+                                  >
+                                    <Mail className="mr-2 h-4 w-4" /> Publicar e enviar por e-mail
+                                  </Button>
                                   <Button
                                     variant="outline"
                                     disabled={!p.pdf_disponivel}
                                     onClick={() => void publicar(item)}
                                   >
-                                    <Link2 className="mr-2 h-4 w-4" /> Gerar link
+                                    <Link2 className="mr-2 h-4 w-4" /> Somente publicar
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    disabled={!p.pdf_disponivel}
+                                    onClick={() => void copiarMensagemWhatsApp(item)}
+                                  >
+                                    <MessageCircle className="mr-2 h-4 w-4" /> Copiar mensagem para
+                                    WhatsApp
                                   </Button>
                                   {linksPublicos[item.negocio.id] && (
                                     <Button
@@ -664,65 +802,6 @@ export default function Propostas() {
                                     </Button>
                                   )}
                                 </div>
-                                {linksPublicos[item.negocio.id] && (
-                                  <div className="space-y-4">
-                                    <Input
-                                      readOnly
-                                      value={linksPublicos[item.negocio.id]}
-                                      aria-label="Link seguro da proposta"
-                                    />
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                      <div className="space-y-2">
-                                        <Label htmlFor={`email-proposta-${item.negocio.id}`}>
-                                          E-mail do cliente
-                                        </Label>
-                                        <Input
-                                          id={`email-proposta-${item.negocio.id}`}
-                                          type="email"
-                                          value={destinosEmail[item.negocio.id] || ''}
-                                          onChange={(event) =>
-                                            setDestinosEmail((atual) => ({
-                                              ...atual,
-                                              [item.negocio.id]: event.target.value,
-                                            }))
-                                          }
-                                        />
-                                        <Button
-                                          variant="outline"
-                                          disabled={!destinosEmail[item.negocio.id]?.trim()}
-                                          onClick={() => void enviarEmail(item)}
-                                        >
-                                          <Mail className="mr-2 h-4 w-4" /> Enviar por e-mail
-                                        </Button>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <Label htmlFor={`whatsapp-proposta-${item.negocio.id}`}>
-                                          WhatsApp do cliente
-                                        </Label>
-                                        <Input
-                                          id={`whatsapp-proposta-${item.negocio.id}`}
-                                          inputMode="tel"
-                                          placeholder="5581999999999"
-                                          value={destinosWhatsApp[item.negocio.id] || ''}
-                                          onChange={(event) =>
-                                            setDestinosWhatsApp((atual) => ({
-                                              ...atual,
-                                              [item.negocio.id]: event.target.value,
-                                            }))
-                                          }
-                                        />
-                                        <Button
-                                          variant="outline"
-                                          disabled={!destinosWhatsApp[item.negocio.id]?.trim()}
-                                          onClick={() => void prepararWhatsApp(item)}
-                                        >
-                                          <MessageCircle className="mr-2 h-4 w-4" /> Preparar
-                                          WhatsApp
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
                               </div>
                             )}
                             {p.estado === 'rascunho' && p.aprovada && aprovacaoObrigatoria && (
