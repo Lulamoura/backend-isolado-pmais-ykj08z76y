@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { FileText, Loader2 } from 'lucide-react'
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
-import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
+import { getDocument, PDFWorker } from 'pdfjs-dist/legacy/build/pdf.mjs'
+import PdfWorkerThread from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker'
 import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,8 +35,6 @@ interface PreflightPublico {
 const reais = (valor: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor / 100)
 
-GlobalWorkerOptions.workerSrc = pdfWorkerUrl
-
 const acessoIdDaPagina = () => {
   const state = (window.history.state || {}) as Record<string, unknown>
   if (typeof state.propostaAccessId === 'string') return state.propostaAccessId
@@ -55,6 +53,8 @@ function MobilePdfPages({ url }: { url: string }) {
     const container = containerRef.current
     if (!container || !url) return
     let ativo = true
+    const workerPort = new PdfWorkerThread()
+    const pdfWorker = new PDFWorker({ port: workerPort })
     let loadingTask: ReturnType<typeof getDocument> | null = null
     const renderTasks: Array<{ cancel: () => void }> = []
     container.replaceChildren()
@@ -65,7 +65,7 @@ function MobilePdfPages({ url }: { url: string }) {
     void (async () => {
       const arquivo = await fetch(url).then((response) => response.arrayBuffer())
       if (!ativo) return
-      loadingTask = getDocument({ data: new Uint8Array(arquivo) })
+      loadingTask = getDocument({ data: new Uint8Array(arquivo), worker: pdfWorker })
       const pdf = await loadingTask.promise
       if (!ativo) return
       setTotal(pdf.numPages)
@@ -107,6 +107,8 @@ function MobilePdfPages({ url }: { url: string }) {
       ativo = false
       renderTasks.forEach((task) => task.cancel())
       if (loadingTask) void loadingTask.destroy()
+      void pdfWorker.destroy()
+      workerPort.terminate()
       container.replaceChildren()
     }
   }, [url])
