@@ -406,6 +406,18 @@ routerAdd('GET', '/backend/v1/public/propostas/{token}', (e) => {
       return e.json(200, { identificacao_obrigatoria: true, publicacao_id: pub.id })
     var proposta = $app.findRecordById('com_propostas', pub.getString('proposta_id')),
       versao = $app.findRecordById('com_proposta_versoes', pub.getString('versao_id'))
+    var responsavelTelefone = versao.getString('responsavel_telefone_snapshot')
+    if (!responsavelTelefone) {
+      try {
+        var negocioResponsavel = $app.findRecordById(
+          'com_negocios',
+          proposta.getString('negocio_id'),
+        )
+        responsavelTelefone = $app
+          .findRecordById('users', negocioResponsavel.getString('responsavel_id'))
+          .getString('telefone')
+      } catch (_) {}
+    }
     var agora = new Date(),
       chaveAcesso = $security.sha256(
         pub.id + ':pagina_acessada:' + String(Math.floor(agora.getTime() / 300000)),
@@ -441,7 +453,7 @@ routerAdd('GET', '/backend/v1/public/propostas/{token}', (e) => {
       cliente: versao.getString('cliente_snapshot'),
       contato: versao.getString('contato_snapshot'),
       responsavel: versao.getString('responsavel_snapshot'),
-      responsavel_telefone: versao.getString('responsavel_telefone_snapshot'),
+      responsavel_telefone: responsavelTelefone,
       modalidade: versao.getString('modalidade'),
       valor_total_centavos: Number(versao.get('valor_total_centavos') || 0),
       validade: versao.getString('validade') || null,
@@ -516,6 +528,18 @@ routerAdd('POST', '/backend/v1/public/propostas/{token}/acessar', (e) => {
       versao = $app.findRecordById('com_proposta_versoes', pub.getString('versao_id')),
       agora = new Date(),
       chaveAcesso = $security.sha256(pub.id + ':pagina_acessada:' + acessoId)
+    var responsavelTelefone = versao.getString('responsavel_telefone_snapshot')
+    if (!responsavelTelefone) {
+      try {
+        var negocioResponsavel = $app.findRecordById(
+          'com_negocios',
+          proposta.getString('negocio_id'),
+        )
+        responsavelTelefone = $app
+          .findRecordById('users', negocioResponsavel.getString('responsavel_id'))
+          .getString('telefone')
+      } catch (_) {}
+    }
     try {
       $app.runInTransaction(function (tx) {
         try {
@@ -548,7 +572,7 @@ routerAdd('POST', '/backend/v1/public/propostas/{token}/acessar', (e) => {
       cliente: versao.getString('cliente_snapshot'),
       contato: versao.getString('contato_snapshot'),
       responsavel: versao.getString('responsavel_snapshot'),
-      responsavel_telefone: versao.getString('responsavel_telefone_snapshot'),
+      responsavel_telefone: responsavelTelefone,
       modalidade: versao.getString('modalidade'),
       valor_total_centavos: Number(versao.get('valor_total_centavos') || 0),
       validade: versao.getString('validade') || null,
