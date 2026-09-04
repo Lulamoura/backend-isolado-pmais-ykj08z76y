@@ -24,6 +24,7 @@ import {
   motivoPerdaLabel,
   type ItemFechamento,
   type MotivoPerda,
+  type StatusFechamento,
 } from '@/services/fechamentos'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { CommercialContextCard } from '@/components/CommercialContextCard'
@@ -61,17 +62,25 @@ export default function Fechamentos() {
   const [ordenacao, setOrdenacao] = useState<CommercialSort>('proxima_acao')
   const [periodoInicio, setPeriodoInicio] = useState('')
   const [periodoFim, setPeriodoFim] = useState('')
+  const [statusFechamento, setStatusFechamento] = useState<StatusFechamento>('todos')
 
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
-      setItens((await listarFechamentos(somenteRecuperacoes ? 'acionavel' : 'todas')).itens)
+      setItens(
+        (
+          await listarFechamentos(
+            somenteRecuperacoes ? 'acionavel' : 'todas',
+            somenteRecuperacoes ? 'perdido' : statusFechamento,
+          )
+        ).itens,
+      )
     } catch (_) {
       toast.error('Não foi possível carregar os fechamentos.')
     } finally {
       setLoading(false)
     }
-  }, [somenteRecuperacoes])
+  }, [somenteRecuperacoes, statusFechamento])
   useEffect(() => void carregar(), [carregar])
   const itensVisiveis = useMemo(
     () =>
@@ -170,6 +179,25 @@ export default function Fechamentos() {
         onPeriodStart={setPeriodoInicio}
         onPeriodEnd={setPeriodoFim}
       />
+      {!somenteRecuperacoes && (
+        <div className="max-w-xs space-y-1.5">
+          <Label htmlFor="status-fechamento">Status</Label>
+          <Select
+            value={statusFechamento}
+            onValueChange={(value) => setStatusFechamento(value as StatusFechamento)}
+          >
+            <SelectTrigger id="status-fechamento" aria-label="Status do fechamento">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="ganho">Ganho</SelectItem>
+              <SelectItem value="perdido">Perdido</SelectItem>
+              <SelectItem value="reativacao">Reativação</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div className="grid gap-4 md:grid-cols-2">
         {itensVisiveis.map((item) => {
           const terminal = Boolean(item.negocio.resultado)

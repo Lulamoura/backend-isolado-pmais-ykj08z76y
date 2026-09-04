@@ -8,6 +8,8 @@ export type MotivoPerda =
   | 'desistiu'
   | 'nao_atendido'
 
+export type StatusFechamento = 'todos' | 'ganho' | 'perdido' | 'reativacao'
+
 const motivoPerdaLabels: Record<MotivoPerda, string> = {
   preco: 'Preço',
   fechou_com_outra_empresa: 'Fechou com outra empresa',
@@ -47,10 +49,13 @@ export interface ItemFechamento {
   }
 }
 
-export const listarFechamentos = (recuperacao: 'todas' | 'acionavel' = 'todas') =>
+export const listarFechamentos = (
+  recuperacao: 'todas' | 'acionavel' = 'todas',
+  status: StatusFechamento = 'todos',
+) =>
   pb.send<{ itens: ItemFechamento[] }>('/backend/v1/fechamentos/fila', {
     method: 'GET',
-    query: { recuperacao },
+    query: { recuperacao, status },
   })
 
 export const decidirFechamento = (body: Record<string, unknown>) =>

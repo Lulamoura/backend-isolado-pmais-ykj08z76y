@@ -70,6 +70,14 @@ const checks = [
       service.includes('/backend/v1/fechamentos/recuperacao/descartar'),
   ],
   [
+    'filtro de status ganho, perdido e reativação',
+    ['todos', 'ganho', 'perdido', 'reativacao'].every((x) => hook.includes(`'${x}'`)) &&
+      hook.includes("negocio_original_id != ''") &&
+      service.includes('StatusFechamento') &&
+      page.includes('Status do fechamento') &&
+      page.includes('Reativação'),
+  ],
+  [
     'interface operacional',
     [
       'Registrar ganho',
