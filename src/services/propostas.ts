@@ -30,6 +30,7 @@ export interface ItemProposta {
     enviada_sistema: boolean
     ultimo_envio_sistema_em: string | null
     primeiro_acesso_publicacao_em: string | null
+    mensagem_email_rascunho: string | null
     eventos: Array<{
       id: string
       tipo: string
@@ -192,6 +193,14 @@ export const enviarPropostaPorEmail = (
       command_idempotency_key: novaChaveProposta(negocioId, 'email'),
     },
   })
+export const salvarMensagemEmailProposta = (negocioId: string, mensagem: string) =>
+  pb.send<{ mensagem: string; updated: string }>(
+    `/backend/v1/propostas/${negocioId}/mensagem-email`,
+    {
+      method: 'PUT',
+      body: { mensagem },
+    },
+  )
 export const prepararPropostaWhatsApp = (
   negocioId: string,
   telefone: string,

@@ -350,6 +350,7 @@
                     enviada_sistema: enviadaSistema,
                     ultimo_envio_sistema_em: ultimoEnvioSistemaEm,
                     primeiro_acesso_publicacao_em: primeiroAcessoPublicacaoEm,
+                    mensagem_email_rascunho: proposta.getString('mensagem_email_rascunho') || null,
                     eventos: eventos,
                   }
                 : null,
@@ -378,6 +379,61 @@
         })
       } catch (err) {
         return e.json(500, { error: 'FILA_PROPOSTAS' })
+      }
+    },
+    $apis.requireAuth(),
+  )
+  routerAdd(
+    'PUT',
+    '/backend/v1/propostas/{negocioId}/mensagem-email',
+    (e) => {
+      var ator = e.auth
+      if (!ator || !ator.getBool('ativo_comercial'))
+        return e.forbiddenError('Usuario comercial necessario')
+      try {
+        var negocio = $app.findRecordById('com_negocios', e.request.pathValue('negocioId'))
+        var perfil = ''
+        try {
+          perfil = $app.findRecordById('com_perfis', ator.getString('perfil_id')).getString('slug')
+        } catch (_) {}
+        var podeAcessar = perfil === 'superadministrador' || perfil === 'leitura-executiva'
+        if (!podeAcessar && negocio.getString('responsavel_id') === ator.id) podeAcessar = true
+        if (!podeAcessar) {
+          var escopo = 'proprios'
+          try {
+            var links = $app.findRecordsByFilter(
+              'com_perfil_permissoes',
+              "perfil_id='" + ator.getString('perfil_id') + "'",
+              '',
+              500,
+              0,
+            )
+            for (var i = 0; i < links.length; i++) {
+              var permissao = $app.findRecordById(
+                'com_permissoes',
+                links[i].getString('permissao_id'),
+              )
+              if (permissao.getString('slug') === 'negocios.view')
+                escopo = links[i].getString('escopo')
+            }
+          } catch (_) {}
+          podeAcessar =
+            escopo === 'todos' ||
+            (escopo === 'equipe' &&
+              !!ator.getString('equipe_id') &&
+              negocio.getString('equipe_id') === ator.getString('equipe_id'))
+        }
+        if (!podeAcessar) return e.forbiddenError('Negocio fora do escopo')
+        var body = new DynamicModel({ mensagem: '' })
+        e.bindBody(body)
+        var mensagem = String(body.mensagem || '')
+        if (mensagem.length > 10000) return e.badRequestError('Mensagem excede 10000 caracteres')
+        var proposta = $app.findFirstRecordByData('com_propostas', 'negocio_id', negocio.id)
+        proposta.set('mensagem_email_rascunho', mensagem)
+        $app.save(proposta)
+        return e.json(200, { mensagem: mensagem, updated: proposta.getString('updated') })
+      } catch (_) {
+        return e.json(404, { error: 'PROPOSTA_NAO_ENCONTRADA' })
       }
     },
     $apis.requireAuth(),

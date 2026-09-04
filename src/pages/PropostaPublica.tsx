@@ -436,6 +436,11 @@ export default function PropostaPublica() {
             </div>
           )}
         </header>
+        <img
+          src="/proposta-banner.jpg"
+          alt="PMais — Terceirize com a gente"
+          className="block h-auto w-full rounded-lg border object-contain shadow-sm"
+        />
         <Card>
           <CardContent className="grid gap-5 p-6 sm:grid-cols-2">
             <div>
