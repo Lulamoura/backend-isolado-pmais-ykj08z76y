@@ -136,7 +136,7 @@ export default function OperacaoDia() {
       title: 'Ganhos aguardando OE',
       value: summary.aguardandoOe,
       detail: 'Handoff comercial pendente',
-      path: '/ordens-execucao',
+      path: '/ordens-execucao?estado=aguardando_oe',
       icon: ClipboardCheck,
       tone: 'text-violet-700 bg-violet-50',
     },
@@ -148,7 +148,9 @@ export default function OperacaoDia() {
       icon: Trophy,
       tone: 'text-emerald-700 bg-emerald-50',
     },
-  ].filter((card) => perfilSlug !== 'negociacao-propria' || card.path !== '/ordens-execucao')
+  ].filter(
+    (card) => perfilSlug !== 'negociacao-propria' || !card.path.startsWith('/ordens-execucao'),
+  )
 
   return (
     <div className="space-y-6">

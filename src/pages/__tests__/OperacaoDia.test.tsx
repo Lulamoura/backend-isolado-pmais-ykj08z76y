@@ -57,6 +57,10 @@ describe('Operação do Dia', () => {
     expect(screen.getByText('Propostas sem abertura')).toBeInTheDocument()
     expect(screen.getByText(/2 dias úteis completos/)).toBeInTheDocument()
     expect(screen.queryByText('Leitura de propostas: Não rastreável')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Ganhos aguardando OE/ })).toHaveAttribute(
+      'href',
+      '/ordens-execucao?estado=aguardando_oe',
+    )
   })
 
   it('preserva os resumos disponíveis se uma fila falhar', async () => {

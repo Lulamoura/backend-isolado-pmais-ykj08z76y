@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ClipboardCheck, RefreshCw } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -25,6 +26,24 @@ import {
 } from '@/services/ordens-execucao'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 
+export type EstadoOrdemExecucao = 'todos' | ItemOE['estado_operacional']
+
+export const normalizarEstadoOrdemExecucao = (estado: string | null): EstadoOrdemExecucao =>
+  estado === 'aguardando_oe' || estado === 'em_processo_de_entrega' ? estado : 'todos'
+
+export const filtrarOrdensExecucao = (
+  itens: ItemOE[],
+  estado: EstadoOrdemExecucao,
+  periodoInicio: string,
+  periodoFim: string,
+) =>
+  itens.filter((item) => {
+    const data = item.negocio.data_periodo?.slice(0, 10) || ''
+    const dentroDoPeriodo =
+      (!periodoInicio || data >= periodoInicio) && (!periodoFim || data <= periodoFim)
+    return dentroDoPeriodo && (estado === 'todos' || item.estado_operacional === estado)
+  })
+
 export default function OrdensExecucao() {
   const { perfilSlug } = useIsSuperAdmin()
   const somenteLeitura = perfilSlug === 'leitura-executiva'
@@ -34,6 +53,8 @@ export default function OrdensExecucao() {
   const [numero, setNumero] = useState<Record<string, string>>({})
   const [dataEnvio, setDataEnvio] = useState<Record<string, string>>({})
   const [responsavel, setResponsavel] = useState<Record<string, string>>({})
+  const [searchParams, setSearchParams] = useSearchParams()
+  const estado = normalizarEstadoOrdemExecucao(searchParams.get('estado'))
   const hoje = new Date().toISOString().slice(0, 10)
   const inicioPadrao = new Date(Date.now() - 89 * 86_400_000).toISOString().slice(0, 10)
   const [periodoInicio, setPeriodoInicio] = useState(inicioPadrao)
@@ -53,13 +74,16 @@ export default function OrdensExecucao() {
   }, [])
   useEffect(() => void carregar(), [carregar])
   const itensVisiveis = useMemo(
-    () =>
-      itens.filter((item) => {
-        const data = item.negocio.data_periodo?.slice(0, 10) || ''
-        return (!periodoInicio || data >= periodoInicio) && (!periodoFim || data <= periodoFim)
-      }),
-    [itens, periodoInicio, periodoFim],
+    () => filtrarOrdensExecucao(itens, estado, periodoInicio, periodoFim),
+    [estado, itens, periodoInicio, periodoFim],
   )
+
+  const alterarEstado = (novoEstado: EstadoOrdemExecucao) => {
+    const proximosParametros = new URLSearchParams(searchParams)
+    if (novoEstado === 'todos') proximosParametros.delete('estado')
+    else proximosParametros.set('estado', novoEstado)
+    setSearchParams(proximosParametros, { replace: true })
+  }
 
   const registrar = async (item: ItemOE) => {
     try {
@@ -90,7 +114,23 @@ export default function OrdensExecucao() {
           <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
         </Button>
       </div>
-      <div className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-2">
+      <div className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-3">
+        <div className="space-y-2">
+          <Label htmlFor="filtro-estado-oe">Status</Label>
+          <Select
+            value={estado}
+            onValueChange={(value) => alterarEstado(value as EstadoOrdemExecucao)}
+          >
+            <SelectTrigger id="filtro-estado-oe" aria-label="Status da Ordem de Execução">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="aguardando_oe">Aguardando OE</SelectItem>
+              <SelectItem value="em_processo_de_entrega">Em processo de entrega</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <Input
           type="date"
           aria-label="Período inicial"
