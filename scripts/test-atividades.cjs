@@ -48,7 +48,7 @@ check(
 check(
   'fila informa empresa e contato completo do negócio',
   hook.includes("findRecordById('com_empresas', negocio.getString('empresa_id'))") &&
-    hook.includes("findRecordById('com_contatos', negocio.getString('contato_id'))") &&
+    hook.includes("findRecordById('com_contatos', negocio.getString('contato_principal_id'))") &&
     hook.includes("email: cr.getString('email') || null") &&
     hook.includes("telefone: cr.getString('telefone') || null"),
 )

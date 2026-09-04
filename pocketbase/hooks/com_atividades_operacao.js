@@ -145,7 +145,7 @@ routerAdd(
       } catch (_) {}
       var contato = null
       try {
-        var cr = $app.findRecordById('com_contatos', negocio.getString('contato_id'))
+        var cr = $app.findRecordById('com_contatos', negocio.getString('contato_principal_id'))
         contato = {
           id: cr.id,
           nome: cr.getString('nome') || null,
