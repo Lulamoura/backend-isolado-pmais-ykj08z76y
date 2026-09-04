@@ -140,13 +140,19 @@ export const listarPublicacoesProposta = (negocioId: string) =>
   })
 export const enviarPropostaPorEmail = (
   negocioId: string,
-  destinatario: string,
+  mensagem: {
+    destinatario: string
+    cc: string[]
+    reply_to: string
+    assunto: string
+    corpo: string
+  },
   linkPublico: string,
 ) =>
   pb.send(`/backend/v1/propostas/${negocioId}/enviar-email`, {
     method: 'POST',
     body: {
-      destinatario,
+      ...mensagem,
       link_publico: linkPublico,
       command_idempotency_key: novaChaveProposta(negocioId, 'email'),
     },

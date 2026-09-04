@@ -63,8 +63,20 @@ const checks = [
       publicPage.includes('MobilePdfPages') &&
       publicPage.includes('getDocument({ data: new Uint8Array(arquivo)') &&
       publicPage.includes('pagina.render({') &&
+      publicPage.includes('h-[68vh]') &&
+      publicPage.includes('overflow-y-auto') &&
+      publicPage.includes('Página {Math.min(paginaAtual') &&
       publicPage.includes("window.matchMedia('(max-width: 639px)')") &&
       publicPage.includes('visualizacaoMovel ? ('),
+  ],
+  [
+    'modelo operacional completo de envio foi preservado',
+    internalPage.includes('Publicar e enviar por e-mail') &&
+      internalPage.includes('Somente publicar') &&
+      /Copiar mensagem para\s+WhatsApp/.test(internalPage) &&
+      internalPage.includes('Com cópia (Cc)') &&
+      internalPage.includes('Responder para') &&
+      internalPage.includes('[LINK_PROPOSTA]'),
   ],
   ['card usa indicador binário', internalPage.includes("p.aberta ? 'Aberta' : 'Não Aberta'")],
   [

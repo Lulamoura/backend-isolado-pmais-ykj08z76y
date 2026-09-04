@@ -70,6 +70,17 @@ routerAdd(
     var destinatario = String(body.destinatario || '')
       .trim()
       .toLowerCase()
+    var cc = Array.isArray(body.cc) ? body.cc : []
+    cc = cc
+      .map(function (email) {
+        return String(email || '')
+          .trim()
+          .toLowerCase()
+      })
+      .filter(function (email, index, lista) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && lista.indexOf(email) === index
+      })
+      .slice(0, 20)
     var chave = String(body.command_idempotency_key || '')
     if (!chave || !body.link_publico || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinatario))
       return e.json(400, { error: 'VALIDATION' })
@@ -88,11 +99,31 @@ routerAdd(
     try {
       var ctx = contexto($app, e.request.pathValue('negocioId'), body.link_publico)
       if (!podeAcessar(ator, slug, ctx.negocio)) return e.json(403, { error: 'FORBIDDEN' })
-      var replyTo = ator.getString('email') || 'luiz.moura@pmaisservicos.com.br'
+      var replyTo = String(
+        body.reply_to || ator.getString('email') || 'luiz.moura@pmaisservicos.com.br',
+      )
+        .trim()
+        .toLowerCase()
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo))
+        return e.json(400, { error: 'REPLY_TO_INVALIDO' })
       var assunto = String(
         body.assunto || 'Proposta comercial PMais — ' + ctx.negocio.getString('titulo'),
-      ).substring(0, 300)
-      var snapshot = 'Mensagem com link seguro individual [LINK_SEGURO_NAO_PERSISTIDO]'
+      )
+        .trim()
+        .substring(0, 300)
+      var corpo = String(
+        body.corpo ||
+          'Olá,\n\nSegue a proposta comercial da PMais para sua análise.\n\n[LINK_PROPOSTA]\n\nAtenciosamente,\nEquipe PMais',
+      )
+        .trim()
+        .substring(0, 10000)
+      if (!assunto || !corpo) return e.json(400, { error: 'VALIDATION' })
+      var corpoComLink =
+        corpo.indexOf('[LINK_PROPOSTA]') >= 0
+          ? corpo.replace('[LINK_PROPOSTA]', String(body.link_publico))
+          : corpo + '\n\n' + String(body.link_publico)
+      var snapshot = corpo.replace(String(body.link_publico), '[LINK_SEGURO_NAO_PERSISTIDO]')
+      if (cc.length) snapshot += '\n\nCc: ' + cc.join(', ')
       var envio = new Record($app.findCollectionByNameOrId('com_proposta_envios'))
       envio.set('proposta_id', ctx.proposta.id)
       envio.set('versao_id', ctx.versao.id)
@@ -121,14 +152,21 @@ routerAdd(
         body: JSON.stringify({
           from: 'PMais Serviços <nao-responda@pmaisservicos.com.br>',
           to: [destinatario],
+          cc: cc,
           reply_to: replyTo,
           subject: assunto,
           html:
-            '<p>Olá,</p><p>Segue a proposta comercial da PMais para sua análise.</p><p><a href="' +
-            String(body.link_publico) +
-            '">Acessar proposta</a></p><p>Atenciosamente,<br>Equipe PMais</p>',
-          text:
-            'Segue a proposta comercial da PMais para sua análise: ' + String(body.link_publico),
+            '<div style="font-family:Arial,sans-serif;line-height:1.6;white-space:pre-wrap">' +
+            corpoComLink
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(
+                String(body.link_publico),
+                '<a href="' + String(body.link_publico) + '">Visualizar proposta</a>',
+              ) +
+            '</div>',
+          text: corpoComLink,
         }),
       })
       if (resposta.statusCode < 200 || resposta.statusCode >= 300)
