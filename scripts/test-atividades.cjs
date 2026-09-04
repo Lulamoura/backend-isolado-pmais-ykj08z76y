@@ -2,6 +2,7 @@ const fs = require('fs')
 const hook = fs.readFileSync('pocketbase/hooks/com_atividades_operacao.js', 'utf8')
 const service = fs.readFileSync('src/services/atividades.ts', 'utf8')
 const page = fs.readFileSync('src/pages/Atividades.tsx', 'utf8')
+const contactCard = fs.readFileSync('src/components/BusinessContactCard.tsx', 'utf8')
 const app = fs.readFileSync('src/App.tsx', 'utf8')
 
 let passed = 0
@@ -45,6 +46,13 @@ check(
   hook.includes("modalidade: negocio.getString('modalidade')"),
 )
 check(
+  'fila informa empresa e contato completo do negócio',
+  hook.includes("findRecordById('com_empresas', negocio.getString('empresa_id'))") &&
+    hook.includes("findRecordById('com_contatos', negocio.getString('contato_id'))") &&
+    hook.includes("email: cr.getString('email') || null") &&
+    hook.includes("telefone: cr.getString('telefone') || null"),
+)
+check(
   'operações planejar realizar cancelar',
   ['planejar', 'realizar', 'cancelar'].every((v) => hook.includes(v)),
 )
@@ -82,8 +90,16 @@ check(
     page.includes('<BusinessNotesDialog negocioId={item.negocio.id} />'),
 )
 check(
+  'cards de atividades exibem contato no padrão da qualificação',
+  page.includes('BusinessContactCard') &&
+    service.includes('contato: {') &&
+    contactCard.includes('Empresa não informada') &&
+    contactCard.includes('E-mail não informado') &&
+    contactCard.includes('Telefone não informado'),
+)
+check(
   'rota protegida registrada',
   app.includes('path="/atividades"') && app.includes('<Atividades />'),
 )
 
-console.log(`\nRESULTADO: ${passed}/25 aprovados`)
+console.log(`\nRESULTADO: ${passed}/27 aprovados`)

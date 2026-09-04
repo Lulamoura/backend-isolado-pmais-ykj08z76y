@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BusinessNotesDialog } from '@/components/BusinessNotesDialog'
+import { BusinessContactCard } from '@/components/BusinessContactCard'
 import {
   Dialog,
   DialogContent,
@@ -275,7 +276,6 @@ export default function Atividades() {
                     <CardTitle className="text-base">{item.negocio.titulo}</CardTitle>
                     <CardDescription>
                       {item.negocio.external_id ? `Negócio AC #${item.negocio.external_id} · ` : ''}
-                      {item.negocio.empresa?.nome || 'Empresa não informada'} ·{' '}
                       {item.negocio.etapa || 'Etapa não informada'}
                     </CardDescription>
                   </div>
@@ -285,6 +285,10 @@ export default function Atividades() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <BusinessContactCard
+                  empresa={item.negocio.empresa}
+                  contato={item.negocio.contato}
+                />
                 {item.proxima_acao ? (
                   <div className="rounded-lg bg-muted p-3 text-sm">
                     <p className="font-medium">

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CheckCircle2, Mail, Phone, RefreshCw, SearchX, UserCheck, XCircle } from 'lucide-react'
+import { CheckCircle2, RefreshCw, SearchX, UserCheck, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +37,7 @@ import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { commercialActionCardClass } from '@/lib/commercial-context'
 import pb from '@/lib/pocketbase/client'
 import { BusinessNotesDialog } from '@/components/BusinessNotesDialog'
+import { BusinessContactCard } from '@/components/BusinessContactCard'
 
 type Decisao = 'qualificada' | 'desqualificada'
 
@@ -251,9 +252,6 @@ export default function Qualificacoes() {
                           Negócio AC #{item.external_id}
                         </p>
                       )}
-                      <CardDescription>
-                        {item.empresa?.nome ?? 'Empresa não informada'}
-                      </CardDescription>
                     </div>
                     <Badge variant="secondary">Qualificação pendente</Badge>
                   </div>
@@ -270,16 +268,7 @@ export default function Qualificacoes() {
                       {item.responsavel_qualificacao?.nome || 'disponível para assumir'}
                     </span>
                   </div>
-                  <div className="rounded-md border bg-white/70 p-3 text-sm">
-                    <p className="font-medium">{item.contato?.nome || 'Contato não informado'}</p>
-                    <p className="mt-1 flex items-center gap-2 text-muted-foreground">
-                      <Mail className="h-4 w-4" /> {item.contato?.email || 'E-mail não informado'}
-                    </p>
-                    <p className="mt-1 flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-4 w-4" />{' '}
-                      {item.contato?.telefone || 'Telefone não informado'}
-                    </p>
-                  </div>
+                  <BusinessContactCard empresa={item.empresa} contato={item.contato} />
                   {!somenteLeitura && !item.responsavel_qualificacao && (
                     <Button
                       className="w-full gap-2"

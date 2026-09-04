@@ -20,6 +20,12 @@ export interface ItemFilaAtividade {
     etapa: string
     modalidade: 'recorrente' | 'evento' | 'serv_eventual' | null
     empresa: { id: string; nome: string } | null
+    contato: {
+      id: string
+      nome: string | null
+      email: string | null
+      telefone: string | null
+    } | null
     responsavel: { id: string; nome: string } | null
     updated: string
   }

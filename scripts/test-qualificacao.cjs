@@ -18,6 +18,10 @@ var migration = fs.readFileSync(
   'utf8',
 )
 var page = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Qualificacoes.tsx'), 'utf8')
+var contactCard = fs.readFileSync(
+  path.join(__dirname, '..', 'src', 'components', 'BusinessContactCard.tsx'),
+  'utf8',
+)
 var proposals = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Propostas.tsx'), 'utf8')
 var schema = JSON.parse(
   fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'pocketbase', 'schema.json'), 'utf8'),
@@ -144,9 +148,11 @@ var checks = [
   ],
   [
     'card exibe contato e botão de assunção',
-    page.includes('Contato não informado') &&
-      page.includes('E-mail não informado') &&
-      page.includes('Telefone não informado') &&
+    page.includes('BusinessContactCard') &&
+      contactCard.includes('Empresa não informada') &&
+      contactCard.includes('Contato não informado') &&
+      contactCard.includes('E-mail não informado') &&
+      contactCard.includes('Telefone não informado') &&
       page.includes('Assumir qualificação'),
   ],
   [
