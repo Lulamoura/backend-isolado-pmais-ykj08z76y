@@ -18,6 +18,10 @@ assert.ok(
   'uma notificação por publicação é garantida no banco',
 )
 assert.ok(
+  migration.includes("name: 'created'") && migration.includes("name: 'updated'"),
+  'coleção declara os campos automáticos usados pelos índices',
+)
+assert.ok(
   migration.includes("'proposta.email_notificar_remetente_abertura'") &&
     migration.includes("parametro.set('valor', 'false')"),
   'gate inicia fechado para homologação segura',
@@ -53,4 +57,4 @@ assert.ok(
   'gates antecedem leitura do segredo',
 )
 
-console.log('Contrato do e-mail de primeira abertura: 10/10 verificações aprovadas.')
+console.log('Contrato do e-mail de primeira abertura: 11/11 verificações aprovadas.')
