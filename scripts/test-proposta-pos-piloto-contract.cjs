@@ -61,7 +61,7 @@ const checks = [
       publicPage.includes('Baixar proposta em PDF') &&
       publicPage.includes('<iframe') &&
       publicPage.includes('MobilePdfPages') &&
-      publicPage.includes('getDocument({ data: new Uint8Array(arquivo) })') &&
+      publicPage.includes('getDocument({ data: new Uint8Array(arquivo)') &&
       publicPage.includes('pagina.render({') &&
       publicPage.includes("window.matchMedia('(max-width: 639px)')") &&
       publicPage.includes('visualizacaoMovel ? ('),
