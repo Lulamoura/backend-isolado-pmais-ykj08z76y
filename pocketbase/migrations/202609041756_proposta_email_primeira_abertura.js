@@ -69,6 +69,20 @@ migrate(
       avisos.fields.add(new TextField({ name: 'provider_id', max: 300, required: false }))
       avisos.fields.add(new TextField({ name: 'erro_codigo', max: 200, required: false }))
       avisos.fields.add(new DateField({ name: 'enviado_em', required: false }))
+      avisos.fields.add(
+        new AutodateField({
+          name: 'created',
+          onCreate: true,
+          onUpdate: false,
+        }),
+      )
+      avisos.fields.add(
+        new AutodateField({
+          name: 'updated',
+          onCreate: true,
+          onUpdate: true,
+        }),
+      )
       avisos.indexes = [
         'CREATE UNIQUE INDEX idx_com_proposta_abertura_email_publicacao ON com_proposta_abertura_emails (publicacao_id)',
         'CREATE INDEX idx_com_proposta_abertura_email_estado ON com_proposta_abertura_emails (estado, created)',
