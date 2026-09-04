@@ -14,6 +14,7 @@ routerAdd(
         id: record.id,
         name: record.getString('name'),
         email: record.getString('email'),
+        telefone: record.getString('telefone'),
         perfil_id: record.getString('perfil_id'),
         equipe_id: record.getString('equipe_id'),
         ativo_comercial: record.getBool('ativo_comercial'),
@@ -38,11 +39,13 @@ routerAdd(
       .trim()
       .toLowerCase()
     var password = String((body && body.password) || '')
+    var telefone = String((body && body.telefone) || '').trim()
     var perfilId = String((body && body.perfil_id) || '')
     var equipeId = String((body && body.equipe_id) || '')
     if (name.length < 2 || name.length > 150) return e.json(400, { error: 'NOME_INVALIDO' })
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return e.json(400, { error: 'EMAIL_INVALIDO' })
     if (password.length < 8) return e.json(400, { error: 'SENHA_INVALIDA' })
+    if (telefone.length > 40) return e.json(400, { error: 'TELEFONE_INVALIDO' })
     if (!perfilId) return e.json(400, { error: 'PERFIL_OBRIGATORIO' })
     if (!equipeId) return e.json(400, { error: 'EQUIPE_OBRIGATORIA' })
     try {
@@ -68,6 +71,7 @@ routerAdd(
         var record = new Record(tx.findCollectionByNameOrId('users'))
         record.set('name', name)
         record.set('email', email)
+        record.set('telefone', telefone)
         record.setPassword(password)
         record.set('verified', true)
         record.set('perfil_id', perfilId)
@@ -101,6 +105,7 @@ routerAdd(
         id: record.id,
         name: record.getString('name'),
         email: record.getString('email'),
+        telefone: record.getString('telefone'),
         perfil_id: record.getString('perfil_id'),
         equipe_id: record.getString('equipe_id'),
         ativo_comercial: record.getBool('ativo_comercial'),
@@ -125,10 +130,12 @@ routerAdd(
       .trim()
       .toLowerCase()
     var perfilId = String((body && body.perfil_id) || '')
+    var telefone = String((body && body.telefone) || '').trim()
     var equipeId = String((body && body.equipe_id) || '')
     if (name.length < 2 || name.length > 150) return e.json(400, { error: 'NOME_INVALIDO' })
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return e.json(400, { error: 'EMAIL_INVALIDO' })
     if (!perfilId) return e.json(400, { error: 'PERFIL_OBRIGATORIO' })
+    if (telefone.length > 40) return e.json(400, { error: 'TELEFONE_INVALIDO' })
     if (!equipeId) return e.json(400, { error: 'EQUIPE_OBRIGATORIA' })
     try {
       if (!$app.findRecordById('com_perfis', perfilId).getBool('ativo'))
@@ -149,6 +156,7 @@ routerAdd(
         var record = tx.findRecordById('users', String(e.request.pathValue('id') || ''))
         record.set('name', name)
         record.set('email', email)
+        record.set('telefone', telefone)
         record.set('perfil_id', perfilId)
         record.set('equipe_id', equipeId)
         record.set('ativo_comercial', body.ativo_comercial !== false)

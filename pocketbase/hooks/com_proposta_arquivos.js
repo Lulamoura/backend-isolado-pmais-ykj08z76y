@@ -184,6 +184,10 @@ routerAdd(
           'responsavel_snapshot',
           snapshot(tx, 'users', negocio.getString('responsavel_id'), 'name'),
         )
+        versao.set(
+          'responsavel_telefone_snapshot',
+          snapshot(tx, 'users', negocio.getString('responsavel_id'), 'telefone'),
+        )
         var exigeAprovacao = false
         try {
           var parametro = tx.findFirstRecordByData(

@@ -25,6 +25,7 @@ interface Props {
 const EMPTY = {
   name: '',
   email: '',
+  telefone: '',
   password: '',
   perfil_id: '',
   equipe_id: '',
@@ -51,6 +52,7 @@ export function UserForm({ open, onOpenChange, editUser }: Props) {
       setForm({
         name: editUser.name || '',
         email: editUser.email || '',
+        telefone: editUser.telefone || '',
         password: '',
         perfil_id: editUser.perfil_id || '',
         equipe_id: editUser.equipe_id || '',
@@ -72,6 +74,7 @@ export function UserForm({ open, onOpenChange, editUser }: Props) {
         const saved = await updateUser(editUser.id, {
           name: form.name,
           email: form.email,
+          telefone: form.telefone,
           perfil_id: form.perfil_id || undefined,
           equipe_id: form.equipe_id || undefined,
           ativo_comercial: form.ativo_comercial,
@@ -125,6 +128,16 @@ export function UserForm({ open, onOpenChange, editUser }: Props) {
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
             {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
+          </div>
+          <div>
+            <Label>Telefone</Label>
+            <Input
+              type="tel"
+              value={form.telefone}
+              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+              placeholder="(81) 99999-9999"
+            />
+            {errors.telefone && <p className="text-sm text-red-500">{errors.telefone}</p>}
           </div>
           {!isEdit && (
             <div>
