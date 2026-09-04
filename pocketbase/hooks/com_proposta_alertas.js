@@ -1,95 +1,57 @@
 // Alertas comerciais derivados exclusivamente de eventos reais da publicação nativa.
 ;(function () {
-  function perfil(app, user) {
-    try {
-      return app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
-    } catch (_) {
-      return ''
-    }
-  }
-  function parametro(app, chave, fallback) {
-    try {
-      var p = app.findFirstRecordByData('com_parametros', 'chave', chave)
-      return p.getBool('ativo') ? p.getString('valor') : fallback
-    } catch (_) {
-      return fallback
-    }
-  }
-  function contexto(app, publicacao) {
-    var proposta = app.findRecordById('com_propostas', publicacao.getString('proposta_id'))
-    var negocio = app.findRecordById('com_negocios', proposta.getString('negocio_id'))
-    var versao = app.findRecordById('com_proposta_versoes', publicacao.getString('versao_id'))
-    function nome(collection, id, field) {
-      try {
-        return app.findRecordById(collection, id).getString(field)
-      } catch (_) {
-        return ''
-      }
-    }
-    return {
-      proposta: proposta,
-      negocio: negocio,
-      versao: versao,
-      cliente: nome('com_empresas', negocio.getString('empresa_id'), 'nome'),
-      responsavel: nome('users', negocio.getString('responsavel_id'), 'name'),
-    }
-  }
-  function podeReceber(app, user, slug, negocio) {
-    if (
-      slug === 'superadministrador' &&
-      parametro(app, 'proposta.notificar_superadmin_abertura', 'true') === 'true'
-    )
-      return true
-    if (
-      (slug === 'gestor' || slug === 'gestor-comercial') &&
-      parametro(app, 'proposta.notificar_gestor_abertura', 'true') === 'true' &&
-      user.getString('equipe_id') &&
-      user.getString('equipe_id') === negocio.getString('equipe_id')
-    )
-      return true
-    return (
-      parametro(app, 'proposta.notificar_responsavel_abertura', 'true') === 'true' &&
-      negocio.getString('responsavel_id') === user.id
-    )
-  }
-  function podeAcessar(user, slug, negocio) {
-    if (slug === 'superadministrador' || slug === 'leitura-executiva') return true
-    if (negocio.getString('responsavel_id') === user.id) return true
-    return (
-      (slug === 'gestor' || slug === 'gestor-comercial') &&
-      !!user.getString('equipe_id') &&
-      user.getString('equipe_id') === negocio.getString('equipe_id')
-    )
-  }
-  function feriados(app) {
-    var result = {}
-    try {
-      var rows = app.findRecordsByFilter('com_calendario_feriados', 'ativo = true', '', 500, 0)
-      for (var i = 0; i < rows.length; i++) result[rows[i].getString('data').slice(0, 10)] = true
-    } catch (_) {}
-    return result
-  }
-  function chaveData(date) {
-    return date.toISOString().slice(0, 10)
-  }
-  function uteisCompletos(inicio, agora, fs) {
-    var cursor = new Date(
-      Date.UTC(inicio.getUTCFullYear(), inicio.getUTCMonth(), inicio.getUTCDate() + 1),
-    )
-    var hoje = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), agora.getUTCDate()))
-    var total = 0
-    while (cursor < hoje) {
-      var dia = cursor.getUTCDay()
-      if (dia !== 0 && dia !== 6 && !fs[chaveData(cursor)]) total++
-      cursor.setUTCDate(cursor.getUTCDate() + 1)
-    }
-    return total
-  }
-
   routerAdd(
     'GET',
     '/backend/v1/propostas/notificacoes',
     function (e) {
+      function perfil(app, user) {
+        try {
+          return app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
+        } catch (_) {
+          return ''
+        }
+      }
+      function parametro(app, chave, fallback) {
+        try {
+          var p = app.findFirstRecordByData('com_parametros', 'chave', chave)
+          return p.getBool('ativo') ? p.getString('valor') : fallback
+        } catch (_) {
+          return fallback
+        }
+      }
+      function contexto(app, publicacao) {
+        var proposta = app.findRecordById('com_propostas', publicacao.getString('proposta_id'))
+        var negocio = app.findRecordById('com_negocios', proposta.getString('negocio_id'))
+        function nome(collection, id, field) {
+          try {
+            return app.findRecordById(collection, id).getString(field)
+          } catch (_) {
+            return ''
+          }
+        }
+        return {
+          negocio: negocio,
+          cliente: nome('com_empresas', negocio.getString('empresa_id'), 'nome'),
+        }
+      }
+      function podeReceber(app, user, slug, negocio) {
+        if (
+          slug === 'superadministrador' &&
+          parametro(app, 'proposta.notificar_superadmin_abertura', 'true') === 'true'
+        )
+          return true
+        if (
+          (slug === 'gestor' || slug === 'gestor-comercial') &&
+          parametro(app, 'proposta.notificar_gestor_abertura', 'true') === 'true' &&
+          user.getString('equipe_id') &&
+          user.getString('equipe_id') === negocio.getString('equipe_id')
+        )
+          return true
+        return (
+          parametro(app, 'proposta.notificar_responsavel_abertura', 'true') === 'true' &&
+          negocio.getString('responsavel_id') === user.id
+        )
+      }
       var user = e.auth
       if (!user || !user.getBool('ativo_comercial'))
         return e.forbiddenError('Usuario comercial necessario')
@@ -154,6 +116,43 @@
     'POST',
     '/backend/v1/propostas/notificacoes/ler',
     function (e) {
+      function perfil(app, user) {
+        try {
+          return app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
+        } catch (_) {
+          return ''
+        }
+      }
+      function parametro(app, chave, fallback) {
+        try {
+          var p = app.findFirstRecordByData('com_parametros', 'chave', chave)
+          return p.getBool('ativo') ? p.getString('valor') : fallback
+        } catch (_) {
+          return fallback
+        }
+      }
+      function contexto(app, publicacao) {
+        var proposta = app.findRecordById('com_propostas', publicacao.getString('proposta_id'))
+        return { negocio: app.findRecordById('com_negocios', proposta.getString('negocio_id')) }
+      }
+      function podeReceber(app, user, slug, negocio) {
+        if (
+          slug === 'superadministrador' &&
+          parametro(app, 'proposta.notificar_superadmin_abertura', 'true') === 'true'
+        )
+          return true
+        if (
+          (slug === 'gestor' || slug === 'gestor-comercial') &&
+          parametro(app, 'proposta.notificar_gestor_abertura', 'true') === 'true' &&
+          user.getString('equipe_id') &&
+          user.getString('equipe_id') === negocio.getString('equipe_id')
+        )
+          return true
+        return (
+          parametro(app, 'proposta.notificar_responsavel_abertura', 'true') === 'true' &&
+          negocio.getString('responsavel_id') === user.id
+        )
+      }
       var user = e.auth,
         body = e.requestInfo().body || {},
         ids = body.evento_ids || []
@@ -196,6 +195,76 @@
     'GET',
     '/backend/v1/propostas/sem-abertura',
     function (e) {
+      function perfil(app, user) {
+        try {
+          return app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
+        } catch (_) {
+          return ''
+        }
+      }
+      function parametro(app, chave, fallback) {
+        try {
+          var p = app.findFirstRecordByData('com_parametros', 'chave', chave)
+          return p.getBool('ativo') ? p.getString('valor') : fallback
+        } catch (_) {
+          return fallback
+        }
+      }
+      function contexto(app, publicacao) {
+        var proposta = app.findRecordById('com_propostas', publicacao.getString('proposta_id'))
+        var negocio = app.findRecordById('com_negocios', proposta.getString('negocio_id'))
+        var versao = app.findRecordById('com_proposta_versoes', publicacao.getString('versao_id'))
+        function nome(collection, id, field) {
+          try {
+            return app.findRecordById(collection, id).getString(field)
+          } catch (_) {
+            return ''
+          }
+        }
+        return {
+          proposta: proposta,
+          negocio: negocio,
+          versao: versao,
+          cliente: nome('com_empresas', negocio.getString('empresa_id'), 'nome'),
+          responsavel: nome('users', negocio.getString('responsavel_id'), 'name'),
+        }
+      }
+      function podeAcessar(user, slug, negocio) {
+        if (slug === 'superadministrador' || slug === 'leitura-executiva') return true
+        if (negocio.getString('responsavel_id') === user.id) return true
+        return (
+          (slug === 'gestor' || slug === 'gestor-comercial') &&
+          !!user.getString('equipe_id') &&
+          user.getString('equipe_id') === negocio.getString('equipe_id')
+        )
+      }
+      function feriados(app) {
+        var result = {}
+        try {
+          var rows = app.findRecordsByFilter('com_calendario_feriados', 'ativo = true', '', 500, 0)
+          for (var fi = 0; fi < rows.length; fi++)
+            result[rows[fi].getString('data').slice(0, 10)] = true
+        } catch (_) {}
+        return result
+      }
+      function chaveData(date) {
+        return date.toISOString().slice(0, 10)
+      }
+      function uteisCompletos(inicio, agora, fs) {
+        var cursor = new Date(
+          Date.UTC(inicio.getUTCFullYear(), inicio.getUTCMonth(), inicio.getUTCDate() + 1),
+        )
+        var hoje = new Date(
+          Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), agora.getUTCDate()),
+        )
+        var total = 0
+        while (cursor < hoje) {
+          var dia = cursor.getUTCDay()
+          if (dia !== 0 && dia !== 6 && !fs[chaveData(cursor)]) total++
+          cursor.setUTCDate(cursor.getUTCDate() + 1)
+        }
+        return total
+      }
       var user = e.auth
       if (!user || !user.getBool('ativo_comercial'))
         return e.forbiddenError('Usuario comercial necessario')
