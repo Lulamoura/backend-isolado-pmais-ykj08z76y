@@ -41,6 +41,13 @@ const checks = [
       hook.includes('cc: cc'),
   ],
   [
+    'HTML preserva parágrafos e quebras de linha sem depender de white-space',
+    hook.includes('.split(/\\n{2,}/)') &&
+      hook.includes("paragrafo.replace(/\\n/g, '<br>')") &&
+      hook.includes('<p style="margin:0 0 16px 0">') &&
+      !hook.includes('white-space:pre-wrap'),
+  ],
+  [
     'token não persiste no snapshot',
     hook.includes('[LINK_SEGURO_NAO_PERSISTIDO]') &&
       !hook.includes("mensagem_snapshot', mensagem)"),

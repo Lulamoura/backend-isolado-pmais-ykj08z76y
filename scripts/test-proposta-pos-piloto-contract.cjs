@@ -78,6 +78,12 @@ const checks = [
       internalPage.includes('Responder para') &&
       internalPage.includes('[LINK_PROPOSTA]'),
   ],
+  [
+    'destinatário prioriza o e-mail do contato e continua editável',
+    internalPage.includes("item.contexto.contato?.email || item.proposta?.destinatario || ''") &&
+      internalPage.includes('destinosEmail[item.negocio.id] ?? destinatarioPadrao(item)') &&
+      internalPage.includes('setDestinosEmail'),
+  ],
   ['card usa indicador binário', internalPage.includes("p.aberta ? 'Aberta' : 'Não Aberta'")],
   [
     'nova terminologia visível',
