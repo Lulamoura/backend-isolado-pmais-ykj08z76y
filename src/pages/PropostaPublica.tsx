@@ -66,37 +66,37 @@ function MobilePdfPages({ url }: { url: string }) {
       if (!ativo) return
       loadingTask = getDocument({ data: new Uint8Array(arquivo) })
       const pdf = await loadingTask.promise
-        if (!ativo) return
-        setTotal(pdf.numPages)
-        for (let numero = 1; numero <= pdf.numPages && ativo; numero += 1) {
-          const pagina = await pdf.getPage(numero)
-          const base = pagina.getViewport({ scale: 1 })
-          const largura = Math.max(280, container.clientWidth)
-          const viewport = pagina.getViewport({ scale: largura / base.width })
-          const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
-          const wrapper = document.createElement('section')
-          wrapper.className = 'overflow-hidden rounded-md border bg-white shadow-sm'
-          wrapper.setAttribute('aria-label', `Página ${numero} de ${pdf.numPages}`)
-          const canvas = document.createElement('canvas')
-          canvas.width = Math.floor(viewport.width * pixelRatio)
-          canvas.height = Math.floor(viewport.height * pixelRatio)
-          canvas.style.width = `${Math.floor(viewport.width)}px`
-          canvas.style.height = `${Math.floor(viewport.height)}px`
-          canvas.className = 'block h-auto max-w-full'
-          wrapper.appendChild(canvas)
-          container.appendChild(wrapper)
-          const context = canvas.getContext('2d')
-          if (!context) throw new Error('Canvas indisponível')
-          const task = pagina.render({
-            canvas,
-            canvasContext: context,
-            viewport,
-            transform: pixelRatio === 1 ? undefined : [pixelRatio, 0, 0, pixelRatio, 0, 0],
-          })
-          renderTasks.push(task)
-          await task.promise
-          if (ativo) setRenderizadas(numero)
-        }
+      if (!ativo) return
+      setTotal(pdf.numPages)
+      for (let numero = 1; numero <= pdf.numPages && ativo; numero += 1) {
+        const pagina = await pdf.getPage(numero)
+        const base = pagina.getViewport({ scale: 1 })
+        const largura = Math.max(280, container.clientWidth)
+        const viewport = pagina.getViewport({ scale: largura / base.width })
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
+        const wrapper = document.createElement('section')
+        wrapper.className = 'overflow-hidden rounded-md border bg-white shadow-sm'
+        wrapper.setAttribute('aria-label', `Página ${numero} de ${pdf.numPages}`)
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.floor(viewport.width * pixelRatio)
+        canvas.height = Math.floor(viewport.height * pixelRatio)
+        canvas.style.width = `${Math.floor(viewport.width)}px`
+        canvas.style.height = `${Math.floor(viewport.height)}px`
+        canvas.className = 'block h-auto max-w-full'
+        wrapper.appendChild(canvas)
+        container.appendChild(wrapper)
+        const context = canvas.getContext('2d')
+        if (!context) throw new Error('Canvas indisponível')
+        const task = pagina.render({
+          canvas,
+          canvasContext: context,
+          viewport,
+          transform: pixelRatio === 1 ? undefined : [pixelRatio, 0, 0, pixelRatio, 0, 0],
+        })
+        renderTasks.push(task)
+        await task.promise
+        if (ativo) setRenderizadas(numero)
+      }
     })().catch((error) => {
       console.error('Falha ao montar PDF no celular', error)
       if (ativo) setFalhou(true)
