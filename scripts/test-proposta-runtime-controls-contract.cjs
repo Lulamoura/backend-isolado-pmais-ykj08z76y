@@ -11,9 +11,10 @@ const checks = [
     hook.includes("getBool('ativo_comercial')") && hook.includes("perfil !== 'superadministrador'"),
   ],
   [
-    'whitelist restrita aos dois gates',
+    'whitelist restrita aos gates de proposta',
     hook.includes("'proposta.pagina_publica_habilitada': true") &&
-      hook.includes("'proposta.email_habilitado': true"),
+      hook.includes("'proposta.email_habilitado': true") &&
+      hook.includes("'proposta.email_notificar_remetente_abertura': true"),
   ],
   [
     'um gate por comando',

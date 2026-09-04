@@ -34,6 +34,7 @@ routerAdd(
     var gateKeys = {
       'proposta.pagina_publica_habilitada': true,
       'proposta.email_habilitado': true,
+      'proposta.email_notificar_remetente_abertura': true,
     }
     var chave = String(body.chave || '')
     var valor = body.valor
