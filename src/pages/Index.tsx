@@ -3,6 +3,7 @@ import {
   AlertCircle,
   BriefcaseBusiness,
   CircleDollarSign,
+  CircleX,
   ListChecks,
   RefreshCw,
   ShieldCheck,
@@ -568,7 +569,7 @@ export default function Index() {
       ) : resumo ? (
         <section
           aria-label="Indicadores comerciais"
-          className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+          className="grid grid-cols-1 gap-4 md:grid-cols-2"
         >
           <MetricCard
             title="Negócios no período"
@@ -589,6 +590,12 @@ export default function Index() {
             icon={Trophy}
           />
           <MetricCard
+            title="Negócios perdidos"
+            value={String(resumo.situacao.perdidos)}
+            detail={formatCurrency(resumo.valores.perdido_centavos)}
+            icon={CircleX}
+          />
+          <MetricCard
             title="Conversão global"
             value={formatPercent(resumo.conversoes.global_percentual)}
             detail="Ganhos sobre decisões registradas"
@@ -603,7 +610,7 @@ export default function Index() {
           <MetricCard
             title="Taxa de qualificação"
             value={formatPercent(resumo.conversoes.qualificacao_percentual)}
-            detail={`${resumo.qualificacao.qualificadas} qualificados`}
+            detail={`${resumo.qualificacao.qualificadas} qualificadas de ${resumo.qualificacao.qualificadas + resumo.qualificacao.desqualificadas} decisões`}
             icon={UserCheck}
           />
           <MetricCard

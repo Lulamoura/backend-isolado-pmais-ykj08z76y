@@ -208,6 +208,28 @@ describe('Dashboard V1', () => {
     expect(within(qualificacao).getByText('Desqualificadas')).toBeInTheDocument()
   })
 
+  it('organiza os indicadores em pares e explicita o cálculo da qualificação', () => {
+    render(<Index />)
+
+    const indicadores = screen.getByLabelText('Indicadores comerciais')
+    const titulos = Array.from(indicadores.children).map(
+      (card) => card.querySelector('.tracking-tight')?.textContent,
+    )
+
+    expect(titulos).toEqual([
+      'Negócios no período',
+      'Carteira aberta',
+      'Negócios ganhos',
+      'Negócios perdidos',
+      'Conversão global',
+      'Conversão qualitativa',
+      'Taxa de qualificação',
+      'Cobertura de responsável',
+    ])
+    expect(within(indicadores).getByText('R$ 0,00')).toBeInTheDocument()
+    expect(within(indicadores).getByText('4 qualificadas de 5 decisões')).toBeInTheDocument()
+  })
+
   it('exibe valores, tickets e qualidade cadastral retornados pelo backend', () => {
     render(<Index />)
 
