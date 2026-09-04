@@ -1,14 +1,7 @@
-import {
-  AlertTriangle,
-  Building2,
-  CalendarClock,
-  Contact,
-  Mail,
-  Phone,
-  UserRound,
-} from 'lucide-react'
+import { AlertTriangle, CalendarClock, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { BusinessNotesDialog } from '@/components/BusinessNotesDialog'
+import { BusinessContactCard } from '@/components/BusinessContactCard'
 import {
   actionStatus,
   ageInDays,
@@ -68,23 +61,8 @@ export function CommercialContextCard({
           Negócio AC #{contexto.external_id}
         </p>
       )}
+      <BusinessContactCard empresa={contexto.empresa} contato={contexto.contato} />
       <div className="grid gap-2 sm:grid-cols-2">
-        <p className="flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-muted-foreground" />
-          {contexto.empresa?.nome || 'Empresa não informada'}
-        </p>
-        <p className="flex items-center gap-2">
-          <Contact className="h-4 w-4 text-muted-foreground" />
-          {contexto.contato?.nome || 'Contato não informado'}
-        </p>
-        <p className="flex items-center gap-2">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          {contexto.contato?.email || 'E-mail não informado'}
-        </p>
-        <p className="flex items-center gap-2">
-          <Phone className="h-4 w-4 text-muted-foreground" />
-          {contexto.contato?.telefone || 'Telefone não informado'}
-        </p>
         <p className="flex items-center gap-2">
           <UserRound className="h-4 w-4 text-muted-foreground" />
           {contexto.responsavel?.name || 'Responsável não informado'}

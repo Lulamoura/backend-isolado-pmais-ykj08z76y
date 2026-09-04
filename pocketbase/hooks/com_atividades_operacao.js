@@ -143,6 +143,16 @@ routerAdd(
         var er = $app.findRecordById('com_empresas', negocio.getString('empresa_id'))
         empresa = { id: er.id, nome: er.getString('nome') }
       } catch (_) {}
+      var contato = null
+      try {
+        var cr = $app.findRecordById('com_contatos', negocio.getString('contato_id'))
+        contato = {
+          id: cr.id,
+          nome: cr.getString('nome') || null,
+          email: cr.getString('email') || null,
+          telefone: cr.getString('telefone') || null,
+        }
+      } catch (_) {}
       var externalId = null
       try {
         externalId = $app
@@ -162,6 +172,7 @@ routerAdd(
           etapa: negocio.getString('etapa'),
           modalidade: negocio.getString('modalidade') || null,
           empresa: empresa,
+          contato: contato,
           responsavel: dono,
           updated: negocio.getString('updated'),
         },
