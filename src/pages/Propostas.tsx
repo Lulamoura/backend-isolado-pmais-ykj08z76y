@@ -188,6 +188,8 @@ export default function Propostas() {
   }
   const assuntoPadrao = (item: ItemProposta) =>
     `Proposta comercial PMais — ${item.contexto.empresa.nome || item.negocio.titulo}`
+  const destinatarioPadrao = (item: ItemProposta) =>
+    item.contexto.contato?.email || item.proposta?.destinatario || ''
   const mensagemPadrao = (item: ItemProposta) =>
     `Olá,\n\nEncaminhamos a proposta comercial da PMais para ${item.contexto.empresa.nome || 'sua empresa'}.\n\nVocê pode visualizar o documento pelo link abaixo:\n[LINK_PROPOSTA]\n\nPermanecemos à disposição para esclarecimentos e para os próximos passos.\n\nAtenciosamente,\nEquipe Comercial PMais`
   const enviarPdf = async (item: ItemProposta) => {
@@ -230,7 +232,7 @@ export default function Propostas() {
     }
   }
   const enviarEmail = async (item: ItemProposta) => {
-    const email = (destinosEmail[item.negocio.id] || item.proposta?.destinatario || '').trim()
+    const email = (destinosEmail[item.negocio.id] ?? destinatarioPadrao(item)).trim()
     const link = linksPublicos[item.negocio.id] || (await publicar(item))
     const assunto = (assuntosEmail[item.negocio.id] || assuntoPadrao(item)).trim()
     const corpo = (mensagensEmail[item.negocio.id] || mensagemPadrao(item)).trim()
@@ -692,7 +694,9 @@ export default function Propostas() {
                                     <Input
                                       id={`email-proposta-${item.negocio.id}`}
                                       type="email"
-                                      value={destinosEmail[item.negocio.id] || p.destinatario || ''}
+                                      value={
+                                        destinosEmail[item.negocio.id] ?? destinatarioPadrao(item)
+                                      }
                                       onChange={(event) =>
                                         setDestinosEmail((atual) => ({
                                           ...atual,
