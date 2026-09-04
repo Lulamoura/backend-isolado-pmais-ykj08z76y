@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { FileText, Loader2 } from 'lucide-react'
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
-import PdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker'
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,6 +35,8 @@ interface PreflightPublico {
 const reais = (valor: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor / 100)
 
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl
+
 const acessoIdDaPagina = () => {
   const state = (window.history.state || {}) as Record<string, unknown>
   if (typeof state.propostaAccessId === 'string') return state.propostaAccessId
@@ -53,7 +55,6 @@ function MobilePdfPages({ url }: { url: string }) {
     const container = containerRef.current
     if (!container || !url) return
     let ativo = true
-    if (!GlobalWorkerOptions.workerPort) GlobalWorkerOptions.workerPort = new PdfWorker()
     let loadingTask: ReturnType<typeof getDocument> | null = null
     const renderTasks: Array<{ cancel: () => void }> = []
     container.replaceChildren()
