@@ -1,4 +1,4 @@
-// E-mail idempotente ao remetente na primeira abertura real de cada publicação.
+// E-mail idempotente ao remetente e ao Reply-To na primeira abertura real de cada publicação.
 onRecordAfterCreateSuccess(function (e) {
   e.next()
   var evento = e.record
@@ -44,7 +44,8 @@ onRecordAfterCreateSuccess(function (e) {
     var proposta = $app.findRecordById('com_propostas', publicacao.getString('proposta_id')),
       versao = $app.findRecordById('com_proposta_versoes', publicacao.getString('versao_id')),
       negocio = $app.findRecordById('com_negocios', proposta.getString('negocio_id')),
-      remetenteId = ''
+      remetenteId = '',
+      replyTo = ''
     try {
       var envios = $app.findRecordsByFilter(
         'com_proposta_envios',
@@ -53,7 +54,12 @@ onRecordAfterCreateSuccess(function (e) {
         1,
         0,
       )
-      if (envios.length) remetenteId = envios[0].getString('remetente_id')
+      if (envios.length) {
+        remetenteId = envios[0].getString('remetente_id')
+        replyTo = String(envios[0].getString('reply_to') || '')
+          .trim()
+          .toLowerCase()
+      }
     } catch (_) {}
     if (!remetenteId) remetenteId = versao.getString('responsavel_envio_id')
     if (!remetenteId) remetenteId = negocio.getString('responsavel_id')
@@ -65,6 +71,9 @@ onRecordAfterCreateSuccess(function (e) {
         .toLowerCase()
     if (!remetente.getBool('ativo_comercial')) return
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinatario)) return
+    var destinatarios = [destinatario]
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo) && destinatarios.indexOf(replyTo) === -1)
+      destinatarios.push(replyTo)
 
     if (!aviso) {
       try {
@@ -136,7 +145,7 @@ onRecordAfterCreateSuccess(function (e) {
       },
       body: JSON.stringify({
         from: 'PMais Serviços <nao-responda@pmaisservicos.com.br>',
-        to: [destinatario],
+        to: destinatarios,
         subject: assunto,
         html: '<div style="font-family:Arial,sans-serif;line-height:1.6">' + html + '</div>',
         text: texto,
