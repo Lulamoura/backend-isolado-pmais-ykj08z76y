@@ -7,6 +7,7 @@ const listarSlas = vi.hoisted(() => vi.fn())
 const listarOrdensExecucao = vi.hoisted(() => vi.fn())
 const listarFechamentos = vi.hoisted(() => vi.fn())
 const listarPropostasSemAbertura = vi.hoisted(() => vi.fn())
+const useDashboardResumo = vi.hoisted(() => vi.fn())
 const perfil = vi.hoisted(() => ({ slug: 'gestor-comercial' }))
 
 vi.mock('@/services/atividades', () => ({ listarFilaAtividades }))
@@ -14,6 +15,7 @@ vi.mock('@/services/slas', () => ({ listarSlas }))
 vi.mock('@/services/ordens-execucao', () => ({ listarOrdensExecucao }))
 vi.mock('@/services/fechamentos', () => ({ listarFechamentos }))
 vi.mock('@/services/propostas', () => ({ listarPropostasSemAbertura }))
+vi.mock('@/hooks/use-dashboard', () => ({ useDashboardResumo }))
 vi.mock('@/hooks/use-is-superadmin', () => ({
   useIsSuperAdmin: () => ({ perfilSlug: perfil.slug, loading: false, isSuperAdmin: false }),
 }))
@@ -39,6 +41,35 @@ beforeEach(() => {
     itens: [{ agenda: { estado: 'ativa' } }, { agenda: null }],
   })
   listarPropostasSemAbertura.mockResolvedValue({ itens: [], limite_dias_uteis: 2 })
+  useDashboardResumo.mockReturnValue({
+    data: {
+      escopo: 'proprios',
+      resumo: {
+        situacao: { ganhos: 2 },
+        valores: {
+          carteira_aberta_centavos: 350000,
+          ganho_centavos: 120000,
+          negocios_precificados: 4,
+        },
+        conversoes: {
+          global_percentual: 40,
+          qualitativa_percentual: 34.29,
+          decisoes_valor_centavos: 350000,
+        },
+        modalidades: [
+          { modalidade: 'recorrente', quantidade: 2, valor_centavos: 200000 },
+          { modalidade: 'evento', quantidade: 1, valor_centavos: 100000 },
+        ],
+        ganhos_por_modalidade: [
+          { modalidade: 'recorrente', quantidade: 1, valor_centavos: 70000 },
+          { modalidade: 'serv_eventual', quantidade: 1, valor_centavos: 50000 },
+        ],
+      },
+    },
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  })
 })
 
 describe('Operação do Dia', () => {
@@ -86,5 +117,30 @@ describe('Operação do Dia', () => {
     expect(await screen.findByText('1 sem data · 1 vencida(s) · 1 hoje')).toBeInTheDocument()
     expect(listarOrdensExecucao).not.toHaveBeenCalled()
     expect(screen.queryByText('Ganhos aguardando OE')).not.toBeInTheDocument()
+  })
+
+  it('mostra indicadores primários com as fórmulas e o escopo do dashboard', async () => {
+    render(
+      <MemoryRouter>
+        <OperacaoDia />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Indicadores primários')).toBeInTheDocument()
+    const indicadores = screen.getByLabelText('Indicadores comerciais primários')
+    expect(indicadores).toHaveTextContent('Carteira aberta')
+    expect(indicadores).toHaveTextContent('R$ 3.500,00')
+    expect(indicadores).toHaveTextContent('Negócios ganhos')
+    expect(indicadores).toHaveTextContent('Conversão global')
+    expect(indicadores).toHaveTextContent('40%')
+    expect(indicadores).toHaveTextContent('Conversão qualitativa')
+    expect(indicadores).toHaveTextContent('34,29%')
+    expect(indicadores).toHaveTextContent('Negócios por modalidade')
+    expect(indicadores).toHaveTextContent('Ganhos por modalidade')
+    expect(indicadores).toHaveTextContent('0 · R$ 0,00')
+    expect(useDashboardResumo).toHaveBeenCalledWith({
+      inicio: expect.any(String),
+      fim: expect.any(String),
+    })
   })
 })

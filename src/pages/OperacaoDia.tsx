@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
+  BriefcaseBusiness,
   CalendarClock,
+  CircleDollarSign,
   ClipboardCheck,
   MailWarning,
   RefreshCw,
+  Target,
   Trophy,
 } from 'lucide-react'
 
@@ -18,6 +21,10 @@ import { listarOrdensExecucao } from '@/services/ordens-execucao'
 import { listarSlas } from '@/services/slas'
 import { listarPropostasSemAbertura, type PropostaSemAbertura } from '@/services/propostas'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
+import { useDashboardResumo } from '@/hooks/use-dashboard'
+import type { DashboardResumoParams } from '@/services/dashboard'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -47,6 +54,38 @@ const EMPTY: OperationSummary = {
   recuperacoes: 0,
 }
 
+const RECIFE_TIME_ZONE = 'America/Recife'
+
+function defaultIndicatorPeriod(reference = new Date()): DashboardResumoParams {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: RECIFE_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(reference)
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  const fim = `${values.year}-${values.month}-${values.day}`
+  const [year, month, day] = fim.split('-').map(Number)
+  const inicio = new Date(Date.UTC(year, month - 1, day - 89)).toISOString().slice(0, 10)
+  return { inicio, fim }
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value / 100)
+}
+
+function formatPercent(value: number | null): string {
+  if (value === null) return 'N/D'
+  return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value)}%`
+}
+
+function modalidadeLabel(modalidade: string): string {
+  if (modalidade === 'recorrente') return 'Recorrente'
+  if (modalidade === 'evento') return 'Evento'
+  if (modalidade === 'serv_eventual') return 'Serv. Eventual'
+  return modalidade.replace(/_/g, ' ')
+}
+
 export default function OperacaoDia() {
   const { perfilSlug } = useIsSuperAdmin()
   const [summary, setSummary] = useState(EMPTY)
@@ -55,6 +94,19 @@ export default function OperacaoDia() {
   const [reloadKey, setReloadKey] = useState(0)
   const [semAbertura, setSemAbertura] = useState<PropostaSemAbertura[]>([])
   const [limiteDiasUteis, setLimiteDiasUteis] = useState(2)
+  const [indicatorDraft, setIndicatorDraft] = useState<DashboardResumoParams>(() =>
+    defaultIndicatorPeriod(),
+  )
+  const [indicatorPeriod, setIndicatorPeriod] = useState<DashboardResumoParams>(() =>
+    defaultIndicatorPeriod(),
+  )
+  const {
+    data: indicatorData,
+    loading: indicatorLoading,
+    error: indicatorError,
+    refresh: refreshIndicators,
+  } = useDashboardResumo(indicatorPeriod)
+  const indicators = indicatorData?.resumo
 
   useEffect(() => {
     let active = true
@@ -168,7 +220,10 @@ export default function OperacaoDia() {
           variant="secondary"
           className="gap-2 bg-white text-violet-900 hover:bg-violet-50 font-medium"
           disabled={loading}
-          onClick={() => setReloadKey((value) => value + 1)}
+          onClick={() => {
+            setReloadKey((value) => value + 1)
+            refreshIndicators()
+          }}
         >
           <RefreshCw aria-hidden="true" className="h-4 w-4" /> Atualizar
         </Button>
@@ -205,6 +260,157 @@ export default function OperacaoDia() {
             </Link>
           )
         })}
+      </section>
+
+      <section aria-labelledby="primary-indicators-title" className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 id="primary-indicators-title" className="text-lg font-bold text-slate-950">
+              Indicadores primários
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Resultado comercial conforme sua carteira e suas permissões de acesso.
+            </p>
+          </div>
+          <form
+            className="flex flex-wrap items-end gap-2"
+            onSubmit={(event) => {
+              event.preventDefault()
+              setIndicatorPeriod(indicatorDraft)
+            }}
+          >
+            <div className="space-y-1">
+              <Label htmlFor="indicadores-inicio" className="text-xs">
+                Início
+              </Label>
+              <Input
+                id="indicadores-inicio"
+                aria-label="Início dos indicadores"
+                type="date"
+                value={indicatorDraft.inicio ?? ''}
+                max={indicatorDraft.fim}
+                onChange={(event) =>
+                  setIndicatorDraft((current) => ({ ...current, inicio: event.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="indicadores-fim" className="text-xs">
+                Fim
+              </Label>
+              <Input
+                id="indicadores-fim"
+                aria-label="Fim dos indicadores"
+                type="date"
+                value={indicatorDraft.fim ?? ''}
+                min={indicatorDraft.inicio}
+                onChange={(event) =>
+                  setIndicatorDraft((current) => ({ ...current, fim: event.target.value }))
+                }
+              />
+            </div>
+            <Button type="submit" variant="outline" disabled={indicatorLoading}>
+              Aplicar período
+            </Button>
+          </form>
+        </div>
+
+        {indicatorError ? (
+          <Alert>
+            <AlertTriangle aria-hidden="true" className="h-4 w-4" />
+            <AlertTitle>Indicadores temporariamente indisponíveis</AlertTitle>
+            <AlertDescription>{indicatorError}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        <div aria-label="Indicadores comerciais primários" className="grid gap-4 md:grid-cols-2">
+          {[
+            {
+              title: 'Carteira aberta',
+              value: indicators ? formatCurrency(indicators.valores.carteira_aberta_centavos) : '—',
+              detail: indicators
+                ? `${indicators.valores.negocios_precificados} negócios precificados`
+                : 'Carregando período',
+              icon: Target,
+            },
+            {
+              title: 'Negócios ganhos',
+              value: indicators ? String(indicators.situacao.ganhos) : '—',
+              detail: indicators
+                ? formatCurrency(indicators.valores.ganho_centavos)
+                : 'Carregando período',
+              icon: Trophy,
+            },
+            {
+              title: 'Conversão global',
+              value: indicators ? formatPercent(indicators.conversoes.global_percentual) : '—',
+              detail: 'Ganhos sobre decisões registradas',
+              icon: Target,
+            },
+            {
+              title: 'Conversão qualitativa',
+              value: indicators ? formatPercent(indicators.conversoes.qualitativa_percentual) : '—',
+              detail: indicators
+                ? `${formatCurrency(indicators.valores.ganho_centavos)} ganhos de ${formatCurrency(indicators.conversoes.decisoes_valor_centavos)} em decisões`
+                : 'Valor ganho sobre decisões',
+              icon: CircleDollarSign,
+            },
+          ].map(({ title, value, detail, icon: Icon }) => (
+            <Card key={title}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-slate-600">{title}</CardTitle>
+                <Icon aria-hidden="true" className="h-4 w-4 text-violet-600" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold tracking-tight text-slate-950">{value}</p>
+                <p className="mt-1 text-xs text-slate-500">{detail}</p>
+              </CardContent>
+            </Card>
+          ))}
+
+          {[
+            {
+              title: 'Negócios por modalidade',
+              description: 'Quantidade e valor total dos negócios no período.',
+              items: indicators?.modalidades ?? [],
+            },
+            {
+              title: 'Ganhos por modalidade',
+              description: 'Quantidade e valor dos negócios ganhos no período.',
+              items: indicators?.ganhos_por_modalidade ?? [],
+            },
+          ].map(({ title, description, items }) => (
+            <Card key={title} aria-label={title}>
+              <CardHeader className="space-y-1 pb-3">
+                <div className="flex items-center gap-2">
+                  <BriefcaseBusiness aria-hidden="true" className="h-4 w-4 text-violet-600" />
+                  <CardTitle className="text-base text-slate-900">{title}</CardTitle>
+                </div>
+                <p className="text-xs text-slate-500">{description}</p>
+              </CardHeader>
+              <CardContent>
+                <dl className="divide-y divide-slate-100">
+                  {['recorrente', 'evento', 'serv_eventual'].map((modalidade) => {
+                    const item = items.find((entry) => entry.modalidade === modalidade)
+                    return (
+                      <div
+                        key={modalidade}
+                        className="flex items-center justify-between gap-4 py-2.5"
+                      >
+                        <dt className="text-sm text-slate-600">{modalidadeLabel(modalidade)}</dt>
+                        <dd className="text-sm font-semibold text-slate-950">
+                          {indicatorLoading && !indicators
+                            ? '—'
+                            : `${item?.quantidade ?? 0} · ${formatCurrency(item?.valor_centavos ?? 0)}`}
+                        </dd>
+                      </div>
+                    )
+                  })}
+                </dl>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </section>
 
       <Card>
