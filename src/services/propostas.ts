@@ -80,6 +80,8 @@ export interface PropostaSemAbertura {
   dias_vida: number
   valor_centavos: number
   dias_uteis_sem_abertura: number
+  horas_corridas_sem_abertura: number
+  classificacao_sem_abertura: 'recente' | 'atencao' | 'prazo_atingido' | 'atrasada'
 }
 export const listarPropostasSemAbertura = () =>
   pb.send<{ itens: PropostaSemAbertura[]; limite_dias_uteis: number }>(

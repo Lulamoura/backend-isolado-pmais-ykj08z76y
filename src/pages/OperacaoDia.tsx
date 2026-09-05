@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { listarFilaAtividades } from '@/services/atividades'
@@ -85,6 +86,24 @@ function modalidadeLabel(modalidade: string): string {
   if (modalidade === 'serv_eventual') return 'Serv. Eventual'
   return modalidade.replace(/_/g, ' ')
 }
+
+function tempoSemAbertura(item: PropostaSemAbertura): string {
+  if (item.dias_uteis_sem_abertura > 0) {
+    return `${item.dias_uteis_sem_abertura} ${item.dias_uteis_sem_abertura === 1 ? 'dia útil' : 'dias úteis'} sem abertura`
+  }
+  if (item.horas_corridas_sem_abertura < 1) return 'Enviada há menos de 1 hora'
+  return `Enviada há ${item.horas_corridas_sem_abertura} ${item.horas_corridas_sem_abertura === 1 ? 'hora' : 'horas'}`
+}
+
+const STATUS_SEM_ABERTURA = {
+  recente: { label: 'Recente', className: 'border-blue-200 bg-blue-50 text-blue-700' },
+  atencao: { label: 'Atenção', className: 'border-amber-200 bg-amber-50 text-amber-700' },
+  prazo_atingido: {
+    label: 'Prazo atingido',
+    className: 'border-red-200 bg-red-50 text-red-700',
+  },
+  atrasada: { label: 'Atrasada', className: 'border-red-300 bg-red-100 text-red-800' },
+} as const
 
 export default function OperacaoDia() {
   const { perfilSlug } = useIsSuperAdmin()
@@ -262,6 +281,82 @@ export default function OperacaoDia() {
         })}
       </section>
 
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MailWarning className="h-5 w-5 text-amber-600" /> Propostas sem abertura
+            </CardTitle>
+            <p className="mt-1 text-sm text-slate-500">
+              Todas as propostas enviadas que ainda não tiveram abertura registrada. O prazo de
+              atenção é de {limiteDiasUteis} dias úteis.
+            </p>
+          </div>
+          <Link to="/propostas" className="text-sm font-semibold text-violet-700 hover:underline">
+            Ver propostas
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {semAbertura.length === 0 ? (
+            <p className="rounded-md bg-emerald-50 p-4 text-sm text-emerald-800">
+              Todas as propostas enviadas já possuem abertura registrada.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Negócio</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Data do envio</TableHead>
+                    <TableHead>Tempo sem abertura</TableHead>
+                    <TableHead>Modalidade</TableHead>
+                    <TableHead>Responsável</TableHead>
+                    <TableHead>Dias de vida</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {semAbertura.map((item) => {
+                    const status = STATUS_SEM_ABERTURA[item.classificacao_sem_abertura]
+                    return (
+                      <TableRow key={item.negocio_id} data-status={item.classificacao_sem_abertura}>
+                        <TableCell>
+                          <Link
+                            className="font-medium text-violet-700 hover:underline"
+                            to={`/propostas?negocio=${item.negocio_id}`}
+                          >
+                            AC #{item.external_id || '—'}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{item.cliente || '—'}</TableCell>
+                        <TableCell>
+                          {new Date(item.data_envio).toLocaleDateString('pt-BR')}
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <p className="whitespace-nowrap text-sm">{tempoSemAbertura(item)}</p>
+                            <Badge variant="outline" className={status.className}>
+                              {status.label}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell>{item.modalidade || '—'}</TableCell>
+                        <TableCell>{item.responsavel || '—'}</TableCell>
+                        <TableCell>{item.dias_vida}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(item.valor_centavos)}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <section aria-labelledby="primary-indicators-title" className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -412,71 +507,6 @@ export default function OperacaoDia() {
           ))}
         </div>
       </section>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <MailWarning className="h-5 w-5 text-amber-600" /> Propostas sem abertura
-            </CardTitle>
-            <p className="mt-1 text-sm text-slate-500">
-              Enviadas há pelo menos {limiteDiasUteis} dias úteis completos, sem abertura
-              registrada.
-            </p>
-          </div>
-          <Link to="/propostas" className="text-sm font-semibold text-violet-700 hover:underline">
-            Ver propostas
-          </Link>
-        </CardHeader>
-        <CardContent>
-          {semAbertura.length === 0 ? (
-            <p className="rounded-md bg-emerald-50 p-4 text-sm text-emerald-800">
-              Nenhuma proposta exige acompanhamento por falta de abertura.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Negócio</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Data do envio</TableHead>
-                    <TableHead>Modalidade</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Dias de vida</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {semAbertura.map((item) => (
-                    <TableRow key={item.negocio_id}>
-                      <TableCell>
-                        <Link
-                          className="font-medium text-violet-700 hover:underline"
-                          to={`/propostas?negocio=${item.negocio_id}`}
-                        >
-                          AC #{item.external_id || '—'}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{item.cliente || '—'}</TableCell>
-                      <TableCell>{new Date(item.data_envio).toLocaleDateString('pt-BR')}</TableCell>
-                      <TableCell>{item.modalidade || '—'}</TableCell>
-                      <TableCell>{item.responsavel || '—'}</TableCell>
-                      <TableCell>{item.dias_vida}</TableCell>
-                      <TableCell className="text-right">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL',
-                        }).format(item.valor_centavos / 100)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   )
 }

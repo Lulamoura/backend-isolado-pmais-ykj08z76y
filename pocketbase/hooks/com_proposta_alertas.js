@@ -332,8 +332,16 @@
           var enviadoEm = new Date(
             envios[i].getString('enviado_em') || envios[i].getString('created'),
           )
-          var dias = uteisCompletos(enviadoEm, agora, fs)
-          if (dias < limite) continue
+          var dias = uteisCompletos(enviadoEm, agora, fs),
+            horas = Math.max(0, Math.floor((agora.getTime() - enviadoEm.getTime()) / 3600000)),
+            classificacao =
+              dias > limite
+                ? 'atrasada'
+                : dias === limite
+                  ? 'prazo_atingido'
+                  : dias === Math.max(0, limite - 1) && dias > 0
+                    ? 'atencao'
+                    : 'recente'
           itens.push({
             negocio_id: ctx.negocio.id,
             external_id: ctx.external_id,
@@ -353,9 +361,18 @@
             ),
             valor_centavos: Number(ctx.versao.get('valor_total_centavos') || 0),
             dias_uteis_sem_abertura: dias,
+            horas_corridas_sem_abertura: horas,
+            classificacao_sem_abertura: classificacao,
           })
         } catch (_) {}
       }
+      var prioridade = { atrasada: 0, prazo_atingido: 1, atencao: 2, recente: 3 }
+      itens.sort(function (a, b) {
+        var diferenca =
+          prioridade[a.classificacao_sem_abertura] - prioridade[b.classificacao_sem_abertura]
+        if (diferenca !== 0) return diferenca
+        return a.data_envio < b.data_envio ? -1 : a.data_envio > b.data_envio ? 1 : 0
+      })
       return e.json(200, { itens: itens, limite_dias_uteis: limite })
     },
     $apis.requireAuth('users'),
