@@ -42,6 +42,12 @@ assert.ok(
   'resolução prioriza remetente e preserva fallbacks históricos',
 )
 assert.ok(
+  hook.includes("envios[0].getString('reply_to')") &&
+    hook.includes('destinatarios.indexOf(replyTo) === -1') &&
+    hook.includes('to: destinatarios'),
+  'aviso inclui Reply-To válido sem duplicar o remetente',
+)
+assert.ok(
   hook.includes("'Idempotency-Key': 'proposta-abertura-' + publicacao.id"),
   'Resend recebe chave idempotente por publicação',
 )
@@ -57,4 +63,4 @@ assert.ok(
   'gates antecedem leitura do segredo',
 )
 
-console.log('Contrato do e-mail de primeira abertura: 11/11 verificações aprovadas.')
+console.log('Contrato do e-mail de primeira abertura: 12/12 verificações aprovadas.')
