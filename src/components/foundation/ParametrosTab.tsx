@@ -27,6 +27,7 @@ import { ParametroForm } from './ParametroForm'
 import { ParametroVersionHistory } from './ParametroVersionHistory'
 import { ParametroDetail } from './ParametroDetail'
 import { ParametroAmigavelCard } from './ParametroAmigavelCard'
+import { BannerPropostaCard } from './BannerPropostaCard'
 import { CHAVES_AMIGAVEIS, GRUPOS_PARAMETROS_AMIGAVEIS } from './parametros-amigaveis'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -112,6 +113,7 @@ export function ParametrosTab() {
               <p className="text-sm text-muted-foreground">{grupo.descricao}</p>
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
+              {grupo.id === 'propostas' && <BannerPropostaCard />}
               {parametrosDisponiveis.map(({ definicao, parametro }) => (
                 <ParametroAmigavelCard
                   key={definicao.chave}

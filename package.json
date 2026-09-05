@@ -32,6 +32,7 @@
     "test:proposta-usabilidade": "node scripts/test-proposta-usabilidade-contract.cjs",
     "test:proposta-pos-piloto": "node scripts/test-proposta-pos-piloto-contract.cjs",
     "test:proposta-card-compacto": "node scripts/test-proposta-card-compacto-contract.cjs",
+    "test:proposta-banner": "node scripts/test-proposta-banner-configuravel.cjs",
     "test:gate-materializacao": "node scripts/test-proposta-email-abertura-contract.cjs && node scripts/test-proposta-envios-contract.cjs && node scripts/test-proposta-publicacao-contract.cjs && node scripts/test-proposta-publica-foundation.cjs"
   },
   "dependencies": {
