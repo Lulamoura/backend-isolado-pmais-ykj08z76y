@@ -86,7 +86,7 @@ describe('Operação do Dia', () => {
     expect(screen.getByText('1 vencido(s) · 1 em alerta · prazo da etapa')).toBeInTheDocument()
     expect(listarSlas).toHaveBeenCalledWith('atencao')
     expect(screen.getByText('Propostas sem abertura')).toBeInTheDocument()
-    expect(screen.getByText(/2 dias úteis completos/)).toBeInTheDocument()
+    expect(screen.getByText(/prazo de atenção é de 2 dias úteis/)).toBeInTheDocument()
     expect(screen.queryByText('Leitura de propostas: Não rastreável')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Ganhos aguardando OE/ })).toHaveAttribute(
       'href',
@@ -142,5 +142,56 @@ describe('Operação do Dia', () => {
       inicio: expect.any(String),
       fim: expect.any(String),
     })
+  })
+
+  it('mostra todas as propostas sem abertura antes dos indicadores e sinaliza o tempo', async () => {
+    listarPropostasSemAbertura.mockResolvedValueOnce({
+      limite_dias_uteis: 2,
+      itens: [
+        {
+          negocio_id: 'n-antigo',
+          external_id: '4800',
+          cliente: 'Cliente atrasado',
+          data_envio: '2026-09-01T12:00:00Z',
+          modalidade: 'recorrente',
+          responsavel: 'Ana',
+          dias_vida: 15,
+          valor_centavos: 100000,
+          dias_uteis_sem_abertura: 3,
+          horas_corridas_sem_abertura: 72,
+          classificacao_sem_abertura: 'atrasada',
+        },
+        {
+          negocio_id: 'n-recente',
+          external_id: '4821',
+          cliente: 'Cliente recente',
+          data_envio: '2026-09-05T00:00:00Z',
+          modalidade: 'evento',
+          responsavel: 'Bruno',
+          dias_vida: 2,
+          valor_centavos: 50000,
+          dias_uteis_sem_abertura: 0,
+          horas_corridas_sem_abertura: 3,
+          classificacao_sem_abertura: 'recente',
+        },
+      ],
+    })
+
+    render(
+      <MemoryRouter>
+        <OperacaoDia />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Cliente atrasado')).toBeInTheDocument()
+    expect(screen.getByText('3 dias úteis sem abertura')).toBeInTheDocument()
+    expect(screen.getByText('Atrasada')).toBeInTheDocument()
+    expect(screen.getByText('Enviada há 3 horas')).toBeInTheDocument()
+    expect(screen.getByText('Recente')).toBeInTheDocument()
+    const operacao = screen.getByText('Operação do Dia').closest('.space-y-6')!
+    const texto = operacao.textContent ?? ''
+    expect(texto.indexOf('Propostas sem abertura')).toBeLessThan(
+      texto.indexOf('Indicadores primários'),
+    )
   })
 })
