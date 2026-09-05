@@ -31,6 +31,7 @@ const checks = [
   ['assinatura binária validada', hook.includes('IMAGEM_ASSINATURA_INVALIDA')],
   ['fallback seguro preservado', hook.includes("url: '/proposta-banner.jpg'")],
   ['alteração auditada', hook.includes('configurar_banner_proposta_publica')],
+  ['callbacks não dependem de funções no topo', !/^function\s/m.test(hook)],
   ['serviço usa FormData', service.includes("body.append('arquivo', arquivo)")],
   ['interface informa dimensões', admin.includes('1280 × 320 px')],
   ['interface exige justificativa', admin.includes('Motivo da alteração *')],
