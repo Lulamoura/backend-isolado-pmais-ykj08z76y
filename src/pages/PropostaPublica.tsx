@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { obterBannerPropostaPublica } from '@/services/configuracoes'
 
 interface PropostaPublicaDados {
   identificacao_obrigatoria: boolean
@@ -178,6 +179,7 @@ export default function PropostaPublica() {
   const [pdfUrl, setPdfUrl] = useState('')
   const [pdfErro, setPdfErro] = useState(false)
   const [baixando, setBaixando] = useState(false)
+  const [bannerUrl, setBannerUrl] = useState('/proposta-banner.jpg')
   const [visualizacaoMovel, setVisualizacaoMovel] = useState(
     () => window.matchMedia('(max-width: 639px)').matches,
   )
@@ -190,6 +192,18 @@ export default function PropostaPublica() {
     atualizar()
     media.addEventListener('change', atualizar)
     return () => media.removeEventListener('change', atualizar)
+  }, [])
+
+  useEffect(() => {
+    let ativo = true
+    void obterBannerPropostaPublica()
+      .then((configuracao) => {
+        if (ativo && configuracao.url) setBannerUrl(configuracao.url)
+      })
+      .catch(() => {})
+    return () => {
+      ativo = false
+    }
   }, [])
 
   const acessar = async (nome: string, preflightPublicacaoId = publicacaoId) => {
@@ -437,8 +451,9 @@ export default function PropostaPublica() {
           )}
         </header>
         <img
-          src="/proposta-banner.jpg"
+          src={bannerUrl}
           alt="PMais — Terceirize com a gente"
+          onError={() => setBannerUrl('/proposta-banner.jpg')}
           className="block h-auto w-full rounded-lg border object-contain shadow-sm"
         />
         <Card>
