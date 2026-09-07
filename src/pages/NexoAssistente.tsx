@@ -119,7 +119,9 @@ export default function NexoAssistente() {
     () =>
       acoes.filter(
         (acao) =>
-          !contextoSelecionado || acao.contexto === 'todos' || acao.contexto === contextoSelecionado,
+          !contextoSelecionado ||
+          acao.contexto === 'todos' ||
+          acao.contexto === contextoSelecionado,
       ),
     [contextoSelecionado],
   )
@@ -138,9 +140,9 @@ export default function NexoAssistente() {
               <Bot aria-hidden="true" className="h-8 w-8 text-violet-200" /> Assistente Nexo
             </h2>
             <p className="mt-3 text-sm leading-6 text-violet-100/90">
-              Apoio comercial para analisar oportunidades, sugerir abordagens, organizar
-              follow-ups e preparar mensagens. O Nexo recomenda; o operador valida antes de
-              qualquer contato com o cliente.
+              Apoio comercial para analisar oportunidades, sugerir abordagens, organizar follow-ups
+              e preparar mensagens. O Nexo recomenda; o operador valida antes de qualquer contato
+              com o cliente.
             </p>
           </div>
           <Badge className="border-violet-300/50 bg-white/10 text-violet-50 hover:bg-white/10">
@@ -164,8 +166,8 @@ export default function NexoAssistente() {
           <CardHeader>
             <CardTitle>1. Escolha o contexto comercial</CardTitle>
             <CardDescription>
-              Quando o Nexo for aberto a partir de um registro, esta seleção virá preenchida.
-              Pelo menu geral, o operador escolhe antes de agir.
+              Quando o Nexo for aberto a partir de um registro, esta seleção virá preenchida. Pelo
+              menu geral, o operador escolhe antes de agir.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
@@ -192,7 +194,9 @@ export default function NexoAssistente() {
                     </span>
                     <span>
                       <span className="block font-semibold text-slate-950">{contexto.titulo}</span>
-                      <span className="mt-1 block text-sm text-slate-600">{contexto.descricao}</span>
+                      <span className="mt-1 block text-sm text-slate-600">
+                        {contexto.descricao}
+                      </span>
                     </span>
                   </span>
                 </button>
@@ -205,8 +209,8 @@ export default function NexoAssistente() {
           <CardHeader>
             <CardTitle>2. Escolha a ação guiada</CardTitle>
             <CardDescription>
-              O catálogo inicial combina follow-up comercial, abordagem assistida e próximos
-              passos dentro das diretrizes da PMais.
+              O catálogo inicial combina follow-up comercial, abordagem assistida e próximos passos
+              dentro das diretrizes da PMais.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
