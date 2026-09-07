@@ -18,6 +18,7 @@ import Propostas from './pages/Propostas'
 import Fechamentos from './pages/Fechamentos'
 import OrdensExecucao from './pages/OrdensExecucao'
 import PropostaPublica from './pages/PropostaPublica'
+import NexoAssistente from './pages/NexoAssistente'
 
 import NotFound from './pages/NotFound'
 import AccessDenied from './pages/AccessDenied'
@@ -83,6 +84,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Pipeline />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/nexo"
+                element={
+                  <ProtectedRoute>
+                    <NexoAssistente />
                   </ProtectedRoute>
                 }
               />
