@@ -125,6 +125,7 @@ routerAdd(
       }
     }
 
+    // Leitura dos parâmetros de query via e.requestInfo().query (padrão PocketBase JSVM)
     var queryInfo = e.requestInfo().query || {}
     var titularId = queryInfo.titular_id || ''
     var q = queryInfo.q || ''
