@@ -110,7 +110,7 @@ export function toQueryParams(params: Record<string, unknown>): Record<string, s
 export async function criarSubstituicao(
   payload: CriarSubstituicaoPayload,
 ): Promise<{ id: string }> {
-  assertMutationsEnabled('/backend/v1/substituicoes/criar')
+  assertMutationsEnabled('/backend/v1/substituicoes/criar-v2')
   return pb.send('/backend/v1/substituicoes/criar-v2', {
     method: 'POST',
     body: JSON.stringify(payload),

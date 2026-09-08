@@ -15,10 +15,11 @@ routerAdd(
     }
 
     function norm(value) {
-      return String(value || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
+      // PocketBase JSVM/Goja nem sempre expõe String.prototype.normalize.
+      // Manter busca case-insensitive sem acento é desejável, mas a rota não
+      // pode cair por falta desse método no runtime. A busca segue funcional
+      // por caixa e os nomes já retornam íntegros no label humano.
+      return String(value || '').toLowerCase()
     }
 
     function getPerfilSlug(userRec) {
