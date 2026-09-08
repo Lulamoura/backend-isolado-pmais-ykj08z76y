@@ -52,6 +52,10 @@ function nestedString(obj: unknown, key: string): string {
     : ''
 }
 
+function ownString(obj: Record<string, unknown>, key: string): string {
+  return typeof obj[key] === 'string' ? (obj[key] as string) : ''
+}
+
 function isGenericTitulo(titulo: string): boolean {
   return titulo.trim().toLowerCase() === 'proposta qualificada'
 }
@@ -72,17 +76,27 @@ function optionMatchesQuery(option: NegocioOption, rawQuery: string): boolean {
 }
 
 export function negocioLabel(rec: Record<string, unknown>): NegocioOption {
-  const titulo = typeof rec['titulo'] === 'string' ? (rec['titulo'] as string) : ''
+  const prebuiltLabel = ownString(rec, 'label')
+  const prebuiltSubtitle = ownString(rec, 'subtitle')
+  if (prebuiltLabel) {
+    return {
+      id: rec.id as string,
+      label: prebuiltLabel,
+      subtitle: prebuiltSubtitle,
+    }
+  }
+
+  const titulo = ownString(rec, 'titulo')
   const expand =
     typeof rec['expand'] === 'object' && rec['expand']
       ? (rec['expand'] as Record<string, unknown>)
       : {}
-  const empresa = nestedString(expand['empresa_id'], 'nome')
-  const contato = nestedString(expand['contato_principal_id'], 'nome')
-  const oeNumero = typeof rec['oe_numero'] === 'string' ? (rec['oe_numero'] as string) : ''
-  const externalId = typeof rec['external_id'] === 'string' ? (rec['external_id'] as string) : ''
-  const etapa =
-    typeof rec['etapa'] === 'string' ? (rec['etapa'] as string).replaceAll('_', ' ') : ''
+  const empresa = nestedString(expand['empresa_id'], 'nome') || ownString(rec, 'empresa_nome')
+  const contato =
+    nestedString(expand['contato_principal_id'], 'nome') || ownString(rec, 'contato_nome')
+  const oeNumero = ownString(rec, 'oe_numero')
+  const externalId = ownString(rec, 'external_id')
+  const etapa = ownString(rec, 'etapa').replaceAll('_', ' ')
   const id = rec.id as string
   const businessId = oeNumero || externalId
   const labelParts = [

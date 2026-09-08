@@ -288,7 +288,7 @@ export default function SubstituicaoDetalhe() {
                     {data.negocios_cobertos.map((n) => (
                       <li key={n.id} className="text-sm text-foreground flex items-center gap-2">
                         <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                        {n.titulo}
+                        {n.label || n.titulo}
                       </li>
                     ))}
                   </ul>
