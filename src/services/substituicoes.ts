@@ -111,7 +111,7 @@ export async function criarSubstituicao(
   payload: CriarSubstituicaoPayload,
 ): Promise<{ id: string }> {
   assertMutationsEnabled('/backend/v1/substituicoes/criar')
-  return pb.send('/backend/v1/substituicoes/criar', {
+  return pb.send('/backend/v1/substituicoes/criar-v2', {
     method: 'POST',
     body: JSON.stringify(payload),
     headers: { 'Content-Type': 'application/json' },
