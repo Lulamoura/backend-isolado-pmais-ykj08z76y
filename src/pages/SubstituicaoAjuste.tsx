@@ -29,7 +29,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 const ID_REGEX = /^[a-z0-9]{15}$/
 
 type TipoCobertura = 'integral' | 'por_negocios'
-type Motivo = 'ferias' | 'licenca' | 'falta'
+type Motivo = 'ferias' | 'licenca' | 'falta' | 'suporte_interno'
 
 function DatePickerField({
   value,
@@ -257,6 +257,7 @@ export default function SubstituicaoAjuste() {
                     <SelectItem value="ferias">Férias</SelectItem>
                     <SelectItem value="licenca">Licença</SelectItem>
                     <SelectItem value="falta">Falta</SelectItem>
+                    <SelectItem value="suporte_interno">Suporte Interno</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -307,7 +308,12 @@ export default function SubstituicaoAjuste() {
                   value={negocios}
                   onChange={(ids) => setNegocios(ids)}
                   placeholder="Selecionar negócios"
+                  titularId={data.titular?.id}
+                  onlyOpen
                 />
+                <p className="text-xs text-muted-foreground">
+                  A lista mostra apenas negócios abertos do titular selecionado.
+                </p>
               </div>
             )}
 

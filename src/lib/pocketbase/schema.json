@@ -2965,7 +2965,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["ferias", "licenca", "falta"]
+          "selectValues": ["ferias", "licenca", "falta", "suporte_interno"]
         },
         {
           "name": "observacao",

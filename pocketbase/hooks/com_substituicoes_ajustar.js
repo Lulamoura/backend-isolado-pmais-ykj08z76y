@@ -737,6 +737,13 @@ routerAdd(
             if (negRec.getString('responsavel_id') !== atualObj.titular_id) {
               throw new Error('I4_RESPONSAVEL')
             }
+            if (
+              negRec.getBool('inativo') ||
+              negRec.getString('status') ||
+              negRec.getString('resultado')
+            ) {
+              throw new Error('I4_NEGOCIO_FECHADO')
+            }
           }
         }
 
@@ -882,7 +889,8 @@ routerAdd(
       if (
         txError.indexOf('INVARIANTE') !== -1 ||
         txError.indexOf('I4_NEGOCIO_INEXISTENTE') !== -1 ||
-        txError.indexOf('I4_RESPONSAVEL') !== -1
+        txError.indexOf('I4_RESPONSAVEL') !== -1 ||
+        txError.indexOf('I4_NEGOCIO_FECHADO') !== -1
       ) {
         var invMsg = 'Invariante violada'
         var invErrs = []
@@ -892,6 +900,9 @@ routerAdd(
         } else if (txError.indexOf('I4_RESPONSAVEL') !== -1) {
           invErrs.push('I4')
           invMsg = 'I4: negocio nao pertence ao titular'
+        } else if (txError.indexOf('I4_NEGOCIO_FECHADO') !== -1) {
+          invErrs.push('I4')
+          invMsg = 'I4: negocio nao esta aberto'
         }
         return e.json(400, {
           error: 'INVARIANTE',

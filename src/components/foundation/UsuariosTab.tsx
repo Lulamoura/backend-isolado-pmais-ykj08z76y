@@ -139,7 +139,7 @@ export function UsuariosTab() {
                         userName: r.name || r.email,
                       })
                     }
-                    title="Alterar Senha"
+                    title={r.id === user?.id ? 'Alterar Senha' : 'Resetar Senha'}
                   >
                     <KeyRound className="h-4 w-4" />
                   </Button>

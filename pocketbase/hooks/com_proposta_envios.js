@@ -20,10 +20,44 @@ routerAdd(
         return ''
       }
     }
+    function hojeRecife() {
+      return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    }
+    function listaContem(lista, id) {
+      if (!lista || !id) return false
+      if (Array.isArray(lista)) return lista.indexOf(id) >= 0
+      return String(lista).indexOf(id) >= 0
+    }
+    function substituicaoAutoriza(app, user, negocio) {
+      var titularId = negocio.getString('responsavel_id')
+      if (!titularId || !user || !user.id) return false
+      try {
+        var hoje = hojeRecife()
+        var filtro =
+          "titular_id='" +
+          titularId +
+          "' && cancelada_em = null && data_inicio <= '" +
+          hoje +
+          "' && data_fim >= '" +
+          hoje +
+          "' && (substituto_principal_id='" +
+          user.id +
+          "' || substituto_reserva_id='" +
+          user.id +
+          "')"
+        var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
+        for (var i = 0; i < subs.length; i++) {
+          if (subs[i].getString('tipo_cobertura') === 'integral') return true
+          if (listaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
+        }
+      } catch (_) {}
+      return false
+    }
     function podeAcessar(user, slug, negocio) {
       if (slug === 'superadministrador') return true
       if (slug === 'leitura-executiva' || slug === 'negociacao-propria') return false
       if (negocio.getString('responsavel_id') === user.id) return true
+      if (substituicaoAutoriza($app, user, negocio)) return true
       return (
         !!user.getString('equipe_id') &&
         negocio.getString('equipe_id') === user.getString('equipe_id')
@@ -216,9 +250,43 @@ routerAdd(
         return ''
       }
     }
+    function hojeRecife() {
+      return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    }
+    function listaContem(lista, id) {
+      if (!lista || !id) return false
+      if (Array.isArray(lista)) return lista.indexOf(id) >= 0
+      return String(lista).indexOf(id) >= 0
+    }
+    function substituicaoAutoriza(app, user, negocio) {
+      var titularId = negocio.getString('responsavel_id')
+      if (!titularId || !user || !user.id) return false
+      try {
+        var hoje = hojeRecife()
+        var filtro =
+          "titular_id='" +
+          titularId +
+          "' && cancelada_em = null && data_inicio <= '" +
+          hoje +
+          "' && data_fim >= '" +
+          hoje +
+          "' && (substituto_principal_id='" +
+          user.id +
+          "' || substituto_reserva_id='" +
+          user.id +
+          "')"
+        var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
+        for (var i = 0; i < subs.length; i++) {
+          if (subs[i].getString('tipo_cobertura') === 'integral') return true
+          if (listaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
+        }
+      } catch (_) {}
+      return false
+    }
     function podeAcessar(user, slug, negocio) {
       if (slug === 'superadministrador') return true
       if (slug === 'leitura-executiva' || slug === 'negociacao-propria') return false
+      if (substituicaoAutoriza($app, user, negocio)) return true
       return (
         negocio.getString('responsavel_id') === user.id ||
         (!!user.getString('equipe_id') &&

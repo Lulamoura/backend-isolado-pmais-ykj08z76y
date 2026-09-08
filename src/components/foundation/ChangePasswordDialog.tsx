@@ -67,7 +67,7 @@ export function ChangePasswordDialog({
           <DialogTitle>
             {requireOldPassword
               ? 'Alterar Minha Senha'
-              : `Alterar Senha${userName ? ' — ' + userName : ''}`}
+              : `Resetar Senha${userName ? ' — ' + userName : ''}`}
           </DialogTitle>
         </DialogHeader>
         {success && (
@@ -109,7 +109,7 @@ export function ChangePasswordDialog({
             )}
           </div>
           <Button onClick={submit} className="w-full">
-            Alterar Senha
+            {requireOldPassword ? 'Alterar Senha' : 'Resetar Senha'}
           </Button>
         </div>
       </DialogContent>

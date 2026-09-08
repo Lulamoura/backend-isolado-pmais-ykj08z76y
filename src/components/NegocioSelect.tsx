@@ -17,6 +17,7 @@ import { escapeFilter } from './UserSelect'
 export interface NegocioOption {
   id: string
   titulo: string
+  subtitle?: string
 }
 
 export interface NegocioSelectProps {
@@ -24,16 +25,44 @@ export interface NegocioSelectProps {
   onChange: (ids: string[]) => void
   placeholder?: string
   disabled?: boolean
+  titularId?: string
+  onlyOpen?: boolean
 }
 
-export function NegocioSelect({ value, onChange, placeholder, disabled }: NegocioSelectProps) {
+function negocioLabel(rec: Record<string, unknown>): NegocioOption {
+  const titulo = typeof rec['titulo'] === 'string' ? (rec['titulo'] as string) : ''
+  const empresa =
+    typeof rec['expand'] === 'object' &&
+    rec['expand'] &&
+    typeof (rec['expand'] as Record<string, any>)['empresa_id'] === 'object'
+      ? ((rec['expand'] as Record<string, any>)['empresa_id']?.nome as string | undefined)
+      : undefined
+  const oeNumero = typeof rec['oe_numero'] === 'string' ? (rec['oe_numero'] as string) : ''
+  const etapa =
+    typeof rec['etapa'] === 'string' ? (rec['etapa'] as string).replaceAll('_', ' ') : ''
+  const parts = [empresa, oeNumero ? `OE ${oeNumero}` : '', etapa].filter(Boolean)
+
+  return {
+    id: rec.id as string,
+    titulo,
+    subtitle: parts.join(' · '),
+  }
+}
+
+export function NegocioSelect({
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  titularId,
+  onlyOpen,
+}: NegocioSelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<NegocioOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const [nameMap, setNameMap] = useState<Record<string, string>>({})
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reqIdRef = useRef(0)
   const resolvedRef = useRef<string>('')
 
@@ -49,7 +78,10 @@ export function NegocioSelect({ value, onChange, placeholder, disabled }: Negoci
       missing.map((id) =>
         pb
           .collection('com_negocios')
-          .getOne(id, { fields: 'id,titulo' })
+          .getOne(id, {
+            expand: 'empresa_id',
+            fields: 'id,titulo,etapa,oe_numero,expand.empresa_id.nome',
+          })
           .catch(() => null),
       ),
     ).then((recs) => {
@@ -58,8 +90,8 @@ export function NegocioSelect({ value, onChange, placeholder, disabled }: Negoci
         const next = { ...prev }
         for (const rec of recs) {
           if (!rec) continue
-          const t = rec['titulo']
-          if (typeof t === 'string') next[rec.id] = t
+          const option = negocioLabel(rec as Record<string, unknown>)
+          next[option.id] = [option.titulo, option.subtitle].filter(Boolean).join(' — ')
         }
         return next
       })
@@ -67,42 +99,46 @@ export function NegocioSelect({ value, onChange, placeholder, disabled }: Negoci
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
-  // Busca sob demanda com debounce de 300ms
+  // Busca sob demanda quando o seletor é aberto ou o filtro muda.
   useEffect(() => {
     if (!open) return
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      const rid = ++reqIdRef.current
-      setLoading(true)
-      setError(false)
-      const filter = query.trim() ? `titulo~"${escapeFilter(query)}"` : ''
-      pb.collection('com_negocios')
-        .getList(1, 20, { filter, fields: 'id,titulo', sort: 'titulo' })
-        .then((res) => {
-          if (rid !== reqIdRef.current) return
-          const mapped = res.items.map((r) => ({
-            id: r.id,
-            titulo: typeof r['titulo'] === 'string' ? (r['titulo'] as string) : '',
-          }))
-          setItems(mapped)
-          setNameMap((prev) => {
-            const next = { ...prev }
-            for (const m of mapped) next[m.id] = m.titulo
-            return next
-          })
-          setLoading(false)
-        })
-        .catch(() => {
-          if (rid !== reqIdRef.current) return
-          setError(true)
-          setLoading(false)
-          setItems([])
-        })
-    }, 300)
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
+    const rid = ++reqIdRef.current
+    setLoading(true)
+    setError(false)
+    const filters: string[] = []
+    if (query.trim()) filters.push(`titulo~"${escapeFilter(query)}"`)
+    if (titularId) filters.push(`responsavel_id="${escapeFilter(titularId)}"`)
+    if (onlyOpen) {
+      filters.push('inativo != true')
+      filters.push('status = ""')
+      filters.push('resultado = ""')
     }
-  }, [open, query])
+    const filter = filters.join(' && ')
+    pb.collection('com_negocios')
+      .getList(1, 50, {
+        filter,
+        expand: 'empresa_id',
+        fields: 'id,titulo,etapa,oe_numero,expand.empresa_id.nome',
+        sort: '-updated',
+      })
+      .then((res) => {
+        if (rid !== reqIdRef.current) return
+        const mapped = res.items.map((r) => negocioLabel(r as Record<string, unknown>))
+        setItems(mapped)
+        setNameMap((prev) => {
+          const next = { ...prev }
+          for (const m of mapped) next[m.id] = [m.titulo, m.subtitle].filter(Boolean).join(' — ')
+          return next
+        })
+        setLoading(false)
+      })
+      .catch(() => {
+        if (rid !== reqIdRef.current) return
+        setError(true)
+        setLoading(false)
+        setItems([])
+      })
+  }, [open, query, titularId, onlyOpen])
 
   const toggle = (id: string) => {
     if (value.includes(id)) onChange(value.filter((v) => v !== id))
@@ -178,7 +214,14 @@ export function NegocioSelect({ value, onChange, placeholder, disabled }: Negoci
                         >
                           {selected && <Check className="h-3 w-3" />}
                         </div>
-                        <span className="truncate">{item.titulo}</span>
+                        <div className="min-w-0">
+                          <div className="truncate">{item.titulo}</div>
+                          {item.subtitle && (
+                            <div className="truncate text-xs text-muted-foreground">
+                              {item.subtitle}
+                            </div>
+                          )}
+                        </div>
                       </CommandItem>
                     )
                   })}
