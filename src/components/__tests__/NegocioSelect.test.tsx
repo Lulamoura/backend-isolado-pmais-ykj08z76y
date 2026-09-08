@@ -83,6 +83,19 @@ describe('NegocioSelect', () => {
     expect(getList).not.toHaveBeenCalled()
   })
 
+  it('preserva label humano já montado pelo endpoint de cobertura', () => {
+    expect(
+      negocioLabel({
+        id: 'rt8y7pqe55dzvbk',
+        label: 'Autonunes Chevrolet Prazeres — Maria Cliente — ID 4821',
+        subtitle: 'negociacao',
+        external_id: '4821',
+        empresa_nome: 'Autonunes Chevrolet Prazeres',
+        contato_nome: 'Maria Cliente',
+      }).label,
+    ).toBe('Autonunes Chevrolet Prazeres — Maria Cliente — ID 4821')
+  })
+
   it('filtra por negócios abertos do titular quando solicitado', async () => {
     const filter = buildNegocioFilter('', 'titular123', true)
     expect(filter).toContain('responsavel_id="titular123"')

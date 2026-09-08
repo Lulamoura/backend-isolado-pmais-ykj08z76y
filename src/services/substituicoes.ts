@@ -72,7 +72,7 @@ export interface ConsultaSubstituicoesResponse {
 }
 
 export interface SubstituicaoView extends SubstituicaoItem {
-  negocios_cobertos: Array<{ id: string; titulo: string }>
+  negocios_cobertos: Array<{ id: string; titulo: string; label?: string; subtitle?: string }>
   observacao: string | null
   justificativa_cancelamento: string | null
   autor: { id: string; name: string } | null

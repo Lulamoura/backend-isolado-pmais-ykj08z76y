@@ -178,6 +178,28 @@ describe('SubstituicaoDetalhe', () => {
     expect(screen.getByText('Futura')).toBeInTheDocument()
   })
 
+  it('exibe label humano dos negócios vinculados, não apenas o título genérico', async () => {
+    _useParams.mockReturnValue({ id: VALID_ID })
+    obterSubstituicaoMock.mockResolvedValue({
+      ...FIXTURE_VIEW,
+      tipo_cobertura: 'por_negocios',
+      negocios_cobertos: [
+        {
+          id: 'negocio00000001',
+          titulo: 'Proposta Qualificada',
+          label: 'Autonunes Chevrolet Prazeres — Maria Cliente — ID 4821',
+        },
+      ],
+    })
+
+    render(<SubstituicaoDetalhe />)
+
+    expect(
+      await screen.findByText('Autonunes Chevrolet Prazeres — Maria Cliente — ID 4821'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^Proposta Qualificada$/)).not.toBeInTheDocument()
+  })
+
   // 4) gate fechado (MUTATIONS_ENABLED=false): não exibe botões de ação.
   it('não exibe botões de ação (ajustar/cancelar) com gate fechado (MUTATIONS_ENABLED=false)', async () => {
     ffState.MUTATIONS_ENABLED = false

@@ -367,10 +367,69 @@ routerAdd(
           0,
         )
         for (var j = 0; j < recs.length; j++) {
-          map[recs[j].id] = { id: recs[j].id, titulo: recs[j].getString('titulo') }
+          var option = buildNegocioOption(recs[j])
+          map[recs[j].id] = option
         }
       } catch (_) {}
       return map
+    }
+
+    function findNome(collection, id) {
+      if (!id) return ''
+      try {
+        return $app.findRecordById(collection, id).getString('nome') || ''
+      } catch (_) {
+        return ''
+      }
+    }
+
+    function findExternalBusinessId(negocioId) {
+      try {
+        var vinculos = $app.findRecordsByFilter(
+          'com_vinculos_externos',
+          "collection_name = 'com_negocios' && record_id = '" +
+            negocioId +
+            "' && sistema_origem = 'activecampaign' && external_type = 'business'",
+          '',
+          1,
+          0,
+        )
+        if (vinculos && vinculos.length > 0) return vinculos[0].getString('external_id') || ''
+      } catch (_) {}
+      return ''
+    }
+
+    function isGenericTitulo(titulo) {
+      return (
+        String(titulo || '')
+          .trim()
+          .toLowerCase() === 'proposta qualificada'
+      )
+    }
+
+    function buildNegocioOption(rec) {
+      var titulo = rec.getString('titulo')
+      var empresa = findNome('com_empresas', rec.getString('empresa_id'))
+      var contato = findNome('com_contatos', rec.getString('contato_principal_id'))
+      var oe = rec.getString('oe_numero') || ''
+      var external = findExternalBusinessId(rec.id) || rec.getString('external_id') || ''
+      var etapa = rec.getString('etapa').replace(/_/g, ' ')
+      var identificador = oe || external
+      var labelParts = []
+      if (empresa) labelParts.push(empresa)
+      else if (titulo && !isGenericTitulo(titulo)) labelParts.push(titulo)
+      if (contato) labelParts.push(contato)
+      if (identificador) labelParts.push('ID ' + identificador)
+      var subtitleParts = []
+      if (!empresa && isGenericTitulo(titulo)) subtitleParts.push(titulo)
+      if (!identificador) subtitleParts.push('Sem ID externo')
+      if (etapa) subtitleParts.push(etapa)
+      return {
+        id: rec.id,
+        titulo: titulo,
+        label: labelParts.join(' — ') || titulo || 'Negocio sem identificacao',
+        subtitle: subtitleParts.join(' · '),
+      }
     }
 
     function shapeItem(rec, userMap, hoje) {
