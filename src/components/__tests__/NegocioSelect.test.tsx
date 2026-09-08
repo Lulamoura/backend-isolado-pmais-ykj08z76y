@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 // ── Mocks (registrados ANTES de importar o SUT) ─────────────────────
@@ -28,7 +28,12 @@ vi.mock('@/hooks/use-is-superadmin', () => ({
   }),
 }))
 
-import { NegocioSelect } from '@/components/NegocioSelect'
+import {
+  buildNegocioFilter,
+  NEGOCIO_EXPAND,
+  NEGOCIO_FIELDS,
+  NegocioSelect,
+} from '@/components/NegocioSelect'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -43,44 +48,63 @@ afterEach(() => {
 
 describe('NegocioSelect', () => {
   it('verifica que a busca carrega campos suficientes para identificar o negócio', async () => {
-    render(<NegocioSelect value={[]} onChange={() => {}} />)
-    fireEvent.click(screen.getByRole('combobox', { name: 'Selecionar negócios' }))
-    await waitFor(() => {
-      expect(getList).toHaveBeenCalled()
-    })
-    const opts = getList.mock.calls[0][2] as Record<string, unknown>
-    expect(opts.fields).toBe('id,titulo,etapa,oe_numero,expand.empresa_id.nome')
-    expect(opts.expand).toBe('empresa_id')
+    expect(NEGOCIO_FIELDS).toBe(
+      'id,titulo,etapa,oe_numero,external_id,expand.empresa_id.nome,expand.contato_principal_id.nome',
+    )
+    expect(NEGOCIO_EXPAND).toBe('empresa_id,contato_principal_id')
   })
 
   it('verifica getList(1, 50, ...) — paginação 50', async () => {
-    render(<NegocioSelect value={[]} onChange={() => {}} />)
-    fireEvent.click(screen.getByRole('combobox', { name: 'Selecionar negócios' }))
-    await waitFor(() => {
-      expect(getList).toHaveBeenCalled()
-    })
+    render(<NegocioSelect value={[]} onChange={() => {}} initialOpen />)
+    await Promise.resolve()
+    await Promise.resolve()
     const args = getList.mock.calls[0]
     expect(args[0]).toBe(1)
     expect(args[1]).toBe(50)
   })
 
   it('filtra por negócios abertos do titular quando solicitado', async () => {
-    render(<NegocioSelect value={[]} onChange={() => {}} titularId="titular123" onlyOpen />)
-    fireEvent.click(screen.getByRole('combobox', { name: 'Selecionar negócios' }))
-    await waitFor(() => expect(getList).toHaveBeenCalled())
+    const filter = buildNegocioFilter('', 'titular123', true)
+    expect(filter).toContain('responsavel_id="titular123"')
+    expect(filter).toContain('inativo != true')
+    expect(filter).toContain('status = ""')
+    expect(filter).toContain('resultado = ""')
+  })
 
-    const opts = getList.mock.calls[0][2] as Record<string, string>
-    expect(opts.filter).toContain('responsavel_id="titular123"')
-    expect(opts.filter).toContain('inativo != true')
-    expect(opts.filter).toContain('status = ""')
-    expect(opts.filter).toContain('resultado = ""')
+  it('usa empresa, contato e ID como identificação principal quando o título é genérico', async () => {
+    getOne.mockResolvedValue({
+      id: 'neg-123',
+      titulo: 'Proposta Qualificada',
+      external_id: '4821',
+      etapa: 'negociacao',
+      expand: {
+        empresa_id: { nome: 'Autonunes Chevrolet Prazeres' },
+        contato_principal_id: { nome: 'Maria Cliente' },
+      },
+    })
+    render(<NegocioSelect value={['neg-123']} onChange={() => {}} />)
+    expect(
+      await screen.findByText(
+        'Autonunes Chevrolet Prazeres — Maria Cliente — ID 4821 — negociacao',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^Proposta Qualificada/)).not.toBeInTheDocument()
+  })
+
+  it('mantém a busca por empresa/contato no cliente para evitar filtro inválido no PocketBase', async () => {
+    const filter = buildNegocioFilter('Autonunes', 'titular123', true)
+    expect(filter).toContain('responsavel_id="titular123"')
+    expect(filter).toContain('inativo != true')
+    expect(filter).not.toContain('empresa_id.nome')
+    expect(filter).not.toContain('contato_principal_id.nome')
+    expect(filter).not.toContain('external_id~')
   })
 
   it('multi-seleção: badges aparecem para itens selecionados', async () => {
     getOne.mockResolvedValue({ id: 'n1', titulo: 'Negócio Alpha' })
     render(<NegocioSelect value={['n1']} onChange={() => {}} />)
     // O badge é renderizado com o título resolvido via getOne
-    expect(await screen.findByText('Negócio Alpha')).toBeInTheDocument()
+    expect(await screen.findByText('Negócio Alpha — ID n1')).toBeInTheDocument()
   })
 
   it('remoção: clicar no X remove o item', async () => {
