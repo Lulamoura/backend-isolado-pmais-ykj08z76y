@@ -33,6 +33,7 @@ export interface NegocioSelectProps {
 export const NEGOCIO_EXPAND = 'empresa_id,contato_principal_id'
 export const NEGOCIO_FIELDS =
   'id,titulo,etapa,oe_numero,external_id,expand.empresa_id.nome,expand.contato_principal_id.nome'
+export const NEGOCIO_OPCOES_COBERTURA_PATH = '/backend/v1/negocios/opcoes-cobertura'
 
 export function buildNegocioFilter(_query: string, titularId?: string, onlyOpen?: boolean): string {
   const filters: string[] = []
@@ -70,7 +71,7 @@ function optionMatchesQuery(option: NegocioOption, rawQuery: string): boolean {
   ).includes(query)
 }
 
-function negocioLabel(rec: Record<string, unknown>): NegocioOption {
+export function negocioLabel(rec: Record<string, unknown>): NegocioOption {
   const titulo = typeof rec['titulo'] === 'string' ? (rec['titulo'] as string) : ''
   const expand =
     typeof rec['expand'] === 'object' && rec['expand']
@@ -83,7 +84,7 @@ function negocioLabel(rec: Record<string, unknown>): NegocioOption {
   const etapa =
     typeof rec['etapa'] === 'string' ? (rec['etapa'] as string).replaceAll('_', ' ') : ''
   const id = rec.id as string
-  const businessId = oeNumero || externalId || id
+  const businessId = oeNumero || externalId
   const labelParts = [
     empresa || (!isGenericTitulo(titulo) ? titulo : ''),
     contato,
@@ -97,7 +98,7 @@ function negocioLabel(rec: Record<string, unknown>): NegocioOption {
 
   return {
     id,
-    label: labelParts.join(' — ') || titulo || id,
+    label: labelParts.join(' — ') || titulo || 'Negócio sem identificação',
     subtitle: subtitleParts.join(' · '),
   }
 }
@@ -159,14 +160,16 @@ export function NegocioSelect({
     const rid = ++reqIdRef.current
     setLoading(true)
     setError(false)
-    const filter = buildNegocioFilter(query, titularId, onlyOpen)
-    pb.collection('com_negocios')
-      .getList(1, 50, {
-        filter,
-        expand: NEGOCIO_EXPAND,
-        fields: NEGOCIO_FIELDS,
-        sort: '-updated',
-      })
+    const useCoberturaEndpoint = !!titularId && !!onlyOpen
+    const request = useCoberturaEndpoint
+      ? pb.send(NEGOCIO_OPCOES_COBERTURA_PATH, {
+          method: 'GET',
+          query: { titular_id: titularId, q: query },
+        })
+      : pb.collection('com_negocios').getList(1, 50, {
+          filter: buildNegocioFilter(query, titularId, onlyOpen),
+        })
+    request
       .then((res) => {
         if (rid !== reqIdRef.current) return
         const mapped = res.items.map((r) => negocioLabel(r as Record<string, unknown>))

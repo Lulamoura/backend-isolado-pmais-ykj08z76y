@@ -59,7 +59,7 @@ describe('paths', () => {
     )
   })
 
-  it('criarSubstituicao(payload) chama pb.send com path /criar e method POST', async () => {
+  it('criarSubstituicao(payload) chama pb.send com path /criar-v2 e method POST', async () => {
     await criarSubstituicao({
       command_idempotency_key: 'k1',
       creation_idempotency_key: 'k2',
@@ -74,7 +74,7 @@ describe('paths', () => {
       observacao: null,
     })
     expect(pbSend).toHaveBeenCalledWith(
-      '/backend/v1/substituicoes/criar',
+      '/backend/v1/substituicoes/criar-v2',
       expect.objectContaining({ method: 'POST' }),
     )
   })
