@@ -351,10 +351,7 @@ function sugestaoPorAcao(
         'Prazo de decisão.',
         'Concorrente/comparativo, se houver.',
       ],
-      proximosPassos: [
-        'Registrar resultado da ligação.',
-        'Criar follow-up com dono e data.',
-      ],
+      proximosPassos: ['Registrar resultado da ligação.', 'Criar follow-up com dono e data.'],
       cuidados: [
         'Não transformar ligação em pressão comercial.',
         'Não negociar condição sem limite autorizado.',
@@ -616,7 +613,9 @@ export default function NexoAssistente() {
               setSugestao(null)
             }}
             placeholder={
-              contextoSelecionado ? exemplosOrientacao[contextoSelecionado] : 'Escolha um contexto para ver um exemplo.'
+              contextoSelecionado
+                ? exemplosOrientacao[contextoSelecionado]
+                : 'Escolha um contexto para ver um exemplo.'
             }
             className="min-h-28"
           />
@@ -676,9 +675,9 @@ export default function NexoAssistente() {
                 <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
                 <AlertTitle>Valor esperado para o time</AlertTitle>
                 <AlertDescription>
-                  A sugestão já entrega material de trabalho para o operador revisar, adaptar e usar.
-                  A próxima evolução será conectar esta resposta aos dados reais do Prospect ou da
-                  Proposta.
+                  A sugestão já entrega material de trabalho para o operador revisar, adaptar e
+                  usar. A próxima evolução será conectar esta resposta aos dados reais do Prospect
+                  ou da Proposta.
                 </AlertDescription>
               </Alert>
             </div>
@@ -689,7 +688,8 @@ export default function NexoAssistente() {
               <Sparkles aria-hidden="true" className="mr-2 h-4 w-4" /> Gerar sugestão assistida
             </Button>
             <Button variant="outline" disabled>
-              <ClipboardList aria-hidden="true" className="mr-2 h-4 w-4" /> Salvar no histórico — gate futuro
+              <ClipboardList aria-hidden="true" className="mr-2 h-4 w-4" /> Salvar no histórico —
+              gate futuro
             </Button>
             <Button variant="outline" disabled>
               Copiar mensagem — gate futuro
