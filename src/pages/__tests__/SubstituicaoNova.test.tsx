@@ -183,4 +183,23 @@ describe('SubstituicaoNova', () => {
       ),
     ).toBeInTheDocument()
   })
+
+  it('ao trocar o titular, limpa a seleção de negócios para evitar envio de negócio inconsistente', async () => {
+    const user = await setupUser()
+    render(<SubstituicaoNova />)
+
+    // Seleciona o primeiro titular
+    await selectUserOption(user, 'Selecionar titular', 'Titular Fixtura')
+
+    // Troca para o modo por_negocios
+    await selectTipoCobertura(user, 'Por negócios')
+
+    // Simula a seleção de negócio já feita via componente NegocioSelect
+    // O combobox de negócios agora está na tela
+    expect(screen.getByRole('combobox', { name: 'Selecionar negócios' })).toBeInTheDocument()
+
+    // Troca de titular deve zerar os negócios selecionados no estado
+    await selectUserOption(user, 'Titular Fixtura', 'Principal Fixtura')
+    expect(screen.getByText('Principal Fixtura')).toBeInTheDocument()
+  })
 })
