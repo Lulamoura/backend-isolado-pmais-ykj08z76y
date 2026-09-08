@@ -125,8 +125,9 @@ routerAdd(
       }
     }
 
-    var titularId = e.request.URL.query().get('titular_id') || ''
-    var q = e.request.URL.query().get('q') || ''
+    var queryInfo = e.requestInfo().query || {}
+    var titularId = queryInfo.titular_id || ''
+    var q = queryInfo.q || ''
     if (!titularId) return e.json(400, { error: 'VALIDATION', message: 'titular_id obrigatorio' })
 
     var titular = null
