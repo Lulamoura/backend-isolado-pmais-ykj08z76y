@@ -497,7 +497,7 @@ export default function NexoAssistente() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-wide text-violet-200">
-              MVP assistido e contextual
+              Inteligência Comercial - PMais
             </p>
             <h2 className="mt-1 flex items-center gap-3 text-3xl font-extrabold tracking-tight">
               <Bot aria-hidden="true" className="h-8 w-8 text-violet-200" /> Assistente Nexo
