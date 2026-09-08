@@ -16,7 +16,7 @@ import { escapeFilter } from './UserSelect'
 
 export interface NegocioOption {
   id: string
-  titulo: string
+  label: string
   subtitle?: string
 }
 
@@ -27,25 +27,78 @@ export interface NegocioSelectProps {
   disabled?: boolean
   titularId?: string
   onlyOpen?: boolean
+  initialOpen?: boolean
+}
+
+export const NEGOCIO_EXPAND = 'empresa_id,contato_principal_id'
+export const NEGOCIO_FIELDS =
+  'id,titulo,etapa,oe_numero,external_id,expand.empresa_id.nome,expand.contato_principal_id.nome'
+
+export function buildNegocioFilter(_query: string, titularId?: string, onlyOpen?: boolean): string {
+  const filters: string[] = []
+  if (titularId) filters.push(`responsavel_id="${escapeFilter(titularId)}"`)
+  if (onlyOpen) {
+    filters.push('inativo != true')
+    filters.push('status = ""')
+    filters.push('resultado = ""')
+  }
+  return filters.join(' && ')
+}
+
+function nestedString(obj: unknown, key: string): string {
+  return typeof obj === 'object' && obj && typeof (obj as Record<string, unknown>)[key] === 'string'
+    ? ((obj as Record<string, unknown>)[key] as string)
+    : ''
+}
+
+function isGenericTitulo(titulo: string): boolean {
+  return titulo.trim().toLowerCase() === 'proposta qualificada'
+}
+
+function normalizeBusca(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function optionMatchesQuery(option: NegocioOption, rawQuery: string): boolean {
+  const query = normalizeBusca(rawQuery.trim())
+  if (!query) return true
+  return normalizeBusca(
+    [option.label, option.subtitle, option.id].filter(Boolean).join(' '),
+  ).includes(query)
 }
 
 function negocioLabel(rec: Record<string, unknown>): NegocioOption {
   const titulo = typeof rec['titulo'] === 'string' ? (rec['titulo'] as string) : ''
-  const empresa =
-    typeof rec['expand'] === 'object' &&
-    rec['expand'] &&
-    typeof (rec['expand'] as Record<string, any>)['empresa_id'] === 'object'
-      ? ((rec['expand'] as Record<string, any>)['empresa_id']?.nome as string | undefined)
-      : undefined
+  const expand =
+    typeof rec['expand'] === 'object' && rec['expand']
+      ? (rec['expand'] as Record<string, unknown>)
+      : {}
+  const empresa = nestedString(expand['empresa_id'], 'nome')
+  const contato = nestedString(expand['contato_principal_id'], 'nome')
   const oeNumero = typeof rec['oe_numero'] === 'string' ? (rec['oe_numero'] as string) : ''
+  const externalId = typeof rec['external_id'] === 'string' ? (rec['external_id'] as string) : ''
   const etapa =
     typeof rec['etapa'] === 'string' ? (rec['etapa'] as string).replaceAll('_', ' ') : ''
-  const parts = [empresa, oeNumero ? `OE ${oeNumero}` : '', etapa].filter(Boolean)
+  const id = rec.id as string
+  const businessId = oeNumero || externalId || id
+  const labelParts = [
+    empresa || (!isGenericTitulo(titulo) ? titulo : ''),
+    contato,
+    businessId ? `ID ${businessId}` : '',
+  ].filter(Boolean)
+  const subtitleParts = [
+    !empresa && isGenericTitulo(titulo) ? titulo : '',
+    oeNumero && externalId && oeNumero !== externalId ? `Externo ${externalId}` : '',
+    etapa,
+  ].filter(Boolean)
 
   return {
-    id: rec.id as string,
-    titulo,
-    subtitle: parts.join(' · '),
+    id,
+    label: labelParts.join(' — ') || titulo || id,
+    subtitle: subtitleParts.join(' · '),
   }
 }
 
@@ -56,8 +109,9 @@ export function NegocioSelect({
   disabled,
   titularId,
   onlyOpen,
+  initialOpen = false,
 }: NegocioSelectProps) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(initialOpen)
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<NegocioOption[]>([])
   const [loading, setLoading] = useState(false)
@@ -79,8 +133,8 @@ export function NegocioSelect({
         pb
           .collection('com_negocios')
           .getOne(id, {
-            expand: 'empresa_id',
-            fields: 'id,titulo,etapa,oe_numero,expand.empresa_id.nome',
+            expand: NEGOCIO_EXPAND,
+            fields: NEGOCIO_FIELDS,
           })
           .catch(() => null),
       ),
@@ -91,7 +145,7 @@ export function NegocioSelect({
         for (const rec of recs) {
           if (!rec) continue
           const option = negocioLabel(rec as Record<string, unknown>)
-          next[option.id] = [option.titulo, option.subtitle].filter(Boolean).join(' — ')
+          next[option.id] = [option.label, option.subtitle].filter(Boolean).join(' — ')
         }
         return next
       })
@@ -105,29 +159,21 @@ export function NegocioSelect({
     const rid = ++reqIdRef.current
     setLoading(true)
     setError(false)
-    const filters: string[] = []
-    if (query.trim()) filters.push(`titulo~"${escapeFilter(query)}"`)
-    if (titularId) filters.push(`responsavel_id="${escapeFilter(titularId)}"`)
-    if (onlyOpen) {
-      filters.push('inativo != true')
-      filters.push('status = ""')
-      filters.push('resultado = ""')
-    }
-    const filter = filters.join(' && ')
+    const filter = buildNegocioFilter(query, titularId, onlyOpen)
     pb.collection('com_negocios')
       .getList(1, 50, {
         filter,
-        expand: 'empresa_id',
-        fields: 'id,titulo,etapa,oe_numero,expand.empresa_id.nome',
+        expand: NEGOCIO_EXPAND,
+        fields: NEGOCIO_FIELDS,
         sort: '-updated',
       })
       .then((res) => {
         if (rid !== reqIdRef.current) return
         const mapped = res.items.map((r) => negocioLabel(r as Record<string, unknown>))
-        setItems(mapped)
+        setItems(mapped.filter((item) => optionMatchesQuery(item, query)))
         setNameMap((prev) => {
           const next = { ...prev }
-          for (const m of mapped) next[m.id] = [m.titulo, m.subtitle].filter(Boolean).join(' — ')
+          for (const m of mapped) next[m.id] = [m.label, m.subtitle].filter(Boolean).join(' — ')
           return next
         })
         setLoading(false)
@@ -215,7 +261,7 @@ export function NegocioSelect({
                           {selected && <Check className="h-3 w-3" />}
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate">{item.titulo}</div>
+                          <div className="truncate">{item.label}</div>
                           {item.subtitle && (
                             <div className="truncate text-xs text-muted-foreground">
                               {item.subtitle}

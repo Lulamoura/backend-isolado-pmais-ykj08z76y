@@ -176,7 +176,22 @@ export function mapSubstituicaoError(err: unknown): string {
     httpStatus = e.status ?? e.response?.code ?? 0
     codigo = e.response?.error
   }
-  if (httpStatus === 400) return 'Dados inválidos. Verifique os campos e tente novamente.'
+  if (httpStatus === 400) {
+    const msg =
+      err && typeof err === 'object'
+        ? (err as { response?: { message?: string } }).response?.message
+        : ''
+    if (msg?.includes('negocio nao pertence ao titular')) {
+      return 'O negócio selecionado não pertence ao titular. Selecione novamente após escolher o titular.'
+    }
+    if (msg?.includes('negocio nao esta aberto')) {
+      return 'O negócio selecionado não está aberto. Selecione apenas negócios abertos do titular.'
+    }
+    if (msg?.includes('negocio inexistente')) {
+      return 'O negócio selecionado não foi encontrado. Recarregue a lista e tente novamente.'
+    }
+    return 'Dados inválidos. Verifique os campos e tente novamente.'
+  }
   if (httpStatus === 401) return 'Sessão expirada. Faça login novamente.'
   if (httpStatus === 403) return 'Você não tem permissão para realizar esta operação.'
   if (httpStatus === 404) return 'Substituição não encontrada.'

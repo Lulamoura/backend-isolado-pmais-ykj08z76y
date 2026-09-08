@@ -206,8 +206,21 @@ export default function SubstituicaoNova() {
               <Label>Titular *</Label>
               <UserSelect
                 value={form.titularId}
-                onChange={(id) => set('titularId', id)}
-                onSelect={(opt) => set('titularName', opt ? opt.name : null)}
+                onChange={(id) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    titularId: id,
+                    titularName: id === prev.titularId ? prev.titularName : null,
+                    negocios: [],
+                  }))
+                }}
+                onSelect={(opt) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    titularName: opt ? opt.name : null,
+                    negocios: opt?.id === prev.titularId ? prev.negocios : [],
+                  }))
+                }
                 placeholder="Selecionar titular"
                 ariaLabel="Selecionar titular"
               />

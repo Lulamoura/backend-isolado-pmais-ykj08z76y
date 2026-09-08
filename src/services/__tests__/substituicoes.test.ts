@@ -144,13 +144,27 @@ describe('toQueryParams', () => {
 
 // ── mapSubstituicaoError (9 casos) ──────────────────────────────────
 describe('mapSubstituicaoError', () => {
-  function errWith(status: number, code?: string) {
-    return { status, response: { code, error: code } }
+  function errWith(status: number, code?: string, message?: string) {
+    return { status, response: { code, error: code, message } }
   }
 
   it('status 400 → mensagem genérica de dados inválidos', () => {
     expect(mapSubstituicaoError(errWith(400))).toBe(
       'Dados inválidos. Verifique os campos e tente novamente.',
+    )
+  })
+
+  it('status 400 com negócio fora do titular → mensagem específica', () => {
+    expect(
+      mapSubstituicaoError(errWith(400, 'INVARIANTE', 'I4: negocio nao pertence ao titular')),
+    ).toBe(
+      'O negócio selecionado não pertence ao titular. Selecione novamente após escolher o titular.',
+    )
+  })
+
+  it('status 400 com negócio fechado → mensagem específica', () => {
+    expect(mapSubstituicaoError(errWith(400, 'INVARIANTE', 'I4: negocio nao esta aberto'))).toBe(
+      'O negócio selecionado não está aberto. Selecione apenas negócios abertos do titular.',
     )
   })
 
