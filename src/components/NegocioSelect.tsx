@@ -134,6 +134,7 @@ export function NegocioSelect({
   const [nameMap, setNameMap] = useState<Record<string, string>>({})
   const reqIdRef = useRef(0)
   const resolvedRef = useRef<string>('')
+  const requiresTitular = !!onlyOpen && !titularId
 
   // Resolve títulos para os IDs selecionados não presentes no mapa
   useEffect(() => {
@@ -172,6 +173,12 @@ export function NegocioSelect({
   useEffect(() => {
     if (!open) return
     const rid = ++reqIdRef.current
+    if (requiresTitular) {
+      setItems([])
+      setLoading(false)
+      setError(false)
+      return
+    }
     setLoading(true)
     setError(false)
     const useCoberturaEndpoint = !!titularId && !!onlyOpen
@@ -182,6 +189,8 @@ export function NegocioSelect({
         })
       : pb.collection('com_negocios').getList(1, 50, {
           filter: buildNegocioFilter(query, titularId, onlyOpen),
+          expand: NEGOCIO_EXPAND,
+          fields: NEGOCIO_FIELDS,
         })
     request
       .then((res) => {
@@ -201,7 +210,7 @@ export function NegocioSelect({
         setLoading(false)
         setItems([])
       })
-  }, [open, query, titularId, onlyOpen])
+  }, [open, query, titularId, onlyOpen, requiresTitular])
 
   const toggle = (id: string) => {
     if (value.includes(id)) onChange(value.filter((v) => v !== id))
@@ -258,6 +267,10 @@ export function NegocioSelect({
               ) : error ? (
                 <div className="py-6 text-center text-sm text-muted-foreground">
                   Erro ao buscar negócios
+                </div>
+              ) : requiresTitular ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  Selecione o titular antes de buscar negócios.
                 </div>
               ) : items.length === 0 ? (
                 <div className="py-6 text-center text-sm text-muted-foreground">

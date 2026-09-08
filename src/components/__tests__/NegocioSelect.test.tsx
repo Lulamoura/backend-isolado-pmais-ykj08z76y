@@ -65,6 +65,21 @@ describe('NegocioSelect', () => {
     const args = getList.mock.calls[0]
     expect(args[0]).toBe(1)
     expect(args[1]).toBe(50)
+    expect(args[2]).toEqual(
+      expect.objectContaining({
+        expand: NEGOCIO_EXPAND,
+        fields: NEGOCIO_FIELDS,
+      }),
+    )
+  })
+
+  it('não mostra lista genérica em cobertura por negócios sem titular', async () => {
+    render(<NegocioSelect value={[]} onChange={() => {}} onlyOpen initialOpen />)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(send).not.toHaveBeenCalled()
+    expect(getList).not.toHaveBeenCalled()
+    expect(screen.getByText('Selecione o titular antes de buscar negócios.')).toBeInTheDocument()
   })
 
   it('usa endpoint backend de opções humanas quando filtra cobertura por titular', async () => {
