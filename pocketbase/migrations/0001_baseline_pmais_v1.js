@@ -5420,7 +5420,7 @@ const BASELINE_COLLECTIONS = [
         required: true,
         system: false,
         type: 'select',
-        values: ['ferias', 'licenca', 'falta'],
+        values: ['ferias', 'licenca', 'falta', 'suporte_interno'],
       },
       {
         autogeneratePattern: '',

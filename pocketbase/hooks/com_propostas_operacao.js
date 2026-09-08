@@ -23,6 +23,7 @@
   function propostaPodeAcessar(user, perfil, negocio) {
     if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
     if (negocio.getString('responsavel_id') === user.id) return true
+    if (propostaSubstituicaoAutoriza($app, user, negocio)) return true
     var escopo = 'proprios'
     try {
       var links = $app.findRecordsByFilter(
@@ -43,6 +44,42 @@
       !!user.getString('equipe_id') &&
       negocio.getString('equipe_id') === user.getString('equipe_id')
     )
+  }
+
+  function propostaHojeRecife() {
+    return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  }
+
+  function propostaListaContem(lista, id) {
+    if (!lista || !id) return false
+    if (Array.isArray(lista)) return lista.indexOf(id) >= 0
+    return String(lista).indexOf(id) >= 0
+  }
+
+  function propostaSubstituicaoAutoriza(app, user, negocio) {
+    var titularId = negocio.getString('responsavel_id')
+    if (!titularId || !user || !user.id) return false
+    try {
+      var hoje = propostaHojeRecife()
+      var filtro =
+        "titular_id='" +
+        titularId +
+        "' && cancelada_em = null && data_inicio <= '" +
+        hoje +
+        "' && data_fim >= '" +
+        hoje +
+        "' && (substituto_principal_id='" +
+        user.id +
+        "' || substituto_reserva_id='" +
+        user.id +
+        "')"
+      var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
+      for (var i = 0; i < subs.length; i++) {
+        if (subs[i].getString('tipo_cobertura') === 'integral') return true
+        if (propostaListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
+      }
+    } catch (_) {}
+    return false
   }
 
   function propostaAuditoria(app, ator, perfil, comando, versao, chave, justificativa, evidencia) {
@@ -102,6 +139,7 @@
       function propostaPodeAcessar(user, perfil, negocio) {
         if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
+        if (propostaSubstituicaoAutoriza($app, user, negocio)) return true
         var escopo = 'proprios'
         try {
           var links = $app.findRecordsByFilter(
@@ -463,6 +501,7 @@
       function propostaPodeAcessar(user, perfil, negocio) {
         if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
+        if (propostaSubstituicaoAutoriza($app, user, negocio)) return true
         if (perfil === 'negociacao-propria') return false
         return (
           !!user.getString('equipe_id') &&

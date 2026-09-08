@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/alert-dialog'
 
 type TipoCobertura = 'integral' | 'por_negocios'
-type Motivo = 'ferias' | 'licenca' | 'falta'
+type Motivo = 'ferias' | 'licenca' | 'falta' | 'suporte_interno'
 
 function DatePickerField({
   value,
@@ -282,6 +282,7 @@ export default function SubstituicaoNova() {
                   <SelectItem value="ferias">Férias</SelectItem>
                   <SelectItem value="licenca">Licença</SelectItem>
                   <SelectItem value="falta">Falta</SelectItem>
+                  <SelectItem value="suporte_interno">Suporte Interno</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -294,7 +295,12 @@ export default function SubstituicaoNova() {
                 value={form.negocios}
                 onChange={(ids) => set('negocios', ids)}
                 placeholder="Selecionar negócios"
+                titularId={form.titularId ?? undefined}
+                onlyOpen
               />
+              <p className="text-xs text-muted-foreground">
+                A lista mostra apenas negócios abertos do titular selecionado.
+              </p>
             </div>
           )}
 
@@ -366,7 +372,9 @@ export default function SubstituicaoNova() {
                   ? 'Férias'
                   : form.motivo === 'licenca'
                     ? 'Licença'
-                    : 'Falta'}
+                    : form.motivo === 'falta'
+                      ? 'Falta'
+                      : 'Suporte Interno'}
               </dd>
             </div>
           </dl>

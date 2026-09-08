@@ -346,7 +346,12 @@ routerAdd(
         }
       }
     }
-    if (body.motivo !== 'ferias' && body.motivo !== 'licenca' && body.motivo !== 'falta') {
+    if (
+      body.motivo !== 'ferias' &&
+      body.motivo !== 'licenca' &&
+      body.motivo !== 'falta' &&
+      body.motivo !== 'suporte_interno'
+    ) {
       return e.json(400, { error: 'VALIDATION', message: 'motivo invalido' })
     }
     if (body.observacao !== null && body.observacao !== undefined) {
@@ -411,6 +416,17 @@ routerAdd(
           return e.json(400, {
             error: 'INVARIANTE',
             message: 'I4: negocio nao pertence ao titular',
+            invariantes: ['I4'],
+          })
+        }
+        if (
+          negRec.getBool('inativo') ||
+          negRec.getString('status') ||
+          negRec.getString('resultado')
+        ) {
+          return e.json(400, {
+            error: 'INVARIANTE',
+            message: 'I4: negocio nao esta aberto',
             invariantes: ['I4'],
           })
         }

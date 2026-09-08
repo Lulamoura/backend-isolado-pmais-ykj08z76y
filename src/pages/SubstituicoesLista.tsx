@@ -75,6 +75,8 @@ function MotivoBadge({ motivo }: { motivo: SubstituicaoItem['motivo'] }) {
       return <Badge variant="outline">Licença</Badge>
     case 'falta':
       return <Badge variant="destructive">Falta</Badge>
+    case 'suporte_interno':
+      return <Badge variant="outline">Suporte Interno</Badge>
     default:
       return <Badge variant="outline">{motivo}</Badge>
   }

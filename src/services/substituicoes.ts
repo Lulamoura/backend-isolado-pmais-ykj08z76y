@@ -15,7 +15,7 @@ export interface CriarSubstituicaoPayload {
   data_fim: string
   tipo_cobertura: 'integral' | 'por_negocios'
   negocios_cobertos: string[] | null
-  motivo: 'ferias' | 'licenca' | 'falta'
+  motivo: 'ferias' | 'licenca' | 'falta' | 'suporte_interno'
   observacao: string | null
 }
 
@@ -56,7 +56,7 @@ export interface SubstituicaoItem {
   data_inicio: string
   data_fim: string
   tipo_cobertura: 'integral' | 'por_negocios'
-  motivo: 'ferias' | 'licenca' | 'falta'
+  motivo: 'ferias' | 'licenca' | 'falta' | 'suporte_interno'
   cancelada_em: string | null
   situacao: 'cancelada' | 'futura' | 'vigente' | 'encerrada'
   titular: { id: string; name: string } | null

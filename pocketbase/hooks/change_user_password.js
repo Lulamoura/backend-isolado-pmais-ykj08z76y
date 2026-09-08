@@ -2,6 +2,37 @@ routerAdd(
   'POST',
   '/backend/v1/change-user-password',
   (e) => {
+    function profileSlug(user) {
+      try {
+        return $app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
+      } catch (_) {
+        return ''
+      }
+    }
+    function hasPermission(user, slug) {
+      try {
+        var links = $app.findRecordsByFilter(
+          'com_perfil_permissoes',
+          "perfil_id='" + user.getString('perfil_id') + "'",
+          '',
+          500,
+          0,
+        )
+        for (var i = 0; i < links.length; i++) {
+          var permissao = $app.findRecordById('com_permissoes', links[i].getString('permissao_id'))
+          if (permissao.getString('slug') === slug) return true
+        }
+      } catch (_) {}
+      return false
+    }
+    var ator = e.auth
+    if (!ator || !ator.getBool('ativo_comercial')) {
+      return e.forbiddenError('Usuario comercial necessario')
+    }
+    if (profileSlug(ator) !== 'superadministrador' && !hasPermission(ator, 'usuarios.admin')) {
+      return e.forbiddenError('Permissao de administracao de usuarios necessaria')
+    }
+
     const body = e.requestInfo().body || {}
     const userId = body.userId || ''
     const newPassword = body.newPassword || ''

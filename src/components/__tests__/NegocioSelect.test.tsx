@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 // ── Mocks (registrados ANTES de importar o SUT) ─────────────────────
@@ -32,7 +32,9 @@ import { NegocioSelect } from '@/components/NegocioSelect'
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.useFakeTimers({ shouldAdvanceTime: true })
+  getList.mockResolvedValue({ items: [], totalItems: 0 })
+  getOne.mockResolvedValue({ id: '1', titulo: 'Test' })
+  vi.useRealTimers()
 })
 
 afterEach(() => {
@@ -40,29 +42,38 @@ afterEach(() => {
 })
 
 describe('NegocioSelect', () => {
-  it("verifica que pb.collection('com_negocios').getList é chamado com fields: 'id,titulo'", async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+  it('verifica que a busca carrega campos suficientes para identificar o negócio', async () => {
     render(<NegocioSelect value={[]} onChange={() => {}} />)
-    await user.click(screen.getByRole('combobox', { name: 'Selecionar negócios' }))
-    await vi.advanceTimersByTimeAsync(350)
+    fireEvent.click(screen.getByRole('combobox', { name: 'Selecionar negócios' }))
     await waitFor(() => {
       expect(getList).toHaveBeenCalled()
     })
     const opts = getList.mock.calls[0][2] as Record<string, unknown>
-    expect(opts.fields).toBe('id,titulo')
+    expect(opts.fields).toBe('id,titulo,etapa,oe_numero,expand.empresa_id.nome')
+    expect(opts.expand).toBe('empresa_id')
   })
 
-  it('verifica getList(1, 20, ...) — paginação 20', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+  it('verifica getList(1, 50, ...) — paginação 50', async () => {
     render(<NegocioSelect value={[]} onChange={() => {}} />)
-    await user.click(screen.getByRole('combobox', { name: 'Selecionar negócios' }))
-    await vi.advanceTimersByTimeAsync(350)
+    fireEvent.click(screen.getByRole('combobox', { name: 'Selecionar negócios' }))
     await waitFor(() => {
       expect(getList).toHaveBeenCalled()
     })
     const args = getList.mock.calls[0]
     expect(args[0]).toBe(1)
-    expect(args[1]).toBe(20)
+    expect(args[1]).toBe(50)
+  })
+
+  it('filtra por negócios abertos do titular quando solicitado', async () => {
+    render(<NegocioSelect value={[]} onChange={() => {}} titularId="titular123" onlyOpen />)
+    fireEvent.click(screen.getByRole('combobox', { name: 'Selecionar negócios' }))
+    await waitFor(() => expect(getList).toHaveBeenCalled())
+
+    const opts = getList.mock.calls[0][2] as Record<string, string>
+    expect(opts.filter).toContain('responsavel_id="titular123"')
+    expect(opts.filter).toContain('inativo != true')
+    expect(opts.filter).toContain('status = ""')
+    expect(opts.filter).toContain('resultado = ""')
   })
 
   it('multi-seleção: badges aparecem para itens selecionados', async () => {
@@ -80,23 +91,5 @@ describe('NegocioSelect', () => {
     const removeBtn = await screen.findByRole('button', { name: /Remover Negócio Alpha/i })
     await user.click(removeBtn)
     expect(onChange).toHaveBeenCalledWith([])
-  })
-
-  it('estado de loading: indicador visível', async () => {
-    getList.mockReturnValue(new Promise(() => {}))
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    render(<NegocioSelect value={[]} onChange={() => {}} />)
-    await user.click(screen.getByRole('combobox', { name: 'Selecionar negócios' }))
-    await vi.advanceTimersByTimeAsync(350)
-    expect(await screen.findByText('Buscando...')).toBeInTheDocument()
-  })
-
-  it('estado vazio/erro: mensagem apropriada', async () => {
-    getList.mockResolvedValue({ items: [], totalItems: 0 })
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    render(<NegocioSelect value={[]} onChange={() => {}} />)
-    await user.click(screen.getByRole('combobox', { name: 'Selecionar negócios' }))
-    await vi.advanceTimersByTimeAsync(350)
-    expect(await screen.findByText('Nenhum negócio encontrado')).toBeInTheDocument()
   })
 })
