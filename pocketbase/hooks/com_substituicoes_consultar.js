@@ -429,6 +429,11 @@ routerAdd(
         titulo: titulo,
         label: labelParts.join(' — ') || titulo || 'Negocio sem identificacao',
         subtitle: subtitleParts.join(' · '),
+        external_id: external,
+        oe_numero: oe,
+        empresa_nome: empresa,
+        contato_nome: contato,
+        etapa: etapa,
       }
     }
 
@@ -1014,6 +1019,24 @@ var __testExports = (function () {
     return 500
   }
 
+  function formatarNegocioLabelHumano(opts) {
+    var empresa = opts && opts.empresa ? String(opts.empresa).trim() : ''
+    var contato = opts && opts.contato ? String(opts.contato).trim() : ''
+    var oe = opts && opts.oe_numero ? String(opts.oe_numero).trim() : ''
+    var external = opts && opts.external_id ? String(opts.external_id).trim() : ''
+    var titulo = opts && opts.titulo ? String(opts.titulo).trim() : ''
+    var identificador = oe || external
+    var labelParts = []
+    if (empresa) {
+      labelParts.push(empresa)
+    } else if (titulo && titulo.toLowerCase() !== 'proposta qualificada') {
+      labelParts.push(titulo)
+    }
+    if (contato) labelParts.push(contato)
+    if (identificador) labelParts.push('ID ' + identificador)
+    return labelParts.join(' — ') || titulo || 'Negocio sem identificacao'
+  }
+
   return {
     hojeRecife: hojeRecife,
     bindingVigente: bindingVigente,
@@ -1039,6 +1062,7 @@ var __testExports = (function () {
     deveBatch: deveBatch,
     limiteBatchUsers: limiteBatchUsers,
     limiteBatchNegocios: limiteBatchNegocios,
+    formatarNegocioLabelHumano: formatarNegocioLabelHumano,
   }
 })()
 /* ──── FIM DO BLOCO DE TESTES ESTÁTICOS ──── */

@@ -78,6 +78,7 @@ var statusAcessoNegado = sandbox.__testExports.statusAcessoNegado
 var deveBatch = sandbox.__testExports.deveBatch
 var limiteBatchUsers = sandbox.__testExports.limiteBatchUsers
 var limiteBatchNegocios = sandbox.__testExports.limiteBatchNegocios
+var formatarNegocioLabelHumano = sandbox.__testExports.formatarNegocioLabelHumano
 
 function expectFn(name, fn) {
   if (typeof fn !== 'function') {
@@ -795,6 +796,103 @@ assert(
   'Y2 150 IDs cabe num único batch (limit 200)',
   ids150.length <= limiteBatchUsers(),
   '150 IDs devem caber em um batch de 200',
+)
+
+// ═══════ AA) Label Humano Negócios Cobertos (Empresa — Contato — ID) ═══════
+
+assert(
+  'AA1 formatarNegocioLabelHumano completo: Empresa — Contato — ID oe_numero',
+  formatarNegocioLabelHumano({
+    empresa: 'Autonunes Chevrolet Prazeres',
+    contato: 'Maria Cliente',
+    oe_numero: '4821',
+    external_id: '9999',
+    titulo: 'Proposta Qualificada',
+  }) === 'Autonunes Chevrolet Prazeres — Maria Cliente — ID 4821',
+  'got: ' +
+    formatarNegocioLabelHumano({
+      empresa: 'Autonunes Chevrolet Prazeres',
+      contato: 'Maria Cliente',
+      oe_numero: '4821',
+      external_id: '9999',
+      titulo: 'Proposta Qualificada',
+    }),
+)
+
+assert(
+  'AA2 formatarNegocioLabelHumano fallback external_id quando oe_numero ausente',
+  formatarNegocioLabelHumano({
+    empresa: 'Autonunes Chevrolet Prazeres',
+    contato: 'Maria Cliente',
+    oe_numero: '',
+    external_id: 'AC-1020',
+    titulo: 'Proposta Qualificada',
+  }) === 'Autonunes Chevrolet Prazeres — Maria Cliente — ID AC-1020',
+  'got: ' +
+    formatarNegocioLabelHumano({
+      empresa: 'Autonunes Chevrolet Prazeres',
+      contato: 'Maria Cliente',
+      oe_numero: '',
+      external_id: 'AC-1020',
+      titulo: 'Proposta Qualificada',
+    }),
+)
+
+assert(
+  'AA3 formatarNegocioLabelHumano sem ID: apenas Empresa — Contato (nunca ID técnico do PB)',
+  formatarNegocioLabelHumano({
+    empresa: 'Autonunes Chevrolet Prazeres',
+    contato: 'Maria Cliente',
+    oe_numero: '',
+    external_id: '',
+    titulo: 'Proposta Qualificada',
+  }) === 'Autonunes Chevrolet Prazeres — Maria Cliente',
+  'got: ' +
+    formatarNegocioLabelHumano({
+      empresa: 'Autonunes Chevrolet Prazeres',
+      contato: 'Maria Cliente',
+      oe_numero: '',
+      external_id: '',
+      titulo: 'Proposta Qualificada',
+    }),
+)
+
+assert(
+  'AA4 formatarNegocioLabelHumano fallback título não genérico quando empresa ausente',
+  formatarNegocioLabelHumano({
+    empresa: '',
+    contato: 'João Silva',
+    oe_numero: '1234',
+    external_id: '',
+    titulo: 'Contrato Vigilância Shopping',
+  }) === 'Contrato Vigilância Shopping — João Silva — ID 1234',
+  'got: ' +
+    formatarNegocioLabelHumano({
+      empresa: '',
+      contato: 'João Silva',
+      oe_numero: '1234',
+      external_id: '',
+      titulo: 'Contrato Vigilância Shopping',
+    }),
+)
+
+assert(
+  'AA5 formatarNegocioLabelHumano gracioso sem null/undefined e sem partes extras',
+  formatarNegocioLabelHumano({
+    empresa: null,
+    contato: undefined,
+    oe_numero: null,
+    external_id: undefined,
+    titulo: null,
+  }) === 'Negocio sem identificacao',
+  'got: ' +
+    formatarNegocioLabelHumano({
+      empresa: null,
+      contato: undefined,
+      oe_numero: null,
+      external_id: undefined,
+      titulo: null,
+    }),
 )
 
 // ═══════ Z) Zero side effects — sem save/runInTransaction/auditoria/idempotência ═══════
