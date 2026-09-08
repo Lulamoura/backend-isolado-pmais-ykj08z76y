@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T15:11:04.917Z",
+  "generatedAt": "2026-09-08T15:22:43.345Z",
   "collections": [
     {
       "name": "users",
@@ -2965,7 +2965,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["ferias", "licenca", "falta"]
+          "selectValues": ["ferias", "licenca", "falta", "suporte_interno"]
         },
         {
           "name": "observacao",
