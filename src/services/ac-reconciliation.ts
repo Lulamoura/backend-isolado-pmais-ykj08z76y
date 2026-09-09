@@ -26,6 +26,13 @@ export interface ReconciliationExecution extends ReconciliationSimulation {
   replay: boolean
 }
 
+export interface ActiveCampaignConfigStatus {
+  webhook_enabled: boolean
+  reconciliation_enabled: boolean
+  synthetic_gate_enabled: boolean
+  cursor: string
+}
+
 export const simulateActiveCampaignReconciliation = (
   mode: 'incremental' | 'initial_open_negotiation' = 'incremental',
 ) =>
@@ -51,3 +58,22 @@ export const executeActiveCampaignReconciliation = (
   })
 
 export const newReconciliationCommandId = () => `ac-reconcile:${crypto.randomUUID()}`.slice(0, 128)
+
+export const getActiveCampaignConfigStatus = () =>
+  pb.send<ActiveCampaignConfigStatus>('/backend/v1/integracao/ac/configuracao/status', {
+    method: 'GET',
+  })
+
+export const setActiveCampaignReconciliationGate = (action: 'open' | 'close') =>
+  pb.send<ActiveCampaignConfigStatus>('/backend/v1/integracao/ac/configuracao/reconciliacao-real', {
+    method: 'POST',
+    body: JSON.stringify({
+      action,
+      confirmation:
+        action === 'open'
+          ? 'ATIVAR RECONCILIACAO REAL ACTIVECAMPAIGN'
+          : 'DESATIVAR RECONCILIACAO REAL ACTIVECAMPAIGN',
+      command_idempotency_key: `t6-ac-reconciliation-${crypto.randomUUID()}`.slice(0, 128),
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  })

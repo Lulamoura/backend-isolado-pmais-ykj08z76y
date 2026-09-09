@@ -816,6 +816,12 @@ routerAdd(
                   "'",
               )
             var dealStatus = String(ev.data.status)
+            var preserveLocalProspectDisqualification =
+              !!binding &&
+              dealStatus === '0' &&
+              String(ev.data.stage || '') === 'prospects' &&
+              (target.getString('qualificacao') === 'desqualificada' ||
+                target.getString('resultado') === 'desqualificado')
             var previousStage = target.getString('etapa')
             var previousNextAction = target.getString('proxima_acao_em')
             var nextAction = String(ev.data.next_action_at || '')
@@ -864,31 +870,42 @@ routerAdd(
                 .slice(0, 200),
             )
             if (dealStatus === '0') {
-              var alias = tx.findFirstRecordByFilter(
-                'com_alias_dimensoes',
-                "dimensao='etapa' && valor_original='" + ev.data.stage + "'",
-              )
-              var canonicalStage = tx
-                .findRecordById('com_etapas', alias.getString('canonico_ref'))
-                .getString('codigo')
-              if (canonicalStage !== previousStage)
-                target.set(
-                  'etapa_entrou_em',
-                  ev.data.stage_entered_at ||
-                    ev.data.crm_updated_at ||
-                    ev.data.crm_created_at ||
-                    new Date().toISOString(),
+              if (preserveLocalProspectDisqualification) {
+                // Decisão operacional tomada no aplicativo prevalece sobre
+                // atualização aberta do ActiveCampaign ainda em prospects.
+                // Sem esta guarda, webhook/reconciliação reabria o prospect e
+                // ele voltava como vencido sem botões de decisão.
+                target.set('etapa', '')
+                target.set('resultado', 'desqualificado')
+                target.set('qualificacao', 'desqualificada')
+                target.set('proxima_acao_em', '')
+              } else {
+                var alias = tx.findFirstRecordByFilter(
+                  'com_alias_dimensoes',
+                  "dimensao='etapa' && valor_original='" + ev.data.stage + "'",
                 )
-              else if (!target.getString('etapa_entrou_em') && ev.data.stage_entered_at)
-                target.set('etapa_entrou_em', ev.data.stage_entered_at)
-              target.set('etapa', canonicalStage)
-              target.set('resultado', '')
-              target.set(
-                'qualificacao',
-                canonicalStage === 'prospects' ? 'pendente' : 'qualificada',
-              )
-              target.set('fechamento_motivo', '')
-              target.set('fechamento_data', '')
+                var canonicalStage = tx
+                  .findRecordById('com_etapas', alias.getString('canonico_ref'))
+                  .getString('codigo')
+                if (canonicalStage !== previousStage)
+                  target.set(
+                    'etapa_entrou_em',
+                    ev.data.stage_entered_at ||
+                      ev.data.crm_updated_at ||
+                      ev.data.crm_created_at ||
+                      new Date().toISOString(),
+                  )
+                else if (!target.getString('etapa_entrou_em') && ev.data.stage_entered_at)
+                  target.set('etapa_entrou_em', ev.data.stage_entered_at)
+                target.set('etapa', canonicalStage)
+                target.set('resultado', '')
+                target.set(
+                  'qualificacao',
+                  canonicalStage === 'prospects' ? 'pendente' : 'qualificada',
+                )
+                target.set('fechamento_motivo', '')
+                target.set('fechamento_data', '')
+              }
             } else {
               target.set('etapa', '')
               target.set(
@@ -908,7 +925,10 @@ routerAdd(
                 if (ev.data.closed_at) target.set('fechamento_data', ev.data.closed_at)
               }
             }
-            target.set('inativo', ev.action === 'archive')
+            target.set(
+              'inativo',
+              preserveLocalProspectDisqualification ? true : ev.action === 'archive',
+            )
             if (ev.data.modality) {
               var modality = String(ev.data.modality || '')
                 .trim()

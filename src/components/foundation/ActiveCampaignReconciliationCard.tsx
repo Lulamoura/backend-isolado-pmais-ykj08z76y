@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -6,8 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   executeActiveCampaignReconciliation,
+  getActiveCampaignConfigStatus,
+  setActiveCampaignReconciliationGate,
   newReconciliationCommandId,
   simulateActiveCampaignReconciliation,
+  type ActiveCampaignConfigStatus,
   type ReconciliationExecution,
   type ReconciliationSimulation,
 } from '@/services/ac-reconciliation'
@@ -16,6 +19,32 @@ export function ActiveCampaignReconciliationCard() {
   const [loading, setLoading] = useState<'simulate' | 'execute' | null>(null)
   const [simulation, setSimulation] = useState<ReconciliationSimulation | null>(null)
   const [execution, setExecution] = useState<ReconciliationExecution | null>(null)
+  const [status, setStatus] = useState<ActiveCampaignConfigStatus | null>(null)
+
+  useEffect(() => {
+    getActiveCampaignConfigStatus()
+      .then(setStatus)
+      .catch(() => setStatus(null))
+  }, [])
+
+  const setGate = async (action: 'open' | 'close') => {
+    setLoading('execute')
+    try {
+      const result = await setActiveCampaignReconciliationGate(action)
+      setStatus(result)
+      setSimulation(null)
+      setExecution(null)
+      toast.success(
+        action === 'open'
+          ? 'Reconciliação manual habilitada.'
+          : 'Reconciliação manual desabilitada.',
+      )
+    } catch {
+      toast.error('Não foi possível alterar o gate da reconciliação.')
+    } finally {
+      setLoading(null)
+    }
+  }
 
   const simulate = async () => {
     setLoading('simulate')
@@ -60,13 +89,30 @@ export function ActiveCampaignReconciliationCard() {
           <RefreshCw className="h-5 w-5" /> Reconciliação ActiveCampaign
         </CardTitle>
         <CardDescription>
-          Verifique as atualizações disponíveis antes de confirmar a reconciliação. A verificação
-          não altera registros comerciais.
+          Habilite sob demanda, verifique as atualizações e só então confirme a reconciliação. A
+          verificação não altera registros comerciais.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-md border p-3 text-sm text-muted-foreground">
+          Estado: {status?.reconciliation_enabled ? 'habilitada para uso manual' : 'desabilitada'} ·
+          cursor: {status?.cursor || 'não consultado'}
+        </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={simulate} disabled={loading !== null}>
+          <Button
+            variant={status?.reconciliation_enabled ? 'outline' : 'default'}
+            onClick={() => void setGate(status?.reconciliation_enabled ? 'close' : 'open')}
+            disabled={loading !== null}
+          >
+            {status?.reconciliation_enabled
+              ? 'Desabilitar reconciliação'
+              : 'Habilitar reconciliação'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={simulate}
+            disabled={loading !== null || !status?.reconciliation_enabled}
+          >
             {loading === 'simulate' ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -74,7 +120,12 @@ export function ActiveCampaignReconciliationCard() {
             )}
             Verificar atualizações
           </Button>
-          <Button onClick={execute} disabled={loading !== null || !simulation?.can_execute}>
+          <Button
+            onClick={execute}
+            disabled={
+              loading !== null || !status?.reconciliation_enabled || !simulation?.can_execute
+            }
+          >
             {loading === 'execute' ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (

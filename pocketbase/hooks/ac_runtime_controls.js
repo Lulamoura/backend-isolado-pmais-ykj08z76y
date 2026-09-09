@@ -1,3 +1,5 @@
+var AC_CONTROLS_RUNTIME_VERSION = '2026-09-08-manual-reconciliation-r1'
+
 // T6.AC.8 — materializacao idempotente dos controles da integracao em
 // candidatos existentes. O SKIP sincroniza o codigo, mas nao reaplica
 // migrations antigas sobre bancos ja provisionados.
@@ -73,6 +75,43 @@ routerAdd(
   },
   $apis.requireAuth('users'),
   $apis.bodyLimit(1024),
+)
+
+routerAdd(
+  'GET',
+  '/backend/v1/integracao/ac/configuracao/status',
+  function (e) {
+    var actor = e.auth
+    if (!actor || !actor.getBool('ativo_comercial'))
+      return e.unauthorizedError('Autenticacao necessaria')
+    var slug = ''
+    try {
+      slug = $app.findRecordById('com_perfis', actor.getString('perfil_id')).getString('slug')
+    } catch (_) {}
+    if (slug !== 'superadministrador') return e.forbiddenError('SuperAdmin necessario')
+    function readParam(key) {
+      try {
+        var record = $app.findFirstRecordByData('com_parametros', 'chave', key)
+        return {
+          valor: record.getString('valor'),
+          ativo: record.getBool('ativo'),
+        }
+      } catch (_) {
+        return { valor: '', ativo: false }
+      }
+    }
+    var webhook = readParam('ac_webhook_enabled')
+    var reconciliation = readParam('ac_reconciliation_enabled')
+    var synthetic = readParam('ac_synthetic_preview_enabled')
+    var cursor = readParam('ac_reconciliation_cursor')
+    return e.json(200, {
+      webhook_enabled: webhook.ativo && webhook.valor === 'true',
+      reconciliation_enabled: reconciliation.ativo && reconciliation.valor === 'true',
+      synthetic_gate_enabled: synthetic.ativo && synthetic.valor === 'true',
+      cursor: cursor.valor || 'UNINITIALIZED',
+    })
+  },
+  $apis.requireAuth('users'),
 )
 
 // Go-live operacional auditável. Abre ou fecha exclusivamente a trava global
