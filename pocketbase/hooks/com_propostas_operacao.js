@@ -221,6 +221,122 @@
           return ''
         }
       }
+      function propostaHojeRecife() {
+        return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      }
+      function propostaListaContem(lista, id) {
+        if (!lista || !id) return false
+        if (Array.isArray(lista)) return lista.indexOf(id) >= 0
+        return String(lista).indexOf(id) >= 0
+      }
+      function propostaSubstituicaoAutoriza(app, user, negocio) {
+        var titularId = negocio.getString('responsavel_id')
+        if (!titularId || !user || !user.id) return false
+        try {
+          var hoje = propostaHojeRecife()
+          var filtro =
+            "titular_id='" +
+            titularId +
+            "' && cancelada_em = null && data_inicio <= '" +
+            hoje +
+            "' && data_fim >= '" +
+            hoje +
+            "' && (substituto_principal_id='" +
+            user.id +
+            "' || substituto_reserva_id='" +
+            user.id +
+            "')"
+          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
+          for (var i = 0; i < subs.length; i++) {
+            if (subs[i].getString('tipo_cobertura') === 'integral') return true
+            if (propostaListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
+          }
+        } catch (_) {}
+        return false
+      }
+      function propostaFiltroIdsNegocios(ids) {
+        if (!ids || !ids.length) return ''
+        var partes = []
+        for (var i = 0; i < ids.length; i++) partes.push("id='" + ids[i] + "'")
+        return '(' + partes.join(' || ') + ')'
+      }
+      function propostaIdsNegociosSubstituidos(app, user) {
+        var ids = [],
+          vistos = {}
+        if (!user || !user.id) return ids
+        try {
+          var hoje = propostaHojeRecife()
+          var filtro =
+            "cancelada_em = null && data_inicio <= '" +
+            hoje +
+            "' && data_fim >= '" +
+            hoje +
+            "' && (substituto_principal_id='" +
+            user.id +
+            "' || substituto_reserva_id='" +
+            user.id +
+            "')"
+          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
+          for (var i = 0; i < subs.length; i++) {
+            if (subs[i].getString('tipo_cobertura') === 'integral') {
+              var titularId = subs[i].getString('titular_id')
+              if (!titularId) continue
+              var negociosTitular = app.findRecordsByFilter(
+                'com_negocios',
+                "responsavel_id='" + titularId + "' && inativo = false",
+                '',
+                500,
+                0,
+              )
+              for (var ti = 0; ti < negociosTitular.length; ti++) {
+                if (!vistos[negociosTitular[ti].id]) {
+                  vistos[negociosTitular[ti].id] = true
+                  ids.push(negociosTitular[ti].id)
+                }
+              }
+            } else {
+              var lista = subs[i].get('negocios_cobertos') || []
+              if (!Array.isArray(lista)) lista = String(lista).split(',')
+              for (var li = 0; li < lista.length; li++) {
+                var id = String(lista[li] || '').trim()
+                if (id && !vistos[id]) {
+                  vistos[id] = true
+                  ids.push(id)
+                }
+              }
+            }
+          }
+        } catch (_) {}
+        return ids
+      }
+      function propostaFiltroNegociosFila(app, user, perfil) {
+        var etapa = "(etapa='producao_proposta' || etapa='negociacao')"
+        if (perfil === 'superadministrador' || perfil === 'leitura-executiva')
+          return 'inativo = false && ' + etapa
+        var partesEscopo = ["responsavel_id='" + user.id + "'"]
+        var substituidos = propostaIdsNegociosSubstituidos(app, user)
+        var filtroSubstituidos = propostaFiltroIdsNegocios(substituidos)
+        if (filtroSubstituidos) partesEscopo.push(filtroSubstituidos)
+        var escopo = 'proprios'
+        try {
+          var links = app.findRecordsByFilter(
+            'com_perfil_permissoes',
+            "perfil_id='" + user.getString('perfil_id') + "'",
+            '',
+            500,
+            0,
+          )
+          for (var i = 0; i < links.length; i++) {
+            var permissao = app.findRecordById('com_permissoes', links[i].getString('permissao_id'))
+            if (permissao.getString('slug') === 'negocios.view')
+              escopo = links[i].getString('escopo')
+          }
+        } catch (_) {}
+        if (escopo === 'todos') return 'inativo = false && ' + etapa
+        if (escopo === 'equipe' && user.getString('equipe_id'))
+          partesEscopo.push("equipe_id='" + user.getString('equipe_id') + "'")
+        return 'inativo = false && ' + etapa + ' && (' + partesEscopo.join(' || ') + ')'
+      }
       function propostaPodeAcessar(user, perfil, negocio) {
         if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
