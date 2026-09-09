@@ -63,6 +63,28 @@ routerAdd(
         negocio.getString('equipe_id') === user.getString('equipe_id')
       )
     }
+    function emailUsuarioComercial(user) {
+      var email = String(user && user.getString ? user.getString('email') : '')
+        .trim()
+        .toLowerCase()
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return ''
+      return email
+    }
+    function nomeUsuarioComercial(user) {
+      var nome = String(user && user.getString ? user.getString('name') : '').trim()
+      if (!nome) nome = String(user && user.getString ? user.getString('username') : '').trim()
+      return nome
+        .replace(/[\r\n<>]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 120)
+    }
+    function formatarFromUsuarioComercial(user) {
+      var email = emailUsuarioComercial(user)
+      if (!email) return ''
+      var nome = nomeUsuarioComercial(user) || email
+      return nome + ' <' + email + '>'
+    }
     function contexto(app, negocioId, link) {
       var token = String(link || '').split('/p/')[1] || ''
       token = token.split(/[?#]/)[0]
@@ -134,13 +156,9 @@ routerAdd(
     try {
       var ctx = contexto($app, e.request.pathValue('negocioId'), body.link_publico)
       if (!podeAcessar(ator, slug, ctx.negocio)) return e.json(403, { error: 'FORBIDDEN' })
-      var replyTo = String(
-        body.reply_to || ator.getString('email') || 'luiz.moura@pmaisservicos.com.br',
-      )
-        .trim()
-        .toLowerCase()
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo))
-        return e.json(400, { error: 'REPLY_TO_INVALIDO' })
+      var from = formatarFromUsuarioComercial(ator)
+      var replyTo = emailUsuarioComercial(ator)
+      if (!from || !replyTo) return e.json(400, { error: 'REMETENTE_INVALIDO' })
       var assunto = String(
         body.assunto || 'Proposta comercial PMais — ' + ctx.negocio.getString('titulo'),
       )
@@ -203,7 +221,7 @@ routerAdd(
           'User-Agent': 'PMais-Comercial/1.0',
         },
         body: JSON.stringify({
-          from: 'PMais Serviços <nao-responda@pmaisservicos.com.br>',
+          from: from,
           to: [destinatario],
           cc: cc,
           reply_to: replyTo,
