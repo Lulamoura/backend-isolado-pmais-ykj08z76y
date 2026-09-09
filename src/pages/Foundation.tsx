@@ -9,7 +9,6 @@ import { UsuariosTab } from '@/components/foundation/UsuariosTab'
 import { VinculosTab } from '@/components/foundation/VinculosTab'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { ActiveCampaignReconciliationCard } from '@/components/foundation/ActiveCampaignReconciliationCard'
-import { ProveloIntegrationCard } from '@/components/foundation/ProveloIntegrationCard'
 import { useSearchParams } from 'react-router-dom'
 
 export default function Foundation() {
@@ -40,7 +39,6 @@ export default function Foundation() {
           <TabsTrigger value="negocios">Negócios</TabsTrigger>
           <TabsTrigger value="parametros">Configurações</TabsTrigger>
           <TabsTrigger value="integracao">Integração ActiveCampaign</TabsTrigger>
-          <TabsTrigger value="provelo">Integração Provelo</TabsTrigger>
         </TabsList>
         <TabsContent value="equipes">
           <EquipesTab />
@@ -68,9 +66,6 @@ export default function Foundation() {
         </TabsContent>
         <TabsContent value="integracao">
           {isSuperAdmin && !loadingSuperAdmin ? <ActiveCampaignReconciliationCard /> : null}
-        </TabsContent>{' '}
-        <TabsContent value="provelo">
-          {isSuperAdmin && !loadingSuperAdmin ? <ProveloIntegrationCard /> : null}
         </TabsContent>
       </Tabs>
     </div>
