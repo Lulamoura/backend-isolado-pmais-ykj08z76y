@@ -35,6 +35,22 @@ const checks = [
     hook.includes('propostaPodeAcessar') && hook.includes("perfil === 'superadministrador'"),
   ],
   ['fila somente propostas e negociação', hook.includes("['producao_proposta', 'negociacao']")],
+  [
+    'fila filtra negócios por escopo antes de iterar',
+    hook.includes('function propostaFiltroNegociosFila') &&
+      hook.includes("responsavel_id='") &&
+      hook.includes("etapa='producao_proposta' || etapa='negociacao'") &&
+      hook.includes(
+        "findRecordsByFilter(\n            'com_negocios',\n            propostaFiltroNegociosFila($app, ator, perfil)",
+      ),
+  ],
+  [
+    'fila preserva substituições vigentes no filtro',
+    hook.includes('function propostaIdsNegociosSubstituidos') &&
+      hook.includes("tipo_cobertura') === 'integral'") &&
+      hook.includes('negocios_cobertos') &&
+      hook.includes('propostaFiltroIdsNegocios(substituidos)'),
+  ],
   ['idempotência', hook.includes('com_idempotencia') && hook.includes('replay: true')],
   [
     'replay recupera JSON persistido',
@@ -55,8 +71,8 @@ const checks = [
   ['serviço canônico', service.includes('/backend/v1/propostas/eventos')],
   [
     'interface dos cinco eventos',
-    ['Preparar', 'Aprovar', 'Emitir', 'Registrar visualização', 'Registrar aceite'].every((x) =>
-      page.includes(x),
+    ['Lançar proposta', 'Aprovar', 'Emitir', 'Registrar visualização', 'Registrar aceite'].every(
+      (x) => page.includes(x),
     ),
   ],
   ['rota protegida', app.includes('path="/propostas"') && app.includes('<Propostas />')],
