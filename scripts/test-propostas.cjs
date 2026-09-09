@@ -45,6 +45,22 @@ const checks = [
       ),
   ],
   [
+    'fila mantém helpers de escopo dentro do handler JSVM',
+    hook.includes("'/backend/v1/propostas/fila'") &&
+      hook.indexOf(
+        'function propostaFiltroNegociosFila',
+        hook.indexOf("'/backend/v1/propostas/fila'"),
+      ) > -1 &&
+      hook.indexOf(
+        'function propostaIdsNegociosSubstituidos',
+        hook.indexOf("'/backend/v1/propostas/fila'"),
+      ) > -1 &&
+      hook.indexOf(
+        'function propostaSubstituicaoAutoriza',
+        hook.indexOf("'/backend/v1/propostas/fila'"),
+      ) > -1,
+  ],
+  [
     'fila preserva substituições vigentes no filtro',
     hook.includes('function propostaIdsNegociosSubstituidos') &&
       hook.includes("tipo_cobertura') === 'integral'") &&
