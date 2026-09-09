@@ -77,7 +77,6 @@ routerAdd(
   $apis.bodyLimit(1024),
 )
 
-
 // Go-live operacional auditável. Abre ou fecha exclusivamente a trava global
 // de somente leitura da carteira originada no ActiveCampaign. Os demais
 // controles de webhook, reconciliação, canal sintético e cursor são preservados.
