@@ -58,19 +58,18 @@ describe('NegocioSelect', () => {
     expect(NEGOCIO_EXPAND).toBe('empresa_id,contato_principal_id')
   })
 
-  it('verifica getList(1, 50, ...) — paginação 50', async () => {
+  it('usa endpoint backend também na busca genérica para não depender de expand bloqueado ao não-superadmin', async () => {
     render(<NegocioSelect value={[]} onChange={() => {}} initialOpen />)
     await Promise.resolve()
     await Promise.resolve()
-    const args = getList.mock.calls[0]
-    expect(args[0]).toBe(1)
-    expect(args[1]).toBe(50)
-    expect(args[2]).toEqual(
+    expect(send).toHaveBeenCalledWith(
+      NEGOCIO_OPCOES_COBERTURA_PATH,
       expect.objectContaining({
-        expand: NEGOCIO_EXPAND,
-        fields: NEGOCIO_FIELDS,
+        method: 'GET',
+        query: { q: '', only_open: 'false' },
       }),
     )
+    expect(getList).not.toHaveBeenCalled()
   })
 
   it('não mostra lista genérica em cobertura por negócios sem titular', async () => {
@@ -92,7 +91,7 @@ describe('NegocioSelect', () => {
       NEGOCIO_OPCOES_COBERTURA_PATH,
       expect.objectContaining({
         method: 'GET',
-        query: { titular_id: 'titular123', q: '' },
+        query: { titular_id: 'titular123', q: '', only_open: 'true' },
       }),
     )
     expect(getList).not.toHaveBeenCalled()
