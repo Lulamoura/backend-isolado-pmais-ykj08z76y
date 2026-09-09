@@ -85,7 +85,7 @@ routerAdd(
     } catch (_) {}
     if (perfil === 'negociacao-propria') return e.json(403, { error: 'ACAO_NAO_AUTORIZADA' })
     var filtro =
-      "qualificacao = 'pendente' && etapa = 'prospects' && inativo = false && crm_created_at >= '2026-08-24 03:00:00.000Z'"
+      "(qualificacao = 'pendente' || qualificacao = '') && etapa = 'prospects' && resultado = '' && inativo = false && crm_created_at >= '2026-08-24 03:00:00.000Z'"
     var filtrarQualificacaoPropria = false
     if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva' && escopo !== 'todos') {
       var equipeId = ator.getString('equipe_id')
@@ -334,7 +334,7 @@ routerAdd(
         var negocio = tx.findRecordById('com_negocios', body.negocio_id)
         if (
           negocio.getString('etapa') !== 'prospects' ||
-          negocio.getString('qualificacao') !== 'pendente' ||
+          (negocio.getString('qualificacao') && negocio.getString('qualificacao') !== 'pendente') ||
           negocio.getBool('inativo')
         )
           throw new Error('NAO_PENDENTE')
@@ -413,7 +413,8 @@ routerAdd(
     try {
       $app.runInTransaction(function (tx) {
         var negocio = tx.findRecordById('com_negocios', body.negocio_id)
-        if (negocio.getString('qualificacao') !== 'pendente') throw new Error('NAO_PENDENTE')
+        if (negocio.getString('qualificacao') && negocio.getString('qualificacao') !== 'pendente')
+          throw new Error('NAO_PENDENTE')
         if (negocio.getString('updated') !== body.updated_esperado) throw new Error('STALE_WRITE')
         var destino = tx.findRecordById('users', body.responsavel_id)
         if (!destino.getBool('ativo_comercial')) throw new Error('RESPONSAVEL_INVALIDO')
