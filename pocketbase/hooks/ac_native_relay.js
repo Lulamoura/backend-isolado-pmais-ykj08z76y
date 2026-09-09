@@ -69,201 +69,7 @@ routerAdd(
       var text = String(value || '').trim()
       return text.length <= max ? text : ''
     }
-    function formatBrazilianMoney(valueCents) {
-      var cents = Math.round(Number(valueCents || 0))
-      if (!isFinite(cents) || cents < 0) throw new Error('VALOR_SERVICO_INVALIDO')
-      var absolute = Math.abs(cents)
-      var integer = String(Math.floor(absolute / 100))
-      var decimal = String(absolute % 100)
-      if (decimal.length < 2) decimal = '0' + decimal
-      var groups = []
-      while (integer.length > 3) {
-        groups.unshift(integer.slice(-3))
-        integer = integer.slice(0, -3)
-      }
-      groups.unshift(integer || '0')
-      var formatted = (cents < 0 ? '-' : '') + groups.join('.') + ',' + decimal
-      // O Formatter do Zapier entrega o valor ao cenário Provelo em um campo
-      // de largura fixa (10 caracteres), preenchido com espaços à esquerda.
-      // O cenário do fornecedor responde "Accepted" mesmo quando não consegue
-      // interpretar o bundle; por isso precisamos preservar o contrato byte a
-      // byte que foi comprovado em produção.
-      while (formatted.length < 10) formatted = ' ' + formatted
-      return formatted
-    }
-    function recordProveloSkip(deal, reason) {
-      var sourceVersion = clean(deal.mdate || deal.cdate, 80) || new Date(0).toISOString()
-      var idempotencyKey = $security.sha256(
-        'provelo-skip|' + String(deal.id) + '|' + sourceVersion + '|' + reason,
-      )
-      try {
-        $app.findFirstRecordByData('com_eventos_integracao', 'idempotency_key', idempotencyKey)
-        return {
-          attempted: false,
-          reason: reason,
-          audit_recorded: true,
-          replay: true,
-        }
-      } catch (_) {}
-      try {
-        var event = new Record($app.findCollectionByNameOrId('com_eventos_integracao'))
-        event.set('sistema_origem', 'provelo')
-        event.set('evento_tipo', 'draft_skipped')
-        event.set('external_id', 'business:' + String(deal.id))
-        event.set('idempotency_key', idempotencyKey)
-        event.set(
-          'payload',
-          JSON.stringify({
-            deal_id: String(deal.id),
-            attempted: false,
-            reason: reason,
-          }),
-        )
-        event.set('status', 'processed')
-        $app.save(event)
-        return {
-          attempted: false,
-          reason: reason,
-          audit_recorded: true,
-          replay: false,
-        }
-      } catch (_) {
-        return { attempted: false, reason: reason, audit_recorded: false }
-      }
-    }
-    function proveloDispatch(deal, pipeline, stageName, contact, customByLabel) {
-      var config = null
-      try {
-        config = $app.findFirstRecordByData('com_integracao_provelo', 'provedor', 'make-provelo')
-      } catch (_) {}
-      if (!config || !config.getBool('habilitada')) return recordProveloSkip(deal, 'GATE_DESLIGADO')
-      var pipelineTitle = clean(pipeline && pipeline.title, 160)
-      var modality = clean(customByLabel['Modalidade'], 120)
-      var proveloId = clean(customByLabel['ProveloID'], 160)
-      var ownerCode = clean(customByLabel['Responsável'], 120)
-      var contactEmail = clean(contact && contact.email, 240)
-      var pipelineNormalized = pipelineTitle.toLowerCase()
-      if (
-        pipelineNormalized.indexOf('proposta qualificada') === -1 &&
-        pipelineNormalized.indexOf('propostas qualificadas') === -1
-      )
-        return recordProveloSkip(deal, 'PIPELINE_FORA_DO_ESCOPO')
-      if (String(stageName || '').toLowerCase() !== 'negociação')
-        return recordProveloSkip(deal, 'ETAPA_FORA_DO_ESCOPO')
-      if (proveloId) return recordProveloSkip(deal, 'PROVELO_ID_EXISTENTE')
-      if (!modality) return recordProveloSkip(deal, 'MODALIDADE_AUSENTE')
-      if (!contactEmail || !ownerCode) return recordProveloSkip(deal, 'DADOS_OBRIGATORIOS_AUSENTES')
 
-      var idempotencyKey = $security.sha256('provelo-draft|' + String(deal.id))
-      var prior = null
-      try {
-        prior = $app.findFirstRecordByData(
-          'com_eventos_integracao',
-          'idempotency_key',
-          idempotencyKey,
-        )
-      } catch (_) {}
-      if (prior) {
-        var replay = recordProveloSkip(deal, 'DISPATCH_JA_REGISTRADO')
-        replay.status = prior.getString('status')
-        return replay
-      }
-
-      var webhookUrl = clean(config.getString('endpoint'), 1000)
-      if (!/^https:\/\/hook\.us1\.make\.com\/[A-Za-z0-9_-]+$/.test(webhookUrl))
-        throw new Error('PROVELO_WEBHOOK_AUSENTE_OU_INVALIDO')
-
-      var dispatch = new Record($app.findCollectionByNameOrId('com_eventos_integracao'))
-      dispatch.set('sistema_origem', 'provelo')
-      dispatch.set('evento_tipo', 'draft_requested')
-      dispatch.set('external_id', 'business:' + String(deal.id))
-      dispatch.set('idempotency_key', idempotencyKey)
-      dispatch.set(
-        'payload',
-        JSON.stringify({
-          deal_id: String(deal.id),
-          pipeline: pipelineTitle,
-          stage: clean(stageName, 120),
-          modality: modality,
-        }),
-      )
-      dispatch.set('status', 'pending')
-      $app.save(dispatch)
-
-      var body = JSON.stringify({
-        DealId: String(deal.id),
-        Modalidade: modality,
-        Email: contactEmail,
-        Vendedor: ownerCode,
-        ValorServico: formatBrazilianMoney(deal.value),
-      })
-      var response
-      try {
-        response = $http.send({
-          url: webhookUrl,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: body,
-          timeout: 20,
-        })
-      } catch (_) {
-        config.set('ultimo_incerto_em', new Date().toISOString())
-        $app.save(config)
-        dispatch.set('status', 'uncertain')
-        dispatch.set('payload', JSON.stringify({ deal_id: String(deal.id), result: 'timeout' }))
-        $app.save(dispatch)
-        return { attempted: true, accepted: false, uncertain: true }
-      }
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        config.set('ultima_falha_em', new Date().toISOString())
-        $app.save(config)
-        dispatch.set('status', 'failed')
-        dispatch.set(
-          'payload',
-          JSON.stringify({
-            deal_id: String(deal.id),
-            http_status: response.statusCode,
-          }),
-        )
-        $app.save(dispatch)
-        return { attempted: true, accepted: false, uncertain: false }
-      }
-      var responseJson = response.json || {}
-      var confirmedProveloId = clean(
-        responseJson.ProveloID || responseJson.provelo_id || responseJson.id,
-        160,
-      )
-      if (responseJson.success !== true || !confirmedProveloId) {
-        config.set('ultimo_incerto_em', new Date().toISOString())
-        $app.save(config)
-        dispatch.set('status', 'uncertain')
-        dispatch.set(
-          'payload',
-          JSON.stringify({
-            deal_id: String(deal.id),
-            http_status: response.statusCode,
-            result: 'ack_missing',
-          }),
-        )
-        $app.save(dispatch)
-        return { attempted: true, accepted: false, uncertain: true }
-      }
-      config.set('ultimo_sucesso_em', new Date().toISOString())
-      $app.save(config)
-      dispatch.set('status', 'processed')
-      dispatch.set(
-        'payload',
-        JSON.stringify({
-          deal_id: String(deal.id),
-          http_status: response.statusCode,
-          provelo_id: confirmedProveloId,
-        }),
-      )
-      $app.save(dispatch)
-      return { attempted: true, accepted: true, uncertain: false }
-    }
     function envelope(type, id, modified, data, links, correlation) {
       var sourceVersion = clean(modified, 80) || new Date(0).toISOString()
       return {
@@ -569,27 +375,12 @@ routerAdd(
         detail: String(forwardError).slice(0, 120),
       })
     }
-    var provelo = null
-    try {
-      provelo = proveloDispatch(deal, pipeline, stage.title, contact, customByLabel)
-    } catch (proveloError) {
-      return e.json(502, {
-        error: 'PROVELO_DISPATCH_FALHOU',
-        detail: String(proveloError).replace('Error: ', '').slice(0, 120),
-      })
-    }
-    if (provelo.attempted && !provelo.accepted)
-      return e.json(502, {
-        error: provelo.uncertain ? 'PROVELO_RESULTADO_INCERTO' : 'PROVELO_HTTP_FALHOU',
-        deal_id: dealId,
-      })
     return e.json(200, {
       received: true,
       ignored: false,
       event_type: eventType,
       deal_id: dealId,
       correlation_id: correlation,
-      provelo: provelo,
       results: results.map(function (item) {
         return {
           event_id: item.event_id || '',
@@ -618,10 +409,9 @@ routerAdd(
       contract_version: '2026-08-31-r3.3',
       pipeline_aliases_version: '2026-08-31-r1',
       accepted_pipeline_names: ['Proposta Qualificada', 'Propostas Qualificadas'],
-      provelo_dispatcher: true,
-      provelo_transport_version: 'zapier-json-fixed-width-v1',
-      skip_audit: true,
-      terminal_states: ['processed', 'failed', 'uncertain'],
+      provelo_dispatcher: false,
+      skip_audit: false,
+      terminal_states: [],
     })
   },
   $apis.requireAuth('users'),
