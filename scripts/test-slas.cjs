@@ -38,6 +38,15 @@ const checks = [
       hook.includes("responsavel_id='") &&
       hook.includes('Permissao negocios.view necessaria'),
   ],
+  [
+    'fila inclui negócios cobertos por substituição vigente no escopo próprios',
+    hook.includes('idsNegociosSubstituidos') &&
+      hook.includes('filtroNegociosSubstituidos') &&
+      hook.includes('com_substituicoes') &&
+      hook.includes('negocios_cobertos') &&
+      hook.includes("responsavel_id='") &&
+      hook.includes("id='"),
+  ],
   ['tres situacoes', ['vencido', 'alerta', 'no_prazo'].every((v) => hook.includes(v))],
   [
     'parametro SuperAdmin',

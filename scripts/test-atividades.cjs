@@ -40,7 +40,21 @@ check(
     hook.includes("escopo !== 'todos'") &&
     hook.includes("responsavel_id = '"),
 )
+check(
+  'fila inclui negócios cobertos por substituição vigente no escopo próprios',
+  hook.includes('idsNegociosSubstituidos') &&
+    hook.includes('filtroNegociosSubstituidos') &&
+    hook.includes('com_substituicoes') &&
+    hook.includes('negocios_cobertos') &&
+    hook.includes("responsavel_id = '") &&
+    hook.includes("id = '"),
+)
 check('comandos mantêm RBAC por responsável ou equipe', hook.includes('podeAcessar'))
+check(
+  'comandos autorizam negócio coberto por substituição vigente',
+  hook.includes('atividadeSubstituicaoAutoriza') &&
+    hook.includes('podeAcessar(usuario, perfil, negocio)'),
+)
 check(
   'fila informa modalidade do negócio',
   hook.includes("modalidade: negocio.getString('modalidade')"),
@@ -102,4 +116,4 @@ check(
   app.includes('path="/atividades"') && app.includes('<Atividades />'),
 )
 
-console.log(`\nRESULTADO: ${passed}/27 aprovados`)
+console.log(`\nRESULTADO: ${passed}/29 aprovados`)
