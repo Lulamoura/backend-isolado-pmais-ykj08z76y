@@ -19,6 +19,13 @@ const checks = [
     route.includes('var prioridade = { atrasada: 0, prazo_atingido: 1, atencao: 2, recente: 3 }'),
   ],
   [
+    'abertura é avaliada no nível da proposta, não só da publicação enviada',
+    route.includes('propostaTemAbertura(app, propostaId)') &&
+      route.includes("p.getString('proposta_id')") &&
+      route.includes("publicacao_id='") &&
+      route.includes("tipo='pagina_acessada'"),
+  ],
+  [
     'serviço tipa tempo e classificação',
     service.includes('horas_corridas_sem_abertura: number') &&
       service.includes("'prazo_atingido' | 'atrasada'"),
