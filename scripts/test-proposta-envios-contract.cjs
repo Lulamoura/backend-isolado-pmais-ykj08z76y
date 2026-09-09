@@ -32,9 +32,10 @@ const checks = [
       !hook.includes("from: 'PMais Serviços <nao-responda@pmaisservicos.com.br>'"),
   ],
   [
-    'reply-to usa o e-mail do usuário logado e cópia operacional continua preservada',
-    hook.includes('reply_to: replyTo') &&
-      hook.includes('var replyTo = emailUsuarioComercial(ator)') &&
+    'reply-to preserva construção anterior e pode ser diferente do From',
+    hook.includes('function emailReplyToComercial') &&
+      hook.includes('var replyTo = emailReplyToComercial(body.reply_to, ator)') &&
+      hook.includes('reply_to: replyTo') &&
       hook.includes('cc: cc'),
   ],
   [

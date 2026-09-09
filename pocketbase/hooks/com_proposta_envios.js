@@ -70,6 +70,13 @@ routerAdd(
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return ''
       return email
     }
+    function emailReplyToComercial(replyToInformado, user) {
+      var replyTo = String(replyToInformado || '')
+        .trim()
+        .toLowerCase()
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo)) return replyTo
+      return emailUsuarioComercial(user)
+    }
     function nomeUsuarioComercial(user) {
       var nome = String(user && user.getString ? user.getString('name') : '').trim()
       if (!nome) nome = String(user && user.getString ? user.getString('username') : '').trim()
@@ -157,7 +164,7 @@ routerAdd(
       var ctx = contexto($app, e.request.pathValue('negocioId'), body.link_publico)
       if (!podeAcessar(ator, slug, ctx.negocio)) return e.json(403, { error: 'FORBIDDEN' })
       var from = formatarFromUsuarioComercial(ator)
-      var replyTo = emailUsuarioComercial(ator)
+      var replyTo = emailReplyToComercial(body.reply_to, ator)
       if (!from || !replyTo) return e.json(400, { error: 'REMETENTE_INVALIDO' })
       var assunto = String(
         body.assunto || 'Proposta comercial PMais — ' + ctx.negocio.getString('titulo'),
