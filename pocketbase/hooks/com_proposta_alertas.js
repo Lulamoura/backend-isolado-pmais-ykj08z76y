@@ -262,6 +262,32 @@
           user.getString('equipe_id') === negocio.getString('equipe_id')
         )
       }
+      function propostaTemAbertura(app, propostaId) {
+        var publicacoes = []
+        try {
+          publicacoes = app.findRecordsByFilter(
+            'com_proposta_publicacoes',
+            "proposta_id='" + propostaId + "'",
+            '',
+            50,
+            0,
+          )
+        } catch (_) {}
+        for (var pi = 0; pi < publicacoes.length; pi++) {
+          var p = publicacoes[pi]
+          try {
+            var acessos = app.findRecordsByFilter(
+              'com_proposta_eventos_publicos',
+              "publicacao_id='" + p.id + "' && tipo='pagina_acessada'",
+              '',
+              1,
+              0,
+            )
+            if (acessos.length > 0 && p.getString('proposta_id') === propostaId) return true
+          } catch (_) {}
+        }
+        return false
+      }
       function feriados(app) {
         var result = {}
         try {
@@ -319,14 +345,7 @@
           )
           var ctx = contexto($app, pub)
           if (!podeAcessar(user, slug, ctx.negocio)) continue
-          var abriu =
-            $app.findRecordsByFilter(
-              'com_proposta_eventos_publicos',
-              "publicacao_id='" + pub.id + "' && tipo='pagina_acessada'",
-              '',
-              1,
-              0,
-            ).length > 0
+          var abriu = propostaTemAbertura($app, propostaId)
           if (abriu || (ctx.proposta.getString('decisao_publica') || 'pendente') !== 'pendente')
             continue
           var enviadoEm = new Date(
