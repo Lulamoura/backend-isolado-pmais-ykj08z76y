@@ -181,17 +181,12 @@ export function NegocioSelect({
     }
     setLoading(true)
     setError(false)
-    const useCoberturaEndpoint = !!titularId && !!onlyOpen
-    const request = useCoberturaEndpoint
-      ? pb.send(NEGOCIO_OPCOES_COBERTURA_PATH, {
-          method: 'GET',
-          query: { titular_id: titularId, q: query },
-        })
-      : pb.collection('com_negocios').getList(1, 50, {
-          filter: buildNegocioFilter(query, titularId, onlyOpen),
-          expand: NEGOCIO_EXPAND,
-          fields: NEGOCIO_FIELDS,
-        })
+    const request = pb.send(NEGOCIO_OPCOES_COBERTURA_PATH, {
+      method: 'GET',
+      query: titularId
+        ? { titular_id: titularId, q: query, only_open: onlyOpen ? 'true' : 'false' }
+        : { q: query, only_open: onlyOpen ? 'true' : 'false' },
+    })
     request
       .then((res) => {
         if (rid !== reqIdRef.current) return

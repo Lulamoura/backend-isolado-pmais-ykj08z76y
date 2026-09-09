@@ -96,6 +96,43 @@ routerAdd(
       )
     }
 
+    function idsNegociosSubstituidos(app, user) {
+      var ids = []
+      if (!user || !user.id) return ids
+      try {
+        var hoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        var filtro =
+          "cancelada_em = null && data_inicio <= '" +
+          hoje +
+          "' && data_fim >= '" +
+          hoje +
+          "' && (substituto_principal_id='" +
+          esc(user.id) +
+          "' || substituto_reserva_id='" +
+          esc(user.id) +
+          "')"
+        var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
+        var seen = {}
+        for (var i = 0; i < subs.length; i++) {
+          var cobertura = subs[i].get('negocios_cobertos')
+          if (!cobertura || subs[i].getString('tipo_cobertura') === 'integral') continue
+          for (var j = 0; j < cobertura.length; j++) {
+            if (cobertura[j] && !seen[cobertura[j]]) {
+              seen[cobertura[j]] = true
+              ids.push(cobertura[j])
+            }
+          }
+        }
+      } catch (_) {}
+      return ids
+    }
+
+    function filtroNegociosSubstituidos(ids) {
+      var partes = []
+      for (var i = 0; i < ids.length; i++) partes.push("id = '" + esc(ids[i]) + "'")
+      return partes.join(' || ')
+    }
+
     function buildOption(rec) {
       var empresa = findNome('com_empresas', recString(rec, 'empresa_id'))
       var contato = findNome('com_contatos', recString(rec, 'contato_principal_id'))
@@ -129,31 +166,57 @@ routerAdd(
     var queryInfo = e.requestInfo().query || {}
     var titularId = queryInfo.titular_id || ''
     var q = queryInfo.q || ''
-    if (!titularId) return e.json(400, { error: 'VALIDATION', message: 'titular_id obrigatorio' })
-
-    var titular = null
-    try {
-      titular = $app.findRecordById('users', titularId)
-    } catch (_) {}
-    if (!titular) return e.json(404, { error: 'NOT_FOUND', message: 'titular nao encontrado' })
-    if (!podeListar(ator, titular)) {
-      return e.json(403, {
-        error: 'FORBIDDEN',
-        message: 'Sem permissao para listar negocios do titular',
-      })
-    }
+    var onlyOpen = String(queryInfo.only_open || 'false') === 'true'
+    var filtroBase = 'inativo != true'
+    if (onlyOpen) filtroBase += " && status = '' && resultado = ''"
 
     var records = []
     try {
-      records = $app.findRecordsByFilter(
-        'com_negocios',
-        "responsavel_id = '" +
-          esc(titularId) +
-          "' && inativo != true && status = '' && resultado = ''",
-        '-updated',
-        100,
-        0,
-      )
+      if (titularId) {
+        var titular = null
+        try {
+          titular = $app.findRecordById('users', titularId)
+        } catch (_) {}
+        if (!titular) return e.json(404, { error: 'NOT_FOUND', message: 'titular nao encontrado' })
+        if (!podeListar(ator, titular)) {
+          return e.json(403, {
+            error: 'FORBIDDEN',
+            message: 'Sem permissao para listar negocios do titular',
+          })
+        }
+        records = $app.findRecordsByFilter(
+          'com_negocios',
+          "responsavel_id = '" + esc(titularId) + "' && " + filtroBase,
+          '-updated',
+          100,
+          0,
+        )
+      } else {
+        var slug = getPerfilSlug(ator)
+        var filtroAcesso = ''
+        if (slug === 'superadministrador' || slug === 'aprovador' || slug === 'leitura-executiva') {
+          filtroAcesso = ''
+        } else if (slug === 'gestor' || slug === 'gestor-comercial') {
+          var equipeId = ator.getString('equipe_id')
+          filtroAcesso = equipeId
+            ? "(responsavel_id = '" + esc(ator.id) + "' || equipe_id = '" + esc(equipeId) + "')"
+            : "responsavel_id = '" + esc(ator.id) + "'"
+        } else if (slug === 'operador-comercial' || slug === 'prospeccao') {
+          filtroAcesso = "responsavel_id = '" + esc(ator.id) + "'"
+        } else {
+          return e.json(403, { error: 'FORBIDDEN', message: 'Sem permissao para listar negocios' })
+        }
+        var filtroSubs = filtroNegociosSubstituidos(idsNegociosSubstituidos($app, ator))
+        if (filtroSubs)
+          filtroAcesso = filtroAcesso ? '(' + filtroAcesso + ' || ' + filtroSubs + ')' : filtroSubs
+        records = $app.findRecordsByFilter(
+          'com_negocios',
+          filtroAcesso ? filtroBase + ' && ' + filtroAcesso : filtroBase,
+          '-updated',
+          100,
+          0,
+        )
+      }
     } catch (err) {
       return e.json(500, { error: 'INTERNAL', message: String(err).substring(0, 300) })
     }
