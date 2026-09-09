@@ -23,6 +23,12 @@ const checks = [
     'RBAC por responsável/equipe',
     hook.includes('fechamentoPodeAcessar') && hook.includes("perfil === 'superadministrador'"),
   ],
+  [
+    'RBAC autoriza negócio coberto por substituição vigente',
+    hook.includes('fechamentoSubstituicaoAutoriza') &&
+      hook.includes('com_substituicoes') &&
+      hook.includes('negocios_cobertos'),
+  ],
   ['ganho exige proposta emitida', hook.includes('PROPOSTA_EMITIDA_OBRIGATORIA')],
   ['ganho exige evidência formal', hook.includes('EVIDENCIA_GANHO_OBRIGATORIA')],
   ['ganho exige valor efetivo', hook.includes('VALOR_EFETIVO_OBRIGATORIO')],

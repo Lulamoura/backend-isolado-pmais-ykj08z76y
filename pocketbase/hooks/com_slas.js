@@ -53,6 +53,40 @@ routerAdd(
     function hojeRecife(agora) {
       return new Date(agora.getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
     }
+    function idsNegociosSubstituidos(app, user, hoje) {
+      var ids = []
+      if (!user || !user.id) return ids
+      try {
+        var filtro =
+          "cancelada_em = null && data_inicio <= '" +
+          hoje +
+          "' && data_fim >= '" +
+          hoje +
+          "' && (substituto_principal_id='" +
+          user.id +
+          "' || substituto_reserva_id='" +
+          user.id +
+          "')"
+        var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
+        var seen = {}
+        for (var i = 0; i < subs.length; i++) {
+          var cobertura = subs[i].get('negocios_cobertos')
+          if (!cobertura || subs[i].getString('tipo_cobertura') === 'integral') continue
+          for (var j = 0; j < cobertura.length; j++) {
+            if (cobertura[j] && !seen[cobertura[j]]) {
+              seen[cobertura[j]] = true
+              ids.push(cobertura[j])
+            }
+          }
+        }
+      } catch (_) {}
+      return ids
+    }
+    function filtroNegociosSubstituidos(ids) {
+      var partes = []
+      for (var i = 0; i < ids.length; i++) partes.push("id='" + ids[i] + "'")
+      return partes.join(' || ')
+    }
     function feriados() {
       var fixos = [
         '2026-01-01',
@@ -125,13 +159,23 @@ routerAdd(
       return e.json(400, { error: 'VALIDATION' })
     var escopo = resolverEscopo(ator)
     if (!escopo) return e.forbiddenError('Permissao negocios.view necessaria')
+    var fs = feriados(),
+      agora = new Date(),
+      hoje = hojeRecife(agora),
+      itens = [],
+      totais = { vencido: 0, alerta: 0, no_prazo: 0, nao_calculavel: 0 }
     var filtro = "inativo = false && resultado = ''"
     if (escopo !== 'todos') {
       var equipe = ator.getString('equipe_id')
-      filtro +=
+      var substituidos = idsNegociosSubstituidos($app, ator, hoje)
+      var filtroSubstituidos = filtroNegociosSubstituidos(substituidos)
+      var filtroProprio =
         escopo === 'equipe' && equipe
-          ? " && equipe_id='" + equipe + "'"
-          : " && responsavel_id='" + ator.id + "'"
+          ? "equipe_id='" + equipe + "'"
+          : "responsavel_id='" + ator.id + "'"
+      filtro += filtroSubstituidos
+        ? ' && (' + filtroProprio + ' || ' + filtroSubstituidos + ')'
+        : ' && ' + filtroProprio
     }
     var cfg = {
       lead: inteiro('sla.lead_dias_uteis', 1),
@@ -157,11 +201,6 @@ routerAdd(
       } catch (_) {}
       cfgControle[cfgChave] = { valor: cfgChaves[cfgChave], updated: cfgUpdated }
     }
-    var fs = feriados(),
-      agora = new Date(),
-      hoje = hojeRecife(agora),
-      itens = [],
-      totais = { vencido: 0, alerta: 0, no_prazo: 0, nao_calculavel: 0 }
     var negocios = $app.findRecordsByFilter('com_negocios', filtro, 'created', 500, 0)
     for (var i = 0; i < negocios.length; i++) {
       var n = negocios[i],

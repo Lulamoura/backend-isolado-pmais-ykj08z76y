@@ -306,7 +306,44 @@ routerAdd(
       return out
     }
 
-    function comporFiltro(params, scope, actorId, equipeIds) {
+    function filtroNegociosSubstituidos(ids) {
+      var partes = []
+      ids = ids || []
+      for (var i = 0; i < ids.length; i++) partes.push("id = '" + ids[i] + "'")
+      return partes.join(' || ')
+    }
+
+    function idsNegociosSubstituidos(app, actorId, hoje) {
+      var ids = []
+      if (!actorId) return ids
+      try {
+        var filtro =
+          "cancelada_em = null && data_inicio <= '" +
+          hoje +
+          "' && data_fim >= '" +
+          hoje +
+          "' && (substituto_principal_id='" +
+          actorId +
+          "' || substituto_reserva_id='" +
+          actorId +
+          "')"
+        var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
+        var seen = {}
+        for (var si = 0; si < subs.length; si++) {
+          var cobertura = subs[si].get('negocios_cobertos')
+          if (!cobertura || subs[si].getString('tipo_cobertura') === 'integral') continue
+          for (var ci = 0; ci < cobertura.length; ci++) {
+            if (cobertura[ci] && !seen[cobertura[ci]]) {
+              seen[cobertura[ci]] = true
+              ids.push(cobertura[ci])
+            }
+          }
+        }
+      } catch (_) {}
+      return ids
+    }
+
+    function comporFiltro(params, scope, actorId, equipeIds, substituidos) {
       var parts = []
       if (!params.incluir_inativos) parts.push('inativo = false')
       if (params.inicio) parts.push("created >= '" + civilStartUtc(params.inicio) + "'")
@@ -321,10 +358,19 @@ routerAdd(
         parts.push(
           "resultado = 'ganho' && (oe_numero = '' || oe_data_envio = '' || oe_responsavel_envio_id = '')",
         )
-      if (scope === 'proprios') parts.push("responsavel_id = '" + actorId + "'")
+      if (scope === 'proprios') {
+        var filtroSubstituidos = filtroNegociosSubstituidos(substituidos || [])
+        parts.push(
+          filtroSubstituidos
+            ? "(responsavel_id = '" + actorId + "' || " + filtroSubstituidos + ')'
+            : "responsavel_id = '" + actorId + "'",
+        )
+      }
       if (scope === 'equipe') {
         var ors = []
         for (var i = 0; i < equipeIds.length; i++) ors.push("equipe_id = '" + equipeIds[i] + "'")
+        var filtroSubstituidosEquipe = filtroNegociosSubstituidos(substituidos || [])
+        if (filtroSubstituidosEquipe) ors.push(filtroSubstituidosEquipe)
         parts.push(ors.length ? '(' + ors.join(' || ') + ')' : "id = '__sem_equipe__'")
       }
       return parts.join(' && ')
@@ -472,7 +518,13 @@ routerAdd(
     } catch (_) {}
     if (!scope) return e.forbiddenError('Permissao dashboard.view necessaria')
 
-    var filter = comporFiltro(validated.params, scope, actorId, equipeIds)
+    var filter = comporFiltro(
+      validated.params,
+      scope,
+      actorId,
+      equipeIds,
+      idsNegociosSubstituidos($app, actorId, hoje),
+    )
     var records = []
     var responsavelNomes = {}
     var offset = 0
@@ -547,6 +599,7 @@ routerAdd(
       classificarResultado: classificarResultado,
       percentual: percentual,
       agregarNegocios: agregarNegocios,
+      filtroNegociosSubstituidos: filtroNegociosSubstituidos,
       comporFiltro: comporFiltro,
     }
     /* ──── FIM DO BLOCO DE TESTES ESTÁTICOS ──── */

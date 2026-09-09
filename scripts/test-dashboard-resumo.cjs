@@ -25,6 +25,7 @@ var functionNames = [
   'classificarResultado',
   'percentual',
   'agregarNegocios',
+  'filtroNegociosSubstituidos',
   'comporFiltro',
 ]
 var functions = ''
@@ -169,6 +170,24 @@ assert(
     .includes(
       "resultado = 'ganho' && (oe_numero = '' || oe_data_envio = '' || oe_responsavel_envio_id = '')",
     ),
+)
+assert(
+  'D11 próprios inclui negócios cobertos por substituição vigente',
+  x
+    .comporFiltro(
+      { incluir_inativos: false },
+      'proprios',
+      'viviane1234567',
+      [],
+      ['l0c1hjrlylxe65l'],
+    )
+    .includes("(responsavel_id = 'viviane1234567' || id = 'l0c1hjrlylxe65l')"),
+)
+assert(
+  'D12 substituição vazia preserva próprios estrito',
+  x
+    .comporFiltro({ incluir_inativos: false }, 'proprios', 'viviane1234567', [], [])
+    .includes("responsavel_id = 'viviane1234567'"),
 )
 
 var resumo = x.agregarNegocios([

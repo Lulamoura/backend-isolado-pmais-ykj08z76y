@@ -49,6 +49,45 @@ routerAdd(
     function hojeRecife() {
       return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
     }
+    function listaContem(lista, id) {
+      if (!lista || !id) return false
+      if (Array.isArray(lista)) return lista.indexOf(id) >= 0
+      return String(lista).indexOf(id) >= 0
+    }
+    function idsNegociosSubstituidos(app, user, hoje) {
+      var ids = []
+      if (!user || !user.id) return ids
+      try {
+        var filtro =
+          "cancelada_em = null && data_inicio <= '" +
+          hoje +
+          "' && data_fim >= '" +
+          hoje +
+          "' && (substituto_principal_id='" +
+          user.id +
+          "' || substituto_reserva_id='" +
+          user.id +
+          "')"
+        var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
+        var seen = {}
+        for (var i = 0; i < subs.length; i++) {
+          var cobertura = subs[i].get('negocios_cobertos')
+          if (!cobertura || subs[i].getString('tipo_cobertura') === 'integral') continue
+          for (var j = 0; j < cobertura.length; j++) {
+            if (cobertura[j] && !seen[cobertura[j]]) {
+              seen[cobertura[j]] = true
+              ids.push(cobertura[j])
+            }
+          }
+        }
+      } catch (_) {}
+      return ids
+    }
+    function filtroNegociosSubstituidos(ids) {
+      var partes = []
+      for (var i = 0; i < ids.length; i++) partes.push("id = '" + ids[i] + "'")
+      return partes.join(' || ')
+    }
     var ator = e.auth
     if (!ator) return e.unauthorizedError('Autenticacao necessaria')
     if (!ator.getBool('ativo_comercial')) return e.forbiddenError('Usuario comercial inativo')
@@ -71,16 +110,21 @@ routerAdd(
     var perfil = perfilDoAtor(ator, $app)
     var escopo = resolverEscopo(ator, $app)
     if (!escopo) return e.forbiddenError('Permissao negocios.view necessaria')
+    var hoje = hojeRecife()
     var filtro = "inativo = false && resultado = ''"
     if (escopo !== 'todos') {
       var equipe = ator.getString('equipe_id')
-      filtro +=
+      var substituidos = idsNegociosSubstituidos($app, ator, hoje)
+      var filtroSubstituidos = filtroNegociosSubstituidos(substituidos)
+      var filtroProprio =
         escopo === 'equipe' && equipe
-          ? " && equipe_id = '" + equipe + "'"
-          : " && responsavel_id = '" + ator.id + "'"
+          ? "equipe_id = '" + equipe + "'"
+          : "responsavel_id = '" + ator.id + "'"
+      filtro += filtroSubstituidos
+        ? ' && (' + filtroProprio + ' || ' + filtroSubstituidos + ')'
+        : ' && ' + filtroProprio
     }
     var negocios = $app.findRecordsByFilter('com_negocios', filtro, 'titulo', 500, 0)
-    var hoje = hojeRecife()
     var todos = []
     for (var i = 0; i < negocios.length; i++) {
       var negocio = negocios[i]
@@ -221,9 +265,43 @@ routerAdd(
         return ''
       }
     }
+    function listaContem(lista, id) {
+      if (!lista || !id) return false
+      if (Array.isArray(lista)) return lista.indexOf(id) >= 0
+      return String(lista).indexOf(id) >= 0
+    }
+    function atividadeHojeRecife() {
+      return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    }
+    function atividadeSubstituicaoAutoriza(app, user, negocio) {
+      var titularId = negocio.getString('responsavel_id')
+      if (!titularId || !user || !user.id) return false
+      try {
+        var hoje = atividadeHojeRecife()
+        var filtro =
+          "titular_id='" +
+          titularId +
+          "' && cancelada_em = null && data_inicio <= '" +
+          hoje +
+          "' && data_fim >= '" +
+          hoje +
+          "' && (substituto_principal_id='" +
+          user.id +
+          "' || substituto_reserva_id='" +
+          user.id +
+          "')"
+        var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
+        for (var i = 0; i < subs.length; i++) {
+          if (subs[i].getString('tipo_cobertura') === 'integral') return true
+          if (listaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
+        }
+      } catch (_) {}
+      return false
+    }
     function podeAcessar(ator, perfil, negocio) {
       if (perfil === 'superadministrador') return true
       if (negocio.getString('responsavel_id') === ator.id) return true
+      if (atividadeSubstituicaoAutoriza($app, ator, negocio)) return true
       if (perfil === 'negociacao-propria') return false
       var equipe = ator.getString('equipe_id')
       return !!equipe && negocio.getString('equipe_id') === equipe
