@@ -22,6 +22,8 @@ assert.match(
 )
 assert.match(hook, /chat\/completions|responses/, 'backend deve chamar API de geração de IA')
 assert.match(hook, /SKIP_AI_GATEWAY_URL/, 'backend deve usar o gateway IA nativo do SKIP quando disponível')
+assert.match(hook, /GET'|method: 'GET'|method:\s*['"]GET['"]/, 'backend deve consultar modelos do gateway quando o modelo padrão for rejeitado')
+assert.match(hook, /nexoEscolherModeloGateway|modelosGateway|\/models/, 'backend deve escolher modelo disponível do SKIP AI Gateway')
 assert.match(hook, /\$os\.getenv|nexoEnv/, 'backend deve aceitar variável de ambiente SKIP além de $secrets')
 assert.match(
   hook,

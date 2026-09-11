@@ -1625,25 +1625,75 @@
         },
       })
 
-      var response = $http.send({
-        url: aiUrl,
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + apiKey,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({
-          model: model,
+      function nexoPayloadAjuda(modeloEscolhido) {
+        return JSON.stringify({
+          model: modeloEscolhido,
           temperature: 0.3,
           response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
           ],
-        }),
-        timeout: 45,
-      })
+        })
+      }
+
+      function nexoEnviarAjudaIA(modeloEscolhido) {
+        return $http.send({
+          url: aiUrl,
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer ' + apiKey,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: nexoPayloadAjuda(modeloEscolhido),
+          timeout: 45,
+        })
+      }
+
+      function nexoModelosGatewayUrl(urlCompletions) {
+        if (!urlCompletions) return ''
+        if (urlCompletions.indexOf('/chat/completions') >= 0)
+          return urlCompletions.replace(/\/chat\/completions\/?$/, '/models')
+        return urlCompletions.replace(/\/?$/, '/models')
+      }
+
+      function nexoEscolherModeloGateway(modelosGateway) {
+        var data = ((modelosGateway || {}).json || {}).data || []
+        var ids = []
+        for (var i = 0; i < data.length; i++) {
+          var id = String(data[i].id || '')
+          if (id) ids.push(id)
+        }
+        var preferencias = ['gpt-4.1-mini', 'gpt-4o-mini', 'claude-3-5-haiku', 'llama', 'gemini']
+        for (var p = 0; p < preferencias.length; p++) {
+          for (var j = 0; j < ids.length; j++) if (ids[j].indexOf(preferencias[p]) >= 0) return ids[j]
+        }
+        return ids[0] || ''
+      }
+
+      var response = nexoEnviarAjudaIA(model)
+      if (response.statusCode === 400 && provider === 'skip_ai_gateway') {
+        var erroModelo = nexoErroIaSanitizado(response)
+        if (String(erroModelo || '').toLowerCase().indexOf('model') >= 0) {
+          var modelosGateway = $http.send({
+            url: nexoModelosGatewayUrl(aiUrl),
+            method: 'GET',
+            headers: {
+              Authorization: 'Bearer ' + apiKey,
+              Accept: 'application/json',
+            },
+            timeout: 30,
+          })
+          if (modelosGateway.statusCode >= 200 && modelosGateway.statusCode < 300) {
+            var modeloGateway = nexoEscolherModeloGateway(modelosGateway)
+            if (modeloGateway && modeloGateway !== model) {
+              model = modeloGateway
+              response = nexoEnviarAjudaIA(model)
+            }
+          }
+        }
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         var erroIa = nexoErroIaSanitizado(response)
         console.error('NEXO_IA_ERRO', JSON.stringify({ status: response.statusCode, provider: provider, model: model, message: erroIa }))
