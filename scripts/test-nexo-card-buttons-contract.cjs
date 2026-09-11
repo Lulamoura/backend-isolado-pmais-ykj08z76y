@@ -32,6 +32,26 @@ assert.match(
   /Sem envio automático/,
   'modal deve deixar claro que não há envio automático',
 )
+assert.doesNotMatch(
+  component,
+  /FonteBadge|App:\s*\{active|CRM:\s*\{active|Campos CRM:\s*\{active|Follow-ups:\s*\{active|Proposta:\s*\{active/,
+  'modal não deve expor indicadores técnicos App/CRM/Campos/Follow-ups/Proposta no dia a dia',
+)
+assert.match(
+  component,
+  /Leitura comercial do Nexo/,
+  'Ajuda do Nexo deve apresentar leitura comercial, não só contexto bruto',
+)
+assert.match(
+  component,
+  /Dicas para melhorar notas/,
+  'Ajuda do Nexo deve incluir dicas para melhorar notas',
+)
+assert.match(
+  component,
+  /histórico completo continua no botão Notas/,
+  'Ajuda do Nexo deve preservar Notas como histórico completo e não repetir todas as notas',
+)
 
 const requiredPages = [
   [

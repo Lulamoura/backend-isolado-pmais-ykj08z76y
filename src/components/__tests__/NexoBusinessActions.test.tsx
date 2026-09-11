@@ -59,10 +59,19 @@ describe('NexoBusinessActions', () => {
 
     await waitFor(() => expect(obterContextoNexoNegocio).toHaveBeenCalledWith('4792'))
     expect(await screen.findByText('Sem envio automático')).toBeInTheDocument()
+    expect(screen.getByText('Leitura comercial do Nexo')).toBeInTheDocument()
     expect(
-      screen.getByText('Cliente solicitou proposta de agentes de apoio para 06 lojas.'),
+      screen.getByText(
+        'Se o cliente informou que vai aguardar análise do RH, ele deu prazo ou data para essa análise?',
+      ),
     ).toBeInTheDocument()
-    expect(screen.getByText('Cliente aguardando análise pela gestora de RH.')).toBeInTheDocument()
+    expect(
+      screen.getByText('A próxima ação cadastrada está alinhada com o prazo que o cliente forneceu?'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Dicas para melhorar notas')).toBeInTheDocument()
+    expect(screen.getByText(/O histórico completo continua no botão Notas/i)).toBeInTheDocument()
+    expect(screen.queryByText(/App: ok/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('Cliente aguardando análise pela gestora de RH.')).not.toBeInTheDocument()
   })
 
   it('mantém Detalhamento da Proposta mesmo quando a ajuda do Nexo está oculta', async () => {
