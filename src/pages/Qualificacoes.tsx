@@ -38,6 +38,7 @@ import { commercialActionCardClass } from '@/lib/commercial-context'
 import pb from '@/lib/pocketbase/client'
 import { BusinessNotesDialog } from '@/components/BusinessNotesDialog'
 import { BusinessContactCard } from '@/components/BusinessContactCard'
+import { NexoBusinessActions } from '@/components/NexoBusinessActions'
 
 type Decisao = 'qualificada' | 'desqualificada'
 
@@ -269,6 +270,11 @@ export default function Qualificacoes() {
                     </span>
                   </div>
                   <BusinessContactCard empresa={item.empresa} contato={item.contato} />
+                  <NexoBusinessActions
+                    externalId={item.external_id}
+                    businessTitle={item.titulo}
+                    allowNexoHelp={true}
+                  />
                   {!somenteLeitura && !item.responsavel_qualificacao && (
                     <Button
                       className="w-full gap-2"

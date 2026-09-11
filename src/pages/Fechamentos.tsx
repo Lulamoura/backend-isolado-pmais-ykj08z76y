@@ -29,6 +29,7 @@ import {
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { CommercialContextCard } from '@/components/CommercialContextCard'
 import { CommercialFilters } from '@/components/CommercialFilters'
+import { NexoBusinessActions } from '@/components/NexoBusinessActions'
 import {
   commercialActionCardClass,
   commercialOutcomeCardClass,
@@ -239,6 +240,11 @@ export default function Fechamentos() {
                   negocioId={item.negocio.id}
                   showNextAction={!terminal}
                   showReadOnlyNotice={!terminal}
+                />
+                <NexoBusinessActions
+                  externalId={item.contexto.external_id}
+                  businessTitle={item.negocio.titulo}
+                  allowNexoHelp={!terminal}
                 />
                 {!terminal ? (
                   <>
