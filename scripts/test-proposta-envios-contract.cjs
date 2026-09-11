@@ -24,8 +24,19 @@ const checks = [
     hook.includes("'Idempotency-Key': chave") && hook.includes('command_idempotency_key'),
   ],
   [
-    'reply-to e remetente corporativo verificado',
-    hook.includes('reply_to: replyTo') && hook.includes('nao-responda@pmaisservicos.com.br'),
+    'remetente do envio comercial é o usuário logado, não o padrão GV/no-reply',
+    hook.includes('function emailUsuarioComercial') &&
+      hook.includes('function formatarFromUsuarioComercial') &&
+      hook.includes('var from = formatarFromUsuarioComercial(ator)') &&
+      hook.includes('from: from') &&
+      !hook.includes("from: 'PMais Serviços <nao-responda@pmaisservicos.com.br>'"),
+  ],
+  [
+    'reply-to preserva construção anterior e pode ser diferente do From',
+    hook.includes('function emailReplyToComercial') &&
+      hook.includes('var replyTo = emailReplyToComercial(body.reply_to, ator)') &&
+      hook.includes('reply_to: replyTo') &&
+      hook.includes('cc: cc'),
   ],
   [
     'PDF não anexado',
@@ -37,7 +48,6 @@ const checks = [
     hook.includes('body.cc') &&
       hook.includes('body.assunto') &&
       hook.includes('body.corpo') &&
-      hook.includes('body.reply_to') &&
       hook.includes('cc: cc'),
   ],
   [
