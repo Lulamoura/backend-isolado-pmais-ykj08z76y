@@ -1411,6 +1411,16 @@
         }
       }
 
+      function nexoErroIaSanitizado(response) {
+        try {
+          var body = response.json || {}
+          var msg = body.error && body.error.message ? body.error.message : JSON.stringify(body).slice(0, 500)
+          return nexoLimparTextoAjuda(String(msg).replace(/Bearer\s+[^\s]+/gi, 'Bearer [REDACTED]'), 500)
+        } catch (_) {
+          return ''
+        }
+      }
+
       function nexoRespostaFallback(externalId, acao, motivo, resumo) {
         resumo = resumo || {}
         var negocio = resumo.negocio || {}
@@ -1635,9 +1645,16 @@
         timeout: 45,
       })
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        var erroIa = nexoErroIaSanitizado(response)
+        console.error('NEXO_IA_ERRO', JSON.stringify({ status: response.statusCode, provider: provider, model: model, message: erroIa }))
         return e.json(
           502,
-          nexoRespostaFallback(externalId, acao, 'IA_HTTP_' + response.statusCode, contextoSeguro),
+          nexoRespostaFallback(
+            externalId,
+            acao,
+            'IA_HTTP_' + response.statusCode + (erroIa ? ': ' + erroIa : ''),
+            contextoSeguro,
+          ),
         )
       }
 
