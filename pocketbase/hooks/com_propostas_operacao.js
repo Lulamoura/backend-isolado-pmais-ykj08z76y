@@ -1025,7 +1025,6 @@
     $apis.requireAuth(),
   )
 
-
   // Nexo — contexto consolidado de negócio para orientação assistida.
   // Contrato: GET /backend/v1/nexo/negocios/{externalId}/contexto
 
@@ -1101,7 +1100,8 @@
           )
           for (var i = 0; i < links.length; i++) {
             var permissao = app.findRecordById('com_permissoes', links[i].getString('permissao_id'))
-            if (permissao.getString('slug') === 'negocios.view') escopo = links[i].getString('escopo')
+            if (permissao.getString('slug') === 'negocios.view')
+              escopo = links[i].getString('escopo')
           }
         } catch (_) {}
         if (escopo === 'todos') return true
@@ -1152,7 +1152,13 @@
       function nexoCamposActiveCampaign(apiUrl, apiKey, externalId) {
         var deal =
           nexoCallAc(apiUrl, apiKey, '/api/3/deals/' + encodeURIComponent(externalId)).deal || {}
-        var meta = nexoListAc(apiUrl, apiKey, '/api/3/dealCustomFieldMeta', 'dealCustomFieldMeta', '')
+        var meta = nexoListAc(
+          apiUrl,
+          apiKey,
+          '/api/3/dealCustomFieldMeta',
+          'dealCustomFieldMeta',
+          '',
+        )
         var labels = {}
         for (var mi = 0; mi < meta.length; mi++)
           labels[String(meta[mi].id)] = meta[mi].fieldLabel || ''
