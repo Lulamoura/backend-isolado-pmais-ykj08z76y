@@ -66,12 +66,16 @@ describe('NexoBusinessActions', () => {
       ),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('A próxima ação cadastrada está alinhada com o prazo que o cliente forneceu?'),
+      screen.getByText(
+        'A próxima ação cadastrada está alinhada com o prazo que o cliente forneceu?',
+      ),
     ).toBeInTheDocument()
     expect(screen.getByText('Dicas para melhorar notas')).toBeInTheDocument()
     expect(screen.getByText(/O histórico completo continua no botão Notas/i)).toBeInTheDocument()
     expect(screen.queryByText(/App: ok/i)).not.toBeInTheDocument()
-    expect(screen.queryByText('Cliente aguardando análise pela gestora de RH.')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Cliente aguardando análise pela gestora de RH.'),
+    ).not.toBeInTheDocument()
   })
 
   it('mantém Detalhamento da Proposta mesmo quando a ajuda do Nexo está oculta', async () => {

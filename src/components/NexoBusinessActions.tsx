@@ -71,39 +71,70 @@ function gerarAjudaComercial(contexto: NexoContextoNegocio) {
   const dicasNotas: string[] = []
 
   if (contemAlguma(base, ['análise do rh', 'analise do rh', 'gestora de rh', 'rh'])) {
-    perguntas.push('Se o cliente informou que vai aguardar análise do RH, ele deu prazo ou data para essa análise?')
+    perguntas.push(
+      'Se o cliente informou que vai aguardar análise do RH, ele deu prazo ou data para essa análise?',
+    )
     perguntas.push('A próxima ação cadastrada está alinhada com o prazo que o cliente forneceu?')
-    proximosPassos.push('Confirmar com o contato qual é a data esperada de retorno da análise interna do RH.')
-    dicasNotas.push('Registrar a pessoa responsável pela análise no cliente, o prazo informado e o motivo da espera.')
+    proximosPassos.push(
+      'Confirmar com o contato qual é a data esperada de retorno da análise interna do RH.',
+    )
+    dicasNotas.push(
+      'Registrar a pessoa responsável pela análise no cliente, o prazo informado e o motivo da espera.',
+    )
   }
 
   if (contexto.negocio?.proxima_acao_em) {
-    perguntas.push('O intervalo até a próxima ação está adequado para o valor e a temperatura do negócio?')
-    proximosPassos.push('Se o prazo estiver longo, considerar um contato intermediário curto para manter o negócio aquecido.')
+    perguntas.push(
+      'O intervalo até a próxima ação está adequado para o valor e a temperatura do negócio?',
+    )
+    proximosPassos.push(
+      'Se o prazo estiver longo, considerar um contato intermediário curto para manter o negócio aquecido.',
+    )
   } else {
-    perguntas.push('Este negócio está sem próxima ação registrada. Qual deve ser o próximo contato objetivo?')
+    perguntas.push(
+      'Este negócio está sem próxima ação registrada. Qual deve ser o próximo contato objetivo?',
+    )
     proximosPassos.push('Registrar uma próxima ação com data, canal e objetivo comercial claro.')
   }
 
   if (notas.length === 0) {
     perguntas.push('Não há follow-ups registrados. O histórico comercial real está fora do CRM?')
-    dicasNotas.push('Adicionar uma nota com último contato, resposta do cliente, pendência, responsável e próximo passo.')
+    dicasNotas.push(
+      'Adicionar uma nota com último contato, resposta do cliente, pendência, responsável e próximo passo.',
+    )
   } else {
-    dicasNotas.push('Evitar notas genéricas. Preferir: contato feito, quem respondeu, objeção ou pendência, prazo citado e ação combinada.')
+    dicasNotas.push(
+      'Evitar notas genéricas. Preferir: contato feito, quem respondeu, objeção ou pendência, prazo citado e ação combinada.',
+    )
   }
 
   if (!String(campos.detalhamento_proposta || '').trim()) {
-    perguntas.push('O Detalhamento da Proposta está vazio. Quais premissas justificam escopo, quantidade, escala e unidades?')
-    dicasNotas.push('Completar o detalhamento com premissas comerciais: unidades, quantidade, escala, prioridade, restrições e critério de decisão.')
+    perguntas.push(
+      'O Detalhamento da Proposta está vazio. Quais premissas justificam escopo, quantidade, escala e unidades?',
+    )
+    dicasNotas.push(
+      'Completar o detalhamento com premissas comerciais: unidades, quantidade, escala, prioridade, restrições e critério de decisão.',
+    )
   }
 
   if (contexto.proposta) {
-    proximosPassos.push('Fazer o follow-up conectando o escopo proposto à dor registrada, não apenas perguntando se a proposta foi aprovada.')
+    proximosPassos.push(
+      'Fazer o follow-up conectando o escopo proposto à dor registrada, não apenas perguntando se a proposta foi aprovada.',
+    )
   }
 
-  if (!perguntas.length) perguntas.push('Revisar se existe objeção, prazo de decisão, decisor envolvido e próximo passo confirmado.')
-  if (!proximosPassos.length) proximosPassos.push('Definir a melhor próxima ação com base no histórico e registrar o resultado no CRM.')
-  if (!dicasNotas.length) dicasNotas.push('Registrar notas com contexto suficiente para que outro comercial entenda a situação sem perguntar novamente.')
+  if (!perguntas.length)
+    perguntas.push(
+      'Revisar se existe objeção, prazo de decisão, decisor envolvido e próximo passo confirmado.',
+    )
+  if (!proximosPassos.length)
+    proximosPassos.push(
+      'Definir a melhor próxima ação com base no histórico e registrar o resultado no CRM.',
+    )
+  if (!dicasNotas.length)
+    dicasNotas.push(
+      'Registrar notas com contexto suficiente para que outro comercial entenda a situação sem perguntar novamente.',
+    )
 
   return { perguntas, proximosPassos, dicasNotas }
 }
@@ -242,8 +273,8 @@ export function NexoBusinessActions({
                 <p className="font-semibold text-slate-950">Resumo do histórico usado</p>
                 <p className="mt-2 text-slate-700">{resumoUltimoFollowUp(contexto)}</p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  O histórico completo continua no botão Notas. Aqui o Nexo usa as notas apenas
-                  como base para orientar o follow-up.
+                  O histórico completo continua no botão Notas. Aqui o Nexo usa as notas apenas como
+                  base para orientar o follow-up.
                 </p>
               </section>
             </div>
