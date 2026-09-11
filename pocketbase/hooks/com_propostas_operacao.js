@@ -1541,9 +1541,23 @@
       if (String(contexto.external_id || '') !== externalId)
         return e.badRequestError('Contexto divergente do negocio')
 
+      function nexoEnv(nome) {
+        try {
+          if (typeof $os !== 'undefined' && $os.getenv) return $os.getenv(nome) || ''
+        } catch (_) {}
+        return ''
+      }
+
       var contextoSeguro = nexoContextoResumo(contexto)
-      var apiKey = $secrets.get('NEXO_OPENAI_API_KEY') || $secrets.get('OPENAI_API_KEY') || ''
-      var model = String($secrets.get('NEXO_OPENAI_MODEL') || 'gpt-4o-mini')
+      var apiKey =
+        $secrets.get('NEXO_OPENAI_API_KEY') ||
+        $secrets.get('OPENAI_API_KEY') ||
+        nexoEnv('NEXO_OPENAI_API_KEY') ||
+        nexoEnv('OPENAI_API_KEY') ||
+        ''
+      var model = String(
+        $secrets.get('NEXO_OPENAI_MODEL') || nexoEnv('NEXO_OPENAI_MODEL') || 'gpt-4o-mini',
+      )
       if (!apiKey)
         return e.json(
           200,
