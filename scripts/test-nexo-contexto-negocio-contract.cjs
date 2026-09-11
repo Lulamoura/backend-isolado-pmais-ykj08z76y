@@ -1,8 +1,8 @@
 const fs = require('node:fs')
 const assert = require('node:assert/strict')
 
-const hookPath = 'pocketbase/hooks/com_nexo_contexto_negocio.js'
-assert.ok(fs.existsSync(hookPath), 'hook com_nexo_contexto_negocio.js deve existir')
+const hookPath = 'pocketbase/hooks/com_propostas_operacao.js'
+assert.ok(fs.existsSync(hookPath), 'hook com_propostas_operacao.js deve existir')
 
 const hook = fs.readFileSync(hookPath, 'utf8')
 
