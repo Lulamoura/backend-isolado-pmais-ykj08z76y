@@ -1411,29 +1411,56 @@
         }
       }
 
-      function nexoRespostaFallback(externalId, acao, motivo) {
+      function nexoRespostaFallback(externalId, acao, motivo, resumo) {
+        resumo = resumo || {}
+        var negocio = resumo.negocio || {}
+        var empresa = resumo.empresa || {}
+        var contato = resumo.contato || {}
+        var proposta = resumo.proposta || {}
+        var notas = resumo.notas_followups || []
+        var ultimoFollowUp = notas.length ? notas[0].texto : ''
+        var servico = resumo.tipo_servico || resumo['Detalhamento da Proposta'] || 'serviço não detalhado'
+        var empresaNome = empresa.nome || negocio.titulo || 'cliente'
+        var contatoNome = contato.nome || 'contato'
+        var proximaAcao = negocio.proxima_acao_em || 'sem próxima ação registrada'
+        var diagnostico =
+          'A IA do Nexo ainda não está configurada neste ambiente, então esta é uma contingência contextual. Para ' +
+          empresaNome +
+          ', o negócio está na fase ' +
+          (negocio.fase || 'não informada') +
+          ', com serviço/proposta relacionado a ' +
+          servico +
+          '. Último sinal registrado: ' +
+          (ultimoFollowUp || 'sem follow-up textual disponível') +
+          '. Próxima ação atual: ' +
+          proximaAcao +
+          '.'
         return {
           contrato: 'nexo_ajuda_comercial_v1',
           external_id: externalId,
           acao: acao,
-          diagnostico:
-            'Não foi possível gerar a análise de IA neste momento. Revise o contexto do negócio, o Detalhamento da Proposta e o último follow-up antes de definir o próximo contato.',
+          diagnostico: diagnostico,
           perguntas_criticas: [
-            'Qual foi o último compromisso assumido pelo cliente?',
-            'Existe prazo informado pelo cliente para análise ou decisão?',
-            'A próxima ação cadastrada está coerente com esse prazo?',
+            'Qual prazo o cliente informou para análise ou decisão deste caso específico?',
+            'A próxima ação cadastrada para ' + empresaNome + ' está coerente com o prazo informado pelo cliente?',
+            'Quem decide ou influencia a decisão além de ' + contatoNome + '?',
           ],
-          riscos: ['Ajuda de IA indisponível: ' + motivo],
+          riscos: [
+            'Ajuda de IA indisponível: ' + motivo,
+            'Se o próximo contato não estiver alinhado ao prazo real do cliente, o negócio pode esfriar.',
+          ],
           proximos_passos: [
-            'Registrar uma nota mais completa com decisor, pendência, prazo e próximo passo combinado.',
+            'Confirmar com ' + contatoNome + ' o prazo real de retorno e se existe dúvida sobre a proposta.',
+            proposta ? 'Conectar o follow-up ao escopo e ao valor da proposta, não apenas perguntar se foi aprovada.' : 'Verificar se já existe proposta formal vinculada antes do próximo contato.',
           ],
           mensagem_sugerida:
-            'Olá. Estou passando para acompanhar a análise da proposta e entender se existe algum ponto que eu possa esclarecer para facilitar a decisão. Há alguma previsão de retorno ou dúvida específica sobre o escopo apresentado?',
+            'Olá, ' + contatoNome + '. Tudo bem? Estou passando para acompanhar a análise da proposta referente a ' + servico + '. Você conseguiu algum retorno ou existe algum ponto que eu possa esclarecer para facilitar a avaliação? Se já houver uma previsão de decisão, eu me organizo para acompanhar no prazo correto.',
           dicas_para_melhorar_notas: [
             'Registrar quem respondeu, qual pendência ficou, prazo citado, decisor envolvido e próxima ação combinada.',
+            'Quando houver análise interna do cliente, registrar quem analisa, até quando e qual ponto da proposta pode travar a decisão.',
           ],
           aviso:
-            'Sugestão de contingência para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
+            'Contingência contextual porque a chave de IA não está configurada. Nenhuma mensagem foi enviada automaticamente.',
           fallback: true,
         }
       }
@@ -1503,11 +1530,11 @@
       if (String(contexto.external_id || '') !== externalId)
         return e.badRequestError('Contexto divergente do negocio')
 
+      var contextoSeguro = nexoContextoResumo(contexto)
       var apiKey = $secrets.get('NEXO_OPENAI_API_KEY') || $secrets.get('OPENAI_API_KEY') || ''
       var model = String($secrets.get('NEXO_OPENAI_MODEL') || 'gpt-4o-mini')
-      if (!apiKey) return e.json(503, { error: 'CONFIGURACAO_IA_AUSENTE' })
+      if (!apiKey) return e.json(200, nexoRespostaFallback(externalId, acao, 'CONFIGURACAO_IA_AUSENTE', contextoSeguro))
 
-      var contextoSeguro = nexoContextoResumo(contexto)
       var instrucaoOperador = nexoLimparTextoAjuda(body.instrucao_operador, 1200)
       var systemPrompt = [
         'Você é o Nexo - Inteligência Comercial PMais, agente de apoio comercial consultivo.',
@@ -1563,7 +1590,7 @@
         timeout: 45,
       })
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        return e.json(502, nexoRespostaFallback(externalId, acao, 'IA_HTTP_' + response.statusCode))
+        return e.json(502, nexoRespostaFallback(externalId, acao, 'IA_HTTP_' + response.statusCode, contextoSeguro))
       }
 
       try {
@@ -1595,7 +1622,7 @@
           fallback: false,
         })
       } catch (err) {
-        return e.json(502, nexoRespostaFallback(externalId, acao, String(err).slice(0, 80)))
+        return e.json(502, nexoRespostaFallback(externalId, acao, String(err).slice(0, 80), contextoSeguro))
       }
     },
     $apis.requireAuth('users'),
