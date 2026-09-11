@@ -1372,4 +1372,215 @@
     },
     $apis.requireAuth('users'),
   )
+
+  // Nexo — geração assistida por IA para apoio comercial contextual.
+  // Contrato: POST /backend/v1/nexo/negocios/{externalId}/ajuda
+  routerAdd(
+    'POST',
+    '/backend/v1/nexo/negocios/{externalId}/ajuda',
+    function (e) {
+      function nexoLimparTextoAjuda(value, max) {
+        var text = String(value || '')
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+        if (max && text.length > max) return text.slice(0, max)
+        return text
+      }
+
+      function nexoArrayTextos(value, fallback) {
+        if (!value) return fallback ? [fallback] : []
+        if (Array.isArray(value)) return value.map(function (x) { return nexoLimparTextoAjuda(x, 700) }).filter(Boolean)
+        var text = nexoLimparTextoAjuda(value, 700)
+        return text ? [text] : fallback ? [fallback] : []
+      }
+
+      function nexoJsonSeguro(text) {
+        var raw = String(text || '').trim()
+        try {
+          return JSON.parse(raw)
+        } catch (_) {
+          var match = raw.match(/\{[\s\S]*\}/)
+          if (match) return JSON.parse(match[0])
+          throw new Error('IA_JSON_INVALIDO')
+        }
+      }
+
+      function nexoRespostaFallback(externalId, acao, motivo) {
+        return {
+          contrato: 'nexo_ajuda_comercial_v1',
+          external_id: externalId,
+          acao: acao,
+          diagnostico:
+            'Não foi possível gerar a análise de IA neste momento. Revise o contexto do negócio, o Detalhamento da Proposta e o último follow-up antes de definir o próximo contato.',
+          perguntas_criticas: [
+            'Qual foi o último compromisso assumido pelo cliente?',
+            'Existe prazo informado pelo cliente para análise ou decisão?',
+            'A próxima ação cadastrada está coerente com esse prazo?',
+          ],
+          riscos: ['Ajuda de IA indisponível: ' + motivo],
+          proximos_passos: [
+            'Registrar uma nota mais completa com decisor, pendência, prazo e próximo passo combinado.',
+          ],
+          mensagem_sugerida:
+            'Olá. Estou passando para acompanhar a análise da proposta e entender se existe algum ponto que eu possa esclarecer para facilitar a decisão. Há alguma previsão de retorno ou dúvida específica sobre o escopo apresentado?',
+          dicas_para_melhorar_notas: [
+            'Registrar quem respondeu, qual pendência ficou, prazo citado, decisor envolvido e próxima ação combinada.',
+          ],
+          aviso: 'Sugestão de contingência para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
+          fallback: true,
+        }
+      }
+
+      function nexoContextoResumo(contexto) {
+        var negocio = contexto.negocio || {}
+        var campos = contexto.campos_crm || {}
+        var proposta = contexto.proposta || {}
+        var versao = proposta.versao_mais_recente || {}
+        var notas = contexto.notas_followups || []
+        var notasResumo = []
+        for (var i = 0; i < notas.length && i < 12; i++) {
+          notasResumo.push({
+            data: notas[i].criada_em || notas[i].created || notas[i].data || null,
+            texto: nexoLimparTextoAjuda(notas[i].texto || notas[i].conteudo || notas[i].note, 1200),
+          })
+        }
+        return {
+          negocio: {
+            id_activecampaign: contexto.external_id,
+            titulo: negocio.titulo || null,
+            fase: negocio.fase_crm || negocio.etapa || null,
+            valor_centavos: negocio.valor_centavos || null,
+            proxima_acao_em: negocio.proxima_acao_em || null,
+            fonte_prospeccao: negocio.fonte_prospeccao || null,
+            modalidade: negocio.modalidade || null,
+          },
+          empresa: contexto.empresa || null,
+          contato: contexto.contato || null,
+          responsavel: contexto.responsavel || null,
+          tipo_servico: campos.tipo_servico || '',
+          descricao_negocio: campos.descricao_negocio || negocio.descricao_negocio || '',
+          'Detalhamento da Proposta': campos.detalhamento_proposta || '',
+          proposta: proposta
+            ? {
+                identificador: proposta.identificador || proposta.id || null,
+                status: proposta.status || proposta.publicacao_estado || null,
+                acessos: proposta.total_acessos || 0,
+                downloads: proposta.total_downloads || 0,
+                versao: versao.numero || null,
+                valor_total_centavos: versao.valor_total_centavos || null,
+                leitura_estado: versao.leitura_estado || null,
+                enviada_em: versao.enviada_em || null,
+              }
+            : null,
+          notas_followups: notasResumo,
+        }
+      }
+
+      var ator = e.auth
+      if (!ator || !ator.getBool('ativo_comercial')) return e.forbiddenError('Usuario comercial necessario')
+      var externalId = String(e.request.pathValue('externalId') || '').trim()
+      if (!/^[0-9]+$/.test(externalId)) return e.badRequestError('ID externo invalido')
+
+      var body = e.requestInfo().body || {}
+      var acao = String(body.acao || 'proximo_follow_up')
+      var permitidas = {
+        proximo_follow_up: true,
+        preparar_whatsapp: true,
+        roteiro_ligacao: true,
+        avaliar_risco_perda: true,
+        melhorar_notas: true,
+      }
+      if (!permitidas[acao]) return e.badRequestError('Acao do Nexo invalida')
+      var contexto = body.contexto || {}
+      if (String(contexto.external_id || '') !== externalId) return e.badRequestError('Contexto divergente do negocio')
+
+      var apiKey = $secrets.get('NEXO_OPENAI_API_KEY') || $secrets.get('OPENAI_API_KEY') || ''
+      var model = String($secrets.get('NEXO_OPENAI_MODEL') || 'gpt-4o-mini')
+      if (!apiKey) return e.json(503, { error: 'CONFIGURACAO_IA_AUSENTE' })
+
+      var contextoSeguro = nexoContextoResumo(contexto)
+      var instrucaoOperador = nexoLimparTextoAjuda(body.instrucao_operador, 1200)
+      var systemPrompt = [
+        'Você é o Nexo - Inteligência Comercial PMais, agente de apoio comercial consultivo.',
+        'Responda em português brasileiro, com tom profissional, objetivo e útil para o operador comercial.',
+        'Use somente o contexto fornecido: tipo de serviço, Descrição do Negócio, Detalhamento da Proposta, proposta, contato e notas/follow-ups.',
+        'A resposta deve ser específica para este negócio. Não use texto genérico aplicável a qualquer cliente.',
+        'Faça inferências comerciais prudentes e aponte incertezas quando faltarem dados.',
+        'Compare prazo do cliente, data de próxima ação e risco de esfriamento/perda quando houver elementos para isso.',
+        'Se o histórico indicar que o cliente aguarda RH, orçamento, diretoria ou operação, pergunte quem decide e qual prazo foi dado.',
+        'Inclua Dicas para melhorar notas quando o histórico não tiver decisor, prazo, objeção, pendência ou próximo passo claro.',
+        'Nunca prometa preço, prazo operacional, desconto, condição comercial ou disponibilidade de equipe.',
+        'Sem envio automático: você apenas recomenda e rascunha; o operador humano revisa e decide.',
+        'Retorne exclusivamente JSON válido no contrato nexo_ajuda_comercial_v1.',
+      ].join('\n')
+
+      var userPrompt = JSON.stringify({
+        contrato_esperado: 'nexo_ajuda_comercial_v1',
+        acao_solicitada: acao,
+        instrucao_operador: instrucaoOperador,
+        contexto_do_negocio: contextoSeguro,
+        formato_obrigatorio: {
+          contrato: 'nexo_ajuda_comercial_v1',
+          external_id: externalId,
+          acao: acao,
+          diagnostico: 'texto específico do negócio',
+          perguntas_criticas: ['pergunta 1', 'pergunta 2'],
+          riscos: ['risco 1'],
+          proximos_passos: ['passo 1'],
+          mensagem_sugerida: 'rascunho para WhatsApp, email ou ligação conforme a ação; vazio apenas se inadequado',
+          dicas_para_melhorar_notas: ['dica 1'],
+          aviso: 'Sugestão para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
+        },
+      })
+
+      var response = $http.send({
+        url: 'https://api.openai.com/v1/chat/completions',
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + apiKey,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          model: model,
+          temperature: 0.3,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+        }),
+        timeout: 45,
+      })
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return e.json(502, nexoRespostaFallback(externalId, acao, 'IA_HTTP_' + response.statusCode))
+      }
+
+      try {
+        var content = (((response.json || {}).choices || [])[0] || {}).message || {}
+        var parsed = nexoJsonSeguro(content.content || '')
+        return e.json(200, {
+          contrato: 'nexo_ajuda_comercial_v1',
+          external_id: externalId,
+          acao: acao,
+          diagnostico: nexoLimparTextoAjuda(parsed.diagnostico, 3000),
+          perguntas_criticas: nexoArrayTextos(parsed.perguntas_criticas, 'Confirmar prazo, decisor e próxima ação.'),
+          riscos: nexoArrayTextos(parsed.riscos, 'Sem riscos adicionais explicitados pela IA.'),
+          proximos_passos: nexoArrayTextos(parsed.proximos_passos, 'Definir próximo contato e registrar no CRM.'),
+          mensagem_sugerida: nexoLimparTextoAjuda(parsed.mensagem_sugerida, 3000),
+          dicas_para_melhorar_notas: nexoArrayTextos(parsed.dicas_para_melhorar_notas, 'Registrar decisor, prazo, pendência e próximo passo.'),
+          aviso:
+            nexoLimparTextoAjuda(parsed.aviso, 500) ||
+            'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
+          modelo: model,
+          fallback: false,
+        })
+      } catch (err) {
+        return e.json(502, nexoRespostaFallback(externalId, acao, String(err).slice(0, 80)))
+      }
+    },
+    $apis.requireAuth('users'),
+  )
+
 })()

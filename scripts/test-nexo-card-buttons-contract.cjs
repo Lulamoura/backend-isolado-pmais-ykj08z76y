@@ -39,8 +39,8 @@ assert.doesNotMatch(
 )
 assert.match(
   component,
-  /Leitura comercial do Nexo/,
-  'Ajuda do Nexo deve apresentar leitura comercial, não só contexto bruto',
+  /Diagnóstico comercial|Escolha a ajuda do Nexo/,
+  'Ajuda do Nexo deve apresentar orientação comercial gerada, não só contexto bruto',
 )
 assert.match(
   component,

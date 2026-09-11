@@ -75,8 +75,46 @@ export interface NexoContextoNegocio {
   }>
 }
 
+export type NexoAcaoAssistida =
+  | 'proximo_follow_up'
+  | 'preparar_whatsapp'
+  | 'roteiro_ligacao'
+  | 'avaliar_risco_perda'
+  | 'melhorar_notas'
+
+export interface NexoAjudaComercial {
+  contrato: 'nexo_ajuda_comercial_v1' | string
+  external_id: string
+  acao: NexoAcaoAssistida
+  diagnostico: string
+  perguntas_criticas: string[]
+  riscos: string[]
+  proximos_passos: string[]
+  mensagem_sugerida: string
+  dicas_para_melhorar_notas: string[]
+  aviso: string
+  modelo?: string
+  fallback?: boolean
+}
+
 export function obterContextoNexoNegocio(externalId: string) {
   return pb.send<NexoContextoNegocio>(`/backend/v1/nexo/negocios/${externalId}/contexto`, {
     method: 'GET',
+  })
+}
+
+export function gerarAjudaNexoNegocio(
+  externalId: string,
+  acao: NexoAcaoAssistida,
+  contexto: NexoContextoNegocio,
+  instrucaoOperador?: string,
+) {
+  return pb.send<NexoAjudaComercial>(`/backend/v1/nexo/negocios/${externalId}/ajuda`, {
+    method: 'POST',
+    body: {
+      acao,
+      contexto,
+      instrucao_operador: instrucaoOperador || '',
+    },
   })
 }

@@ -3,8 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const obterContextoNexoNegocio = vi.hoisted(() => vi.fn())
+const gerarAjudaNexoNegocio = vi.hoisted(() => vi.fn())
 
-vi.mock('@/services/nexo', () => ({ obterContextoNexoNegocio }))
+vi.mock('@/services/nexo', () => ({ obterContextoNexoNegocio, gerarAjudaNexoNegocio }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 import { NexoBusinessActions } from '@/components/NexoBusinessActions'
@@ -43,13 +44,31 @@ const contexto = {
   notas_followups: [{ id: 'n1', texto: 'Cliente aguardando análise pela gestora de RH.' }],
 }
 
+const ajuda = {
+  contrato: 'nexo_ajuda_comercial_v1',
+  external_id: '4792',
+  acao: 'proximo_follow_up',
+  diagnostico:
+    'A proposta está em negociação e o histórico indica espera pela análise da gestora de RH.',
+  perguntas_criticas: [
+    'A gestora de RH deu algum prazo para concluir a análise?',
+    'A próxima ação cadastrada está alinhada com o prazo que o cliente forneceu?',
+  ],
+  riscos: ['Prazo longo sem contato intermediário pode esfriar o negócio.'],
+  proximos_passos: ['Confirmar com Brenda a previsão real de retorno do RH.'],
+  mensagem_sugerida: 'Olá, Brenda. Conseguiu algum retorno da análise do RH?',
+  dicas_para_melhorar_notas: ['Registrar decisor, prazo informado e pendência específica.'],
+  aviso: 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
+}
+
 describe('NexoBusinessActions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     obterContextoNexoNegocio.mockResolvedValue(contexto)
+    gerarAjudaNexoNegocio.mockResolvedValue(ajuda)
   })
 
-  it('exibe Ajuda do Nexo e carrega contexto quando o negócio está aberto', async () => {
+  it('gera ajuda de IA específica quando o negócio está aberto', async () => {
     const user = userEvent.setup()
     render(
       <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
@@ -59,19 +78,29 @@ describe('NexoBusinessActions', () => {
 
     await waitFor(() => expect(obterContextoNexoNegocio).toHaveBeenCalledWith('4792'))
     expect(await screen.findByText('Sem envio automático')).toBeInTheDocument()
-    expect(screen.getByText('Leitura comercial do Nexo')).toBeInTheDocument()
+    expect(screen.getByText('Escolha a ajuda do Nexo')).toBeInTheDocument()
+    expect(screen.getByText('Sugerir próximo follow-up')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
+
+    await waitFor(() =>
+      expect(gerarAjudaNexoNegocio).toHaveBeenCalledWith(
+        '4792',
+        'proximo_follow_up',
+        contexto,
+        '',
+      ),
+    )
+    expect(await screen.findByText('Diagnóstico comercial')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Se o cliente informou que vai aguardar análise do RH, ele deu prazo ou data para essa análise?',
+        'A proposta está em negociação e o histórico indica espera pela análise da gestora de RH.',
       ),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(
-        'A próxima ação cadastrada está alinhada com o prazo que o cliente forneceu?',
-      ),
+      screen.getByText('A próxima ação cadastrada está alinhada com o prazo que o cliente forneceu?'),
     ).toBeInTheDocument()
-    expect(screen.getByText('Dicas para melhorar notas')).toBeInTheDocument()
-    expect(screen.getByText(/O histórico completo continua no botão Notas/i)).toBeInTheDocument()
+    expect(screen.getAllByText('Dicas para melhorar notas').length).toBeGreaterThan(0)
     expect(screen.queryByText(/App: ok/i)).not.toBeInTheDocument()
     expect(
       screen.queryByText('Cliente aguardando análise pela gestora de RH.'),

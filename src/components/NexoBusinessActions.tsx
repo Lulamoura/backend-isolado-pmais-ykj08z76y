@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Bot, ClipboardList, FileText, Loader2, MessageSquareText, ShieldCheck } from 'lucide-react'
+import { useState } from 'react'
+import { Bot, ClipboardList, FileText, Loader2, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { obterContextoNexoNegocio, type NexoContextoNegocio } from '@/services/nexo'
+import {
+  gerarAjudaNexoNegocio,
+  obterContextoNexoNegocio,
+  type NexoAcaoAssistida,
+  type NexoAjudaComercial,
+  type NexoContextoNegocio,
+} from '@/services/nexo'
 
 interface NexoBusinessActionsProps {
   externalId: string | null | undefined
@@ -19,6 +25,34 @@ interface NexoBusinessActionsProps {
 }
 
 type ModalNexo = 'ajuda' | 'detalhamento' | null
+
+const ACOES_NEXO: Array<{ id: NexoAcaoAssistida; label: string; descricao: string }> = [
+  {
+    id: 'proximo_follow_up',
+    label: 'Sugerir próximo follow-up',
+    descricao: 'Diagnóstico, riscos, perguntas críticas e próximo contato recomendado.',
+  },
+  {
+    id: 'preparar_whatsapp',
+    label: 'Preparar WhatsApp',
+    descricao: 'Mensagem curta para o comercial revisar, copiar e adaptar.',
+  },
+  {
+    id: 'roteiro_ligacao',
+    label: 'Gerar roteiro de ligação',
+    descricao: 'Abertura, perguntas, pontos de atenção e fechamento com próxima ação.',
+  },
+  {
+    id: 'avaliar_risco_perda',
+    label: 'Avaliar risco de perda',
+    descricao: 'Sinais de esfriamento, pendências, decisores e urgência de ação.',
+  },
+  {
+    id: 'melhorar_notas',
+    label: 'Dicas para melhorar notas',
+    descricao: 'O que falta registrar para o Nexo ajudar melhor no próximo contato.',
+  },
+]
 
 const resumoTexto = (valor?: string | null) => {
   const texto = String(valor || '').trim()
@@ -44,99 +78,25 @@ function CampoTexto({ titulo, texto }: { titulo: string; texto?: string | null }
   )
 }
 
+function ListaResposta({ titulo, itens }: { titulo: string; itens?: string[] }) {
+  return (
+    <section className="rounded-md border p-3 text-sm">
+      <p className="font-semibold text-slate-950">{titulo}</p>
+      {itens?.length ? (
+        <ul className="mt-2 list-disc space-y-2 pl-5 text-slate-700">
+          {itens.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-muted-foreground">Sem apontamentos para este item.</p>
+      )}
+    </section>
+  )
+}
+
 function notaTexto(nota: NonNullable<NexoContextoNegocio['notas_followups']>[number]) {
   return nota.texto || nota.conteudo || nota.note || 'Nota sem conteúdo textual.'
-}
-
-function contemAlguma(texto: string, termos: string[]) {
-  const normalizado = texto.toLocaleLowerCase('pt-BR')
-  return termos.some((termo) => normalizado.includes(termo))
-}
-
-function gerarAjudaComercial(contexto: NexoContextoNegocio) {
-  const campos = contexto.campos_crm || {}
-  const notas = contexto.notas_followups || []
-  const textosNotas = notas.map(notaTexto).join(' ')
-  const base = [
-    campos.detalhamento_proposta,
-    campos.descricao_negocio,
-    campos.tipo_servico,
-    textosNotas,
-  ]
-    .filter(Boolean)
-    .join(' ')
-
-  const perguntas: string[] = []
-  const proximosPassos: string[] = []
-  const dicasNotas: string[] = []
-
-  if (contemAlguma(base, ['análise do rh', 'analise do rh', 'gestora de rh', 'rh'])) {
-    perguntas.push(
-      'Se o cliente informou que vai aguardar análise do RH, ele deu prazo ou data para essa análise?',
-    )
-    perguntas.push('A próxima ação cadastrada está alinhada com o prazo que o cliente forneceu?')
-    proximosPassos.push(
-      'Confirmar com o contato qual é a data esperada de retorno da análise interna do RH.',
-    )
-    dicasNotas.push(
-      'Registrar a pessoa responsável pela análise no cliente, o prazo informado e o motivo da espera.',
-    )
-  }
-
-  if (contexto.negocio?.proxima_acao_em) {
-    perguntas.push(
-      'O intervalo até a próxima ação está adequado para o valor e a temperatura do negócio?',
-    )
-    proximosPassos.push(
-      'Se o prazo estiver longo, considerar um contato intermediário curto para manter o negócio aquecido.',
-    )
-  } else {
-    perguntas.push(
-      'Este negócio está sem próxima ação registrada. Qual deve ser o próximo contato objetivo?',
-    )
-    proximosPassos.push('Registrar uma próxima ação com data, canal e objetivo comercial claro.')
-  }
-
-  if (notas.length === 0) {
-    perguntas.push('Não há follow-ups registrados. O histórico comercial real está fora do CRM?')
-    dicasNotas.push(
-      'Adicionar uma nota com último contato, resposta do cliente, pendência, responsável e próximo passo.',
-    )
-  } else {
-    dicasNotas.push(
-      'Evitar notas genéricas. Preferir: contato feito, quem respondeu, objeção ou pendência, prazo citado e ação combinada.',
-    )
-  }
-
-  if (!String(campos.detalhamento_proposta || '').trim()) {
-    perguntas.push(
-      'O Detalhamento da Proposta está vazio. Quais premissas justificam escopo, quantidade, escala e unidades?',
-    )
-    dicasNotas.push(
-      'Completar o detalhamento com premissas comerciais: unidades, quantidade, escala, prioridade, restrições e critério de decisão.',
-    )
-  }
-
-  if (contexto.proposta) {
-    proximosPassos.push(
-      'Fazer o follow-up conectando o escopo proposto à dor registrada, não apenas perguntando se a proposta foi aprovada.',
-    )
-  }
-
-  if (!perguntas.length)
-    perguntas.push(
-      'Revisar se existe objeção, prazo de decisão, decisor envolvido e próximo passo confirmado.',
-    )
-  if (!proximosPassos.length)
-    proximosPassos.push(
-      'Definir a melhor próxima ação com base no histórico e registrar o resultado no CRM.',
-    )
-  if (!dicasNotas.length)
-    dicasNotas.push(
-      'Registrar notas com contexto suficiente para que outro comercial entenda a situação sem perguntar novamente.',
-    )
-
-  return { perguntas, proximosPassos, dicasNotas }
 }
 
 function resumoUltimoFollowUp(contexto: NexoContextoNegocio) {
@@ -154,12 +114,17 @@ export function NexoBusinessActions({
   const [modal, setModal] = useState<ModalNexo>(null)
   const [contexto, setContexto] = useState<NexoContextoNegocio | null>(null)
   const [loading, setLoading] = useState(false)
+  const [acao, setAcao] = useState<NexoAcaoAssistida>('proximo_follow_up')
+  const [instrucao, setInstrucao] = useState('')
+  const [gerando, setGerando] = useState(false)
+  const [ajuda, setAjuda] = useState<NexoAjudaComercial | null>(null)
 
   const externalIdLimpo = String(externalId || '').trim()
   const canLoad = Boolean(externalIdLimpo)
 
   const abrir = async (modo: Exclude<ModalNexo, null>) => {
     setModal(modo)
+    setAjuda(null)
     if (!canLoad) return
     setLoading(true)
     try {
@@ -173,10 +138,23 @@ export function NexoBusinessActions({
     }
   }
 
+  const gerarAjuda = async () => {
+    if (!contexto || !externalIdLimpo) return
+    setGerando(true)
+    try {
+      const resposta = await gerarAjudaNexoNegocio(externalIdLimpo, acao, contexto, instrucao)
+      setAjuda(resposta)
+    } catch (_) {
+      toast.error('Não foi possível gerar a ajuda inteligente do Nexo.')
+      setAjuda(null)
+    } finally {
+      setGerando(false)
+    }
+  }
+
   const campos = contexto?.campos_crm || {}
   const proposta = contexto?.proposta
   const versao = proposta?.versao_mais_recente
-  const ajuda = useMemo(() => (contexto ? gerarAjudaComercial(contexto) : null), [contexto])
 
   return (
     <>
@@ -226,57 +204,84 @@ export function NexoBusinessActions({
             </p>
           ) : !contexto ? (
             <p className="text-sm text-muted-foreground">Contexto ainda não carregado.</p>
-          ) : modal === 'ajuda' && ajuda ? (
+          ) : modal === 'ajuda' ? (
             <div className="space-y-4">
               <section className="rounded-lg border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950">
                 <div className="flex items-center gap-2 font-semibold">
                   <ShieldCheck className="h-4 w-4" /> Sem envio automático
                 </div>
                 <p className="mt-2">
-                  O Nexo usa o contexto do negócio para orientar a decisão comercial. O operador
-                  revisa, decide e registra a ação no fluxo oficial.
+                  O Nexo gera uma resposta de agente de apoio comercial usando o contexto real do
+                  negócio. O operador revisa, decide e registra a ação no fluxo oficial.
                 </p>
               </section>
 
               <section className="rounded-md border p-3 text-sm">
                 <p className="flex items-center gap-2 font-semibold text-slate-950">
-                  <Bot className="h-4 w-4" /> Leitura comercial do Nexo
+                  <Bot className="h-4 w-4" /> Escolha a ajuda do Nexo
                 </p>
-                <ul className="mt-2 list-disc space-y-2 pl-5 text-slate-700">
-                  {ajuda.perguntas.map((item) => (
-                    <li key={item}>{item}</li>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {ACOES_NEXO.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`rounded-md border p-3 text-left transition ${
+                        acao === item.id
+                          ? 'border-violet-400 bg-violet-50 text-violet-950'
+                          : 'bg-white hover:bg-slate-50'
+                      }`}
+                      onClick={() => setAcao(item.id)}
+                    >
+                      <span className="block font-medium">{item.label}</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">{item.descricao}</span>
+                    </button>
                   ))}
-                </ul>
+                </div>
+                <label className="mt-3 block text-xs font-medium text-muted-foreground">
+                  Orientação opcional para o Nexo
+                  <textarea
+                    className="mt-1 min-h-20 w-full rounded-md border bg-white p-2 text-sm text-slate-900"
+                    placeholder="Ex.: focar em follow-up por WhatsApp, tom mais consultivo, avaliar se o prazo está longo demais."
+                    value={instrucao}
+                    onChange={(event) => setInstrucao(event.target.value)}
+                  />
+                </label>
+                <Button className="mt-3" type="button" onClick={() => void gerarAjuda()} disabled={gerando}>
+                  {gerando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Gerar ajuda do Nexo
+                </Button>
               </section>
 
-              <section className="rounded-md border p-3 text-sm">
-                <p className="font-semibold text-slate-950">Próximos passos sugeridos</p>
-                <ul className="mt-2 list-disc space-y-2 pl-5 text-slate-700">
-                  {ajuda.proximosPassos.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-
-              <section className="rounded-md border p-3 text-sm">
-                <p className="flex items-center gap-2 font-semibold text-slate-950">
-                  <MessageSquareText className="h-4 w-4" /> Dicas para melhorar notas
-                </p>
-                <ul className="mt-2 list-disc space-y-2 pl-5 text-slate-700">
-                  {ajuda.dicasNotas.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-
-              <section className="rounded-md border bg-slate-50 p-3 text-sm">
-                <p className="font-semibold text-slate-950">Resumo do histórico usado</p>
-                <p className="mt-2 text-slate-700">{resumoUltimoFollowUp(contexto)}</p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  O histórico completo continua no botão Notas. Aqui o Nexo usa as notas apenas como
-                  base para orientar o follow-up.
-                </p>
-              </section>
+              {ajuda ? (
+                <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
+                  <section className="rounded-md border bg-white p-3 text-sm">
+                    <p className="font-semibold text-slate-950">Diagnóstico comercial</p>
+                    <p className="mt-2 whitespace-pre-wrap text-slate-700">{ajuda.diagnostico}</p>
+                  </section>
+                  <ListaResposta titulo="Perguntas críticas" itens={ajuda.perguntas_criticas} />
+                  <ListaResposta titulo="Riscos percebidos" itens={ajuda.riscos} />
+                  <ListaResposta titulo="Próximos passos sugeridos" itens={ajuda.proximos_passos} />
+                  {ajuda.mensagem_sugerida && (
+                    <section className="rounded-md border bg-white p-3 text-sm">
+                      <p className="font-semibold text-slate-950">Mensagem sugerida para revisão</p>
+                      <p className="mt-2 whitespace-pre-wrap text-slate-700">{ajuda.mensagem_sugerida}</p>
+                    </section>
+                  )}
+                  <ListaResposta titulo="Dicas para melhorar notas" itens={ajuda.dicas_para_melhorar_notas} />
+                  <p className="text-xs text-muted-foreground">
+                    {ajuda.aviso || 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada.'}
+                  </p>
+                </div>
+              ) : (
+                <section className="rounded-md border bg-slate-50 p-3 text-sm">
+                  <p className="font-semibold text-slate-950">Resumo do histórico disponível</p>
+                  <p className="mt-2 text-slate-700">{resumoUltimoFollowUp(contexto)}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    O histórico completo continua no botão Notas. Clique em Gerar ajuda do Nexo
+                    para receber uma análise específica deste negócio.
+                  </p>
+                </section>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
