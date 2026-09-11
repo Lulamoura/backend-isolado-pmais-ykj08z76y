@@ -84,12 +84,7 @@ describe('NexoBusinessActions', () => {
     await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
 
     await waitFor(() =>
-      expect(gerarAjudaNexoNegocio).toHaveBeenCalledWith(
-        '4792',
-        'proximo_follow_up',
-        contexto,
-        '',
-      ),
+      expect(gerarAjudaNexoNegocio).toHaveBeenCalledWith('4792', 'proximo_follow_up', contexto, ''),
     )
     expect(await screen.findByText('Diagnóstico comercial')).toBeInTheDocument()
     expect(
@@ -98,7 +93,9 @@ describe('NexoBusinessActions', () => {
       ),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('A próxima ação cadastrada está alinhada com o prazo que o cliente forneceu?'),
+      screen.getByText(
+        'A próxima ação cadastrada está alinhada com o prazo que o cliente forneceu?',
+      ),
     ).toBeInTheDocument()
     expect(screen.getAllByText('Dicas para melhorar notas').length).toBeGreaterThan(0)
     expect(screen.queryByText(/App: ok/i)).not.toBeInTheDocument()

@@ -1390,7 +1390,12 @@
 
       function nexoArrayTextos(value, fallback) {
         if (!value) return fallback ? [fallback] : []
-        if (Array.isArray(value)) return value.map(function (x) { return nexoLimparTextoAjuda(x, 700) }).filter(Boolean)
+        if (Array.isArray(value))
+          return value
+            .map(function (x) {
+              return nexoLimparTextoAjuda(x, 700)
+            })
+            .filter(Boolean)
         var text = nexoLimparTextoAjuda(value, 700)
         return text ? [text] : fallback ? [fallback] : []
       }
@@ -1427,7 +1432,8 @@
           dicas_para_melhorar_notas: [
             'Registrar quem respondeu, qual pendência ficou, prazo citado, decisor envolvido e próxima ação combinada.',
           ],
-          aviso: 'Sugestão de contingência para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
+          aviso:
+            'Sugestão de contingência para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
           fallback: true,
         }
       }
@@ -1478,7 +1484,8 @@
       }
 
       var ator = e.auth
-      if (!ator || !ator.getBool('ativo_comercial')) return e.forbiddenError('Usuario comercial necessario')
+      if (!ator || !ator.getBool('ativo_comercial'))
+        return e.forbiddenError('Usuario comercial necessario')
       var externalId = String(e.request.pathValue('externalId') || '').trim()
       if (!/^[0-9]+$/.test(externalId)) return e.badRequestError('ID externo invalido')
 
@@ -1493,7 +1500,8 @@
       }
       if (!permitidas[acao]) return e.badRequestError('Acao do Nexo invalida')
       var contexto = body.contexto || {}
-      if (String(contexto.external_id || '') !== externalId) return e.badRequestError('Contexto divergente do negocio')
+      if (String(contexto.external_id || '') !== externalId)
+        return e.badRequestError('Contexto divergente do negocio')
 
       var apiKey = $secrets.get('NEXO_OPENAI_API_KEY') || $secrets.get('OPENAI_API_KEY') || ''
       var model = String($secrets.get('NEXO_OPENAI_MODEL') || 'gpt-4o-mini')
@@ -1528,7 +1536,8 @@
           perguntas_criticas: ['pergunta 1', 'pergunta 2'],
           riscos: ['risco 1'],
           proximos_passos: ['passo 1'],
-          mensagem_sugerida: 'rascunho para WhatsApp, email ou ligação conforme a ação; vazio apenas se inadequado',
+          mensagem_sugerida:
+            'rascunho para WhatsApp, email ou ligação conforme a ação; vazio apenas se inadequado',
           dicas_para_melhorar_notas: ['dica 1'],
           aviso: 'Sugestão para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
         },
@@ -1565,11 +1574,20 @@
           external_id: externalId,
           acao: acao,
           diagnostico: nexoLimparTextoAjuda(parsed.diagnostico, 3000),
-          perguntas_criticas: nexoArrayTextos(parsed.perguntas_criticas, 'Confirmar prazo, decisor e próxima ação.'),
+          perguntas_criticas: nexoArrayTextos(
+            parsed.perguntas_criticas,
+            'Confirmar prazo, decisor e próxima ação.',
+          ),
           riscos: nexoArrayTextos(parsed.riscos, 'Sem riscos adicionais explicitados pela IA.'),
-          proximos_passos: nexoArrayTextos(parsed.proximos_passos, 'Definir próximo contato e registrar no CRM.'),
+          proximos_passos: nexoArrayTextos(
+            parsed.proximos_passos,
+            'Definir próximo contato e registrar no CRM.',
+          ),
           mensagem_sugerida: nexoLimparTextoAjuda(parsed.mensagem_sugerida, 3000),
-          dicas_para_melhorar_notas: nexoArrayTextos(parsed.dicas_para_melhorar_notas, 'Registrar decisor, prazo, pendência e próximo passo.'),
+          dicas_para_melhorar_notas: nexoArrayTextos(
+            parsed.dicas_para_melhorar_notas,
+            'Registrar decisor, prazo, pendência e próximo passo.',
+          ),
           aviso:
             nexoLimparTextoAjuda(parsed.aviso, 500) ||
             'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
@@ -1582,5 +1600,4 @@
     },
     $apis.requireAuth('users'),
   )
-
 })()

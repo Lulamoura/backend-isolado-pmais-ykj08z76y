@@ -233,7 +233,9 @@ export function NexoBusinessActions({
                       onClick={() => setAcao(item.id)}
                     >
                       <span className="block font-medium">{item.label}</span>
-                      <span className="mt-1 block text-xs text-muted-foreground">{item.descricao}</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {item.descricao}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -246,7 +248,12 @@ export function NexoBusinessActions({
                     onChange={(event) => setInstrucao(event.target.value)}
                   />
                 </label>
-                <Button className="mt-3" type="button" onClick={() => void gerarAjuda()} disabled={gerando}>
+                <Button
+                  className="mt-3"
+                  type="button"
+                  onClick={() => void gerarAjuda()}
+                  disabled={gerando}
+                >
                   {gerando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Gerar ajuda do Nexo
                 </Button>
@@ -264,12 +271,18 @@ export function NexoBusinessActions({
                   {ajuda.mensagem_sugerida && (
                     <section className="rounded-md border bg-white p-3 text-sm">
                       <p className="font-semibold text-slate-950">Mensagem sugerida para revisão</p>
-                      <p className="mt-2 whitespace-pre-wrap text-slate-700">{ajuda.mensagem_sugerida}</p>
+                      <p className="mt-2 whitespace-pre-wrap text-slate-700">
+                        {ajuda.mensagem_sugerida}
+                      </p>
                     </section>
                   )}
-                  <ListaResposta titulo="Dicas para melhorar notas" itens={ajuda.dicas_para_melhorar_notas} />
+                  <ListaResposta
+                    titulo="Dicas para melhorar notas"
+                    itens={ajuda.dicas_para_melhorar_notas}
+                  />
                   <p className="text-xs text-muted-foreground">
-                    {ajuda.aviso || 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada.'}
+                    {ajuda.aviso ||
+                      'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada.'}
                   </p>
                 </div>
               ) : (
@@ -277,8 +290,8 @@ export function NexoBusinessActions({
                   <p className="font-semibold text-slate-950">Resumo do histórico disponível</p>
                   <p className="mt-2 text-slate-700">{resumoUltimoFollowUp(contexto)}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    O histórico completo continua no botão Notas. Clique em Gerar ajuda do Nexo
-                    para receber uma análise específica deste negócio.
+                    O histórico completo continua no botão Notas. Clique em Gerar ajuda do Nexo para
+                    receber uma análise específica deste negócio.
                   </p>
                 </section>
               )}

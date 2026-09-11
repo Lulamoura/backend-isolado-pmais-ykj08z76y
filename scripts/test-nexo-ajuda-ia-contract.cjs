@@ -15,14 +15,26 @@ assert.match(
   'backend deve expor POST /backend/v1/nexo/negocios/{externalId}/ajuda',
 )
 assert.match(hook, /nexo_ajuda_comercial_v1/, 'backend deve declarar contrato da ajuda comercial')
-assert.match(hook, /OPENAI_API_KEY|NEXO_OPENAI_API_KEY/, 'backend deve usar segredo de LLM para IA real')
+assert.match(
+  hook,
+  /OPENAI_API_KEY|NEXO_OPENAI_API_KEY/,
+  'backend deve usar segredo de LLM para IA real',
+)
 assert.match(hook, /chat\/completions|responses/, 'backend deve chamar API de geração de IA')
-assert.match(hook, /Sem envio automático|nao_envia_automaticamente|não enviar/i, 'prompt deve proibir envio automático')
+assert.match(
+  hook,
+  /Sem envio automático|nao_envia_automaticamente|não enviar/i,
+  'prompt deve proibir envio automático',
+)
 assert.match(hook, /Detalhamento da Proposta/, 'prompt deve usar Detalhamento da Proposta')
 assert.match(hook, /notas|follow-ups/i, 'prompt deve usar histórico de notas/follow-ups')
 assert.match(hook, /dicas_para_melhorar_notas/, 'resposta deve suportar dicas para melhorar notas')
 assert.match(hook, /perguntas_criticas/, 'resposta deve suportar perguntas críticas do caso')
-assert.match(hook, /mensagem_sugerida/, 'resposta deve suportar mensagem de follow-up pronta para revisão')
+assert.match(
+  hook,
+  /mensagem_sugerida/,
+  'resposta deve suportar mensagem de follow-up pronta para revisão',
+)
 
 assert.match(
   service,
