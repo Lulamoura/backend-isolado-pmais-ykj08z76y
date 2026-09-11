@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CommercialContextCard } from '@/components/CommercialContextCard'
 import { formatDate } from '@/lib/commercial-context'
+import { NexoBusinessActions } from '@/components/NexoBusinessActions'
 import {
   Select,
   SelectContent,
@@ -177,6 +178,11 @@ export default function OrdensExecucao() {
                   negocioId={item.negocio.id}
                   showNextAction={false}
                   showReadOnlyNotice={false}
+                />
+                <NexoBusinessActions
+                  externalId={item.negocio.external_id || item.contexto.external_id}
+                  businessTitle={item.negocio.titulo}
+                  allowNexoHelp={false}
                 />
                 <div className="rounded-md border bg-slate-50 p-3 text-sm">
                   <p className="font-medium text-slate-900">

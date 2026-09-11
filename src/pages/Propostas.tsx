@@ -49,6 +49,7 @@ import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { devolverQualificacao } from '@/services/qualificacoes'
 import { CommercialContextCard } from '@/components/CommercialContextCard'
 import { CommercialFilters } from '@/components/CommercialFilters'
+import { NexoBusinessActions } from '@/components/NexoBusinessActions'
 import {
   commercialActionCardClass,
   filterAndSortCommercial,
@@ -471,6 +472,11 @@ export default function Propostas() {
                   showReadOnlyNotice={false}
                 />
                 <div className="flex flex-wrap items-center gap-2">
+                  <NexoBusinessActions
+                    externalId={item.contexto.external_id}
+                    businessTitle={item.negocio.titulo}
+                    allowNexoHelp={true}
+                  />
                   {!somenteNegociacao &&
                     !somenteLeituraPerfil &&
                     !item.contexto.somente_leitura && (
