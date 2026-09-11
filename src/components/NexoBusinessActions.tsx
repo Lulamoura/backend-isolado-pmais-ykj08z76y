@@ -128,7 +128,8 @@ export function NexoBusinessActions({
 
           {!canLoad ? (
             <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              Este card ainda não tem ID externo do ActiveCampaign para consultar o contexto do Nexo.
+              Este card ainda não tem ID externo do ActiveCampaign para consultar o contexto do
+              Nexo.
             </p>
           ) : loading ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -177,7 +178,9 @@ export function NexoBusinessActions({
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">Fase</dt>
-                    <dd>{contexto.negocio?.fase_crm || contexto.negocio?.etapa || 'Não informada'}</dd>
+                    <dd>
+                      {contexto.negocio?.fase_crm || contexto.negocio?.etapa || 'Não informada'}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">Valor</dt>
@@ -218,7 +221,9 @@ export function NexoBusinessActions({
                     </div>
                   </dl>
                 ) : (
-                  <p className="mt-2 text-muted-foreground">Nenhuma proposta vinculada encontrada.</p>
+                  <p className="mt-2 text-muted-foreground">
+                    Nenhuma proposta vinculada encontrada.
+                  </p>
                 )}
               </section>
 

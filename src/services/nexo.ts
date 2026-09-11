@@ -22,9 +22,24 @@ export interface NexoContextoNegocio {
     valor_centavos?: number | null
     proxima_acao_em?: string | null
   }
-  empresa?: { id?: string; nome?: string | null; email?: string | null; telefone?: string | null } | null
-  contato?: { id?: string; nome?: string | null; email?: string | null; telefone?: string | null } | null
-  responsavel?: { id?: string; nome?: string | null; name?: string | null; email?: string | null } | null
+  empresa?: {
+    id?: string
+    nome?: string | null
+    email?: string | null
+    telefone?: string | null
+  } | null
+  contato?: {
+    id?: string
+    nome?: string | null
+    email?: string | null
+    telefone?: string | null
+  } | null
+  responsavel?: {
+    id?: string
+    nome?: string | null
+    name?: string | null
+    email?: string | null
+  } | null
   campos_crm?: {
     descricao_negocio?: string | null
     tipo_servico?: string | null

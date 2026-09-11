@@ -51,24 +51,24 @@ describe('NexoBusinessActions', () => {
 
   it('exibe Ajuda do Nexo e carrega contexto quando o negócio está aberto', async () => {
     const user = userEvent.setup()
-    render(<NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />)
+    render(
+      <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
+    )
 
     await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
 
     await waitFor(() => expect(obterContextoNexoNegocio).toHaveBeenCalledWith('4792'))
     expect(await screen.findByText('Sem envio automático')).toBeInTheDocument()
-    expect(screen.getByText('Cliente solicitou proposta de agentes de apoio para 06 lojas.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Cliente solicitou proposta de agentes de apoio para 06 lojas.'),
+    ).toBeInTheDocument()
     expect(screen.getByText('Cliente aguardando análise pela gestora de RH.')).toBeInTheDocument()
   })
 
   it('mantém Detalhamento da Proposta mesmo quando a ajuda do Nexo está oculta', async () => {
     const user = userEvent.setup()
     render(
-      <NexoBusinessActions
-        externalId="4792"
-        businessTitle="Negócio ganho"
-        allowNexoHelp={false}
-      />,
+      <NexoBusinessActions externalId="4792" businessTitle="Negócio ganho" allowNexoHelp={false} />,
     )
 
     expect(screen.queryByRole('button', { name: /Ajuda do Nexo/i })).not.toBeInTheDocument()
