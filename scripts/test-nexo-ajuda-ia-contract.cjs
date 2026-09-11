@@ -23,6 +23,11 @@ assert.match(
 assert.match(hook, /chat\/completions|responses/, 'backend deve chamar API de geração de IA')
 assert.match(
   hook,
+  /\$os\.getenv|nexoEnv/,
+  'backend deve aceitar variável de ambiente SKIP além de $secrets',
+)
+assert.match(
+  hook,
   /Sem envio automático|nao_envia_automaticamente|não enviar/i,
   'prompt deve proibir envio automático',
 )
