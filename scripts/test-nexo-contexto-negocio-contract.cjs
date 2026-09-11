@@ -13,7 +13,11 @@ assert.match(
 )
 assert.match(hook, /\$apis\.requireAuth\('users'\)/, 'endpoint deve exigir autenticação de usuário')
 assert.match(hook, /ativo_comercial/, 'endpoint deve exigir usuário comercial ativo')
-assert.match(hook, /nexoPodeAcessarNegocio/, 'endpoint deve validar escopo do negócio antes de retornar contexto')
+assert.match(
+  hook,
+  /nexoPodeAcessarNegocio/,
+  'endpoint deve validar escopo do negócio antes de retornar contexto',
+)
 assert.match(hook, /propostaSubstituicaoAutoriza/, 'endpoint deve respeitar substituições vigentes')
 assert.match(
   hook,
@@ -22,15 +26,27 @@ assert.match(
 )
 assert.match(hook, /AC_API_URL/, 'endpoint deve usar segredo AC_API_URL, sem expor valor')
 assert.match(hook, /AC_API_KEY/, 'endpoint deve usar segredo AC_API_KEY, sem expor valor')
-assert.doesNotMatch(hook, /Api-Token['"]\s*:\s*['"][^'"]+['"]/, 'não pode haver token ActiveCampaign literal')
+assert.doesNotMatch(
+  hook,
+  /Api-Token['"]\s*:\s*['"][^'"]+['"]/,
+  'não pode haver token ActiveCampaign literal',
+)
 assert.match(hook, /\/api\/3\/deals\//, 'deve ler o deal no ActiveCampaign')
 assert.match(hook, /\/api\/3\/dealCustomFieldMeta/, 'deve ler metadados dos campos de negócio')
-assert.match(hook, /filters\[dealId\]/, 'deve buscar valores customizados por filters[dealId], não filters[deal]')
+assert.match(
+  hook,
+  /filters\[dealId\]/,
+  'deve buscar valores customizados por filters[dealId], não filters[deal]',
+)
 assert.doesNotMatch(hook, /filters\[deal\]=/, 'não deve usar filtro inválido filters[deal]')
 assert.match(hook, /Detalhamento da Proposta/, 'deve reconhecer o campo Detalhamento da Proposta')
 assert.match(hook, /Tipo de Serviço/, 'deve reconhecer o campo Tipo de Serviço')
 assert.match(hook, /descricao_negocio/, 'deve devolver Descrição do Negócio como fonte separada')
-assert.match(hook, /detalhamento_proposta/, 'deve devolver Detalhamento da Proposta como fonte separada')
+assert.match(
+  hook,
+  /detalhamento_proposta/,
+  'deve devolver Detalhamento da Proposta como fonte separada',
+)
 assert.match(hook, /tipo_servico/, 'deve devolver Tipo de Serviço como fonte separada')
 assert.match(hook, /\/api\/3\/notes/, 'deve buscar notas/follow-ups do ActiveCampaign')
 assert.match(hook, /reltype.*Deal|Deal.*reltype/, 'deve filtrar notas de negócio/deal')

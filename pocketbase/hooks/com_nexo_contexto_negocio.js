@@ -89,7 +89,8 @@ routerAdd(
       try {
         var record = app.findRecordById(collection, id)
         var result = { id: record.id }
-        for (var i = 0; i < fields.length; i++) result[fields[i]] = record.getString(fields[i]) || null
+        for (var i = 0; i < fields.length; i++)
+          result[fields[i]] = record.getString(fields[i]) || null
         return result
       } catch (_) {
         return null
@@ -121,10 +122,12 @@ routerAdd(
     }
 
     function nexoCamposActiveCampaign(apiUrl, apiKey, externalId) {
-      var deal = nexoCallAc(apiUrl, apiKey, '/api/3/deals/' + encodeURIComponent(externalId)).deal || {}
+      var deal =
+        nexoCallAc(apiUrl, apiKey, '/api/3/deals/' + encodeURIComponent(externalId)).deal || {}
       var meta = nexoListAc(apiUrl, apiKey, '/api/3/dealCustomFieldMeta', 'dealCustomFieldMeta', '')
       var labels = {}
-      for (var mi = 0; mi < meta.length; mi++) labels[String(meta[mi].id)] = meta[mi].fieldLabel || ''
+      for (var mi = 0; mi < meta.length; mi++)
+        labels[String(meta[mi].id)] = meta[mi].fieldLabel || ''
       var customRows = nexoListAc(
         apiUrl,
         apiKey,
@@ -135,7 +138,9 @@ routerAdd(
       var customByLabel = {}
       for (var ci = 0; ci < customRows.length; ci++) {
         if (String(customRows[ci].dealId || '') !== String(externalId)) continue
-        var fieldId = String(customRows[ci].customFieldId || customRows[ci].dealCustomFieldMetumId || '')
+        var fieldId = String(
+          customRows[ci].customFieldId || customRows[ci].dealCustomFieldMetumId || '',
+        )
         var label = labels[fieldId] || ''
         var fieldVal = nexoLimparTexto(customRows[ci].fieldValue, 4000)
         if (fieldId) customByLabel['meta:' + fieldId] = fieldVal
@@ -212,7 +217,10 @@ routerAdd(
           total_downloads: proposta.getInt('total_downloads'),
           primeiro_acesso_em: proposta.getString('primeiro_acesso_em') || null,
           ultimo_acesso_em: proposta.getString('ultimo_acesso_em') || null,
-          mensagem_email_rascunho: nexoLimparTexto(proposta.getString('mensagem_email_rascunho'), 4000),
+          mensagem_email_rascunho: nexoLimparTexto(
+            proposta.getString('mensagem_email_rascunho'),
+            4000,
+          ),
           versao_mais_recente: versao
             ? {
                 id: versao.id,
@@ -239,7 +247,8 @@ routerAdd(
     }
 
     var ator = e.auth
-    if (!ator || !ator.getBool('ativo_comercial')) return e.forbiddenError('Usuario comercial necessario')
+    if (!ator || !ator.getBool('ativo_comercial'))
+      return e.forbiddenError('Usuario comercial necessario')
     var perfil = nexoPerfil($app, ator)
     var externalId = String(e.request.pathValue('externalId') || '').trim()
     if (!/^[0-9]+$/.test(externalId)) return e.badRequestError('ID externo invalido')
@@ -248,7 +257,9 @@ routerAdd(
     try {
       vinculo = $app.findFirstRecordByFilter(
         'com_vinculos_externos',
-        "sistema_origem='activecampaign' && external_type='business' && external_id='" + externalId + "'",
+        "sistema_origem='activecampaign' && external_type='business' && external_id='" +
+          externalId +
+          "'",
       )
     } catch (_) {
       return e.notFoundError('Negocio nao espelhado')
@@ -305,7 +316,10 @@ routerAdd(
         'email',
         'telefone',
       ]),
-      responsavel: nexoRelacionado($app, 'users', negocio.getString('responsavel_id'), ['name', 'email']),
+      responsavel: nexoRelacionado($app, 'users', negocio.getString('responsavel_id'), [
+        'name',
+        'email',
+      ]),
       campos_crm: {
         descricao_negocio: ac.campos.descricao_negocio || negocio.getString('descricao') || '',
         tipo_servico: ac.campos.tipo_servico || '',
