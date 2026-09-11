@@ -1548,17 +1548,37 @@
         return ''
       }
 
+      function nexoGatewayUrl(base) {
+        var url = String(base || '').replace(/\/+$/, '')
+        if (!url) return ''
+        if (/\/v1$/i.test(url)) return url + '/chat/completions'
+        return url + '/v1/chat/completions'
+      }
+
       var contextoSeguro = nexoContextoResumo(contexto)
-      var apiKey =
+      var gatewayKey =
+        $secrets.get('SKIP_AI_GATEWAY_API_KEY') || nexoEnv('SKIP_AI_GATEWAY_API_KEY') || ''
+      var gatewayUrlBase =
+        $secrets.get('SKIP_AI_GATEWAY_URL') || nexoEnv('SKIP_AI_GATEWAY_URL') || ''
+      var openAiKey =
         $secrets.get('NEXO_OPENAI_API_KEY') ||
         $secrets.get('OPENAI_API_KEY') ||
         nexoEnv('NEXO_OPENAI_API_KEY') ||
         nexoEnv('OPENAI_API_KEY') ||
         ''
+      var apiKey = openAiKey || gatewayKey
+      var aiUrl = openAiKey
+        ? 'https://api.openai.com/v1/chat/completions'
+        : nexoGatewayUrl(gatewayUrlBase)
+      var provider = openAiKey ? 'openai' : 'skip_ai_gateway'
       var model = String(
-        $secrets.get('NEXO_OPENAI_MODEL') || nexoEnv('NEXO_OPENAI_MODEL') || 'gpt-4o-mini',
+        $secrets.get('NEXO_OPENAI_MODEL') ||
+          nexoEnv('NEXO_OPENAI_MODEL') ||
+          $secrets.get('SKIP_AI_GATEWAY_MODEL') ||
+          nexoEnv('SKIP_AI_GATEWAY_MODEL') ||
+          'gpt-4o-mini',
       )
-      if (!apiKey)
+      if (!apiKey || !aiUrl)
         return e.json(
           200,
           nexoRespostaFallback(externalId, acao, 'CONFIGURACAO_IA_AUSENTE', contextoSeguro),
@@ -1600,7 +1620,7 @@
       })
 
       var response = $http.send({
-        url: 'https://api.openai.com/v1/chat/completions',
+        url: aiUrl,
         method: 'POST',
         headers: {
           Authorization: 'Bearer ' + apiKey,
@@ -1651,6 +1671,7 @@
             nexoLimparTextoAjuda(parsed.aviso, 500) ||
             'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
           modelo: model,
+          provider: provider,
           fallback: false,
         })
       } catch (err) {
