@@ -38,8 +38,18 @@ assert.match(
 )
 assert.match(
   hook,
-  /nexoChamarPMaisAgentGateway|x-pmais-signature/i,
-  'backend deve chamar o PMais Agent Gateway com assinatura',
+  /nexoChamarPMaisAgentGateway|nexoChamarPMaisSkipBridge|x-pmais-signature|x-pmais-skip-bridge-secret/i,
+  'backend deve chamar o PMais Agent Gateway com assinatura HMAC ou ponte segura SKIP',
+)
+assert.match(
+  hook,
+  /\/v1\/comercial\/skip\/nexo\/ajuda-negocio/,
+  'backend deve usar endpoint governado do PMais Agent Gateway compatível com SKIP',
+)
+assert.match(
+  hook,
+  /AC_WEBHOOK_SECRET/,
+  'ponte SKIP deve usar segredo nativo já exposto ao runtime, não segredo customizado ausente',
 )
 assert.match(
   hook,

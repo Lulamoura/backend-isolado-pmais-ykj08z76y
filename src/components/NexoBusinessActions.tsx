@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bot, ClipboardList, FileText, Loader2, ShieldCheck } from 'lucide-react'
+import { Bot, ClipboardList, FileText, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -206,16 +206,6 @@ export function NexoBusinessActions({
             <p className="text-sm text-muted-foreground">Contexto ainda não carregado.</p>
           ) : modal === 'ajuda' ? (
             <div className="space-y-4">
-              <section className="rounded-lg border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950">
-                <div className="flex items-center gap-2 font-semibold">
-                  <ShieldCheck className="h-4 w-4" /> Sem envio automático
-                </div>
-                <p className="mt-2">
-                  O Nexo gera uma resposta de agente de apoio comercial usando o contexto real do
-                  negócio. O operador revisa, decide e registra a ação no fluxo oficial.
-                </p>
-              </section>
-
               <section className="rounded-md border p-3 text-sm">
                 <p className="flex items-center gap-2 font-semibold text-slate-950">
                   <Bot className="h-4 w-4" /> Escolha a ajuda do Nexo
