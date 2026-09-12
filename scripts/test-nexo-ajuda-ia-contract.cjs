@@ -111,4 +111,15 @@ assert.doesNotMatch(
   'UI não deve gerar ajuda genérica por regras locais',
 )
 
+assert.doesNotMatch(
+  hook,
+  /function nexoLimparTextoAjuda[\s\S]{0,260}replace\(\/\\s\+\/g, ' '\)/,
+  'sanitização da Ajuda do Nexo não pode achatar quebras de linha em um parágrafo único',
+)
+assert.match(
+  component,
+  /nexo-resposta-paragrafos/,
+  'UI deve renderizar a resposta do Nexo em parágrafos separados, não em uma caixa com texto corrido',
+)
+
 console.log('nexo-ajuda-ia contract: PASS')
