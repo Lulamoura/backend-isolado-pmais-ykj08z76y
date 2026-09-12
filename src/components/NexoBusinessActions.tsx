@@ -79,19 +79,64 @@ function CampoTexto({ titulo, texto }: { titulo: string; texto?: string | null }
 }
 
 function ListaResposta({ titulo, itens }: { titulo: string; itens?: string[] }) {
+  if (!itens?.length) return null
   return (
     <section className="rounded-md border p-3 text-sm">
       <p className="font-semibold text-slate-950">{titulo}</p>
-      {itens?.length ? (
-        <ul className="mt-2 list-disc space-y-2 pl-5 text-slate-700">
-          {itens.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-muted-foreground">Sem apontamentos para este item.</p>
-      )}
+      <ul className="mt-2 list-disc space-y-2 pl-5 text-slate-700">
+        {itens.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
     </section>
+  )
+}
+
+function AjudaResposta({ ajuda }: { ajuda: NexoAjudaComercial }) {
+  const isWhatsapp = ajuda.acao === 'preparar_whatsapp'
+  const isLigacao = ajuda.acao === 'roteiro_ligacao'
+  const isNotas = ajuda.acao === 'melhorar_notas'
+  const isRisco = ajuda.acao === 'avaliar_risco_perda'
+  const showDiagnostico = !isWhatsapp
+  const showPerguntas = !isWhatsapp && ajuda.perguntas_criticas?.length
+  const tituloProximosPassos = isLigacao
+    ? 'Roteiro sugerido para ligação'
+    : isNotas
+      ? 'Modelo de nota sugerido'
+      : 'Próximos passos sugeridos'
+
+  return (
+    <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
+      {showDiagnostico && (
+        <section className="rounded-md border bg-white p-3 text-sm">
+          <p className="font-semibold text-slate-950">
+            {isRisco ? 'Leitura de risco comercial' : 'Diagnóstico comercial'}
+          </p>
+          <p className="mt-2 whitespace-pre-wrap text-slate-700">{ajuda.diagnostico}</p>
+        </section>
+      )}
+      {isWhatsapp && ajuda.mensagem_sugerida ? (
+        <section className="rounded-md border bg-white p-3 text-sm">
+          <p className="font-semibold text-slate-950">Mensagem sugerida para revisão</p>
+          <p className="mt-2 whitespace-pre-wrap text-slate-700">{ajuda.mensagem_sugerida}</p>
+        </section>
+      ) : null}
+      {showPerguntas ? <ListaResposta titulo="Perguntas críticas" itens={ajuda.perguntas_criticas} /> : null}
+      {isRisco || (!isWhatsapp && ajuda.riscos?.length) ? (
+        <ListaResposta titulo="Riscos percebidos" itens={ajuda.riscos} />
+      ) : null}
+      <ListaResposta titulo={tituloProximosPassos} itens={ajuda.proximos_passos} />
+      {!isWhatsapp && ajuda.mensagem_sugerida ? (
+        <section className="rounded-md border bg-white p-3 text-sm">
+          <p className="font-semibold text-slate-950">Mensagem sugerida para revisão</p>
+          <p className="mt-2 whitespace-pre-wrap text-slate-700">{ajuda.mensagem_sugerida}</p>
+        </section>
+      ) : null}
+      <ListaResposta titulo="Dicas para melhorar notas" itens={ajuda.dicas_para_melhorar_notas} />
+      <p className="text-xs text-muted-foreground">
+        {ajuda.aviso || 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada.'}
+      </p>
+    </div>
   )
 }
 
@@ -250,31 +295,7 @@ export function NexoBusinessActions({
               </section>
 
               {ajuda ? (
-                <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
-                  <section className="rounded-md border bg-white p-3 text-sm">
-                    <p className="font-semibold text-slate-950">Diagnóstico comercial</p>
-                    <p className="mt-2 whitespace-pre-wrap text-slate-700">{ajuda.diagnostico}</p>
-                  </section>
-                  <ListaResposta titulo="Perguntas críticas" itens={ajuda.perguntas_criticas} />
-                  <ListaResposta titulo="Riscos percebidos" itens={ajuda.riscos} />
-                  <ListaResposta titulo="Próximos passos sugeridos" itens={ajuda.proximos_passos} />
-                  {ajuda.mensagem_sugerida && (
-                    <section className="rounded-md border bg-white p-3 text-sm">
-                      <p className="font-semibold text-slate-950">Mensagem sugerida para revisão</p>
-                      <p className="mt-2 whitespace-pre-wrap text-slate-700">
-                        {ajuda.mensagem_sugerida}
-                      </p>
-                    </section>
-                  )}
-                  <ListaResposta
-                    titulo="Dicas para melhorar notas"
-                    itens={ajuda.dicas_para_melhorar_notas}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {ajuda.aviso ||
-                      'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada.'}
-                  </p>
-                </div>
+                <AjudaResposta ajuda={ajuda} />
               ) : (
                 <section className="rounded-md border bg-slate-50 p-3 text-sm">
                   <p className="font-semibold text-slate-950">Resumo do histórico disponível</p>

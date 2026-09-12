@@ -61,6 +61,18 @@ const ajuda = {
   aviso: 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
 }
 
+const ajudaWhatsapp = {
+  ...ajuda,
+  acao: 'preparar_whatsapp',
+  diagnostico: 'Há contexto suficiente para preparar uma mensagem curta para Brenda.',
+  perguntas_criticas: [],
+  riscos: [],
+  proximos_passos: ['Revisar a mensagem e copiar para o canal adequado.'],
+  mensagem_sugerida:
+    'Oi, Brenda. Tudo bem? Passo para saber se a análise da proposta avançou e se ficou alguma dúvida sobre o escopo.',
+  dicas_para_melhorar_notas: ['Registrar o retorno recebido após o envio do WhatsApp.'],
+}
+
 describe('NexoBusinessActions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -103,6 +115,30 @@ describe('NexoBusinessActions', () => {
     expect(
       screen.queryByText('Cliente aguardando análise pela gestora de RH.'),
     ).not.toBeInTheDocument()
+  })
+
+  it('renderiza cards coerentes com a opção Preparar WhatsApp', async () => {
+    gerarAjudaNexoNegocio.mockResolvedValue(ajudaWhatsapp)
+    const user = userEvent.setup()
+    render(
+      <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
+    await screen.findByText('Escolha a ajuda do Nexo')
+    await user.click(screen.getByRole('button', { name: /Preparar WhatsApp/i }))
+    await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
+
+    await waitFor(() =>
+      expect(gerarAjudaNexoNegocio).toHaveBeenCalledWith('4792', 'preparar_whatsapp', contexto, ''),
+    )
+    expect(await screen.findByText('Mensagem sugerida para revisão')).toBeInTheDocument()
+    expect(screen.getByText(/Oi, Brenda/)).toBeInTheDocument()
+    expect(screen.queryByText('Perguntas críticas')).not.toBeInTheDocument()
+    expect(screen.queryByText('Riscos percebidos')).not.toBeInTheDocument()
+    expect(screen.queryByText('Diagnóstico comercial')).not.toBeInTheDocument()
+    expect(screen.getByText('Próximos passos sugeridos')).toBeInTheDocument()
+    expect(screen.getAllByText('Dicas para melhorar notas').length).toBeGreaterThan(0)
   })
 
   it('mantém Detalhamento da Proposta mesmo quando a ajuda do Nexo está oculta', async () => {
