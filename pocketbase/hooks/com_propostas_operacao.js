@@ -1373,51 +1373,6 @@
     $apis.requireAuth('users'),
   )
 
-  // Nexo — diagnóstico temporário de variáveis do PMais Agent Gateway no runtime SKIP.
-  // Contrato: GET /backend/v1/nexo/diagnostico/pmais-gateway-env
-  routerAdd(
-    'GET',
-    '/backend/v1/nexo/diagnostico/pmais-gateway-env',
-    function (e) {
-      var ator = e.auth
-      if (!ator || !ator.getBool('ativo_comercial'))
-        return e.forbiddenError('Usuario comercial necessario')
-      function nexoDiagEnv(nome) {
-        try {
-          if (typeof $os !== 'undefined' && $os.getenv) return $os.getenv(nome) || ''
-        } catch (_) {}
-        return ''
-      }
-      function nexoDiagSecret(nome) {
-        try {
-          return $secrets.get(nome) || ''
-        } catch (_) {}
-        return ''
-      }
-      function nexoDiagPresenca(nome) {
-        var viaSecret = !!nexoDiagSecret(nome)
-        var viaEnv = !!nexoDiagEnv(nome)
-        return {
-          presente: viaSecret || viaEnv,
-          via_secret: viaSecret,
-          via_env: viaEnv,
-        }
-      }
-      return e.json(200, {
-        contrato: 'nexo_pmais_gateway_env_diagnostic_v1',
-        temporario: true,
-        valor_exposto: false,
-        values_exposed: false,
-        variaveis: {
-          PMAIS_AGENT_GATEWAY_URL: nexoDiagPresenca('PMAIS_AGENT_GATEWAY_URL'),
-          PMAIS_AGENT_GATEWAY_API_KEY: nexoDiagPresenca('PMAIS_AGENT_GATEWAY_API_KEY'),
-          PMAIS_AGENT_GATEWAY_HMAC_SECRET: nexoDiagPresenca('PMAIS_AGENT_GATEWAY_HMAC_SECRET'),
-        },
-      })
-    },
-    $apis.requireAuth(),
-  )
-
   // Nexo — geração assistida por IA para apoio comercial contextual.
   // Contrato: POST /backend/v1/nexo/negocios/{externalId}/ajuda
   routerAdd(
