@@ -46,7 +46,11 @@ assert.match(
   /provider:\s*'nexo_hermes'|provider:\s*"nexo_hermes"/,
   'resposta via PMais Agent Gateway deve ser identificada como nexo_hermes',
 )
-assert.match(hook, /SKIP_AI_GATEWAY_URL/, 'backend deve usar o gateway IA nativo do SKIP como contingência')
+assert.match(
+  hook,
+  /SKIP_AI_GATEWAY_URL/,
+  'backend deve usar o gateway IA nativo do SKIP como contingência',
+)
 assert.match(
   hook,
   /GET'|method: 'GET'|method:\s*['"]GET['"]/,
