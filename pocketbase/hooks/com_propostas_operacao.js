@@ -1566,6 +1566,98 @@
       }
 
       var contextoSeguro = nexoContextoResumo(contexto)
+      var pmaisGatewayUrlBase =
+        $secrets.get('PMAIS_AGENT_GATEWAY_URL') || nexoEnv('PMAIS_AGENT_GATEWAY_URL') || ''
+      var pmaisGatewayApiKey =
+        $secrets.get('PMAIS_AGENT_GATEWAY_API_KEY') || nexoEnv('PMAIS_AGENT_GATEWAY_API_KEY') || ''
+      var pmaisGatewayHmacSecret =
+        $secrets.get('PMAIS_AGENT_GATEWAY_HMAC_SECRET') ||
+        nexoEnv('PMAIS_AGENT_GATEWAY_HMAC_SECRET') ||
+        ''
+
+      function nexoPMaisAgentGatewayUrl(base) {
+        var url = String(base || '').replace(/\/+$/, '')
+        if (!url) return ''
+        return url + '/v1/comercial/nexo/ajuda-negocio'
+      }
+
+      function nexoRespostaGatewayParaContrato(gatewayJson) {
+        return {
+          contrato: 'nexo_ajuda_comercial_v1',
+          external_id: externalId,
+          acao: acao,
+          diagnostico: nexoLimparTextoAjuda(gatewayJson.diagnostico, 3000),
+          perguntas_criticas: nexoArrayTextos(
+            gatewayJson.perguntas_de_avanco || gatewayJson.perguntas_criticas,
+            'Confirmar prazo, decisor e próxima ação.',
+          ),
+          riscos: nexoArrayTextos(
+            gatewayJson.riscos || gatewayJson.risco_principal,
+            'Sem riscos adicionais explicitados pelo Nexo.',
+          ),
+          proximos_passos: nexoArrayTextos(
+            gatewayJson.proximos_passos || gatewayJson.proximo_passo || gatewayJson.recomendacao,
+            'Definir próximo contato e registrar no CRM.',
+          ),
+          mensagem_sugerida: nexoLimparTextoAjuda(
+            gatewayJson.mensagem_sugerida || gatewayJson.mensagem_whatsapp_sugerida,
+            3000,
+          ),
+          dicas_para_melhorar_notas: nexoArrayTextos(
+            gatewayJson.dicas_para_melhorar_notas,
+            'Registrar decisor, prazo, pendência e próximo passo.',
+          ),
+          aviso:
+            nexoLimparTextoAjuda(gatewayJson.aviso, 500) ||
+            'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
+          modelo: gatewayJson.nexo_provider || 'pmais_agent_gateway',
+          provider: 'nexo_hermes',
+          gateway_provider: gatewayJson.provider || 'pmais_agent_gateway',
+          fallback: false,
+          second_brain: gatewayJson.second_brain || null,
+        }
+      }
+
+      function nexoChamarPMaisAgentGateway() {
+        var url = nexoPMaisAgentGatewayUrl(pmaisGatewayUrlBase)
+        if (!url || !pmaisGatewayApiKey || !pmaisGatewayHmacSecret) return null
+        var gatewayBody = JSON.stringify({
+          negocio_external_id: externalId,
+          acao: acao,
+          instrucao_operador: nexoLimparTextoAjuda(body.instrucao_operador, 1200),
+          contexto: contextoSeguro,
+        })
+        var timestamp = String(Math.floor(Date.now() / 1000))
+        var signature = $security.hs256(timestamp + '.' + gatewayBody, pmaisGatewayHmacSecret)
+        return $http.send({
+          url: url,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'x-pmais-api-key': pmaisGatewayApiKey,
+            'x-pmais-timestamp': timestamp,
+            'x-pmais-signature': signature,
+          },
+          body: gatewayBody,
+          timeout: 45,
+        })
+      }
+
+      var pmaisGatewayResponse = nexoChamarPMaisAgentGateway()
+      if (pmaisGatewayResponse) {
+        if (pmaisGatewayResponse.statusCode >= 200 && pmaisGatewayResponse.statusCode < 300) {
+          return e.json(200, nexoRespostaGatewayParaContrato(pmaisGatewayResponse.json || {}))
+        }
+        console.error(
+          'NEXO_PMAIS_GATEWAY_ERRO',
+          JSON.stringify({
+            status: pmaisGatewayResponse.statusCode,
+            message: nexoErroIaSanitizado(pmaisGatewayResponse),
+          }),
+        )
+      }
+
       var gatewayKey = $secrets.get('SKIP_AI_GATEWAY_API_KEY') || nexoEnv('SKIP_AI_GATEWAY_API_KEY') || ''
       var gatewayUrlBase = $secrets.get('SKIP_AI_GATEWAY_URL') || nexoEnv('SKIP_AI_GATEWAY_URL') || ''
       var openAiKey =

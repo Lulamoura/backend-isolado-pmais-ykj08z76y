@@ -21,6 +21,11 @@ assert.match(
   'backend deve usar segredo de LLM para IA real',
 )
 assert.match(hook, /chat\/completions|responses/, 'backend deve chamar API de geração de IA')
+assert.match(hook, /PMAIS_AGENT_GATEWAY_URL/, 'backend deve permitir PMais Agent Gateway como provedor Nexo/Hermes')
+assert.match(hook, /PMAIS_AGENT_GATEWAY_API_KEY/, 'backend deve usar API key do PMais Agent Gateway')
+assert.match(hook, /PMAIS_AGENT_GATEWAY_HMAC_SECRET/, 'backend deve assinar chamadas ao PMais Agent Gateway com HMAC')
+assert.match(hook, /nexoChamarPMaisAgentGateway|x-pmais-signature/i, 'backend deve chamar o PMais Agent Gateway com assinatura')
+assert.match(hook, /provider:\s*'nexo_hermes'|provider:\s*"nexo_hermes"/, 'resposta via PMais Agent Gateway deve ser identificada como nexo_hermes')
 assert.match(hook, /SKIP_AI_GATEWAY_URL/, 'backend deve usar o gateway IA nativo do SKIP quando disponível')
 assert.match(hook, /GET'|method: 'GET'|method:\s*['"]GET['"]/, 'backend deve consultar modelos do gateway quando o modelo padrão for rejeitado')
 assert.match(hook, /nexoEscolherModeloGateway|modelosGateway|\/models/, 'backend deve escolher modelo disponível do SKIP AI Gateway')
