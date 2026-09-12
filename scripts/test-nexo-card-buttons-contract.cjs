@@ -27,10 +27,15 @@ assert.match(
   /obterContextoNexoNegocio/,
   'componente deve carregar o contexto consolidado do backend',
 )
-assert.match(
+assert.doesNotMatch(
   component,
   /Sem envio automático/,
-  'modal deve deixar claro que não há envio automático',
+  'modal não deve ocupar área nobre com card Sem envio automático',
+)
+assert.match(
+  component,
+  /Sugestão gerada para revisão humana\. Nenhuma mensagem foi enviada\./,
+  'modal deve manter aviso discreto de revisão humana e nenhum envio após a resposta',
 )
 assert.doesNotMatch(
   component,

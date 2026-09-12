@@ -77,7 +77,8 @@ describe('NexoBusinessActions', () => {
     await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
 
     await waitFor(() => expect(obterContextoNexoNegocio).toHaveBeenCalledWith('4792'))
-    expect(await screen.findByText('Sem envio automático')).toBeInTheDocument()
+    await screen.findByText('Escolha a ajuda do Nexo')
+    expect(screen.queryByText('Sem envio automático')).not.toBeInTheDocument()
     expect(screen.getByText('Escolha a ajuda do Nexo')).toBeInTheDocument()
     expect(screen.getByText('Sugerir próximo follow-up')).toBeInTheDocument()
 
