@@ -64,11 +64,20 @@ routerAdd(
       return { aprovado: true, motivo: 'ok' }
     }
 
+    function dataCivil(value) {
+      if (!value) return ''
+      return String(value).slice(0, 10)
+    }
+
     // classificarSituacao — projeção não persistida (datas inclusivas).
+    // PocketBase date pode vir como "YYYY-MM-DD HH:mm:ss.SSSZ";
+    // comparar a string inteira com "YYYY-MM-DD" classificava o dia atual como futura.
     function classificarSituacao(rec, hoje) {
+      var inicio = dataCivil(rec.data_inicio)
+      var fim = dataCivil(rec.data_fim)
       if (rec.cancelada_em) return 'cancelada'
-      if (hoje < rec.data_inicio) return 'futura'
-      if (hoje <= rec.data_fim) return 'vigente'
+      if (hoje < inicio) return 'futura'
+      if (hoje <= fim) return 'vigente'
       return 'encerrada'
     }
 
@@ -441,18 +450,20 @@ routerAdd(
       var titularId = rec.getString('titular_id')
       var subPrincipalId = normalizarRef(rec.getString('substituto_principal_id'))
       var subReservaId = normalizarRef(rec.getString('substituto_reserva_id'))
+      var dataInicio = dataCivil(rec.getString('data_inicio'))
+      var dataFim = dataCivil(rec.getString('data_fim'))
       var situacao = classificarSituacao(
         {
           cancelada_em: rec.getString('cancelada_em'),
-          data_inicio: rec.getString('data_inicio'),
-          data_fim: rec.getString('data_fim'),
+          data_inicio: dataInicio,
+          data_fim: dataFim,
         },
         hoje,
       )
       return {
         id: rec.id,
-        data_inicio: rec.getString('data_inicio'),
-        data_fim: rec.getString('data_fim'),
+        data_inicio: dataInicio,
+        data_fim: dataFim,
         tipo_cobertura: rec.getString('tipo_cobertura'),
         motivo: rec.getString('motivo'),
         cancelada_em: normalizarCanceladaEm(rec.getString('cancelada_em')),
@@ -762,10 +773,17 @@ var __testExports = (function () {
     return { aprovado: true, motivo: 'ok' }
   }
 
+  function dataCivil(value) {
+    if (!value) return ''
+    return String(value).slice(0, 10)
+  }
+
   function classificarSituacao(rec, hoje) {
+    var inicio = dataCivil(rec.data_inicio)
+    var fim = dataCivil(rec.data_fim)
     if (rec.cancelada_em) return 'cancelada'
-    if (hoje < rec.data_inicio) return 'futura'
-    if (hoje <= rec.data_fim) return 'vigente'
+    if (hoje < inicio) return 'futura'
+    if (hoje <= fim) return 'vigente'
     return 'encerrada'
   }
 
@@ -1042,6 +1060,7 @@ var __testExports = (function () {
     bindingVigente: bindingVigente,
     resolverFallbackSuperadmin: resolverFallbackSuperadmin,
     validarUsuario: validarUsuario,
+    dataCivil: dataCivil,
     classificarSituacao: classificarSituacao,
     aplicarFiltroSituacao: aplicarFiltroSituacao,
     comporFiltro: comporFiltro,

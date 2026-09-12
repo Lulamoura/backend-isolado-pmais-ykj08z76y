@@ -60,6 +60,7 @@ var hojeRecife = sandbox.__testExports.hojeRecife
 var bindingVigente = sandbox.__testExports.bindingVigente
 var resolverFallbackSuperadmin = sandbox.__testExports.resolverFallbackSuperadmin
 var validarUsuario = sandbox.__testExports.validarUsuario
+var dataCivil = sandbox.__testExports.dataCivil
 var classificarSituacao = sandbox.__testExports.classificarSituacao
 var aplicarFiltroSituacao = sandbox.__testExports.aplicarFiltroSituacao
 var comporFiltro = sandbox.__testExports.comporFiltro
@@ -90,6 +91,7 @@ expectFn('hojeRecife', hojeRecife)
 expectFn('bindingVigente', bindingVigente)
 expectFn('resolverFallbackSuperadmin', resolverFallbackSuperadmin)
 expectFn('validarUsuario', validarUsuario)
+expectFn('dataCivil', dataCivil)
 expectFn('classificarSituacao', classificarSituacao)
 expectFn('aplicarFiltroSituacao', aplicarFiltroSituacao)
 expectFn('comporFiltro', comporFiltro)
@@ -254,12 +256,19 @@ assert(
   ) === 'encerrada',
 )
 
-// ═══════ F) Fronteiras classificarSituacao — 2 casos ═══════
+// ═══════ F) Fronteiras classificarSituacao — 3 casos ═══════
 
 assert(
-  'F1 fronteira hoje==data_inicio → vigente',
+  'F0 dataCivil normaliza date/datetime PocketBase para YYYY-MM-DD',
+  dataCivil('2026-08-12 00:00:00.000Z') === '2026-08-12' &&
+    dataCivil('2026-08-12') === '2026-08-12',
+  'got datetime=' + dataCivil('2026-08-12 00:00:00.000Z'),
+)
+
+assert(
+  'F1 fronteira hoje==data_inicio datetime PocketBase → vigente',
   classificarSituacao(
-    { cancelada_em: null, data_inicio: '2026-08-12', data_fim: '2026-08-20' },
+    { cancelada_em: null, data_inicio: '2026-08-12 00:00:00.000Z', data_fim: '2026-08-20 00:00:00.000Z' },
     '2026-08-12',
   ) === 'vigente',
 )

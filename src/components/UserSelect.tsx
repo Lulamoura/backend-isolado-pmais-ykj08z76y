@@ -27,6 +27,8 @@ export interface UserOption {
   name: string
 }
 
+export const USUARIO_OPCOES_COMERCIAIS_PATH = '/backend/v1/usuarios/opcoes-comerciais'
+
 export interface UserSelectProps {
   value: string | null
   onChange: (id: string | null) => void
@@ -70,9 +72,12 @@ export function UserSelect({
       return
     }
     const rid = ++reqIdRef.current
-    pb.collection('users')
-      .getOne(value, { fields: 'id,name' })
-      .then((rec) => {
+    pb.send(USUARIO_OPCOES_COMERCIAIS_PATH, {
+      method: 'GET',
+      query: { q: value },
+    })
+      .then((res) => {
+        const rec = Array.isArray(res.items) ? res.items.find((item: UserOption) => item.id === value) : null
         if (rid !== reqIdRef.current) return
         const name = rec?.['name']
         setSelectedName(typeof name === 'string' ? name : null)
@@ -92,18 +97,20 @@ export function UserSelect({
       const rid = ++reqIdRef.current
       setLoading(true)
       setError(false)
-      const parts: string[] = ['ativo_comercial=true']
-      if (query.trim()) parts.push(`name~"${escapeFilter(query)}"`)
-      if (excludeId) parts.push(`id != "${escapeFilter(excludeId)}"`)
-      const filter = parts.join(' && ')
-      pb.collection('users')
-        .getList(1, 20, { filter, fields: 'id,name', sort: 'name' })
+      const params: Record<string, string> = {}
+      if (query.trim()) params.q = query.trim()
+      if (excludeId) params.exclude_id = excludeId
+      pb.send(USUARIO_OPCOES_COMERCIAIS_PATH, {
+        method: 'GET',
+        query: params,
+      })
         .then((res) => {
           if (rid !== reqIdRef.current) return
+          const responseItems = Array.isArray(res.items) ? res.items : []
           setItems(
-            res.items.map((r) => ({
+            responseItems.map((r: UserOption) => ({
               id: r.id,
-              name: typeof r['name'] === 'string' ? (r['name'] as string) : '',
+              name: typeof r.name === 'string' ? r.name : '',
             })),
           )
           setLoading(false)
