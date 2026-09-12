@@ -1625,6 +1625,10 @@
         $secrets.get('PMAIS_AGENT_GATEWAY_HMAC_SECRET') ||
         nexoEnv('PMAIS_AGENT_GATEWAY_HMAC_SECRET') ||
         ''
+      var pmaisSkipBridgeSecret =
+        $secrets.get('AC_WEBHOOK_SECRET') || nexoEnv('AC_WEBHOOK_SECRET') || ''
+      var pmaisSkipBridgeUrl =
+        'https://agents.pmaisservicos.com.br/v1/comercial/skip/nexo/ajuda-negocio'
 
       function nexoPMaisAgentGatewayUrl(base) {
         var url = String(base || '').replace(/\/+$/, '')
@@ -1695,7 +1699,28 @@
         })
       }
 
-      var pmaisGatewayResponse = nexoChamarPMaisAgentGateway()
+      function nexoChamarPMaisSkipBridge() {
+        if (!pmaisSkipBridgeSecret) return null
+        var gatewayBody = JSON.stringify({
+          negocio_external_id: externalId,
+          acao: acao,
+          instrucao_operador: nexoLimparTextoAjuda(body.instrucao_operador, 1200),
+          contexto: contextoSeguro,
+        })
+        return $http.send({
+          url: pmaisSkipBridgeUrl,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'x-pmais-skip-bridge-secret': pmaisSkipBridgeSecret,
+          },
+          body: gatewayBody,
+          timeout: 45,
+        })
+      }
+
+      var pmaisGatewayResponse = nexoChamarPMaisAgentGateway() || nexoChamarPMaisSkipBridge()
       if (pmaisGatewayResponse) {
         if (pmaisGatewayResponse.statusCode >= 200 && pmaisGatewayResponse.statusCode < 300) {
           return e.json(200, nexoRespostaGatewayParaContrato(pmaisGatewayResponse.json || {}))
