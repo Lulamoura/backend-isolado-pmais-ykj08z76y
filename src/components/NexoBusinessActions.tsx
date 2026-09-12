@@ -96,12 +96,23 @@ function AjudaResposta({ ajuda }: { ajuda: NexoAjudaComercial }) {
     ]
       .filter(Boolean)
       .join('\n\n')
+  const paragrafos = resposta
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((parte) => parte.trim())
+    .filter(Boolean)
 
   return (
     <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-4">
       <section className="rounded-md border bg-white p-4 text-sm">
         <p className="font-semibold text-slate-950">Resposta do Nexo</p>
-        <p className="mt-3 whitespace-pre-wrap leading-6 text-slate-800">{resposta}</p>
+        <div data-testid="nexo-resposta-paragrafos" className="mt-3 space-y-4 leading-6 text-slate-800">
+          {paragrafos.map((paragrafo) => (
+            <p key={paragrafo} className="whitespace-pre-wrap">
+              {paragrafo}
+            </p>
+          ))}
+        </div>
       </section>
       <p className="text-xs text-muted-foreground">
         {ajuda.aviso || 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada.'}

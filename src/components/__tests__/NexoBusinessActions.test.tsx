@@ -112,6 +112,7 @@ describe('NexoBusinessActions', () => {
       expect(gerarAjudaNexoNegocio).toHaveBeenCalledWith('4792', 'proximo_follow_up', contexto, ''),
     )
     expect(await screen.findByText('Resposta do Nexo')).toBeInTheDocument()
+    expect(screen.getByTestId('nexo-resposta-paragrafos').querySelectorAll('p')).toHaveLength(3)
     expect(
       screen.getByText(
         /Sugestão de follow-up: Olá, Brenda. Conseguiu algum retorno da análise do RH\?/,
@@ -142,6 +143,7 @@ describe('NexoBusinessActions', () => {
       expect(gerarAjudaNexoNegocio).toHaveBeenCalledWith('4792', 'preparar_whatsapp', contexto, ''),
     )
     expect(await screen.findByText('Resposta do Nexo')).toBeInTheDocument()
+    expect(screen.getByTestId('nexo-resposta-paragrafos').querySelectorAll('p')).toHaveLength(3)
     expect(screen.getByText(/Sugestão de WhatsApp: Oi, Brenda/)).toBeInTheDocument()
     expect(screen.queryByText('Perguntas críticas')).not.toBeInTheDocument()
     expect(screen.queryByText('Riscos percebidos')).not.toBeInTheDocument()

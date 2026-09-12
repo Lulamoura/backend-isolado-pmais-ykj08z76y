@@ -1381,10 +1381,16 @@
     function (e) {
       function nexoLimparTextoAjuda(value, max) {
         var text = String(value || '')
+          .replace(/<br\s*\/?\s*>/gi, '\n')
+          .replace(/<\/p\s*>/gi, '\n\n')
           .replace(/<[^>]*>/g, ' ')
-          .replace(/\s+/g, ' ')
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n')
+          .replace(/[\t ]+/g, ' ')
+          .replace(/ *\n */g, '\n')
+          .replace(/\n{3,}/g, '\n\n')
           .trim()
-        if (max && text.length > max) return text.slice(0, max)
+        if (max && text.length > max) return text.slice(0, max).trim()
         return text
       }
 
