@@ -30,12 +30,17 @@ const ACOES_NEXO: Array<{ id: NexoAcaoAssistida; label: string; descricao: strin
   {
     id: 'proximo_follow_up',
     label: 'Sugerir próximo follow-up',
-    descricao: 'Diagnóstico, riscos, perguntas críticas e próximo contato recomendado.',
+    descricao: 'Uma leitura breve e uma sugestão objetiva para o próximo contato.',
   },
   {
     id: 'preparar_whatsapp',
     label: 'Preparar WhatsApp',
     descricao: 'Mensagem curta para o comercial revisar, copiar e adaptar.',
+  },
+  {
+    id: 'email_envio_proposta',
+    label: 'E-mail de envio de proposta',
+    descricao: 'Assunto e texto breve para enviar a proposta com contexto comercial.',
   },
   {
     id: 'roteiro_ligacao',
@@ -78,61 +83,26 @@ function CampoTexto({ titulo, texto }: { titulo: string; texto?: string | null }
   )
 }
 
-function ListaResposta({ titulo, itens }: { titulo: string; itens?: string[] }) {
-  if (!itens?.length) return null
-  return (
-    <section className="rounded-md border p-3 text-sm">
-      <p className="font-semibold text-slate-950">{titulo}</p>
-      <ul className="mt-2 list-disc space-y-2 pl-5 text-slate-700">
-        {itens.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
-    </section>
-  )
-}
-
 function AjudaResposta({ ajuda }: { ajuda: NexoAjudaComercial }) {
-  const isWhatsapp = ajuda.acao === 'preparar_whatsapp'
-  const isLigacao = ajuda.acao === 'roteiro_ligacao'
-  const isNotas = ajuda.acao === 'melhorar_notas'
-  const isRisco = ajuda.acao === 'avaliar_risco_perda'
-  const showDiagnostico = !isWhatsapp
-  const showPerguntas = !isWhatsapp && ajuda.perguntas_criticas?.length
-  const tituloProximosPassos = isLigacao
-    ? 'Roteiro sugerido para ligação'
-    : isNotas
-      ? 'Modelo de nota sugerido'
-      : 'Próximos passos sugeridos'
+  const resposta =
+    ajuda.resposta_curta ||
+    [
+      ajuda.diagnostico ? `Leitura breve: ${ajuda.diagnostico}` : '',
+      ajuda.mensagem_sugerida ? `Sugestão: ${ajuda.mensagem_sugerida}` : '',
+      ajuda.proximos_passos?.[0] ? `Próximo passo: ${ajuda.proximos_passos[0]}` : '',
+      ajuda.dicas_para_melhorar_notas?.[0]
+        ? `Dica extra: ${ajuda.dicas_para_melhorar_notas[0]}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n')
 
   return (
-    <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
-      {showDiagnostico && (
-        <section className="rounded-md border bg-white p-3 text-sm">
-          <p className="font-semibold text-slate-950">
-            {isRisco ? 'Leitura de risco comercial' : 'Diagnóstico comercial'}
-          </p>
-          <p className="mt-2 whitespace-pre-wrap text-slate-700">{ajuda.diagnostico}</p>
-        </section>
-      )}
-      {isWhatsapp && ajuda.mensagem_sugerida ? (
-        <section className="rounded-md border bg-white p-3 text-sm">
-          <p className="font-semibold text-slate-950">Mensagem sugerida para revisão</p>
-          <p className="mt-2 whitespace-pre-wrap text-slate-700">{ajuda.mensagem_sugerida}</p>
-        </section>
-      ) : null}
-      {showPerguntas ? <ListaResposta titulo="Perguntas críticas" itens={ajuda.perguntas_criticas} /> : null}
-      {isRisco || (!isWhatsapp && ajuda.riscos?.length) ? (
-        <ListaResposta titulo="Riscos percebidos" itens={ajuda.riscos} />
-      ) : null}
-      <ListaResposta titulo={tituloProximosPassos} itens={ajuda.proximos_passos} />
-      {!isWhatsapp && ajuda.mensagem_sugerida ? (
-        <section className="rounded-md border bg-white p-3 text-sm">
-          <p className="font-semibold text-slate-950">Mensagem sugerida para revisão</p>
-          <p className="mt-2 whitespace-pre-wrap text-slate-700">{ajuda.mensagem_sugerida}</p>
-        </section>
-      ) : null}
-      <ListaResposta titulo="Dicas para melhorar notas" itens={ajuda.dicas_para_melhorar_notas} />
+    <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-4">
+      <section className="rounded-md border bg-white p-4 text-sm">
+        <p className="font-semibold text-slate-950">Resposta do Nexo</p>
+        <p className="mt-3 whitespace-pre-wrap leading-6 text-slate-800">{resposta}</p>
+      </section>
       <p className="text-xs text-muted-foreground">
         {ajuda.aviso || 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada.'}
       </p>
