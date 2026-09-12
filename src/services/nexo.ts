@@ -78,6 +78,7 @@ export interface NexoContextoNegocio {
 export type NexoAcaoAssistida =
   | 'proximo_follow_up'
   | 'preparar_whatsapp'
+  | 'email_envio_proposta'
   | 'roteiro_ligacao'
   | 'avaliar_risco_perda'
   | 'melhorar_notas'
@@ -92,6 +93,7 @@ export interface NexoAjudaComercial {
   proximos_passos: string[]
   mensagem_sugerida: string
   dicas_para_melhorar_notas: string[]
+  resposta_curta?: string
   aviso: string
   modelo?: string
   fallback?: boolean

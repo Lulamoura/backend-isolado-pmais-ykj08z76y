@@ -1548,6 +1548,7 @@
       var permitidas = {
         proximo_follow_up: true,
         preparar_whatsapp: true,
+        email_envio_proposta: true,
         roteiro_ligacao: true,
         avaliar_risco_perda: true,
         melhorar_notas: true,
@@ -1596,6 +1597,7 @@
           contrato: 'nexo_ajuda_comercial_v1',
           external_id: externalId,
           acao: acao,
+          resposta_curta: nexoLimparTextoAjuda(gatewayJson.resposta_curta, 3000),
           diagnostico: nexoLimparTextoAjuda(gatewayJson.diagnostico, 3000),
           perguntas_criticas: nexoArrayTextos(
             gatewayJson.perguntas_de_avanco || gatewayJson.perguntas_criticas,
@@ -1741,6 +1743,8 @@
           contrato: 'nexo_ajuda_comercial_v1',
           external_id: externalId,
           acao: acao,
+          resposta_curta:
+            'Leitura breve + uma única sugestão útil para a ação escolhida + dica extra opcional',
           diagnostico: 'texto específico do negócio',
           perguntas_criticas: ['pergunta 1', 'pergunta 2'],
           riscos: ['risco 1'],
@@ -1855,6 +1859,7 @@
           contrato: 'nexo_ajuda_comercial_v1',
           external_id: externalId,
           acao: acao,
+          resposta_curta: nexoLimparTextoAjuda(parsed.resposta_curta, 3000),
           diagnostico: nexoLimparTextoAjuda(parsed.diagnostico, 3000),
           perguntas_criticas: nexoArrayTextos(
             parsed.perguntas_criticas,
