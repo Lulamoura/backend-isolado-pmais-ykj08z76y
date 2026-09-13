@@ -75,6 +75,29 @@ routerAdd(
       return value ? String(value).slice(0, 10) : ''
     }
 
+    function formatarDataBR(value) {
+      var d = dataCivil(value)
+      if (!d || d.length !== 10) return ''
+      return d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4)
+    }
+
+    function proximaFmt(n) {
+      return formatarDataBR(n.proxima_acao_em) || 'sem data definida'
+    }
+
+    function diasPara(n) {
+      if (n.dias_ate_proxima_acao === null || n.dias_ate_proxima_acao === undefined) return null
+      return -n.dias_ate_proxima_acao
+    }
+
+    function nomeHumanoModelo(modelo) {
+      var m = String(modelo || '').trim()
+      if (!m) return 'modelo não informado'
+      if (m === 'gpt-5.5') return 'Gpt 5.5 Codex'
+      if (m === 'gpt-6-astra') return 'Gpt 6 Astra Codex'
+      return m.replace(/^gpt-/, 'Gpt ').replace(/-/g, ' ')
+    }
+
     function diasDesde(value) {
       var d = dataCivil(value)
       if (!d) return null
@@ -227,12 +250,12 @@ routerAdd(
       if (n.proposta) {
         partes.push(n.proposta.identificador || n.proposta.id || 'proposta vinculada')
         partes.push(n.proposta.aberta ? 'aberta pelo cliente' : 'sem abertura confirmada')
-        if (n.proposta.ultimo_envio_email_em) partes.push('último envio em ' + n.proposta.ultimo_envio_email_em)
+        if (n.proposta.ultimo_envio_email_em) partes.push('último envio em ' + formatarDataBR(n.proposta.ultimo_envio_email_em))
       } else {
         partes.push('sem proposta vinculada')
       }
       partes.push('etapa ' + (n.etapa || 'não informada'))
-      partes.push('próxima ação ' + (n.proxima_acao_em || 'não informada'))
+      partes.push('próxima ação ' + (formatarDataBR(n.proxima_acao_em) || 'não informada'))
       if (!n.notas_followups || !n.notas_followups.length) partes.push('sem nota/follow-up recente')
       else partes.push(n.notas_followups.length + ' nota(s)/follow-up(s) recente(s)')
       return partes.join('; ') + '.'
@@ -252,7 +275,8 @@ routerAdd(
 
     function acaoItemCentral(frente, n) {
       var destino = destinoCliente(n)
-      var proxima = n.proxima_acao_em || 'sem data definida'
+      var proxima = proximaFmt(n)
+      var prazoDias = diasPara(n)
       var semNotas = !n.notas_followups || !n.notas_followups.length
       var proposta = n.proposta || null
       var vencida = n.dias_ate_proxima_acao !== null && n.dias_ate_proxima_acao > 0
@@ -275,9 +299,11 @@ routerAdd(
         return 'Revisar se a próxima ação do negócio ' + idNegocio + ' com ' + destino + ' tem objetivo claro e prazo compatível com o cliente.'
       }
       if (frente === 'risco-esfriamento') {
-        if (n.dias_desde_atualizacao !== null && n.dias_desde_atualizacao >= 7) return 'Reaquecer o negócio ' + idNegocio + ' com ' + destino + ' porque está sem atualização recente; retomar necessidade e pendência específica.'
+        if (n.dias_desde_atualizacao !== null && n.dias_desde_atualizacao >= 7) return 'Reaquecer o negócio ' + idNegocio + ' com ' + destino + ' porque está sem atualização recente; retomar necessidade e pendência específica antes da próxima data (' + proxima + ').'
         if (semAbertura) return 'Reduzir risco de esfriamento do negócio ' + idNegocio + ' confirmando recebimento da proposta com ' + destino + ' antes que o prazo se alongue.'
-        return 'Fazer contato preventivo no negócio ' + idNegocio + ' com ' + destino + ' para confirmar interesse, decisor e obstáculo atual.'
+        if (prazoDias !== null && prazoDias <= 3) return 'Preparar contato próximo com ' + destino + ' no negócio ' + idNegocio + ', pois a próxima ação está prevista para ' + proxima + ' e precisa sair com objetivo claro.'
+        if (prazoDias !== null && prazoDias >= 10) return 'Antecipar leitura do negócio ' + idNegocio + ' com ' + destino + ': a próxima ação ficou distante (' + proxima + '), então vale confirmar interesse e prazo real de decisão.'
+        return 'Acompanhar o negócio ' + idNegocio + ' com ' + destino + ' antes de ' + proxima + ', focando em decisor, interesse atual e obstáculo específico.'
       }
       if (frente === 'aprendizados-comerciais') {
         if (semAbertura) return 'Aprendizado do negócio ' + idNegocio + ': proposta enviada sem abertura exige checagem rápida de recebimento antes de interpretar silêncio como desinteresse.'
@@ -287,7 +313,9 @@ routerAdd(
       }
       if (vencida) return 'Prioridade do dia: recuperar o negócio ' + idNegocio + ' com ' + destino + ' por causa da próxima ação vencida em ' + proxima + ' e registrar novo compromisso verificável.'
       if (semAbertura) return 'Prioridade do dia: confirmar com ' + destino + ' se a proposta do negócio ' + idNegocio + ' chegou corretamente, pois ainda não há abertura confirmada.'
-      if (semNotas) return 'Prioridade do dia: qualificar melhor o histórico do negócio ' + idNegocio + ' com ' + destino + ' antes de novo avanço comercial.'
+      if (semNotas && prazoDias !== null && prazoDias <= 3) return 'Prioridade do dia: qualificar hoje o histórico do negócio ' + idNegocio + ' com ' + destino + ', porque a próxima ação está próxima (' + proxima + ') e faltam dados para orientar o contato.'
+      if (semNotas && prazoDias !== null && prazoDias >= 10) return 'Prioridade do dia: revisar antecipadamente o negócio ' + idNegocio + ' com ' + destino + ', pois a próxima ação está distante (' + proxima + ') e o histórico ainda está fraco.'
+      if (semNotas) return 'Prioridade do dia: qualificar melhor o histórico do negócio ' + idNegocio + ' com ' + destino + ' antes de novo avanço comercial previsto para ' + proxima + '.'
       return 'Prioridade do dia: contato objetivo no negócio ' + idNegocio + ' com ' + destino + ' para avançar etapa, confirmar decisor e prazo de retorno.'
     }
 
@@ -296,7 +324,7 @@ routerAdd(
       linhas.push('A IA do Nexo não respondeu nesta tentativa. Esta é uma contingência contextual, baseada apenas no resumo operacional disponível.')
       linhas.push('Frente analisada: ' + frente + '. Escopo: ' + escopo.label + '. Negócios considerados: ' + negocios.length + '.')
       for (var i = 0; i < negocios.length && i < 5; i++) {
-        linhas.push('- ' + negocios[i].titulo + ': responsável ' + (negocios[i].responsavel_nome || 'não informado') + ', etapa ' + (negocios[i].etapa || 'não informada') + ', próxima ação ' + (negocios[i].proxima_acao_em || 'não informada') + '.')
+        linhas.push('- ' + negocios[i].titulo + ': responsável ' + (negocios[i].responsavel_nome || 'não informado') + ', etapa ' + (negocios[i].etapa || 'não informada') + ', próxima ação ' + (formatarDataBR(negocios[i].proxima_acao_em) || 'não informada') + '.')
       }
       return {
         contrato: 'nexo_central_operacional_v1',
@@ -321,6 +349,9 @@ routerAdd(
         aviso: 'Fallback contextual. Nenhuma mensagem foi enviada e nenhum negócio foi alterado.',
         provider: 'pmais_app_contextual',
         nexo_provider: 'fallback_contextual',
+        modelo: 'fallback_contextual',
+        agent_display: 'Fallback contextual',
+        model_display: 'Sem modelo de IA real',
         fallback: true,
         second_brain: null,
       }
@@ -356,6 +387,9 @@ routerAdd(
           'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada e nenhum negócio foi alterado.',
         provider: 'nexo_hermes',
         nexo_provider: gatewayJson.nexo_provider || gatewayJson.provider || 'pmais_agent_gateway',
+        modelo: gatewayJson.modelo || (gatewayJson.model_routing && gatewayJson.model_routing.selected_model) || gatewayJson.nexo_provider || null,
+        agent_display: 'Agente Nexo',
+        model_display: nomeHumanoModelo(gatewayJson.modelo || (gatewayJson.model_routing && gatewayJson.model_routing.selected_model) || gatewayJson.nexo_provider),
         fallback: false,
         second_brain: gatewayJson.second_brain || null,
       }

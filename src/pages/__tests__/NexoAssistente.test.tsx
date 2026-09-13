@@ -45,6 +45,9 @@ const respostaNexo = {
   },
   total_negocios: 2,
   analise: 'Leitura breve do Nexo.\n\nPriorize as propostas sem resposta objetiva.',
+  agent_display: 'Agente Nexo',
+  model_display: 'Gpt 5.5 Codex',
+  modelo: 'gpt-5.5',
   itens: [
     {
       negocio_id: 'n1',
@@ -54,7 +57,7 @@ const respostaNexo = {
       cliente: 'Hospital Alpha',
       contato: 'Brenda Cliente',
       responsavel: 'Viviane Marculino',
-      detalhamento_proposta: 'PROP-123; sem abertura confirmada; etapa negociação; próxima ação 2026-09-15.',
+      detalhamento_proposta: 'PROP-123; sem abertura confirmada; etapa negociação; próxima ação 15/09/2026.',
       acao_sugerida: 'Confirmar recebimento da proposta do negócio 123 com Brenda Cliente.',
     },
   ],
@@ -117,13 +120,18 @@ describe('NexoAssistente', () => {
     )
     expect(await screen.findByText(/Resultado da análise do Nexo/i)).toBeInTheDocument()
     expect(screen.getByText('IA real')).toBeInTheDocument()
-    expect(screen.getByText(/provider: nexo_hermes/i)).toBeInTheDocument()
+    expect(screen.getByText(/Provider: Agente Nexo/i)).toBeInTheDocument()
+    expect(screen.getByText(/Modelo: Gpt 5.5 Codex/i)).toBeInTheDocument()
+    expect(screen.queryByText(/provider: nexo_hermes/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/modelo: openai_chat/i)).not.toBeInTheDocument()
     expect(screen.getAllByText(/Hospital Alpha/i).length).toBeGreaterThan(0)
     expect(screen.getByText(/ID do negócio: 123/i)).toBeInTheDocument()
     expect(screen.getByText(/Cliente: Hospital Alpha/i)).toBeInTheDocument()
     expect(screen.getByText(/Contato: Brenda Cliente/i)).toBeInTheDocument()
     expect(screen.getByText(/Responsável interno: Viviane Marculino/i)).toBeInTheDocument()
     expect(screen.getByText(/Detalhamento da proposta: PROP-123/i)).toBeInTheDocument()
+    expect(screen.getByText(/15\/09\/2026/i)).toBeInTheDocument()
+    expect(screen.queryByText(/2026-09-15/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Cliente: Hospital Alpha\. Contato:/i)).not.toBeInTheDocument()
   })
 
