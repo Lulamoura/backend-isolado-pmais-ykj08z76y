@@ -50,9 +50,11 @@ const respostaNexo = {
       negocio_id: 'n1',
       external_id: '123',
       titulo: 'Hospital Alpha',
+      cliente: 'Hospital Alpha',
+      contato: 'Brenda Cliente',
       responsavel: 'Viviane Marculino',
       resumo: 'Proposta enviada e sem retorno.',
-      acao_sugerida: 'Fazer follow-up consultivo hoje.',
+      acao_sugerida: 'Fazer follow-up consultivo com Brenda Cliente.',
     },
   ],
   aviso: 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada e nenhum negócio foi alterado.',
@@ -115,7 +117,10 @@ describe('NexoAssistente', () => {
     expect(await screen.findByText(/Resultado da análise do Nexo/i)).toBeInTheDocument()
     expect(screen.getByText('IA real')).toBeInTheDocument()
     expect(screen.getByText(/provider: nexo_hermes/i)).toBeInTheDocument()
-    expect(screen.getByText(/Hospital Alpha/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Hospital Alpha/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Cliente: Hospital Alpha/i)).toBeInTheDocument()
+    expect(screen.getByText(/Contato: Brenda Cliente/i)).toBeInTheDocument()
+    expect(screen.getByText(/Responsável interno: Viviane Marculino/i)).toBeInTheDocument()
   })
 
   it('restringe perfil comum aos próprios negócios e não mostra filtro de responsável', async () => {

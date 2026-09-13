@@ -199,7 +199,9 @@ function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse })
               {resultado.itens.slice(0, 6).map((item, index) => (
                 <div key={`${item.negocio_id || item.external_id || index}`} className="rounded-xl border bg-white p-4">
                   <p className="font-semibold text-slate-950">{item.titulo || 'Negócio sem título'}</p>
-                  <p className="mt-1 text-sm text-slate-600">Responsável: {item.responsavel || 'não informado'}</p>
+                  <p className="mt-1 text-sm text-slate-600">Cliente: {item.cliente || 'não informado'}</p>
+                  <p className="mt-1 text-sm text-slate-600">Contato: {item.contato || 'não informado'}</p>
+                  <p className="mt-1 text-sm text-slate-600">Responsável interno: {item.responsavel || 'não informado'}</p>
                   {item.resumo ? <p className="mt-2 text-sm leading-6 text-slate-700">{item.resumo}</p> : null}
                   {item.acao_sugerida ? <p className="mt-2 text-sm font-medium text-violet-800">Ação: {item.acao_sugerida}</p> : null}
                 </div>

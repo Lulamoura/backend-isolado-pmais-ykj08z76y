@@ -46,6 +46,18 @@ routerAdd(
       }
     }
 
+    function nomeRelacionado(collection, id, fields) {
+      if (!id) return ''
+      try {
+        var rec = $app.findRecordById(collection, id)
+        for (var i = 0; i < fields.length; i++) {
+          var value = rec.getString(fields[i])
+          if (value) return value
+        }
+      } catch (_) {}
+      return ''
+    }
+
     function podeVisaoGeral(slug) {
       return (
         slug === 'superadministrador' ||
@@ -170,10 +182,14 @@ routerAdd(
 
     function negocioResumo(n) {
       var responsavelId = n.getString('responsavel_id')
+      var empresaId = n.getString('empresa_id')
+      var contatoId = n.getString('contato_principal_id')
       return {
         negocio_id: n.id,
         external_id: externalIdNegocio(n),
         titulo: n.getString('titulo') || 'Negócio sem título',
+        cliente_nome: nomeRelacionado('com_empresas', empresaId, ['nome', 'razao_social']),
+        contato_nome: nomeRelacionado('com_contatos', contatoId, ['nome']),
         etapa: n.getString('etapa') || null,
         fase_crm: n.getString('fase_crm') || null,
         valor_centavos: n.getInt('valor_centavos') || 0,
@@ -188,6 +204,54 @@ routerAdd(
         proposta: propostaResumo(n.id),
         notas_followups: notasResumo(n.id),
       }
+    }
+
+    function destinoCliente(n) {
+      if (n.contato_nome && n.cliente_nome) return n.contato_nome + ' / ' + n.cliente_nome
+      if (n.contato_nome) return n.contato_nome
+      if (n.cliente_nome) return n.cliente_nome
+      return 'cliente solicitante'
+    }
+
+    function resumoItemCentral(n) {
+      var partes = []
+      partes.push('Cliente: ' + (n.cliente_nome || 'não informado'))
+      partes.push('Contato: ' + (n.contato_nome || 'não informado'))
+      partes.push('Etapa: ' + (n.etapa || 'não informada'))
+      partes.push('Próxima ação: ' + (n.proxima_acao_em || 'não informada'))
+      if (n.proposta) {
+        partes.push('Proposta: ' + (n.proposta.identificador || n.proposta.id || 'vinculada'))
+        partes.push(n.proposta.aberta ? 'Proposta aberta pelo cliente' : 'Sem abertura confirmada da proposta')
+      }
+      if (!n.notas_followups || !n.notas_followups.length) partes.push('Sem nota/follow-up recente disponível')
+      return partes.join('. ') + '.'
+    }
+
+    function riscoItemCentral(frente, n) {
+      if (frente === 'notas-incompletas' && (!n.notas_followups || !n.notas_followups.length))
+        return 'Histórico insuficiente para o Nexo orientar com precisão.'
+      if ((frente === 'followups-atrasados' || frente === 'recomendacoes-dia') && n.dias_ate_proxima_acao !== null && n.dias_ate_proxima_acao > 0)
+        return 'Próxima ação vencida ou anterior à data civil atual.'
+      if (frente === 'propostas-sem-retorno' && n.proposta && !n.proposta.aberta)
+        return 'Proposta enviada/publicada sem abertura confirmada.'
+      if (frente === 'risco-esfriamento' && n.dias_desde_atualizacao !== null && n.dias_desde_atualizacao >= 7)
+        return 'Negócio sem atualização recente suficiente.'
+      return 'Requer acompanhamento conforme contexto do negócio.'
+    }
+
+    function acaoItemCentral(frente, n) {
+      var destino = destinoCliente(n)
+      if (frente === 'notas-incompletas')
+        return 'Completar a nota deste negócio com contato cliente, decisor, prazo prometido, objeção ou pendência e próximo passo combinado; não direcionar esta ação ao responsável interno ' + (n.responsavel_nome || 'não informado') + '.'
+      if (frente === 'propostas-sem-retorno')
+        return 'Fazer follow-up consultivo com ' + destino + ' sobre a proposta deste negócio, confirmando recebimento/abertura, dúvidas e prazo de decisão.'
+      if (frente === 'followups-atrasados')
+        return 'Reagendar e executar contato com ' + destino + ', registrando objetivo do follow-up, data combinada e quem decidirá pelo cliente.'
+      if (frente === 'risco-esfriamento')
+        return 'Reaquecer a conversa com ' + destino + ', retomando necessidade, proposta ou pendência específica antes de o negócio perder tração.'
+      if (frente === 'aprendizados-comerciais')
+        return 'Usar este caso para registrar padrão de objeção, tipo de serviço e prática de follow-up, sem transformar o responsável interno em destinatário do contato.'
+      return 'Priorizar contato com ' + destino + ' hoje, com objetivo específico e registro claro do retorno esperado.'
     }
 
     function respostaFallback(frente, escopo, negocios, motivo) {
@@ -208,10 +272,12 @@ routerAdd(
             negocio_id: n.negocio_id,
             external_id: n.external_id,
             titulo: n.titulo,
+            cliente: n.cliente_nome || null,
+            contato: n.contato_nome || null,
             responsavel: n.responsavel_nome,
-            resumo: 'Etapa: ' + (n.etapa || 'não informada') + '. Próxima ação: ' + (n.proxima_acao_em || 'não informada') + '.',
-            acao_sugerida: 'Revisar manualmente enquanto a IA estiver indisponível.',
-            risco: motivo,
+            resumo: resumoItemCentral(n),
+            acao_sugerida: acaoItemCentral(frente, n),
+            risco: riscoItemCentral(frente, n) + ' Motivo do fallback: ' + motivo,
           }
         }),
         aviso: 'Fallback contextual. Nenhuma mensagem foi enviada e nenhum negócio foi alterado.',
@@ -238,10 +304,12 @@ routerAdd(
             negocio_id: n.negocio_id,
             external_id: n.external_id,
             titulo: n.titulo,
+            cliente: n.cliente_nome || null,
+            contato: n.contato_nome || null,
             responsavel: n.responsavel_nome,
-            resumo: 'Etapa: ' + (n.etapa || 'não informada') + '. Próxima ação: ' + (n.proxima_acao_em || 'não informada') + '.',
-            acao_sugerida: Array.isArray(gatewayJson.proximos_passos) ? gatewayJson.proximos_passos[0] : limparTexto(gatewayJson.proximo_passo || gatewayJson.recomendacao, 280),
-            risco: Array.isArray(gatewayJson.riscos) ? gatewayJson.riscos[0] : limparTexto(gatewayJson.risco_principal, 280),
+            resumo: resumoItemCentral(n),
+            acao_sugerida: acaoItemCentral(frente, n),
+            risco: riscoItemCentral(frente, n),
           }
         }),
         aviso:
@@ -323,7 +391,9 @@ routerAdd(
       negocios: negocios,
       instrucoes_saida: [
         'Responda como análise operacional da Central Assistente Nexo, não como ajuda de um único negócio.',
-        'Priorize negócios concretos pelo título e responsável quando houver dados suficientes.',
+        'Priorize negócios concretos pelo cliente, contato solicitante, título e responsável quando houver dados suficientes.',
+        'Nunca trate responsavel_nome como cliente ou destinatário do follow-up; responsável é membro interno PMais.',
+        'Para cada negócio citado, gere orientação específica; não repita a mesma ação textual para todos os negócios.',
         'Explique por que cada prioridade importa e qual ação humana deve ser tomada.',
         'Use o segundo cérebro do Nexo para linguagem, critérios comerciais e limites de promessa.',
         'Não envie mensagem, não altere CRM, não prometa preço, prazo operacional ou disponibilidade.',

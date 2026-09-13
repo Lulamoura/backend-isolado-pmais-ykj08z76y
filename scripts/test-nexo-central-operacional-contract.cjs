@@ -30,6 +30,10 @@ assert.match(hook, /usuarios\/opcoes-comerciais|com_usuarios_equipes|users/, 'Ba
 assert.match(hook, /x-pmais-skip-bridge-secret|x-pmais-signature/, 'Backend deve chamar PMais Agent Gateway/bridge governada')
 assert.match(hook, /second_brain/, 'Contrato deve preservar metadados de segundo cérebro')
 assert.match(hook, /fallback:\s*false/, 'Resposta real deve marcar fallback false quando Gateway responder')
+assert.match(hook, /cliente_nome|empresa_nome/, 'Itens da Central devem carregar cliente/empresa separado do responsável interno')
+assert.match(hook, /contato_nome/, 'Itens da Central devem carregar contato solicitante separado do responsável interno')
+assert.match(hook, /acaoItemCentral|acao_sugerida_item/, 'Itens da Central devem gerar ação própria por negócio')
+assert.doesNotMatch(hook, /acao_sugerida:\s*Array\.isArray\(gatewayJson\.proximos_passos\) \? gatewayJson\.proximos_passos\[0\]/, 'Central não pode repetir gatewayJson.proximos_passos[0] como ação de todos os negócios')
 assert.doesNotMatch(hook, /SKIP_AI_GATEWAY/, 'Central operacional não deve usar SKIP AI nativo')
 assert.doesNotMatch(hook, /com_negocios[^\n]+5000/, 'Central deve limitar volume inicial de negócios')
 
