@@ -1,46 +1,47 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
 import NexoAssistente from '@/pages/NexoAssistente'
 
+const frentes = [
+  'Recomendações do dia',
+  'Negócios com risco de esfriamento',
+  'Propostas sem retorno',
+  'Notas ruins/incompletas',
+  'Follow-ups atrasados ou mal definidos',
+  'Aprendizados comerciais',
+]
+
 describe('NexoAssistente', () => {
-  it('gera uma sugestão assistida abrangente quando o operador clica no botão', () => {
+  it('exibe a Central operacional do Nexo com as seis frentes aprovadas', () => {
     render(<NexoAssistente />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Proposta enviada ou em produção/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Sugerir follow-up da proposta/i }))
-    fireEvent.change(screen.getByLabelText('Orientação para o Nexo'), {
-      target: {
-        value: 'Cliente abriu a proposta há 5 dias e questionou prazo de mobilização.',
-      },
-    })
-
-    expect(screen.queryByText('Mensagem WhatsApp sugerida')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: /Gerar sugestão assistida/i }))
-
-    expect(screen.getByText('Diagnóstico comercial')).toBeInTheDocument()
-    expect(screen.getByText('Recomendações do Nexo')).toBeInTheDocument()
-    expect(screen.getByText('Mensagem WhatsApp sugerida')).toBeInTheDocument()
-    expect(screen.getByText('E-mail sugerido')).toBeInTheDocument()
-    expect(screen.getByText('Roteiro de ligação')).toBeInTheDocument()
-    expect(screen.getByText('Pendências a conferir')).toBeInTheDocument()
-    expect(screen.getByText('Próximos passos')).toBeInTheDocument()
-    expect(screen.getByText('Cuidados antes de usar')).toBeInTheDocument()
-    expect(
-      screen.getAllByText(/Cliente abriu a proposta há 5 dias e questionou prazo de mobilização/i),
-    ).toHaveLength(2)
+    expect(screen.getByRole('heading', { name: /Assistente Nexo/i })).toBeInTheDocument()
+    expect(screen.getByText(/visão geral/i)).toBeInTheDocument()
+    frentes.forEach((frente) => expect(screen.getAllByText(frente).length).toBeGreaterThan(0))
+    expect(screen.queryByText('Prospect ou nova oportunidade')).not.toBeInTheDocument()
+    expect(screen.queryByText('Gerar sugestão assistida')).not.toBeInTheDocument()
   })
 
-  it('não habilita geração antes de escolher contexto e ação', () => {
+  it('troca a leitura operacional conforme a frente escolhida', async () => {
+    const user = userEvent.setup()
     render(<NexoAssistente />)
 
-    expect(screen.getByRole('button', { name: /Gerar sugestão assistida/i })).toBeDisabled()
+    expect(screen.getByText(/Consolida o que merece atenção hoje/i)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /Prospect ou nova oportunidade/i }))
-    expect(screen.getByRole('button', { name: /Gerar sugestão assistida/i })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: /Propostas sem retorno/i }))
 
-    fireEvent.click(screen.getByRole('button', { name: /Sugerir abordagem inicial/i }))
-    expect(screen.getByRole('button', { name: /Gerar sugestão assistida/i })).toBeEnabled()
+    expect(screen.getByText(/proposta recém-enviada/i)).toBeInTheDocument()
+    expect(screen.getByText('A proposta foi aberta?')).toBeInTheDocument()
+    expect(screen.getByText(/fila de propostas por urgência/i)).toBeInTheDocument()
+  })
+
+  it('mantém escopo seguro sem envio automático nem mutação de negócios', () => {
+    render(<NexoAssistente />)
+
+    expect(screen.getByText(/não envia mensagens/i)).toBeInTheDocument()
+    expect(screen.getByText(/não altera negócios/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Gerar painel com dados reais/i })).toBeDisabled()
   })
 })
