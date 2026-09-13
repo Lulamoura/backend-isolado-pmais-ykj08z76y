@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  Bot,
   BriefcaseBusiness,
   CalendarClock,
   ClipboardCheck,
@@ -22,7 +21,6 @@ export type NavigationEntry = {
 export const MAIN_MODULES: NavigationEntry[] = [
   { label: 'Operação do Dia', path: '/', icon: LayoutDashboard },
   { label: 'Pipeline Comercial', path: '/pipeline', icon: BriefcaseBusiness },
-  { label: 'Assistente Nexo', path: '/nexo', icon: Bot },
   { label: 'Análises', path: '/analises', icon: BarChart3 },
   { label: 'Administração', path: '/foundation', icon: Layers },
 ]
@@ -59,7 +57,7 @@ export function modulePathFor(pathname: string): string {
   if (PIPELINE_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
     return '/pipeline'
   }
-  if (pathname === '/nexo' || pathname.startsWith('/nexo/')) return '/nexo'
+  if (pathname === '/nexo' || pathname.startsWith('/nexo/')) return '/pipeline'
   if (pathname === '/analises' || pathname.startsWith('/analises/')) return '/analises'
   if (ADMIN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
     return '/foundation'

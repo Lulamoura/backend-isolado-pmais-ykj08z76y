@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Bot,
   CalendarClock,
   CheckCircle2,
   Download,
@@ -50,6 +51,7 @@ import { devolverQualificacao } from '@/services/qualificacoes'
 import { CommercialContextCard } from '@/components/CommercialContextCard'
 import { CommercialFilters } from '@/components/CommercialFilters'
 import { NexoBusinessActions } from '@/components/NexoBusinessActions'
+import { gerarAjudaNexoNegocio, obterContextoNexoNegocio } from '@/services/nexo'
 import {
   commercialActionCardClass,
   filterAndSortCommercial,
@@ -74,6 +76,30 @@ const rotuloDecisao: Record<string, string> = {
   aceita: 'Aceita',
   recusada: 'Recusada',
 }
+
+const limparTextoEmailNexo = (valor?: string | null) =>
+  String(valor || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+$/gm, '')
+    .trim()
+
+const extrairSugestaoEmailNexo = (texto: string, link: string) => {
+  const limpo = limparTextoEmailNexo(texto)
+  const linhas = limpo.split('\n')
+  let assunto = ''
+  let corpo = limpo
+  const primeiraLinha = linhas[0]?.trim() || ''
+  const matchAssunto = primeiraLinha.match(/^assunto\s*:\s*(.+)$/i)
+  if (matchAssunto) {
+    assunto = matchAssunto[1].trim()
+    corpo = linhas.slice(1).join('\n').replace(/^\s+/, '').trim()
+  }
+  const corpoComLink = corpo.includes(link)
+    ? corpo
+    : `${corpo}${corpo ? '\n\n' : ''}Acesse a proposta pelo link: ${link}`
+  return { assunto, corpo: corpoComLink }
+}
+
 export default function Propostas() {
   const { isSuperAdmin, perfilSlug } = useIsSuperAdmin()
   const somenteNegociacao = perfilSlug === 'negociacao-propria'
@@ -102,6 +128,7 @@ export default function Propostas() {
   const [respostasEmail, setRespostasEmail] = useState<Record<string, string>>({})
   const [assuntosEmail, setAssuntosEmail] = useState<Record<string, string>>({})
   const [mensagensEmail, setMensagensEmail] = useState<Record<string, string>>({})
+  const [gerandoEmailNexo, setGerandoEmailNexo] = useState<Record<string, boolean>>({})
   const timersMensagem = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const [modalProposta, setModalProposta] = useState<{
     negocioId: string
@@ -301,6 +328,33 @@ export default function Propostas() {
     const mensagem = mensagemAtual(item).replace('[LINK_PROPOSTA]', link)
     await navigator.clipboard.writeText(mensagem)
     toast.success('Mensagem com o link copiada para o WhatsApp.')
+  }
+
+  const preencherEmailComNexo = async (item: ItemProposta) => {
+    if (!item.proposta || !item.contexto.external_id) return
+    setGerandoEmailNexo((atual) => ({ ...atual, [item.negocio.id]: true }))
+    try {
+      const link = linksPublicos[item.negocio.id] || (await publicar(item))
+      if (!link) return
+      const contextoNexo = await obterContextoNexoNegocio(item.contexto.external_id)
+      const ajuda = await gerarAjudaNexoNegocio(
+        item.contexto.external_id,
+        'email_envio_proposta',
+        contextoNexo,
+        `Gere um e-mail de envio de proposta para o cliente. Inclua obrigatoriamente este link público da proposta no corpo: ${link}. O texto deve ser editável pelo operador antes do envio e não deve prometer preço, prazo ou condição operacional além do que estiver no contexto.`,
+      )
+      const textoGerado = ajuda.resposta_curta || ajuda.mensagem_sugerida || ''
+      const sugestao = extrairSugestaoEmailNexo(textoGerado, link)
+      const assunto = sugestao.assunto || assuntoPadrao(item)
+      setAssuntosEmail((atual) => ({ ...atual, [item.negocio.id]: assunto }))
+      setMensagensEmail((atual) => ({ ...atual, [item.negocio.id]: sugestao.corpo }))
+      await salvarMensagemEmailProposta(item.negocio.id, sugestao.corpo)
+      toast.success('E-mail preenchido pelo Nexo para revisão humana.')
+    } catch (_) {
+      toast.error('Não foi possível preencher o e-mail com o Nexo.')
+    } finally {
+      setGerandoEmailNexo((atual) => ({ ...atual, [item.negocio.id]: false }))
+    }
   }
   const alterarIdentificacao = async () => {
     const novoValor = !identificacaoObrigatoria
@@ -810,6 +864,20 @@ export default function Propostas() {
                                   </p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    variant="secondary"
+                                    disabled={
+                                      !p.pdf_disponivel || gerandoEmailNexo[item.negocio.id]
+                                    }
+                                    onClick={() => void preencherEmailComNexo(item)}
+                                  >
+                                    {gerandoEmailNexo[item.negocio.id] ? (
+                                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Bot className="mr-2 h-4 w-4" />
+                                    )}
+                                    Preencher e-mail com Nexo
+                                  </Button>
                                   <Button
                                     disabled={!p.pdf_disponivel}
                                     onClick={() => void enviarEmail(item)}

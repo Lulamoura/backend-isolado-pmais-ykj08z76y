@@ -38,11 +38,6 @@ const ACOES_NEXO: Array<{ id: NexoAcaoAssistida; label: string; descricao: strin
     descricao: 'Mensagem curta para o comercial revisar, copiar e adaptar.',
   },
   {
-    id: 'email_envio_proposta',
-    label: 'E-mail de envio de proposta',
-    descricao: 'Assunto e texto breve para enviar a proposta com contexto comercial.',
-  },
-  {
     id: 'roteiro_ligacao',
     label: 'Gerar roteiro de ligação',
     descricao: 'Abertura, perguntas, pontos de atenção e fechamento com próxima ação.',
