@@ -77,14 +77,6 @@ const ajudaWhatsapp = {
   dicas_para_melhorar_notas: ['Registrar o retorno recebido após o envio do WhatsApp.'],
 }
 
-const ajudaEmail = {
-  ...ajuda,
-  acao: 'email_envio_proposta',
-  resposta_curta:
-    'Leitura breve: há proposta ativa para Autonunes Chevrolet Prazeres e o envio precisa destacar escopo e próximo passo.\n\nSugestão de e-mail:\nAssunto: Proposta PMais — Agentes de Apoio\nOlá, Brenda. Encaminho a proposta da PMais para agentes de apoio 44h semanais. Fico à disposição para esclarecer dúvidas sobre escopo, implantação ou próximos passos.\n\nDica extra: após o envio, registrar se a cliente abriu, respondeu ou pediu análise interna.',
-  mensagem_sugerida:
-    'Assunto: Proposta PMais — Agentes de Apoio\nOlá, Brenda. Encaminho a proposta da PMais para agentes de apoio 44h semanais.',
-}
 
 describe('NexoBusinessActions', () => {
   beforeEach(() => {
@@ -150,8 +142,7 @@ describe('NexoBusinessActions', () => {
     expect(screen.queryByText('Diagnóstico comercial')).not.toBeInTheDocument()
   })
 
-  it('inclui sugestão para e-mail de envio de proposta como resposta única útil', async () => {
-    gerarAjudaNexoNegocio.mockResolvedValue(ajudaEmail)
+  it('não mostra e-mail de envio de proposta dentro da modal Ajuda do Nexo', async () => {
     const user = userEvent.setup()
     render(
       <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
@@ -159,18 +150,10 @@ describe('NexoBusinessActions', () => {
 
     await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
     await screen.findByText('Escolha a ajuda do Nexo')
-    expect(screen.getByText('E-mail de envio de proposta')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /E-mail de envio de proposta/i }))
-    await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
 
-    await waitFor(() =>
-      expect(gerarAjudaNexoNegocio).toHaveBeenCalledWith('4792', 'email_envio_proposta', contexto, ''),
-    )
-    expect(await screen.findByText('Resposta do Nexo')).toBeInTheDocument()
-    expect(screen.getByText(/Assunto: Proposta PMais/)).toBeInTheDocument()
-    expect(screen.getByText(/Encaminho a proposta da PMais/)).toBeInTheDocument()
-    expect(screen.queryByText('Perguntas críticas')).not.toBeInTheDocument()
-    expect(screen.queryByText('Riscos percebidos')).not.toBeInTheDocument()
+    expect(screen.queryByText('E-mail de envio de proposta')).not.toBeInTheDocument()
+    expect(screen.getByText('Preparar WhatsApp')).toBeInTheDocument()
+    expect(screen.getByText('Dicas para melhorar notas')).toBeInTheDocument()
   })
 
   it('mantém Detalhamento da Proposta mesmo quando a ajuda do Nexo está oculta', async () => {
