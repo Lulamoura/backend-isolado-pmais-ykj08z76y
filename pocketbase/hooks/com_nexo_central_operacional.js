@@ -115,14 +115,17 @@ routerAdd(
       try {
         var rows = $app.findRecordsByFilter(
           'com_vinculos_externos',
-          "collection_name='com_negocios' && record_id='" +
+          "collection_name = 'com_negocios' && record_id = '" +
             esc(negocio.id) +
-            "' && provider='activecampaign'",
+            "' && sistema_origem = 'activecampaign' && external_type = 'business'",
           '-created',
           1,
           0,
         )
         if (rows.length) return rows[0].getString('external_id')
+      } catch (_) {}
+      try {
+        return negocio.getString('external_id') || null
       } catch (_) {}
       return null
     }
@@ -199,10 +202,15 @@ routerAdd(
       var responsavelId = n.getString('responsavel_id')
       var empresaId = n.getString('empresa_id')
       var contatoId = n.getString('contato_principal_id')
+      var external = externalIdNegocio(n)
+      var oeNumero = ''
+      try {
+        oeNumero = n.getString('oe_numero') || ''
+      } catch (_) {}
       return {
         negocio_id: n.id,
-        external_id: externalIdNegocio(n),
-        id_negocio: externalIdNegocio(n) || 'Sem ID externo',
+        external_id: external,
+        id_negocio: oeNumero || external || 'Sem ID externo',
         titulo: n.getString('titulo') || 'Negócio sem título',
         cliente_nome: nomeRelacionado('com_empresas', empresaId, ['nome', 'razao_social']),
         contato_nome: nomeRelacionado('com_contatos', contatoId, ['nome']),

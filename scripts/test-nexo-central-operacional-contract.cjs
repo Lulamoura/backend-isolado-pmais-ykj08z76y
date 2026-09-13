@@ -112,6 +112,12 @@ assert.match(
 assert.match(hook, /id_negocio/, 'Backend deve retornar ID humano do negócio em cada item')
 assert.match(
   hook,
+  /sistema_origem\s*=\s*'activecampaign'|sistema_origem = 'activecampaign'/,
+  'Backend deve buscar ID externo pelo vínculo oficial do ActiveCampaign',
+)
+assert.match(hook, /oe_numero/, 'Backend deve priorizar número OE quando existir')
+assert.match(
+  hook,
   /detalhamento_proposta/,
   'Backend deve retornar detalhamento de proposta separado do cabeçalho do card',
 )
