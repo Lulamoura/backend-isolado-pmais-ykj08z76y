@@ -33,11 +33,12 @@ export interface AnaliseCentralNexoResponse {
   itens: Array<{
     negocio_id?: string
     external_id?: string | null
+    id_negocio?: string | null
     titulo?: string
     cliente?: string | null
     contato?: string | null
     responsavel?: string | null
-    resumo?: string
+    detalhamento_proposta?: string
     acao_sugerida?: string
     risco?: string
   }>

@@ -202,6 +202,7 @@ routerAdd(
       return {
         negocio_id: n.id,
         external_id: externalIdNegocio(n),
+        id_negocio: externalIdNegocio(n) || 'Sem ID externo',
         titulo: n.getString('titulo') || 'Negócio sem título',
         cliente_nome: nomeRelacionado('com_empresas', empresaId, ['nome', 'razao_social']),
         contato_nome: nomeRelacionado('com_contatos', contatoId, ['nome']),
@@ -228,23 +229,21 @@ routerAdd(
       return 'cliente solicitante'
     }
 
-    function resumoItemCentral(n) {
+    function detalhamentoPropostaItemCentral(n) {
       var partes = []
-      partes.push('Cliente: ' + (n.cliente_nome || 'não informado'))
-      partes.push('Contato: ' + (n.contato_nome || 'não informado'))
-      partes.push('Etapa: ' + (n.etapa || 'não informada'))
-      partes.push('Próxima ação: ' + (n.proxima_acao_em || 'não informada'))
       if (n.proposta) {
-        partes.push('Proposta: ' + (n.proposta.identificador || n.proposta.id || 'vinculada'))
-        partes.push(
-          n.proposta.aberta
-            ? 'Proposta aberta pelo cliente'
-            : 'Sem abertura confirmada da proposta',
-        )
+        partes.push(n.proposta.identificador || n.proposta.id || 'proposta vinculada')
+        partes.push(n.proposta.aberta ? 'aberta pelo cliente' : 'sem abertura confirmada')
+        if (n.proposta.ultimo_envio_email_em)
+          partes.push('último envio em ' + n.proposta.ultimo_envio_email_em)
+      } else {
+        partes.push('sem proposta vinculada')
       }
-      if (!n.notas_followups || !n.notas_followups.length)
-        partes.push('Sem nota/follow-up recente disponível')
-      return partes.join('. ') + '.'
+      partes.push('etapa ' + (n.etapa || 'não informada'))
+      partes.push('próxima ação ' + (n.proxima_acao_em || 'não informada'))
+      if (!n.notas_followups || !n.notas_followups.length) partes.push('sem nota/follow-up recente')
+      else partes.push(n.notas_followups.length + ' nota(s)/follow-up(s) recente(s)')
+      return partes.join('; ') + '.'
     }
 
     function riscoItemCentral(frente, n) {
@@ -272,17 +271,38 @@ routerAdd(
       var proxima = n.proxima_acao_em || 'sem data definida'
       var semNotas = !n.notas_followups || !n.notas_followups.length
       var proposta = n.proposta || null
+      var vencida = n.dias_ate_proxima_acao !== null && n.dias_ate_proxima_acao > 0
+      var semAbertura = proposta && !proposta.aberta
+      var idNegocio = n.id_negocio || n.external_id || 'Sem ID externo'
       if (frente === 'notas-incompletas') {
+        if (semAbertura)
+          return (
+            'Registrar no negócio ' +
+            idNegocio +
+            ' se ' +
+            destino +
+            ' recebeu a proposta, quem analisa e qual prazo de retorno; a pendência principal é confirmar recebimento antes de cobrar decisão.'
+          )
+        if (vencida)
+          return (
+            'Atualizar o negócio ' +
+            idNegocio +
+            ' com o resultado do follow-up vencido em ' +
+            proxima +
+            ', registrando quem respondeu, objeção e novo compromisso.'
+          )
         if (semNotas)
           return (
-            'Registrar histórico mínimo do contato com ' +
+            'Criar nota mínima no negócio ' +
+            idNegocio +
+            ' com necessidade do cliente, decisor, prazo e próximo passo combinado com ' +
             destino +
-            ': quem solicitou, necessidade, prazo, objeção ou pendência e próximo passo; não acionar o responsável interno como se fosse cliente.'
+            '.'
           )
         return (
-          'Complementar a nota mais recente de ' +
-          destino +
-          ' com decisor, prazo de resposta e pendência objetiva antes da próxima recomendação do Nexo.'
+          'Complementar a última nota do negócio ' +
+          idNegocio +
+          ' com prazo de decisão, objeção objetiva e responsável externo pela resposta.'
         )
       }
       if (frente === 'propostas-sem-retorno') {
@@ -290,76 +310,135 @@ routerAdd(
           return (
             'Abordar ' +
             destino +
+            ' sobre o negócio ' +
+            idNegocio +
             ' perguntando quais pontos da proposta aberta precisam de esclarecimento e qual prazo real de decisão.'
           )
-        if (proposta && !proposta.aberta)
+        if (semAbertura)
           return (
             'Confirmar com ' +
             destino +
-            ' o recebimento do link da proposta e oferecer reenvio ou esclarecimento, sem cobrança genérica.'
+            ' se o link da proposta do negócio ' +
+            idNegocio +
+            ' chegou corretamente e oferecer reenvio ou esclarecimento, sem cobrança genérica.'
           )
         return (
           'Verificar com ' +
           destino +
-          ' se já existe proposta formal a enviar ou se o negócio ainda precisa de qualificação antes do follow-up.'
+          ' se o negócio ' +
+          idNegocio +
+          ' já está pronto para proposta formal ou se ainda falta qualificação.'
         )
       }
       if (frente === 'followups-atrasados') {
-        if (n.dias_ate_proxima_acao !== null && n.dias_ate_proxima_acao > 0)
+        if (vencida)
           return (
-            'Regularizar hoje o follow-up vencido com ' +
+            'Regularizar hoje o follow-up vencido do negócio ' +
+            idNegocio +
+            ' com ' +
             destino +
-            ' desde ' +
-            proxima +
             ', registrando retorno esperado e novo prazo combinado.'
           )
+        if (!n.proxima_acao_em)
+          return (
+            'Definir e registrar uma próxima ação objetiva para o negócio ' +
+            idNegocio +
+            ' com ' +
+            destino +
+            ', incluindo data, assunto e resultado esperado.'
+          )
         return (
-          'Definir objetivo do próximo contato com ' +
+          'Revisar se a próxima ação do negócio ' +
+          idNegocio +
+          ' com ' +
           destino +
-          ' e registrar data, decisor e assunto do follow-up.'
+          ' tem objetivo claro e prazo compatível com o cliente.'
         )
       }
       if (frente === 'risco-esfriamento') {
         if (n.dias_desde_atualizacao !== null && n.dias_desde_atualizacao >= 7)
           return (
-            'Reaquecer a conversa com ' +
+            'Reaquecer o negócio ' +
+            idNegocio +
+            ' com ' +
             destino +
-            ' porque o negócio está sem atualização recente; retomar necessidade e pendência específica.'
+            ' porque está sem atualização recente; retomar necessidade e pendência específica.'
+          )
+        if (semAbertura)
+          return (
+            'Reduzir risco de esfriamento do negócio ' +
+            idNegocio +
+            ' confirmando recebimento da proposta com ' +
+            destino +
+            ' antes que o prazo se alongue.'
           )
         return (
-          'Fazer contato preventivo com ' +
+          'Fazer contato preventivo no negócio ' +
+          idNegocio +
+          ' com ' +
           destino +
-          ' para confirmar se ainda há interesse, quem decide e qual obstáculo precisa ser removido.'
+          ' para confirmar interesse, decisor e obstáculo atual.'
         )
       }
-      if (frente === 'aprendizados-comerciais')
+      if (frente === 'aprendizados-comerciais') {
+        if (semAbertura)
+          return (
+            'Aprendizado do negócio ' +
+            idNegocio +
+            ': proposta enviada sem abertura exige checagem rápida de recebimento antes de interpretar silêncio como desinteresse.'
+          )
+        if (vencida)
+          return (
+            'Aprendizado do negócio ' +
+            idNegocio +
+            ': próxima ação vencida indica necessidade de disciplina de prazo e registro de retorno combinado com ' +
+            destino +
+            '.'
+          )
+        if (semNotas)
+          return (
+            'Aprendizado do negócio ' +
+            idNegocio +
+            ': histórico fraco limita a inteligência do Nexo; padronizar nota com necessidade, decisor, prazo e objeção.'
+          )
         return (
-          'Extrair deste caso o padrão observado com ' +
+          'Aprendizado do negócio ' +
+          idNegocio +
+          ': transformar a interação com ' +
           destino +
-          ': objeção, tipo de serviço, prazo de decisão e prática de follow-up que deve virar orientação do Nexo.'
+          ' em orientação de abordagem, objeção e cadência para casos semelhantes.'
         )
-      if (n.dias_ate_proxima_acao !== null && n.dias_ate_proxima_acao > 0)
+      }
+      if (vencida)
         return (
-          'Prioridade do dia: recuperar com ' +
+          'Prioridade do dia: recuperar o negócio ' +
+          idNegocio +
+          ' com ' +
           destino +
-          ' a próxima ação vencida em ' +
+          ' por causa da próxima ação vencida em ' +
           proxima +
           ' e registrar novo compromisso verificável.'
         )
-      if (proposta && !proposta.aberta)
+      if (semAbertura)
         return (
           'Prioridade do dia: confirmar com ' +
           destino +
-          ' se a proposta chegou corretamente, pois ainda não há abertura confirmada.'
+          ' se a proposta do negócio ' +
+          idNegocio +
+          ' chegou corretamente, pois ainda não há abertura confirmada.'
         )
       if (semNotas)
         return (
-          'Prioridade do dia: qualificar melhor o histórico com ' +
+          'Prioridade do dia: qualificar melhor o histórico do negócio ' +
+          idNegocio +
+          ' com ' +
           destino +
           ' antes de novo avanço comercial.'
         )
       return (
-        'Prioridade do dia: contato objetivo com ' +
+        'Prioridade do dia: contato objetivo no negócio ' +
+        idNegocio +
+        ' com ' +
         destino +
         ' para avançar etapa, confirmar decisor e prazo de retorno.'
       )
@@ -402,11 +481,12 @@ routerAdd(
           return {
             negocio_id: n.negocio_id,
             external_id: n.external_id,
+            id_negocio: n.id_negocio,
             titulo: n.titulo,
             cliente: n.cliente_nome || null,
             contato: n.contato_nome || null,
             responsavel: n.responsavel_nome,
-            resumo: resumoItemCentral(n),
+            detalhamento_proposta: detalhamentoPropostaItemCentral(n),
             acao_sugerida: acaoItemCentral(frente, n),
             risco: riscoItemCentral(frente, n) + ' Motivo do fallback: ' + motivo,
           }
@@ -434,11 +514,12 @@ routerAdd(
           return {
             negocio_id: n.negocio_id,
             external_id: n.external_id,
+            id_negocio: n.id_negocio,
             titulo: n.titulo,
             cliente: n.cliente_nome || null,
             contato: n.contato_nome || null,
             responsavel: n.responsavel_nome,
-            resumo: resumoItemCentral(n),
+            detalhamento_proposta: detalhamentoPropostaItemCentral(n),
             acao_sugerida: acaoItemCentral(frente, n),
             risco: riscoItemCentral(frente, n),
           }

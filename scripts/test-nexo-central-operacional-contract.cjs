@@ -12,7 +12,17 @@ assert.doesNotMatch(
   'Central não pode manter botão desabilitado de próxima etapa',
 )
 assert.match(page, /responsavelSelecionado/, 'Tela deve permitir seleção/filtro por responsável')
-assert.match(page, /Escopo da análise/, 'Tela deve exibir o escopo efetivo da análise')
+assert.doesNotMatch(
+  page,
+  /<Alert[\s\S]*?Escopo seguro da análise/,
+  'Tela não deve manter card dedicado de Escopo seguro da análise',
+)
+assert.match(page, /ID do negócio/, 'Cada card analisado deve exibir ID do negócio')
+assert.doesNotMatch(
+  page,
+  /item\.resumo/,
+  'Card não deve renderizar resumo textual que duplica Cliente, Contato e Responsável',
+)
 assert.match(page, /useAuth\(/, 'Tela deve usar usuário autenticado para escopo')
 assert.match(page, /useIsSuperAdmin\(/, 'Tela deve resolver perfil/permissão do usuário')
 assert.match(page, /gerarAnaliseCentralNexo/, 'Tela deve chamar serviço real da Central')
@@ -30,6 +40,16 @@ assert.match(
 assert.match(service, /POST/, 'Serviço deve usar POST para gerar análise')
 assert.match(service, /frente/, 'Serviço deve enviar a frente selecionada')
 assert.match(service, /responsavel_id/, 'Serviço deve enviar filtro opcional de responsável')
+assert.match(
+  service,
+  /id_negocio|external_id/,
+  'Serviço deve prever ID humano do negócio nos itens',
+)
+assert.match(
+  service,
+  /detalhamento_proposta/,
+  'Serviço deve prever detalhamento de proposta sem duplicar cabeçalho do card',
+)
 
 assert.match(
   hook,
@@ -88,6 +108,17 @@ assert.match(
   hook,
   /acaoItemCentral|acao_sugerida_item/,
   'Itens da Central devem gerar ação própria por negócio',
+)
+assert.match(hook, /id_negocio/, 'Backend deve retornar ID humano do negócio em cada item')
+assert.match(
+  hook,
+  /detalhamento_proposta/,
+  'Backend deve retornar detalhamento de proposta separado do cabeçalho do card',
+)
+assert.doesNotMatch(
+  hook,
+  /resumo:\s*resumoItemCentral/,
+  'Backend não deve mandar resumo textual duplicando Cliente, Contato e Responsável',
 )
 assert.doesNotMatch(
   hook,
