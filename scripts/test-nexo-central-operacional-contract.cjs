@@ -1,0 +1,84 @@
+const fs = require('fs')
+const assert = require('assert')
+
+const page = fs.readFileSync('src/pages/NexoAssistente.tsx', 'utf8')
+const service = fs.readFileSync('src/services/nexo-central.ts', 'utf8')
+const hook = fs.readFileSync('pocketbase/hooks/com_nexo_central_operacional.js', 'utf8')
+
+assert.match(page, /Gerar análise com Nexo/, 'Central deve ter botão real de processamento')
+assert.doesNotMatch(
+  page,
+  /Gerar painel com dados reais[^\n]+próxima etapa/,
+  'Central não pode manter botão desabilitado de próxima etapa',
+)
+assert.match(page, /responsavelSelecionado/, 'Tela deve permitir seleção/filtro por responsável')
+assert.match(page, /Escopo da análise/, 'Tela deve exibir o escopo efetivo da análise')
+assert.match(page, /useAuth\(/, 'Tela deve usar usuário autenticado para escopo')
+assert.match(page, /useIsSuperAdmin\(/, 'Tela deve resolver perfil/permissão do usuário')
+assert.match(page, /gerarAnaliseCentralNexo/, 'Tela deve chamar serviço real da Central')
+assert.match(
+  page,
+  /provider:\s*\{resultado\.provider\}/,
+  'Tela deve exibir provider retornado pelo Nexo',
+)
+
+assert.match(
+  service,
+  /\/backend\/v1\/nexo\/central\/analise/,
+  'Serviço deve chamar endpoint backend da Central',
+)
+assert.match(service, /POST/, 'Serviço deve usar POST para gerar análise')
+assert.match(service, /frente/, 'Serviço deve enviar a frente selecionada')
+assert.match(service, /responsavel_id/, 'Serviço deve enviar filtro opcional de responsável')
+
+assert.match(
+  hook,
+  /routerAdd\(\s*'POST',\s*'\/backend\/v1\/nexo\/central\/analise'/,
+  'Backend deve expor POST /backend/v1/nexo/central/analise',
+)
+assert.match(
+  hook,
+  /nexo_central_operacional_v1/,
+  'Backend deve declarar contrato estável da Central',
+)
+assert.match(
+  hook,
+  /gestor-comercial|gestor/,
+  'Backend deve tratar Gestor Comercial como perfil geral',
+)
+assert.match(hook, /leitura-executiva/, 'Backend deve tratar Leitura Executiva como perfil geral')
+assert.match(hook, /superadministrador/, 'Backend deve tratar SuperAdmin como perfil geral')
+assert.match(
+  hook,
+  /responsavel_id='" \+ esc\(ator\.id\)|responsavel_id=\'" \+ esc\(ator\.id\)/,
+  'Perfil comum deve ficar restrito ao próprio responsável',
+)
+assert.match(
+  hook,
+  /responsavel_id='" \+ esc\(responsavelId\)/,
+  'Perfil geral deve poder filtrar por responsável escolhido',
+)
+assert.match(
+  hook,
+  /usuarios\/opcoes-comerciais|com_usuarios_equipes|users/,
+  'Backend/tela deve apoiar seleção segura de responsáveis',
+)
+assert.match(
+  hook,
+  /x-pmais-skip-bridge-secret|x-pmais-signature/,
+  'Backend deve chamar PMais Agent Gateway/bridge governada',
+)
+assert.match(hook, /second_brain/, 'Contrato deve preservar metadados de segundo cérebro')
+assert.match(
+  hook,
+  /fallback:\s*false/,
+  'Resposta real deve marcar fallback false quando Gateway responder',
+)
+assert.doesNotMatch(hook, /SKIP_AI_GATEWAY/, 'Central operacional não deve usar SKIP AI nativo')
+assert.doesNotMatch(
+  hook,
+  /com_negocios[^\n]+5000/,
+  'Central deve limitar volume inicial de negócios',
+)
+
+console.log('nexo-central-operacional contract: PASS')
