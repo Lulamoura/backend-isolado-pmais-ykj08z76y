@@ -147,6 +147,21 @@ assert.match(
   /diasPara|prazoAcao|proximaFmt/,
   'Backend deve variar recomendações conforme prazo/data do negócio',
 )
+assert.match(
+  hook,
+  /analiseCentralOperacional/,
+  'Card inicial deve ser síntese própria da Central, não resposta de negócio individual',
+)
+assert.doesNotMatch(
+  hook,
+  /var texto =[\s\S]*limparTexto\(gatewayJson\.resposta_curta, 6000\)[\s\S]*analise: texto/,
+  'Card inicial não deve reaproveitar resposta_curta do Gateway de negócio individual',
+)
+assert.doesNotMatch(
+  hook,
+  /não informado está em não informado|nao informado esta em nao informado/i,
+  'Central não pode gerar síntese com campos não informados como se fossem contexto',
+)
 assert.doesNotMatch(
   hook,
   /resumo:\s*resumoItemCentral/,
