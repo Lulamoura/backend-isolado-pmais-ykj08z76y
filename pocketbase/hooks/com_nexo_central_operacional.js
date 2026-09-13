@@ -241,17 +241,32 @@ routerAdd(
 
     function acaoItemCentral(frente, n) {
       var destino = destinoCliente(n)
-      if (frente === 'notas-incompletas')
-        return 'Completar a nota deste negócio com contato cliente, decisor, prazo prometido, objeção ou pendência e próximo passo combinado; não direcionar esta ação ao responsável interno ' + (n.responsavel_nome || 'não informado') + '.'
-      if (frente === 'propostas-sem-retorno')
-        return 'Fazer follow-up consultivo com ' + destino + ' sobre a proposta deste negócio, confirmando recebimento/abertura, dúvidas e prazo de decisão.'
-      if (frente === 'followups-atrasados')
-        return 'Reagendar e executar contato com ' + destino + ', registrando objetivo do follow-up, data combinada e quem decidirá pelo cliente.'
-      if (frente === 'risco-esfriamento')
-        return 'Reaquecer a conversa com ' + destino + ', retomando necessidade, proposta ou pendência específica antes de o negócio perder tração.'
+      var proxima = n.proxima_acao_em || 'sem data definida'
+      var semNotas = !n.notas_followups || !n.notas_followups.length
+      var proposta = n.proposta || null
+      if (frente === 'notas-incompletas') {
+        if (semNotas) return 'Registrar histórico mínimo do contato com ' + destino + ': quem solicitou, necessidade, prazo, objeção ou pendência e próximo passo; não acionar o responsável interno como se fosse cliente.'
+        return 'Complementar a nota mais recente de ' + destino + ' com decisor, prazo de resposta e pendência objetiva antes da próxima recomendação do Nexo.'
+      }
+      if (frente === 'propostas-sem-retorno') {
+        if (proposta && proposta.aberta) return 'Abordar ' + destino + ' perguntando quais pontos da proposta aberta precisam de esclarecimento e qual prazo real de decisão.'
+        if (proposta && !proposta.aberta) return 'Confirmar com ' + destino + ' o recebimento do link da proposta e oferecer reenvio ou esclarecimento, sem cobrança genérica.'
+        return 'Verificar com ' + destino + ' se já existe proposta formal a enviar ou se o negócio ainda precisa de qualificação antes do follow-up.'
+      }
+      if (frente === 'followups-atrasados') {
+        if (n.dias_ate_proxima_acao !== null && n.dias_ate_proxima_acao > 0) return 'Regularizar hoje o follow-up vencido com ' + destino + ' desde ' + proxima + ', registrando retorno esperado e novo prazo combinado.'
+        return 'Definir objetivo do próximo contato com ' + destino + ' e registrar data, decisor e assunto do follow-up.'
+      }
+      if (frente === 'risco-esfriamento') {
+        if (n.dias_desde_atualizacao !== null && n.dias_desde_atualizacao >= 7) return 'Reaquecer a conversa com ' + destino + ' porque o negócio está sem atualização recente; retomar necessidade e pendência específica.'
+        return 'Fazer contato preventivo com ' + destino + ' para confirmar se ainda há interesse, quem decide e qual obstáculo precisa ser removido.'
+      }
       if (frente === 'aprendizados-comerciais')
-        return 'Usar este caso para registrar padrão de objeção, tipo de serviço e prática de follow-up, sem transformar o responsável interno em destinatário do contato.'
-      return 'Priorizar contato com ' + destino + ' hoje, com objetivo específico e registro claro do retorno esperado.'
+        return 'Extrair deste caso o padrão observado com ' + destino + ': objeção, tipo de serviço, prazo de decisão e prática de follow-up que deve virar orientação do Nexo.'
+      if (n.dias_ate_proxima_acao !== null && n.dias_ate_proxima_acao > 0) return 'Prioridade do dia: recuperar com ' + destino + ' a próxima ação vencida em ' + proxima + ' e registrar novo compromisso verificável.'
+      if (proposta && !proposta.aberta) return 'Prioridade do dia: confirmar com ' + destino + ' se a proposta chegou corretamente, pois ainda não há abertura confirmada.'
+      if (semNotas) return 'Prioridade do dia: qualificar melhor o histórico com ' + destino + ' antes de novo avanço comercial.'
+      return 'Prioridade do dia: contato objetivo com ' + destino + ' para avançar etapa, confirmar decisor e prazo de retorno.'
     }
 
     function respostaFallback(frente, escopo, negocios, motivo) {
