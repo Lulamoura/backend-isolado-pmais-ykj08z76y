@@ -49,12 +49,13 @@ const respostaNexo = {
     {
       negocio_id: 'n1',
       external_id: '123',
+      id_negocio: '123',
       titulo: 'Hospital Alpha',
       cliente: 'Hospital Alpha',
       contato: 'Brenda Cliente',
       responsavel: 'Viviane Marculino',
-      resumo: 'Proposta enviada e sem retorno.',
-      acao_sugerida: 'Fazer follow-up consultivo com Brenda Cliente.',
+      detalhamento_proposta: 'PROP-123; sem abertura confirmada; etapa negociação; próxima ação 2026-09-15.',
+      acao_sugerida: 'Confirmar recebimento da proposta do negócio 123 com Brenda Cliente.',
     },
   ],
   aviso: 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada e nenhum negócio foi alterado.',
@@ -118,9 +119,12 @@ describe('NexoAssistente', () => {
     expect(screen.getByText('IA real')).toBeInTheDocument()
     expect(screen.getByText(/provider: nexo_hermes/i)).toBeInTheDocument()
     expect(screen.getAllByText(/Hospital Alpha/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/ID do negócio: 123/i)).toBeInTheDocument()
     expect(screen.getByText(/Cliente: Hospital Alpha/i)).toBeInTheDocument()
     expect(screen.getByText(/Contato: Brenda Cliente/i)).toBeInTheDocument()
     expect(screen.getByText(/Responsável interno: Viviane Marculino/i)).toBeInTheDocument()
+    expect(screen.getByText(/Detalhamento da proposta: PROP-123/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Cliente: Hospital Alpha\. Contato:/i)).not.toBeInTheDocument()
   })
 
   it('restringe perfil comum aos próprios negócios e não mostra filtro de responsável', async () => {
@@ -142,10 +146,11 @@ describe('NexoAssistente', () => {
     expect(listarResponsaveisCentralNexo).not.toHaveBeenCalled()
   })
 
-  it('mantém escopo seguro sem envio automático nem mutação de negócios', async () => {
+  it('mantém aviso discreto sem card dedicado de escopo seguro', async () => {
     const { container } = render(<NexoAssistente />)
 
     await waitFor(() => expect(listarResponsaveisCentralNexo).toHaveBeenCalled())
+    expect(screen.queryByText(/Escopo seguro da análise/i)).not.toBeInTheDocument()
     expect(container.textContent).toMatch(/não envia mensagens/i)
     expect(container.textContent).toMatch(/não altera negócios/i)
     expect(screen.getByRole('button', { name: /Gerar análise com Nexo/i })).toBeEnabled()

@@ -9,12 +9,10 @@ import {
   ListChecks,
   Loader2,
   NotebookPen,
-  ShieldCheck,
   Sparkles,
   ThermometerSun,
 } from 'lucide-react'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -196,16 +194,24 @@ function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse })
           <div className="space-y-3">
             <p className="font-semibold text-slate-950">Negócios citados</p>
             <div className="grid gap-3">
-              {resultado.itens.slice(0, 6).map((item, index) => (
-                <div key={`${item.negocio_id || item.external_id || index}`} className="rounded-xl border bg-white p-4">
-                  <p className="font-semibold text-slate-950">{item.titulo || 'Negócio sem título'}</p>
-                  <p className="mt-1 text-sm text-slate-600">Cliente: {item.cliente || 'não informado'}</p>
-                  <p className="mt-1 text-sm text-slate-600">Contato: {item.contato || 'não informado'}</p>
-                  <p className="mt-1 text-sm text-slate-600">Responsável interno: {item.responsavel || 'não informado'}</p>
-                  {item.resumo ? <p className="mt-2 text-sm leading-6 text-slate-700">{item.resumo}</p> : null}
-                  {item.acao_sugerida ? <p className="mt-2 text-sm font-medium text-violet-800">Ação: {item.acao_sugerida}</p> : null}
-                </div>
-              ))}
+              {resultado.itens.slice(0, 6).map((item, index) => {
+                const idNegocio = item.id_negocio || item.external_id || item.negocio_id || 'Sem ID externo'
+                return (
+                  <div key={`${item.negocio_id || item.external_id || index}`} className="rounded-xl border bg-white p-4">
+                    <p className="font-semibold text-slate-950">{item.titulo || 'Negócio sem título'}</p>
+                    <div className="mt-2 grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
+                      <p>ID do negócio: {idNegocio}</p>
+                      <p>Cliente: {item.cliente || 'não informado'}</p>
+                      <p>Contato: {item.contato || 'não informado'}</p>
+                      <p>Responsável interno: {item.responsavel || 'não informado'}</p>
+                    </div>
+                    {item.detalhamento_proposta ? (
+                      <p className="mt-3 text-sm leading-6 text-slate-700">Detalhamento da proposta: {item.detalhamento_proposta}</p>
+                    ) : null}
+                    {item.acao_sugerida ? <p className="mt-2 text-sm font-medium text-violet-800">Ação: {item.acao_sugerida}</p> : null}
+                  </div>
+                )
+              })}
             </div>
           </div>
         ) : null}
@@ -281,15 +287,6 @@ export default function NexoAssistente() {
           <Badge className="border-violet-300/50 bg-white/10 text-violet-50 hover:bg-white/10">Análise com IA e contexto real</Badge>
         </div>
       </section>
-
-      <Alert className="border-amber-200 bg-amber-50 text-amber-900">
-        <ShieldCheck aria-hidden="true" className="h-4 w-4" />
-        <AlertTitle>Escopo seguro da análise</AlertTitle>
-        <AlertDescription>
-          Responsáveis comuns analisam apenas os próprios negócios. Gestor Comercial, Leitura Executiva e SuperAdmin podem
-          analisar a visão geral ou escolher um responsável específico. O Nexo não envia mensagens e não altera negócios automaticamente.
-        </AlertDescription>
-      </Alert>
 
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <Card>
@@ -380,10 +377,13 @@ export default function NexoAssistente() {
               )}
             </div>
 
-            <Button onClick={handleGerarAnalise} disabled={processando} className="w-full sm:w-auto">
-              {processando ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : <Lightbulb aria-hidden="true" className="mr-2 h-4 w-4" />}
-              {processando ? 'Processando com Nexo...' : 'Gerar análise com Nexo'}
-            </Button>
+            <div className="space-y-2">
+              <Button onClick={handleGerarAnalise} disabled={processando} className="w-full sm:w-auto">
+                {processando ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : <Lightbulb aria-hidden="true" className="mr-2 h-4 w-4" />}
+                {processando ? 'Processando com Nexo...' : 'Gerar análise com Nexo'}
+              </Button>
+              <p className="text-xs text-slate-500">O Nexo não envia mensagens e não altera negócios automaticamente.</p>
+            </div>
             {erro ? <p className="text-sm text-red-600">{erro}</p> : null}
           </CardContent>
         </Card>
