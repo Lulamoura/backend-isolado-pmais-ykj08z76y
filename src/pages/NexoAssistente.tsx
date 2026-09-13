@@ -211,7 +211,13 @@ function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse })
                     {item.titulo || 'Negócio sem título'}
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
-                    Responsável: {item.responsavel || 'não informado'}
+                    Cliente: {item.cliente || 'não informado'}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Contato: {item.contato || 'não informado'}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Responsável interno: {item.responsavel || 'não informado'}
                   </p>
                   {item.resumo ? (
                     <p className="mt-2 text-sm leading-6 text-slate-700">{item.resumo}</p>

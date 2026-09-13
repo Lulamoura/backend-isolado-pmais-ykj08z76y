@@ -34,6 +34,8 @@ export interface AnaliseCentralNexoResponse {
     negocio_id?: string
     external_id?: string | null
     titulo?: string
+    cliente?: string | null
+    contato?: string | null
     responsavel?: string | null
     resumo?: string
     acao_sugerida?: string
