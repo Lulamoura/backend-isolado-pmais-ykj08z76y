@@ -273,6 +273,64 @@ routerAdd(
       return 'Requer acompanhamento conforme contexto do negócio.'
     }
 
+    function contar(negocios, pred) {
+      var total = 0
+      for (var i = 0; i < negocios.length; i++) if (pred(negocios[i])) total++
+      return total
+    }
+
+    function analiseCentralOperacional(frente, escopo, negocios) {
+      var total = negocios.length
+      var citados = negocios.slice(0, 6)
+      var vencidos = contar(negocios, function (n) {
+        return n.dias_ate_proxima_acao !== null && n.dias_ate_proxima_acao > 0
+      })
+      var proximos = contar(negocios, function (n) {
+        var d = diasPara(n)
+        return d !== null && d >= 0 && d <= 3
+      })
+      var distantes = contar(negocios, function (n) {
+        var d = diasPara(n)
+        return d !== null && d >= 10
+      })
+      var semNotas = contar(negocios, function (n) {
+        return !n.notas_followups || !n.notas_followups.length
+      })
+      var semAbertura = contar(negocios, function (n) {
+        return n.proposta && !n.proposta.aberta
+      })
+      var comProposta = contar(negocios, function (n) {
+        return !!n.proposta
+      })
+      var linhas = []
+      if (frente === 'propostas-sem-retorno') {
+        linhas.push('Síntese da Central: a leitura procura propostas abertas ou enviadas sem resposta objetiva. Foram considerados ' + total + ' negócio(s) no escopo atual; ' + comProposta + ' têm proposta vinculada e ' + semAbertura + ' aparecem sem abertura confirmada.')
+        linhas.push('Prioridade prática: confirmar recebimento quando não houver abertura e buscar prazo/decisor quando a proposta já tiver sido analisada pelo cliente.')
+      } else if (frente === 'recomendacoes-dia') {
+        linhas.push('Síntese da Central: a recomendação do dia organiza quais negócios merecem atenção agora no escopo atual. Foram considerados ' + total + ' negócio(s); ' + vencidos + ' têm ação vencida, ' + proximos + ' têm próxima ação muito próxima e ' + semNotas + ' precisam de histórico melhor para orientar o contato.')
+        linhas.push('Prioridade prática: atacar primeiro ações vencidas e propostas sem abertura; depois qualificar negócios com histórico fraco para evitar follow-up genérico.')
+      } else if (frente === 'risco-esfriamento') {
+        linhas.push('Síntese da Central: a leitura aponta negócios que podem perder temperatura por silêncio, próxima ação distante ou histórico fraco. No escopo atual, ' + distantes + ' negócio(s) têm próxima ação distante e ' + semNotas + ' estão com histórico insuficiente.')
+        linhas.push('Prioridade prática: antecipar contato nos casos de prazo distante e registrar decisor, pendência e prazo real de retorno.')
+      } else if (frente === 'notas-incompletas') {
+        linhas.push('Síntese da Central: a leitura identifica negócios em que o registro atual limita a atuação do Nexo. No escopo atual, ' + semNotas + ' negócio(s) não têm nota ou follow-up recente suficiente.')
+        linhas.push('Prioridade prática: completar as notas com cliente/contato, necessidade, decisor, prazo, objeção e próximo passo antes de pedir nova recomendação comercial.')
+      } else if (frente === 'followups-atrasados') {
+        linhas.push('Síntese da Central: a leitura separa follow-ups vencidos, sem data clara ou incompatíveis com o ritmo do cliente. No escopo atual, ' + vencidos + ' negócio(s) têm próxima ação vencida e ' + proximos + ' exigem atenção nos próximos dias.')
+        linhas.push('Prioridade prática: regularizar os vencidos hoje e registrar novo compromisso verificável com o cliente/contato externo.')
+      } else {
+        linhas.push('Síntese da Central: a leitura busca padrões comerciais nos negócios abertos do escopo atual. Foram considerados ' + total + ' negócio(s), com ' + semNotas + ' casos em que o histórico ainda limita aprendizado confiável.')
+        linhas.push('Prioridade prática: transformar os casos citados em orientação de playbook apenas quando houver contexto suficiente de proposta, objeção, prazo e resultado.')
+      }
+      if (citados.length) {
+        var exemplos = []
+        for (var i = 0; i < citados.length && i < 3; i++) exemplos.push((citados[i].id_negocio || 'Sem ID') + ' — ' + destinoCliente(citados[i]))
+        linhas.push('Primeiros negócios citados: ' + exemplos.join('; ') + '.')
+      }
+      linhas.push('Nenhuma mensagem foi enviada e nenhum negócio foi alterado automaticamente.')
+      return linhas.join('\n\n')
+    }
+
     function acaoItemCentral(frente, n) {
       var destino = destinoCliente(n)
       var proxima = proximaFmt(n)
@@ -358,10 +416,7 @@ routerAdd(
     }
 
     function respostaGateway(frente, escopo, negocios, gatewayJson) {
-      var texto =
-        limparTexto(gatewayJson.resposta_curta, 6000) ||
-        limparTexto(gatewayJson.diagnostico, 6000) ||
-        'O Nexo retornou a análise, mas sem texto principal estruturado.'
+      var texto = analiseCentralOperacional(frente, escopo, negocios)
       return {
         contrato: 'nexo_central_operacional_v1',
         frente: frente,
