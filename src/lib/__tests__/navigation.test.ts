@@ -7,6 +7,7 @@ describe('navegação por módulos', () => {
     expect(MAIN_MODULES.map((item) => item.label)).toEqual([
       'Operação do Dia',
       'Pipeline Comercial',
+      'Assistente Nexo',
       'Análises',
       'Administração',
     ])
@@ -18,6 +19,7 @@ describe('navegação por módulos', () => {
     ['/propostas', '/pipeline'],
     ['/fechamentos', '/pipeline'],
     ['/ordens-execucao', '/pipeline'],
+    ['/nexo', '/nexo'],
     ['/analises', '/analises'],
     ['/slas', '/foundation'],
     ['/substituicoes/abc', '/foundation'],

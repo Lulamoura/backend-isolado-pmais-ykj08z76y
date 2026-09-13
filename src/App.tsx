@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -18,6 +18,7 @@ import Propostas from './pages/Propostas'
 import Fechamentos from './pages/Fechamentos'
 import OrdensExecucao from './pages/OrdensExecucao'
 import PropostaPublica from './pages/PropostaPublica'
+import NexoAssistente from './pages/NexoAssistente'
 
 import NotFound from './pages/NotFound'
 import AccessDenied from './pages/AccessDenied'
@@ -86,7 +87,14 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              <Route path="/nexo" element={<Navigate to="/pipeline" replace />} />
+              <Route
+                path="/nexo"
+                element={
+                  <ProtectedRoute>
+                    <NexoAssistente />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/foundation"
                 element={
