@@ -38,6 +38,8 @@ assert.match(hook, /cliente_nome|empresa_nome/, 'Itens da Central devem carregar
 assert.match(hook, /contato_nome/, 'Itens da Central devem carregar contato solicitante separado do responsável interno')
 assert.match(hook, /acaoItemCentral|acao_sugerida_item/, 'Itens da Central devem gerar ação própria por negócio')
 assert.match(hook, /id_negocio/, 'Backend deve retornar ID humano do negócio em cada item')
+assert.match(hook, /sistema_origem\s*=\s*'activecampaign'|sistema_origem = 'activecampaign'/, 'Backend deve buscar ID externo pelo vínculo oficial do ActiveCampaign')
+assert.match(hook, /oe_numero/, 'Backend deve priorizar número OE quando existir')
 assert.match(hook, /detalhamento_proposta/, 'Backend deve retornar detalhamento de proposta separado do cabeçalho do card')
 assert.doesNotMatch(hook, /resumo:\s*resumoItemCentral/, 'Backend não deve mandar resumo textual duplicando Cliente, Contato e Responsável')
 assert.doesNotMatch(hook, /acao_sugerida:\s*Array\.isArray\(gatewayJson\.proximos_passos\) \? gatewayJson\.proximos_passos\[0\]/, 'Central não pode repetir gatewayJson.proximos_passos[0] como ação de todos os negócios')
