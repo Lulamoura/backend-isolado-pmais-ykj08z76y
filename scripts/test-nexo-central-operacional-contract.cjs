@@ -26,10 +26,21 @@ assert.doesNotMatch(
 assert.match(page, /useAuth\(/, 'Tela deve usar usuário autenticado para escopo')
 assert.match(page, /useIsSuperAdmin\(/, 'Tela deve resolver perfil/permissão do usuário')
 assert.match(page, /gerarAnaliseCentralNexo/, 'Tela deve chamar serviço real da Central')
+assert.match(page, /Agente Nexo/, 'Tela deve exibir provider em linguagem humana')
 assert.match(
   page,
+  /modeloLabel|model_display/,
+  'Tela deve exibir modelo em linguagem humana e variável conforme retorno real',
+)
+assert.doesNotMatch(
+  page,
   /provider:\s*\{resultado\.provider\}/,
-  'Tela deve exibir provider retornado pelo Nexo',
+  'Tela não deve exibir provider técnico bruto ao usuário',
+)
+assert.doesNotMatch(
+  page,
+  /modelo:\s*\{resultado\.nexo_provider\}/,
+  'Tela não deve exibir modelo técnico bruto ao usuário',
 )
 
 assert.match(
@@ -50,6 +61,8 @@ assert.match(
   /detalhamento_proposta/,
   'Serviço deve prever detalhamento de proposta sem duplicar cabeçalho do card',
 )
+assert.match(service, /agent_display/, 'Serviço deve prever nome humano do agente')
+assert.match(service, /model_display|modelo/, 'Serviço deve prever modelo humano/real usado')
 
 assert.match(
   hook,
@@ -120,6 +133,19 @@ assert.match(
   hook,
   /detalhamento_proposta/,
   'Backend deve retornar detalhamento de proposta separado do cabeçalho do card',
+)
+assert.match(hook, /formatarDataBR/, 'Backend deve formatar datas como DD/MM/YYYY')
+assert.doesNotMatch(
+  hook,
+  /próxima ação ' \+ \(n\.proxima_acao_em/,
+  'Backend não deve expor timestamp ISO bruto em próxima ação',
+)
+assert.match(hook, /agent_display/, 'Backend deve retornar provider humano variável')
+assert.match(hook, /model_display/, 'Backend deve retornar modelo humano variável')
+assert.match(
+  hook,
+  /diasPara|prazoAcao|proximaFmt/,
+  'Backend deve variar recomendações conforme prazo/data do negócio',
 )
 assert.doesNotMatch(
   hook,

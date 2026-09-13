@@ -45,6 +45,9 @@ export interface AnaliseCentralNexoResponse {
   aviso: string
   provider: string
   nexo_provider?: string
+  modelo?: string
+  agent_display?: string
+  model_display?: string
   fallback: boolean
   second_brain?: unknown
 }

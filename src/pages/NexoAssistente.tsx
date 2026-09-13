@@ -165,6 +165,21 @@ function Lista({ titulo, itens }: { titulo: string; itens: readonly string[] }) 
   )
 }
 
+function providerLabel(resultado: AnaliseCentralNexoResponse) {
+  return (
+    resultado.agent_display ||
+    (resultado.provider === 'nexo_hermes'
+      ? 'Agente Nexo'
+      : resultado.provider || 'Agente não informado')
+  )
+}
+
+function modeloLabel(resultado: AnaliseCentralNexoResponse) {
+  return (
+    resultado.model_display || resultado.modelo || resultado.nexo_provider || 'modelo não informado'
+  )
+}
+
 function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse }) {
   const blocos = resultado.analise
     .split(/\n{2,}/)
@@ -179,10 +194,8 @@ function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse })
           <Badge variant={resultado.fallback ? 'secondary' : 'default'}>
             {resultado.fallback ? 'Fallback contextual' : 'IA real'}
           </Badge>
-          <Badge variant="outline">provider: {resultado.provider}</Badge>
-          {resultado.nexo_provider ? (
-            <Badge variant="outline">modelo: {resultado.nexo_provider}</Badge>
-          ) : null}
+          <Badge variant="outline">Provider: {providerLabel(resultado)}</Badge>
+          <Badge variant="outline">Modelo: {modeloLabel(resultado)}</Badge>
         </div>
         <CardDescription>
           {resultado.escopo.label} · {resultado.total_negocios} negócio(s) considerados
