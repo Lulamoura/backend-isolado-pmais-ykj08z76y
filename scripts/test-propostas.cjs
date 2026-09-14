@@ -67,6 +67,17 @@ const checks = [
       hook.includes('negocios_cobertos') &&
       hook.includes('propostaFiltroIdsNegocios(substituidos)'),
   ],
+  [
+    'substituição compara data civil contra datetime completo',
+    hook.includes('function propostaInicioDiaUtc') &&
+      hook.includes('function propostaFimDiaUtc') &&
+      hook.includes('data_inicio <=') &&
+      hook.includes('hojeFim') &&
+      hook.includes('data_fim >=') &&
+      hook.includes('hojeInicio') &&
+      !hook.includes("data_inicio <= '" + '" +\n        hoje +') &&
+      !hook.includes("data_fim >= '" + '" +\n        hoje +'),
+  ],
   ['idempotência', hook.includes('com_idempotencia') && hook.includes('replay: true')],
   [
     'replay recupera JSON persistido',
