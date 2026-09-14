@@ -89,10 +89,12 @@ const limparTextoEmailNexo = (valor?: string | null) =>
 const LINK_PROPOSTA_TITULO = 'Acesso a proposta'
 
 const removerPreambuloNexo = (linhas: string[]) => {
+  const indiceAssunto = linhas.findIndex((linha) => /^assunto\s*:\s*.+$/i.test(linha.trim()))
+  if (indiceAssunto > 0) return linhas.slice(indiceAssunto)
   const primeiroConteudo = linhas.findIndex((linha) => linha.trim())
   if (primeiroConteudo < 0) return linhas
   const primeiraLinha = linhas[primeiroConteudo].trim()
-  if (/^segue\s+(um\s+)?rascunho/i.test(primeiraLinha)) {
+  if (/^(segue\s+(um\s+)?rascunho|leitura\s+breve\s*:)/i.test(primeiraLinha)) {
     const proximas = linhas.slice(primeiroConteudo + 1)
     const proximoBloco = proximas.findIndex((linha) => linha.trim())
     if (proximoBloco >= 0) return proximas.slice(proximoBloco)
@@ -101,9 +103,13 @@ const removerPreambuloNexo = (linhas: string[]) => {
   return linhas
 }
 
+const URL_PUBLICA_PROPOSTA_REGEX = /https?:\/\/[^\s)\]]+\/p\/[^\s)\]]+/gi
+
 const formatarLinkEditavelProposta = (corpo: string, link: string) => {
   const escaped = link.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  let texto = corpo.replace(new RegExp(`\\s*${escaped}\\s*`, 'g'), `\n\n${LINK_PROPOSTA_TITULO}\n\n`)
+  let texto = corpo
+    .replace(new RegExp(`\\s*${escaped}\\s*`, 'g'), `\n\n${LINK_PROPOSTA_TITULO}\n\n`)
+    .replace(URL_PUBLICA_PROPOSTA_REGEX, `\n\n${LINK_PROPOSTA_TITULO}\n\n`)
   if (!texto.includes(LINK_PROPOSTA_TITULO)) {
     texto = `${texto.trim()}${texto.trim() ? '\n\n' : ''}${LINK_PROPOSTA_TITULO}`
   }
@@ -379,7 +385,7 @@ export default function Propostas() {
         contextoNexo,
         `Gere um e-mail de envio de proposta para o cliente. Inclua obrigatoriamente este link público da proposta no corpo: ${link}. O texto deve ser editável pelo operador antes do envio e não deve prometer preço, prazo ou condição operacional além do que estiver no contexto.`,
       )
-      const textoGerado = ajuda.resposta_curta || ajuda.mensagem_sugerida || ''
+      const textoGerado = ajuda.mensagem_sugerida || ajuda.resposta_curta || ''
       const sugestao = extrairSugestaoEmailNexo(textoGerado, link)
       const assunto = sugestao.assunto || assuntoPadrao(item)
       setAssuntosEmail((atual) => ({ ...atual, [item.negocio.id]: assunto }))
