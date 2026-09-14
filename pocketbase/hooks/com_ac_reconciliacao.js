@@ -1111,3 +1111,144 @@ routerAdd(
   $apis.requireAuth(),
   $apis.bodyLimit(8192),
 )
+
+routerAdd(
+  'POST',
+  '/backend/v1/admin/ac-local-decisions/reparar-casos',
+  function (e) {
+    var actor = e.auth
+    if (!actor) return e.unauthorizedError('Autenticacao necessaria')
+    var slug = ''
+    try {
+      slug = $app.findRecordById('com_perfis', actor.getString('perfil_id')).getString('slug')
+    } catch (_) {}
+    if (!actor.getBool('ativo_comercial') || slug !== 'superadministrador')
+      return e.forbiddenError('SuperAdmin necessario')
+    var body = {}
+    try {
+      body = e.requestInfo().body || {}
+    } catch (_) {}
+    var confirmation = 'REPARAR DECISOES LOCAIS 4790 4787 4786 4667 4655 4653'
+    if (body.confirmation !== confirmation || !body.command_idempotency_key)
+      return e.json(400, { error: 'CONFIRMACAO_INVALIDA' })
+
+    var prospects = ['4790', '4787', '4786']
+    var recuperacoes = ['4667', '4655', '4653']
+    var justificativa =
+      'Correção autorizada por Lula: preservar decisão local já tomada no aplicativo após ressincronização do ActiveCampaign.'
+    var resposta = { prospects: [], recuperacoes: [] }
+    var idemKey = $security.sha256('ac-local-decisions-repair|' + body.command_idempotency_key)
+    try {
+      var replay = $app.findFirstRecordByData('com_eventos_integracao', 'idempotency_key', idemKey)
+      var replayPayload = JSON.parse(replay.getString('payload') || '{}')
+      replayPayload.replay = true
+      return e.json(200, replayPayload)
+    } catch (_) {}
+
+    function negocioPorExternalId(app, externalId) {
+      var vinculo = app.findFirstRecordByFilter(
+        'com_vinculos_externos',
+        "sistema_origem='activecampaign' && external_type='business' && external_id='" + externalId + "'",
+      )
+      return app.findRecordById('com_negocios', vinculo.getString('record_id'))
+    }
+
+    $app.runInTransaction(function (tx) {
+      for (var i = 0; i < prospects.length; i++) {
+        var externalProspect = prospects[i]
+        var negocio = negocioPorExternalId(tx, externalProspect)
+        var historico = tx.findRecordsByFilter(
+          'com_qualificacao_historico',
+          "negocio_id='" + negocio.id + "' && estado_novo='desqualificada'",
+          '-created',
+          1,
+          0,
+        )
+        if (!historico.length) throw new Error('HISTORICO_DESQUALIFICACAO_AUSENTE_' + externalProspect)
+        negocio.set('etapa', '')
+        negocio.set('resultado', 'desqualificado')
+        negocio.set('qualificacao', 'desqualificada')
+        negocio.set('inativo', true)
+        negocio.set('proxima_acao_em', '')
+        tx.save(negocio)
+        resposta.prospects.push({ external_id: externalProspect, negocio_id: negocio.id, estado: 'desqualificado' })
+
+        var auditoriaProspect = new Record(tx.findCollectionByNameOrId('com_auditoria'))
+        auditoriaProspect.set('collection_name', 'com_negocios')
+        auditoriaProspect.set('record_id', negocio.id)
+        auditoriaProspect.set('acao', 'update')
+        auditoriaProspect.set('usuario_id', actor.id)
+        auditoriaProspect.set('comando', 'ac_local_decision_repair_desqualificacao')
+        auditoriaProspect.set('command_idempotency_key', body.command_idempotency_key)
+        auditoriaProspect.set('evento_em', new Date())
+        auditoriaProspect.set('justificativa', justificativa)
+        auditoriaProspect.set('perfil', slug)
+        auditoriaProspect.set('escopo', 'activecampaign_local_decisions')
+        auditoriaProspect.set('origem', 'server-side')
+        auditoriaProspect.set('evidencia_estruturada', { external_id: externalProspect, reparo: 'desqualificacao_local' })
+        auditoriaProspect.set('snapshot_hash', $security.sha256(JSON.stringify({ external_id: externalProspect, negocio_id: negocio.id, estado: 'desqualificado' })))
+        auditoriaProspect.set('snapshot_hash_versao', '1')
+        tx.save(auditoriaProspect)
+      }
+
+      for (var r = 0; r < recuperacoes.length; r++) {
+        var externalRecuperacao = recuperacoes[r]
+        var negocioPerdido = negocioPorExternalId(tx, externalRecuperacao)
+        var agendas = tx.findRecordsByFilter(
+          'com_recuperacao_agendas',
+          "negocio_perdido_id='" + negocioPerdido.id + "' && estado='ativa'",
+          '-updated',
+          20,
+          0,
+        )
+        if (!agendas.length) throw new Error('AGENDA_ATIVA_AUSENTE_' + externalRecuperacao)
+        for (var a = 0; a < agendas.length; a++) {
+          agendas[a].set('estado', 'descartada')
+          agendas[a].set('motivo_adiamento_descarte', justificativa)
+          tx.save(agendas[a])
+          resposta.recuperacoes.push({
+            external_id: externalRecuperacao,
+            negocio_id: negocioPerdido.id,
+            agenda_id: agendas[a].id,
+            estado: 'descartada',
+          })
+
+          var auditoriaRecuperacao = new Record(tx.findCollectionByNameOrId('com_auditoria'))
+          auditoriaRecuperacao.set('collection_name', 'com_recuperacao_agendas')
+          auditoriaRecuperacao.set('record_id', agendas[a].id)
+          auditoriaRecuperacao.set('acao', 'update')
+          auditoriaRecuperacao.set('usuario_id', actor.id)
+          auditoriaRecuperacao.set('comando', 'ac_local_decision_repair_recuperacao')
+          auditoriaRecuperacao.set('command_idempotency_key', body.command_idempotency_key)
+          auditoriaRecuperacao.set('evento_em', new Date())
+          auditoriaRecuperacao.set('justificativa', justificativa)
+          auditoriaRecuperacao.set('perfil', slug)
+          auditoriaRecuperacao.set('escopo', 'activecampaign_local_decisions')
+          auditoriaRecuperacao.set('origem', 'server-side')
+          auditoriaRecuperacao.set('evidencia_estruturada', {
+            external_id: externalRecuperacao,
+            agenda_id: agendas[a].id,
+            reparo: 'recuperacao_descartada',
+          })
+          auditoriaRecuperacao.set('snapshot_hash', $security.sha256(JSON.stringify({ external_id: externalRecuperacao, agenda_id: agendas[a].id, estado: 'descartada' })))
+          auditoriaRecuperacao.set('snapshot_hash_versao', '1')
+          tx.save(auditoriaRecuperacao)
+        }
+      }
+
+      var evento = new Record(tx.findCollectionByNameOrId('com_eventos_integracao'))
+      evento.set('sistema_origem', 'activecampaign')
+      evento.set('evento_tipo', 'local_decisions_repair')
+      evento.set('external_id', '4790,4787,4786,4667,4655,4653')
+      evento.set('idempotency_key', idemKey)
+      evento.set('payload', JSON.stringify(Object.assign({ replay: false }, resposta)).slice(0, 4000))
+      evento.set('status', 'processed')
+      tx.save(evento)
+    })
+
+    return e.json(200, Object.assign({ replay: false }, resposta))
+  },
+  $apis.requireAuth(),
+  $apis.bodyLimit(4096),
+)
+
