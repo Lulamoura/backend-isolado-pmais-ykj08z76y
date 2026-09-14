@@ -123,9 +123,14 @@ function OperadoraCard({ item }: { item: OperadoraRelatorioEquipe }) {
             {dinheiro(item.indicadores.total.valor_centavos)}
           </p>
         </div>
-        <Badge variant="outline">
-          Conversão {percentual(item.indicadores.conversao_global_percentual)}
-        </Badge>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Badge variant="outline">
+            Conversão {percentual(item.indicadores.conversao_global_percentual)}
+          </Badge>
+          <Badge variant="outline">
+            Qualitativa valor {percentual(item.indicadores.conversao_qualitativa_valor_percentual)}
+          </Badge>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
