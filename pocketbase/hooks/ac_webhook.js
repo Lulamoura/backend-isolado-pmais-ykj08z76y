@@ -162,6 +162,25 @@ routerAdd(
       transactionError = ''
     try {
       $app.runInTransaction(function (tx) {
+        function devePreservarDesqualificacaoLocal(app, negocio) {
+          if (
+            negocio.getString('qualificacao') === 'desqualificada' ||
+            negocio.getString('resultado') === 'desqualificado'
+          )
+            return true
+          try {
+            var historico = app.findRecordsByFilter(
+              'com_qualificacao_historico',
+              "negocio_id='" + negocio.id + "'",
+              '-created',
+              1,
+              0,
+            )
+            return historico.length && historico[0].getString('estado_novo') === 'desqualificada'
+          } catch (_) {
+            return false
+          }
+        }
         var collectionName =
           event.entity_type === 'company'
             ? 'com_empresas'
@@ -255,28 +274,37 @@ routerAdd(
           target.set('responsavel_id', owner ? owner.getString('record_id') : '')
           target.set('valor', Math.round(Number(event.data.value_cents || 0)))
           if (dealStatus === '0') {
-            var alias = tx.findFirstRecordByFilter(
-              'com_alias_dimensoes',
-              "dimensao='etapa' && valor_original='" + clean(event.data.stage, 120) + "'",
-            )
-            var canonicalStage = tx
-              .findRecordById('com_etapas', alias.getString('canonico_ref'))
-              .getString('codigo')
-            if (canonicalStage !== previousStage)
-              target.set(
-                'etapa_entrou_em',
-                event.data.stage_entered_at ||
-                  event.data.crm_updated_at ||
-                  event.data.crm_created_at ||
-                  new Date().toISOString(),
+            var preserveLocalProspectDisqualification =
+              !!binding && isProspect && devePreservarDesqualificacaoLocal(tx, target)
+            if (preserveLocalProspectDisqualification) {
+              target.set('etapa', '')
+              target.set('resultado', 'desqualificado')
+              target.set('qualificacao', 'desqualificada')
+              target.set('proxima_acao_em', '')
+            } else {
+              var alias = tx.findFirstRecordByFilter(
+                'com_alias_dimensoes',
+                "dimensao='etapa' && valor_original='" + clean(event.data.stage, 120) + "'",
               )
-            else if (!target.getString('etapa_entrou_em') && event.data.stage_entered_at)
-              target.set('etapa_entrou_em', event.data.stage_entered_at)
-            target.set('etapa', canonicalStage)
-            target.set('resultado', '')
-            target.set('qualificacao', canonicalStage === 'prospects' ? 'pendente' : 'qualificada')
-            target.set('fechamento_motivo', '')
-            target.set('fechamento_data', '')
+              var canonicalStage = tx
+                .findRecordById('com_etapas', alias.getString('canonico_ref'))
+                .getString('codigo')
+              if (canonicalStage !== previousStage)
+                target.set(
+                  'etapa_entrou_em',
+                  event.data.stage_entered_at ||
+                    event.data.crm_updated_at ||
+                    event.data.crm_created_at ||
+                    new Date().toISOString(),
+                )
+              else if (!target.getString('etapa_entrou_em') && event.data.stage_entered_at)
+                target.set('etapa_entrou_em', event.data.stage_entered_at)
+              target.set('etapa', canonicalStage)
+              target.set('resultado', '')
+              target.set('qualificacao', canonicalStage === 'prospects' ? 'pendente' : 'qualificada')
+              target.set('fechamento_motivo', '')
+              target.set('fechamento_data', '')
+            }
           } else {
             target.set('etapa', '')
             target.set(
@@ -317,7 +345,7 @@ routerAdd(
           target.set('fase_crm', clean(event.data.phase, 160))
           target.set('fonte_prospeccao', clean(event.data.source, 200))
           target.set('prospectivo', false)
-          target.set('inativo', event.action === 'archive')
+          target.set('inativo', preserveLocalProspectDisqualification ? true : event.action === 'archive')
           if (event.data.modality) {
             var modality = clean(event.data.modality, 120).toLowerCase()
             if (modality === 'serv. recorrente' || modality === 'recorrente')
@@ -371,13 +399,15 @@ routerAdd(
               } catch (_) {}
             }
             if (existingAgenda) {
-              existingAgenda.set('data_alvo', recoveryDate)
-              existingAgenda.set('antecedencia_dias', 60)
-              existingAgenda.set('responsavel_id', recoveryResponsibleId)
-              existingAgenda.set('autor_id', recoveryResponsibleId)
-              existingAgenda.set('estado', 'ativa')
-              existingAgenda.set('contexto', recoveryContext)
-              tx.save(existingAgenda)
+              if (existingAgenda.getString('estado') !== 'descartada') {
+                existingAgenda.set('data_alvo', recoveryDate)
+                existingAgenda.set('antecedencia_dias', 60)
+                existingAgenda.set('responsavel_id', recoveryResponsibleId)
+                existingAgenda.set('autor_id', recoveryResponsibleId)
+                existingAgenda.set('estado', 'ativa')
+                existingAgenda.set('contexto', recoveryContext)
+                tx.save(existingAgenda)
+              }
             } else {
               var newAgenda = new Record(tx.findCollectionByNameOrId('com_recuperacao_agendas'))
               newAgenda.set('negocio_perdido_id', target.id)
