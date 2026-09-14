@@ -128,7 +128,17 @@ const prepararCorpoEmailParaEnvio = (corpo: string, link: string) => {
   return `${corpo.trim()}${corpo.trim() ? '\n\n' : ''}[LINK_PROPOSTA]`
 }
 
-const extrairSugestaoEmailNexo = (texto: string, link: string) => {
+const assinaturaEmailProposta = (item: ItemProposta) => {
+  const responsavel = item.contexto.responsavel?.name?.trim()
+  return `Atenciosamente,\n${responsavel || 'Equipe Comercial PMais'}${responsavel ? '\nComercial | PMais' : ''}`
+}
+
+const garantirAssinaturaEmailProposta = (corpo: string, item: ItemProposta) => {
+  if (/\batenciosamente\b/i.test(corpo) || /\bcomercial\s*\|\s*pmais\b/i.test(corpo)) return corpo
+  return `${corpo.trim()}\n\n${assinaturaEmailProposta(item)}`
+}
+
+const extrairSugestaoEmailNexo = (texto: string, link: string, item: ItemProposta) => {
   const limpo = limparTextoEmailNexo(texto)
   let linhas = removerPreambuloNexo(limpo.split('\n'))
   let assunto = ''
@@ -138,7 +148,10 @@ const extrairSugestaoEmailNexo = (texto: string, link: string) => {
     assunto = matchAssunto?.[1]?.trim() || ''
     linhas = linhas.slice(indiceAssunto + 1)
   }
-  const corpo = formatarLinkEditavelProposta(linhas.join('\n').replace(/^\s+/, '').trim(), link)
+  const corpo = garantirAssinaturaEmailProposta(
+    formatarLinkEditavelProposta(linhas.join('\n').replace(/^\s+/, '').trim(), link),
+    item,
+  )
   return { assunto, corpo }
 }
 
@@ -387,7 +400,7 @@ export default function Propostas() {
         `Gere um e-mail de envio de proposta para o cliente. Inclua obrigatoriamente este link público da proposta no corpo: ${link}. O texto deve ser editável pelo operador antes do envio e não deve prometer preço, prazo ou condição operacional além do que estiver no contexto.`,
       )
       const textoGerado = ajuda.mensagem_sugerida || ajuda.resposta_curta || ''
-      const sugestao = extrairSugestaoEmailNexo(textoGerado, link)
+      const sugestao = extrairSugestaoEmailNexo(textoGerado, link, item)
       const assunto = sugestao.assunto || assuntoPadrao(item)
       setAssuntosEmail((atual) => ({ ...atual, [item.negocio.id]: assunto }))
       setMensagensEmail((atual) => ({ ...atual, [item.negocio.id]: sugestao.corpo }))

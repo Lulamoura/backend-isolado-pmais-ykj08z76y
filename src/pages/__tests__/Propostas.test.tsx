@@ -63,7 +63,7 @@ const itemProposta = {
       email: 'brenda@cliente.com.br',
       telefone: '81999990000',
     },
-    responsavel: { id: 'usr-1', name: 'Viviane' },
+    responsavel: { id: 'usr-1', name: 'Shirleide Andrade do Nascimento' },
     valor_centavos: 3690238,
     modalidade: 'recorrente',
     fase_crm: 'Proposta em produção',
@@ -136,7 +136,7 @@ describe('Propostas', () => {
       riscos: [],
       proximos_passos: [],
       mensagem_sugerida:
-        'Leitura breve: Brenda está reavaliando a terceirização atual da unidade de Prazeres. O envio deve conectar a proposta ao escopo solicitado e abrir espaço para entender quais melhorias ela considera essenciais. Segue rascunho editável para revisão antes do envio.\n\nAssunto: Proposta nº 493.26 | Porteiro para a AUTONUNES – Unidade Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConsiderando sua solicitação e a reavaliação do serviço terceirizado da unidade de Prazeres, encaminho a proposta nº 493.26 da PMais para sua análise.\n\nVocê pode consultar o detalhamento pelo link:\nhttps://comercial.pmaisservicos.com.br/p/CEEBtUumUGk2Inx0tX4zXzfQT8AIKnVRo8VLP7YKd4uzuHmxIv1-nNCNWCLC4EKH\n\nPara alinharmos a proposta às necessidades da AUTONUNES, gostaria de entender quais pontos do serviço atual você considera prioritários melhorar.\n\nAtenciosamente,\nShirleide Andrade do Nascimento\nComercial | PMais',
+        'Leitura breve: Brenda está reavaliando a terceirização atual da unidade de Prazeres. O envio deve conectar a proposta ao escopo solicitado e abrir espaço para entender quais melhorias ela considera essenciais. Segue rascunho editável para revisão antes do envio.\n\nAssunto: Proposta nº 493.26 | Porteiro para a AUTONUNES – Unidade Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConsiderando sua solicitação e a reavaliação do serviço terceirizado da unidade de Prazeres, encaminho a proposta nº 493.26 da PMais para sua análise.\n\nVocê pode consultar o detalhamento pelo link:\nhttps://comercial.pmaisservicos.com.br/p/CEEBtUumUGk2Inx0tX4zXzfQT8AIKnVRo8VLP7YKd4uzuHmxIv1-nNCNWCLC4EKH\n\nPara alinharmos a proposta às necessidades da AUTONUNES, gostaria de entender quais pontos do serviço atual você considera prioritários melhorar.',
       dicas_para_melhorar_notas: [],
       resposta_curta:
         'Segue rascunho editável para apresentar a proposta à Brenda, conectando o escopo à reavaliação do serviço.\n\nAssunto: Proposta nº 493.26 | Portaria — AUTONUNES Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConforme sua solicitação, encaminho a proposta da PMais para o serviço de portaria.\n\nVocê pode consultar o detalhamento da proposta neste link:\nhttp://localhost:3000/p/token-proposta-segura\n\nApós sua avaliação, podemos combinar uma breve conversa?\n\nAtenciosamente,\nShirleide Andrade do Nascimento\nComercial | PMais',
@@ -177,6 +177,7 @@ describe('Propostas', () => {
     expect(mensagem).toContain('Olá, Brenda! Tudo bem?')
     expect(mensagem).toContain('[LINK_PROPOSTA]')
     expect(mensagem).toContain('pelo link:\n\n[LINK_PROPOSTA]\n\nPara alinharmos')
+    expect(mensagem).toContain('Atenciosamente,\nShirleide Andrade do Nascimento\nComercial | PMais')
     expect(mensagem).not.toContain('Leitura breve')
     expect(mensagem).not.toContain('Segue rascunho editável')
     expect(mensagem).not.toContain('Assunto:')
