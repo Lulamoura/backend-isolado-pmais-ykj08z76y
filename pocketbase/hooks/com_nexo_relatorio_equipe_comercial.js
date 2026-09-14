@@ -52,8 +52,18 @@ routerAdd(
     }
 
     function money(valor) {
-      var v = centavos(valor) / 100
-      return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      var cents = centavos(valor)
+      var inteiro = Math.floor(cents / 100)
+      var decimal = String(cents % 100)
+      if (decimal.length < 2) decimal = '0' + decimal
+      var inteiroStr = String(inteiro)
+      var partes = []
+      while (inteiroStr.length > 3) {
+        partes.unshift(inteiroStr.slice(-3))
+        inteiroStr = inteiroStr.slice(0, -3)
+      }
+      partes.unshift(inteiroStr || '0')
+      return 'R$ ' + partes.join('.') + ',' + decimal
     }
 
     function pct(value) {
