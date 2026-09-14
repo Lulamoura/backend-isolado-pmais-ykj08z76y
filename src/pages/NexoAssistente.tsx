@@ -154,14 +154,11 @@ const perfisVisaoGeral = new Set([
 
 function Lista({ titulo, itens }: { titulo: string; itens: readonly string[] }) {
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-semibold text-slate-950">{titulo}</p>
-      <ul className="space-y-2 text-sm leading-6 text-slate-700">
+    <div>
+      <p className="font-semibold text-slate-950">{titulo}</p>
+      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-slate-700">
         {itens.map((item) => (
-          <li key={item} className="flex gap-2">
-            <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300" />
-            <span>{item}</span>
-          </li>
+          <li key={item}>{item}</li>
         ))}
       </ul>
     </div>
@@ -184,7 +181,7 @@ function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse })
     .filter(Boolean)
 
   return (
-    <Card className="border-slate-200 bg-white shadow-sm">
+    <Card className="border-emerald-200 bg-emerald-50/40">
       <CardHeader>
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle>Resultado da análise do Nexo</CardTitle>
@@ -199,7 +196,7 @@ function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse })
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-3 rounded-xl border border-violet-100 bg-violet-50/40 p-4 text-sm leading-6 text-slate-800">
+        <div className="space-y-3 rounded-xl border border-emerald-200 bg-white p-4 text-sm leading-6 text-slate-800">
           {blocos.length ? blocos.map((bloco) => <p key={bloco}>{bloco}</p>) : <p>Sem análise textual retornada.</p>}
         </div>
         {resultado.itens.length ? (
@@ -283,13 +280,13 @@ export default function NexoAssistente() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl space-y-6 px-4 py-6 sm:py-8">
-      <section className="rounded-2xl bg-gradient-to-r from-slate-950 via-violet-950 to-indigo-950 p-5 text-white shadow-lg sm:p-6">
+    <div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
+      <section className="rounded-2xl bg-gradient-to-r from-slate-950 via-violet-950 to-indigo-950 p-6 text-white shadow-lg">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-wide text-violet-200">Inteligência Comercial PMais</p>
-            <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-              <Bot aria-hidden="true" className="h-7 w-7 text-violet-200" /> Assistente Nexo
+            <h1 className="mt-1 flex items-center gap-3 text-3xl font-extrabold tracking-tight">
+              <Bot aria-hidden="true" className="h-8 w-8 text-violet-200" /> Assistente Nexo
             </h1>
             <p className="mt-3 text-sm leading-6 text-violet-100/90">
               Central operacional para analisar o pipeline real com apoio do Nexo, respeitando perfil de acesso,
@@ -300,14 +297,13 @@ export default function NexoAssistente() {
         </div>
       </section>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-        <Card className="border-slate-200 shadow-none">
+      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        <Card>
           <CardHeader>
             <CardTitle>Frentes do Assistente Nexo</CardTitle>
             <CardDescription>Escolha a leitura operacional e processe com o Nexo.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <nav aria-label="Frentes do Assistente Nexo" className="grid gap-2">
+          <CardContent className="grid gap-3">
             {frentesNexo.map((item) => {
               const Icon = item.icon
               const active = frenteSelecionada === item.id
@@ -315,24 +311,17 @@ export default function NexoAssistente() {
                 <button
                   key={item.id}
                   type="button"
-                  aria-pressed={active}
                   onClick={() => {
                     setFrenteSelecionada(item.id)
                     setResultado(null)
                     setErro('')
                   }}
                   className={`rounded-xl border p-4 text-left transition ${
-                    active
-                      ? 'border-violet-400 bg-violet-50 text-violet-950 shadow-sm'
-                      : 'border-transparent bg-white text-slate-700 hover:border-violet-100 hover:bg-slate-50'
+                    active ? 'border-violet-400 bg-violet-50 shadow-sm' : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/40'
                   }`}
                 >
                   <span className="flex items-start gap-3">
-                    <span
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                        active ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500'
-                      }`}
-                    >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
                       <Icon aria-hidden="true" className="h-5 w-5" />
                     </span>
                     <span>
@@ -343,11 +332,10 @@ export default function NexoAssistente() {
                 </button>
               )
             })}
-            </nav>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 bg-white shadow-none">
+        <Card className="border-violet-200 bg-violet-50/40">
           <CardHeader>
             <div className="flex items-start gap-3">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
@@ -359,8 +347,8 @@ export default function NexoAssistente() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-5 p-5 sm:p-6">
-            <section className="rounded-xl bg-slate-50 p-4">
+          <CardContent className="space-y-5 rounded-b-xl bg-white/80 p-5">
+            <section className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="flex items-center gap-2 font-semibold text-slate-950">
                 <BarChart3 aria-hidden="true" className="h-4 w-4 text-violet-700" /> Leitura do Nexo
               </p>
@@ -370,41 +358,40 @@ export default function NexoAssistente() {
             <Lista titulo="Perguntas que o Nexo deve responder" itens={frente.perguntas} />
             <Lista titulo="Saída operacional esperada" itens={frente.saida} />
 
-            <div className="border-t border-slate-200 pt-4">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                    <ListChecks aria-hidden="true" className="h-4 w-4 text-violet-700" /> {escopoPrevisto}
-                  </p>
-                  {podeVisaoGeral ? (
-                    <label className="mt-3 block max-w-md text-sm font-medium text-slate-700">
-                      Filtrar por responsável
-                      <select
-                        className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        value={responsavelSelecionado}
-                        onChange={(event) => setResponsavelSelecionado(event.target.value)}
-                        disabled={carregandoResponsaveis || processando}
-                      >
-                        <option value="todos">Todos os responsáveis</option>
-                        {responsaveis.map((responsavel) => (
-                          <option key={responsavel.id} value={responsavel.id}>
-                            {responsavel.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ) : (
-                    <p className="mt-2 text-sm leading-6 text-slate-700">
-                      Seu perfil usa automaticamente apenas os negócios em que você é o responsável comercial.
-                    </p>
-                  )}
-                  <p className="mt-3 text-xs text-slate-500">O Nexo não envia mensagens e não altera negócios automaticamente.</p>
-                </div>
-                <Button onClick={handleGerarAnalise} disabled={processando} className="w-full shrink-0 xl:w-auto">
-                  {processando ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : <Lightbulb aria-hidden="true" className="mr-2 h-4 w-4" />}
-                  {processando ? 'Processando com Nexo...' : 'Gerar análise com Nexo'}
-                </Button>
-              </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="flex items-center gap-2 font-semibold text-slate-950">
+                <ListChecks aria-hidden="true" className="h-4 w-4 text-violet-700" /> {escopoPrevisto}
+              </p>
+              {podeVisaoGeral ? (
+                <label className="mt-3 block text-sm font-medium text-slate-700">
+                  Filtrar por responsável
+                  <select
+                    className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                    value={responsavelSelecionado}
+                    onChange={(event) => setResponsavelSelecionado(event.target.value)}
+                    disabled={carregandoResponsaveis || processando}
+                  >
+                    <option value="todos">Todos os responsáveis</option>
+                    {responsaveis.map((responsavel) => (
+                      <option key={responsavel.id} value={responsavel.id}>
+                        {responsavel.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                  Seu perfil usa automaticamente apenas os negócios em que você é o responsável comercial.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Button onClick={handleGerarAnalise} disabled={processando} className="w-full sm:w-auto">
+                {processando ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : <Lightbulb aria-hidden="true" className="mr-2 h-4 w-4" />}
+                {processando ? 'Processando com Nexo...' : 'Gerar análise com Nexo'}
+              </Button>
+              <p className="text-xs text-slate-500">O Nexo não envia mensagens e não altera negócios automaticamente.</p>
             </div>
             {erro ? <p className="text-sm text-red-600">{erro}</p> : null}
           </CardContent>

@@ -163,23 +163,4 @@ describe('NexoAssistente', () => {
     expect(container.textContent).toMatch(/não altera negócios/i)
     expect(screen.getByRole('button', { name: /Gerar análise com Nexo/i })).toBeEnabled()
   })
-
-  it('organiza as frentes como navegação visual clara sem remover conteúdo', async () => {
-    const user = userEvent.setup()
-    render(<NexoAssistente />)
-
-    expect(screen.getByRole('navigation', { name: /Frentes do Assistente Nexo/i })).toBeInTheDocument()
-    const recomendacoes = screen.getByRole('button', { name: /Recomendações do dia/i })
-    const propostas = screen.getByRole('button', { name: /Propostas sem retorno/i })
-    expect(recomendacoes).toHaveAttribute('aria-pressed', 'true')
-    expect(propostas).toHaveAttribute('aria-pressed', 'false')
-
-    await user.click(propostas)
-
-    expect(recomendacoes).toHaveAttribute('aria-pressed', 'false')
-    expect(propostas).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByText(/proposta recém-enviada/i)).toBeInTheDocument()
-    expect(screen.getByText(/Saída operacional esperada/i)).toBeInTheDocument()
-    expect(screen.getByText(/O Nexo não envia mensagens/i)).toBeInTheDocument()
-  })
 })
