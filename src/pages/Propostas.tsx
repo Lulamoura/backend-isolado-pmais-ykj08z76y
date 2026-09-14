@@ -86,21 +86,53 @@ const limparTextoEmailNexo = (valor?: string | null) =>
     .replace(/[ \t]+$/gm, '')
     .trim()
 
+const LINK_PROPOSTA_TITULO = 'Acesso a proposta'
+
+const removerPreambuloNexo = (linhas: string[]) => {
+  const primeiroConteudo = linhas.findIndex((linha) => linha.trim())
+  if (primeiroConteudo < 0) return linhas
+  const primeiraLinha = linhas[primeiroConteudo].trim()
+  if (/^segue\s+(um\s+)?rascunho/i.test(primeiraLinha)) {
+    const proximas = linhas.slice(primeiroConteudo + 1)
+    const proximoBloco = proximas.findIndex((linha) => linha.trim())
+    if (proximoBloco >= 0) return proximas.slice(proximoBloco)
+    return []
+  }
+  return linhas
+}
+
+const formatarLinkEditavelProposta = (corpo: string, link: string) => {
+  const escaped = link.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  let texto = corpo.replace(new RegExp(`\\s*${escaped}\\s*`, 'g'), `\n\n${LINK_PROPOSTA_TITULO}\n\n`)
+  if (!texto.includes(LINK_PROPOSTA_TITULO)) {
+    texto = `${texto.trim()}${texto.trim() ? '\n\n' : ''}${LINK_PROPOSTA_TITULO}`
+  }
+  return limparTextoEmailNexo(
+    texto
+      .replace(/(link\s*:\s*)\n+/gi, '$1\n\n')
+      .replace(new RegExp(`\\n{3,}${LINK_PROPOSTA_TITULO}`, 'g'), `\n\n${LINK_PROPOSTA_TITULO}`)
+      .replace(new RegExp(`${LINK_PROPOSTA_TITULO}\\n{3,}`, 'g'), `${LINK_PROPOSTA_TITULO}\n\n`),
+  )
+}
+
+const prepararCorpoEmailParaEnvio = (corpo: string, link: string) => {
+  if (corpo.includes(link) || corpo.includes('[LINK_PROPOSTA]')) return corpo
+  if (corpo.includes(LINK_PROPOSTA_TITULO)) return corpo.replace(LINK_PROPOSTA_TITULO, '[LINK_PROPOSTA]')
+  return `${corpo.trim()}${corpo.trim() ? '\n\n' : ''}[LINK_PROPOSTA]`
+}
+
 const extrairSugestaoEmailNexo = (texto: string, link: string) => {
   const limpo = limparTextoEmailNexo(texto)
-  const linhas = limpo.split('\n')
+  let linhas = removerPreambuloNexo(limpo.split('\n'))
   let assunto = ''
-  let corpo = limpo
-  const primeiraLinha = linhas[0]?.trim() || ''
-  const matchAssunto = primeiraLinha.match(/^assunto\s*:\s*(.+)$/i)
-  if (matchAssunto) {
-    assunto = matchAssunto[1].trim()
-    corpo = linhas.slice(1).join('\n').replace(/^\s+/, '').trim()
+  const indiceAssunto = linhas.findIndex((linha) => /^assunto\s*:\s*.+$/i.test(linha.trim()))
+  if (indiceAssunto >= 0) {
+    const matchAssunto = linhas[indiceAssunto].trim().match(/^assunto\s*:\s*(.+)$/i)
+    assunto = matchAssunto?.[1]?.trim() || ''
+    linhas = linhas.slice(indiceAssunto + 1)
   }
-  const corpoComLink = corpo.includes(link)
-    ? corpo
-    : `${corpo}${corpo ? '\n\n' : ''}Acesse a proposta pelo link: ${link}`
-  return { assunto, corpo: corpoComLink }
+  const corpo = formatarLinkEditavelProposta(linhas.join('\n').replace(/^\s+/, '').trim(), link)
+  return { assunto, corpo }
 }
 
 export default function Propostas() {
@@ -301,7 +333,8 @@ export default function Propostas() {
     const link = linksPublicos[item.negocio.id] || (await publicar(item))
     const assunto = (assuntosEmail[item.negocio.id] || assuntoPadrao(item)).trim()
     await gravarMensagemAgora(item)
-    const corpo = mensagemAtual(item).trim()
+    const corpoEditavel = mensagemAtual(item).trim()
+    const corpo = prepararCorpoEmailParaEnvio(corpoEditavel, link)
     const replyTo = (
       respostasEmail[item.negocio.id] || String(pb.authStore.record?.email || '')
     ).trim()

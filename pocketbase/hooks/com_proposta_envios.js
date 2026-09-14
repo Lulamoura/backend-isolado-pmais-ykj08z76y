@@ -197,7 +197,7 @@ routerAdd(
         .join('')
         .replace(
           marcadorLink,
-          '<a href="' + String(body.link_publico) + '">Visualizar proposta</a>',
+          '<a href="' + String(body.link_publico) + '">Acesso a proposta</a>',
         )
       var snapshot = corpo.replace(String(body.link_publico), '[LINK_SEGURO_NAO_PERSISTIDO]')
       if (cc.length) snapshot += '\n\nCc: ' + cc.join(', ')
