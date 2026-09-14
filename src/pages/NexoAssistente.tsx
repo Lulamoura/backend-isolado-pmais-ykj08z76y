@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   BarChart3,
   BookOpenCheck,
@@ -323,6 +324,21 @@ export default function NexoAssistente() {
           </Badge>
         </div>
       </section>
+
+      <Card className="border-indigo-200 bg-indigo-50/50">
+        <CardHeader>
+          <CardTitle>Relatório da equipe comercial</CardTitle>
+          <CardDescription>
+            Visão executiva por operadora e modalidade, com volume, valor, ganhos, perdidos, abertos
+            e conversões.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild>
+            <Link to="/nexo/relatorio-equipe-comercial">Abrir relatório da equipe comercial</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <Card>

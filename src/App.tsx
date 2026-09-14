@@ -19,6 +19,7 @@ import Fechamentos from './pages/Fechamentos'
 import OrdensExecucao from './pages/OrdensExecucao'
 import PropostaPublica from './pages/PropostaPublica'
 import NexoAssistente from './pages/NexoAssistente'
+import NexoRelatorioEquipeComercial from './pages/NexoRelatorioEquipeComercial'
 
 import NotFound from './pages/NotFound'
 import AccessDenied from './pages/AccessDenied'
@@ -92,6 +93,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <NexoAssistente />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/nexo/relatorio-equipe-comercial"
+                element={
+                  <ProtectedRoute>
+                    <NexoRelatorioEquipeComercial />
                   </ProtectedRoute>
                 }
               />
