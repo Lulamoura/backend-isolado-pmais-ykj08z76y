@@ -138,10 +138,10 @@ describe('Propostas', () => {
       riscos: [],
       proximos_passos: [],
       mensagem_sugerida:
-        'Assunto: Proposta PMais — Agentes de Apoio\n\nOlá, Brenda. Encaminho a proposta da PMais para agentes de apoio.\n\nAcesse pelo link: http://localhost:3000/p/token-proposta-segura\n\nFico à disposição para esclarecer dúvidas.',
+        'Segue rascunho editável para apresentar a proposta à Brenda, conectando o escopo à reavaliação do serviço.\n\nAssunto: Proposta nº 493.26 | Portaria — AUTONUNES Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConforme sua solicitação, encaminho a proposta da PMais para o serviço de portaria.\n\nVocê pode consultar o detalhamento da proposta neste link:\nhttp://localhost:3000/p/token-proposta-segura\n\nApós sua avaliação, podemos combinar uma breve conversa?\n\nAtenciosamente,\nShirleide Andrade do Nascimento\nComercial | PMais',
       dicas_para_melhorar_notas: [],
       resposta_curta:
-        'Assunto: Proposta PMais — Agentes de Apoio\n\nOlá, Brenda. Encaminho a proposta da PMais para agentes de apoio.\n\nAcesse pelo link: http://localhost:3000/p/token-proposta-segura\n\nFico à disposição para esclarecer dúvidas.',
+        'Segue rascunho editável para apresentar a proposta à Brenda, conectando o escopo à reavaliação do serviço.\n\nAssunto: Proposta nº 493.26 | Portaria — AUTONUNES Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConforme sua solicitação, encaminho a proposta da PMais para o serviço de portaria.\n\nVocê pode consultar o detalhamento da proposta neste link:\nhttp://localhost:3000/p/token-proposta-segura\n\nApós sua avaliação, podemos combinar uma breve conversa?\n\nAtenciosamente,\nShirleide Andrade do Nascimento\nComercial | PMais',
       aviso: 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada.',
       modelo: 'openai_chat',
       fallback: false,
@@ -179,17 +179,17 @@ describe('Propostas', () => {
       expect.stringContaining('http://localhost:3000/p/token-proposta-segura'),
     )
 
-    expect(screen.getByLabelText('Assunto')).toHaveValue('Proposta PMais — Agentes de Apoio')
-    expect((screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value).toContain(
-      'http://localhost:3000/p/token-proposta-segura',
+    expect(screen.getByLabelText('Assunto')).toHaveValue(
+      'Proposta nº 493.26 | Portaria — AUTONUNES Prazeres',
     )
-    expect((screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value).toContain(
-      'Encaminho a proposta da PMais',
-    )
+    const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
+    expect(mensagem).toContain('Olá, Brenda! Tudo bem?')
+    expect(mensagem).toContain('Acesso a proposta')
+    expect(mensagem).toContain('neste link:\n\nAcesso a proposta\n\nApós sua avaliação')
+    expect(mensagem).not.toContain('Segue rascunho editável')
+    expect(mensagem).not.toContain('Assunto:')
+    expect(mensagem).not.toContain('http://localhost:3000/p/token-proposta-segura')
     expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
-    expect(salvarMensagemEmailProposta).toHaveBeenCalledWith(
-      'neg-1',
-      expect.stringContaining('http://localhost:3000/p/token-proposta-segura'),
-    )
+    expect(salvarMensagemEmailProposta).toHaveBeenCalledWith('neg-1', mensagem)
   })
 })

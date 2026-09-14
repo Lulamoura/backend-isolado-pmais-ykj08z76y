@@ -195,10 +195,7 @@ routerAdd(
           return '<p style="margin:0 0 16px 0">' + paragrafo.replace(/\n/g, '<br>') + '</p>'
         })
         .join('')
-        .replace(
-          marcadorLink,
-          '<a href="' + String(body.link_publico) + '">Visualizar proposta</a>',
-        )
+        .replace(marcadorLink, '<a href="' + String(body.link_publico) + '">Acesso a proposta</a>')
       var snapshot = corpo.replace(String(body.link_publico), '[LINK_SEGURO_NAO_PERSISTIDO]')
       if (cc.length) snapshot += '\n\nCc: ' + cc.join(', ')
       var envio = new Record($app.findCollectionByNameOrId('com_proposta_envios'))
