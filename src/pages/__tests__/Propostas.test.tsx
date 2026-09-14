@@ -138,7 +138,7 @@ describe('Propostas', () => {
       riscos: [],
       proximos_passos: [],
       mensagem_sugerida:
-        'Segue rascunho editável para apresentar a proposta à Brenda, conectando o escopo à reavaliação do serviço.\n\nAssunto: Proposta nº 493.26 | Portaria — AUTONUNES Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConforme sua solicitação, encaminho a proposta da PMais para o serviço de portaria.\n\nVocê pode consultar o detalhamento da proposta neste link:\nhttp://localhost:3000/p/token-proposta-segura\n\nApós sua avaliação, podemos combinar uma breve conversa?\n\nAtenciosamente,\nShirleide Andrade do Nascimento\nComercial | PMais',
+        'Leitura breve: Brenda está reavaliando a terceirização atual da unidade de Prazeres. O envio deve conectar a proposta ao escopo solicitado e abrir espaço para entender quais melhorias ela considera essenciais. Segue rascunho editável para revisão antes do envio.\n\nAssunto: Proposta nº 493.26 | Porteiro para a AUTONUNES – Unidade Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConsiderando sua solicitação e a reavaliação do serviço terceirizado da unidade de Prazeres, encaminho a proposta nº 493.26 da PMais para sua análise.\n\nVocê pode consultar o detalhamento pelo link:\nhttps://comercial.pmaisservicos.com.br/p/CEEBtUumUGk2Inx0tX4zXzfQT8AIKnVRo8VLP7YKd4uzuHmxIv1-nNCNWCLC4EKH\n\nPara alinharmos a proposta às necessidades da AUTONUNES, gostaria de entender quais pontos do serviço atual você considera prioritários melhorar.\n\nAtenciosamente,\nShirleide Andrade do Nascimento\nComercial | PMais',
       dicas_para_melhorar_notas: [],
       resposta_curta:
         'Segue rascunho editável para apresentar a proposta à Brenda, conectando o escopo à reavaliação do serviço.\n\nAssunto: Proposta nº 493.26 | Portaria — AUTONUNES Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConforme sua solicitação, encaminho a proposta da PMais para o serviço de portaria.\n\nVocê pode consultar o detalhamento da proposta neste link:\nhttp://localhost:3000/p/token-proposta-segura\n\nApós sua avaliação, podemos combinar uma breve conversa?\n\nAtenciosamente,\nShirleide Andrade do Nascimento\nComercial | PMais',
@@ -180,15 +180,19 @@ describe('Propostas', () => {
     )
 
     expect(screen.getByLabelText('Assunto')).toHaveValue(
-      'Proposta nº 493.26 | Portaria — AUTONUNES Prazeres',
+      'Proposta nº 493.26 | Porteiro para a AUTONUNES – Unidade Prazeres',
     )
     const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
     expect(mensagem).toContain('Olá, Brenda! Tudo bem?')
     expect(mensagem).toContain('Acesso a proposta')
-    expect(mensagem).toContain('neste link:\n\nAcesso a proposta\n\nApós sua avaliação')
+    expect(mensagem).toContain('pelo link:\n\nAcesso a proposta\n\nPara alinharmos')
+    expect(mensagem).not.toContain('Leitura breve')
     expect(mensagem).not.toContain('Segue rascunho editável')
     expect(mensagem).not.toContain('Assunto:')
     expect(mensagem).not.toContain('http://localhost:3000/p/token-proposta-segura')
+    expect(mensagem).not.toContain(
+      'https://comercial.pmaisservicos.com.br/p/CEEBtUumUGk2Inx0tX4zXzfQT8AIKnVRo8VLP7YKd4uzuHmxIv1-nNCNWCLC4EKH',
+    )
     expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
     expect(salvarMensagemEmailProposta).toHaveBeenCalledWith('neg-1', mensagem)
   })
