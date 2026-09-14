@@ -619,6 +619,25 @@ routerAdd(
       }
       return aliases[normalized] || ''
     }
+    function devePreservarDesqualificacaoLocal(app, negocio) {
+      if (
+        negocio.getString('qualificacao') === 'desqualificada' ||
+        negocio.getString('resultado') === 'desqualificado'
+      )
+        return true
+      try {
+        var historico = app.findRecordsByFilter(
+          'com_qualificacao_historico',
+          "negocio_id='" + negocio.id + "'",
+          '-created',
+          1,
+          0,
+        )
+        return historico.length && historico[0].getString('estado_novo') === 'desqualificada'
+      } catch (_) {
+        return false
+      }
+    }
     var actor = e.auth
     if (!actor) return e.unauthorizedError('Autenticacao necessaria')
     var slug = ''
@@ -820,8 +839,7 @@ routerAdd(
               !!binding &&
               dealStatus === '0' &&
               String(ev.data.stage || '') === 'prospects' &&
-              (target.getString('qualificacao') === 'desqualificada' ||
-                target.getString('resultado') === 'desqualificado')
+              devePreservarDesqualificacaoLocal(tx, target)
             var previousStage = target.getString('etapa')
             var previousNextAction = target.getString('proxima_acao_em')
             var nextAction = String(ev.data.next_action_at || '')
@@ -984,13 +1002,15 @@ routerAdd(
                 } catch (_) {}
               }
               if (existingAgenda) {
-                existingAgenda.set('data_alvo', recoveryDate)
-                existingAgenda.set('antecedencia_dias', 60)
-                existingAgenda.set('responsavel_id', recoveryResponsibleId)
-                existingAgenda.set('autor_id', recoveryResponsibleId)
-                existingAgenda.set('estado', 'ativa')
-                existingAgenda.set('contexto', recoveryContext)
-                tx.save(existingAgenda)
+                if (existingAgenda.getString('estado') !== 'descartada') {
+                  existingAgenda.set('data_alvo', recoveryDate)
+                  existingAgenda.set('antecedencia_dias', 60)
+                  existingAgenda.set('responsavel_id', recoveryResponsibleId)
+                  existingAgenda.set('autor_id', recoveryResponsibleId)
+                  existingAgenda.set('estado', 'ativa')
+                  existingAgenda.set('contexto', recoveryContext)
+                  tx.save(existingAgenda)
+                }
               } else {
                 var newAgenda = new Record(tx.findCollectionByNameOrId('com_recuperacao_agendas'))
                 newAgenda.set('negocio_perdido_id', target.id)
