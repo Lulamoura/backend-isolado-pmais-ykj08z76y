@@ -67,10 +67,16 @@ function CardConversao({
   )
 }
 
-function ModalidadesTable({ modalidades }: { modalidades: ModalidadeRelatorioEquipe[] }) {
+function ModalidadesTable({
+  modalidades,
+  compacto = false,
+}: {
+  modalidades: ModalidadeRelatorioEquipe[]
+  compacto?: boolean
+}) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-      <table className="w-full min-w-[780px] text-sm">
+      <table className={`w-full text-sm ${compacto ? 'min-w-[680px]' : 'min-w-[780px]'}`}>
         <thead className="bg-slate-50 text-left text-slate-600">
           <tr>
             <th className="px-4 py-3">Modalidade</th>
@@ -132,6 +138,11 @@ function OperadoraCard({ item }: { item: OperadoraRelatorioEquipe }) {
         <LinhaValor titulo="Ganhos" indicador={item.indicadores.ganhos} />
         <LinhaValor titulo="Perdidos" indicador={item.indicadores.perdidos} />
         <LinhaValor titulo="Abertos" indicador={item.indicadores.abertos} />
+      </div>
+
+      <div className="mt-5 space-y-2">
+        <p className="text-sm font-semibold text-slate-800">Detalhamento por modalidade</p>
+        <ModalidadesTable modalidades={item.indicadores.modalidades} compacto />
       </div>
     </div>
   )
