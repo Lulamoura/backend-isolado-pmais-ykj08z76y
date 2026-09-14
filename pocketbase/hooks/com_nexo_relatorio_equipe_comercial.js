@@ -264,7 +264,11 @@ routerAdd(
     }
 
     function filtroNegocios(params, escopo) {
-      var parts = ['inativo = false']
+      var parts = [
+        'inativo = false',
+        "responsavel_id != ''",
+        "(etapa != 'prospects' || qualificacao != 'pendente')",
+      ]
       if (params.inicio) parts.push("created >= '" + civilStartUtc(params.inicio) + "'")
       if (params.fim) parts.push("created < '" + civilStartUtc(nextCivilDate(params.fim)) + "'")
       if (params.equipe_id) parts.push("equipe_id = '" + esc(params.equipe_id) + "'")
@@ -441,6 +445,7 @@ routerAdd(
         'Endpoint somente leitura: não cria, altera, envia, publica ou sincroniza dados.',
         'Valores monetários estão em centavos; valores zero e um centavo não entram nas somas monetárias.',
         'Negócios abertos entram em volume/carteira, mas não entram no denominador das taxas de conversão.',
+        'Negócios em qualificação ou sem responsável comercial não compõem este relatório gerencial.',
         'Negócios sem modalidade oficial são classificados como Serv. Eventual até saneamento da origem.',
       ],
     }

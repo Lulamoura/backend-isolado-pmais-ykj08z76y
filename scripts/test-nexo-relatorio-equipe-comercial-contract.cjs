@@ -47,5 +47,16 @@ assert.match(hook, /html_executivo/, 'deve retornar HTML executivo opcional')
 assert.match(hook, /nexo_relatorio_equipe_comercial_v1/, 'deve declarar contrato versionado')
 assert.match(hook, /Valores monetários estão em centavos/, 'deve avisar unidade monetária')
 assert.match(hook, /campo:\s*'created'/, 'período deve ser baseado no campo created inicialmente')
+assert.match(hook, /responsavel_id != ''/, 'deve excluir negócios sem responsável comercial')
+assert.match(
+  hook,
+  /etapa != 'prospects' \|\| qualificacao != 'pendente'/,
+  'deve excluir negócios ainda em qualificação de prospect',
+)
+assert.match(
+  hook,
+  /Negócios em qualificação ou sem responsável comercial não compõem este relatório gerencial/,
+  'deve declarar a exclusão de qualificação/sem responsável',
+)
 
 console.log('nexo-relatorio-equipe-comercial contract: PASS')

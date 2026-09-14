@@ -253,7 +253,7 @@ export default function NexoRelatorioEquipeComercial() {
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="max-h-[calc(100vh-11rem)] space-y-6 overflow-y-auto pr-2">
             <section>
               <div className="grid gap-4 md:grid-cols-4">
                 <LinhaValor titulo="Volume total" indicador={relatorio.resumo_geral.total} />
