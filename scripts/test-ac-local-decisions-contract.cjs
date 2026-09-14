@@ -40,6 +40,18 @@ const checks = [
       reconciliationHook.includes("'activecampaign:recovery:' + ev.entity_id"),
   ],
   [
+    'reparo administrativo dos seis casos exige confirmação literal e audita mutações',
+    reconciliationHook.includes('/backend/v1/admin/ac-local-decisions/reparar-casos') &&
+      reconciliationHook.includes('REPARAR DECISOES LOCAIS 4790 4787 4786 4667 4655 4653') &&
+      reconciliationHook.includes("slug !== 'superadministrador'") &&
+      reconciliationHook.includes("comando', 'ac_local_decision_repair_desqualificacao'") &&
+      reconciliationHook.includes("comando', 'ac_local_decision_repair_recuperacao'") &&
+      reconciliationHook.includes('external_id: externalProspect') &&
+      reconciliationHook.includes('external_id: externalRecuperacao') &&
+      reconciliationHook.includes('motivo_adiamento_descarte') &&
+      reconciliationHook.includes('local_decisions_repair'),
+  ],
+  [
     'webhook não reativa agenda de recuperação já descartada',
     webhookHook.includes("existingAgenda.getString('estado') !== 'descartada'") &&
       webhookHook.includes("newAgenda.set('estado', 'ativa')") &&
