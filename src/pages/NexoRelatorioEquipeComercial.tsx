@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   obterRelatorioEquipeComercial,
+  type IndicadorVolumeValor,
+  type ModalidadeRelatorioEquipe,
   type OperadoraRelatorioEquipe,
   type RelatorioEquipeComercialResponse,
 } from '@/services/nexo-relatorio-equipe'
@@ -28,93 +30,110 @@ function percentual(valor: number | null | undefined) {
   return valor === null || valor === undefined ? '—' : `${String(valor).replace('.', ',')}%`
 }
 
-function Kpi({
+function dataBr(data: string | null | undefined) {
+  if (!data) return 'em aberto'
+  const partes = data.slice(0, 10).split('-')
+  if (partes.length !== 3) return data
+  return `${partes[2]}/${partes[1]}/${partes[0]}`
+}
+
+function LinhaValor({ titulo, indicador }: { titulo: string; indicador: IndicadorVolumeValor }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-950 p-4 text-white shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{titulo}</p>
+      <p className="mt-2 text-3xl font-black leading-none">{indicador.quantidade}</p>
+      <p className="mt-2 text-sm font-medium text-slate-200">
+        {dinheiro(indicador.valor_centavos)}
+      </p>
+    </div>
+  )
+}
+
+function CardConversao({
   titulo,
   valor,
-  subtitulo,
+  descricao,
 }: {
   titulo: string
-  valor: string | number
-  subtitulo?: string
+  valor: string
+  descricao: string
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-sm font-medium text-slate-500">{titulo}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-950">{valor}</p>
-      {subtitulo ? <p className="mt-1 text-xs text-slate-500">{subtitulo}</p> : null}
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{titulo}</p>
+      <p className="mt-2 text-3xl font-black leading-none text-slate-950">{valor}</p>
+      <p className="mt-2 text-xs text-slate-500">{descricao}</p>
+    </div>
+  )
+}
+
+function ModalidadesTable({ modalidades }: { modalidades: ModalidadeRelatorioEquipe[] }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+      <table className="w-full min-w-[780px] text-sm">
+        <thead className="bg-slate-50 text-left text-slate-600">
+          <tr>
+            <th className="px-4 py-3">Modalidade</th>
+            <th className="px-4 py-3">Total</th>
+            <th className="px-4 py-3">Ganhos</th>
+            <th className="px-4 py-3">Perdidos</th>
+            <th className="px-4 py-3">Abertos</th>
+            <th className="px-4 py-3">Conversão</th>
+            <th className="px-4 py-3">Conv. valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {modalidades.map((modalidade) => (
+            <tr key={modalidade.modalidade} className="border-t border-slate-200">
+              <td className="px-4 py-3 font-semibold text-slate-950">
+                {modalidade.modalidade_label}
+              </td>
+              <td className="px-4 py-3">
+                {modalidade.total.quantidade} · {dinheiro(modalidade.total.valor_centavos)}
+              </td>
+              <td className="px-4 py-3">
+                {modalidade.ganhos.quantidade} · {dinheiro(modalidade.ganhos.valor_centavos)}
+              </td>
+              <td className="px-4 py-3">
+                {modalidade.perdidos.quantidade} · {dinheiro(modalidade.perdidos.valor_centavos)}
+              </td>
+              <td className="px-4 py-3">
+                {modalidade.abertos.quantidade} · {dinheiro(modalidade.abertos.valor_centavos)}
+              </td>
+              <td className="px-4 py-3">{percentual(modalidade.conversao_global_percentual)}</td>
+              <td className="px-4 py-3">
+                {percentual(modalidade.conversao_qualitativa_valor_percentual)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
 
 function OperadoraCard({ item }: { item: OperadoraRelatorioEquipe }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{item.operadora.nome}</CardTitle>
-        <CardDescription>
-          {item.indicadores.total.quantidade} negócio(s) ·{' '}
-          {dinheiro(item.indicadores.total.valor_centavos)}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-4">
-          <Kpi
-            titulo="Ganhos"
-            valor={item.indicadores.ganhos.quantidade}
-            subtitulo={dinheiro(item.indicadores.ganhos.valor_centavos)}
-          />
-          <Kpi
-            titulo="Perdidos"
-            valor={item.indicadores.perdidos.quantidade}
-            subtitulo={dinheiro(item.indicadores.perdidos.valor_centavos)}
-          />
-          <Kpi
-            titulo="Abertos"
-            valor={item.indicadores.abertos.quantidade}
-            subtitulo={dinheiro(item.indicadores.abertos.valor_centavos)}
-          />
-          <Kpi
-            titulo="Conversão"
-            valor={percentual(item.indicadores.conversao_global_percentual)}
-            subtitulo="ganhos / ganhos + perdidos"
-          />
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-bold text-slate-950">{item.operadora.nome}</h3>
+          <p className="mt-1 text-sm text-slate-600">
+            {item.indicadores.total.quantidade} negócio(s) ·{' '}
+            {dinheiro(item.indicadores.total.valor_centavos)}
+          </p>
         </div>
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead className="bg-slate-50 text-left text-slate-600">
-              <tr>
-                <th className="px-4 py-3">Modalidade</th>
-                <th className="px-4 py-3">Total</th>
-                <th className="px-4 py-3">Valor</th>
-                <th className="px-4 py-3">Ganhos</th>
-                <th className="px-4 py-3">Perdidos</th>
-                <th className="px-4 py-3">Conversão</th>
-                <th className="px-4 py-3">Conv. valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {item.indicadores.modalidades.map((modalidade) => (
-                <tr key={modalidade.modalidade} className="border-t border-slate-200">
-                  <td className="px-4 py-3 font-medium text-slate-950">
-                    {modalidade.modalidade_label}
-                  </td>
-                  <td className="px-4 py-3">{modalidade.total.quantidade}</td>
-                  <td className="px-4 py-3">{dinheiro(modalidade.total.valor_centavos)}</td>
-                  <td className="px-4 py-3">{modalidade.ganhos.quantidade}</td>
-                  <td className="px-4 py-3">{modalidade.perdidos.quantidade}</td>
-                  <td className="px-4 py-3">
-                    {percentual(modalidade.conversao_global_percentual)}
-                  </td>
-                  <td className="px-4 py-3">
-                    {percentual(modalidade.conversao_qualitativa_valor_percentual)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+        <Badge variant="outline">
+          Conversão {percentual(item.indicadores.conversao_global_percentual)}
+        </Badge>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <LinhaValor titulo="Ganhos" indicador={item.indicadores.ganhos} />
+        <LinhaValor titulo="Perdidos" indicador={item.indicadores.perdidos} />
+        <LinhaValor titulo="Abertos" indicador={item.indicadores.abertos} />
+      </div>
+    </div>
   )
 }
 
@@ -130,7 +149,7 @@ export default function NexoRelatorioEquipeComercial() {
     setCarregando(true)
     setErro('')
     try {
-      const resposta = await obterRelatorioEquipeComercial({ inicio, fim, incluir_html: true })
+      const resposta = await obterRelatorioEquipeComercial({ inicio, fim, incluir_html: false })
       setRelatorio(resposta)
     } catch (error) {
       setErro(
@@ -160,8 +179,8 @@ export default function NexoRelatorioEquipeComercial() {
               equipe comercial
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/90">
-              Visão executiva por operadora e modalidade. O relatório é somente leitura e respeita o
-              perfil de acesso do usuário logado.
+              Visão executiva condensada por período, modalidade e responsável. O relatório é
+              somente leitura e respeita o perfil de acesso do usuário logado.
             </p>
           </div>
           <Badge className="border-violet-300/50 bg-white/10 text-violet-50 hover:bg-white/10">
@@ -206,69 +225,70 @@ export default function NexoRelatorioEquipeComercial() {
               Atualizar
             </Button>
           </div>
+          <p className="mt-3 text-sm text-slate-600">
+            Período selecionado: <strong>{dataBr(inicio)}</strong> a <strong>{dataBr(fim)}</strong>
+          </p>
           {erro ? <p className="mt-3 text-sm text-red-600">{erro}</p> : null}
         </CardContent>
       </Card>
 
       {relatorio ? (
-        <>
-          <div className="grid gap-4 md:grid-cols-4">
-            <Kpi
-              titulo="Negócios"
-              valor={relatorio.resumo_geral.total.quantidade}
-              subtitulo="volume no período"
-            />
-            <Kpi
-              titulo="Valor total"
-              valor={dinheiro(relatorio.resumo_geral.total.valor_centavos)}
-            />
-            <Kpi
-              titulo="Conversão global"
-              valor={percentual(relatorio.resumo_geral.conversao_global_percentual)}
-            />
-            <Kpi
-              titulo="Conversão por valor"
-              valor={percentual(relatorio.resumo_geral.conversao_qualitativa_valor_percentual)}
-            />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <CardTitle>Resumo executivo em HTML</CardTitle>
-                  <CardDescription>
-                    Período: {relatorio.periodo.inicio || 'início aberto'} a{' '}
-                    {relatorio.periodo.fim || 'fim aberto'} · Escopo: {relatorio.escopo}
-                  </CardDescription>
-                </div>
-                <Badge variant="outline">
-                  <CalendarDays aria-hidden="true" className="mr-1 h-3.5 w-3.5" /> America/Recife
-                </Badge>
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>Relatório consolidado</CardTitle>
+                <CardDescription>
+                  Período: {dataBr(relatorio.periodo.inicio)} a {dataBr(relatorio.periodo.fim)} ·
+                  Escopo: {relatorio.escopo}
+                </CardDescription>
               </div>
-            </CardHeader>
-            <CardContent>
-              {relatorio.html_executivo ? (
-                <iframe
-                  title="Relatório executivo da equipe comercial"
-                  srcDoc={relatorio.html_executivo}
-                  className="h-[720px] w-full rounded-xl border border-slate-200 bg-white"
-                />
-              ) : (
-                <p className="text-sm text-slate-600">HTML executivo não retornado.</p>
-              )}
-            </CardContent>
-          </Card>
+              <Badge variant="outline">
+                <CalendarDays aria-hidden="true" className="mr-1 h-3.5 w-3.5" /> America/Recife
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <section>
+              <div className="grid gap-4 md:grid-cols-4">
+                <LinhaValor titulo="Volume total" indicador={relatorio.resumo_geral.total} />
+                <LinhaValor titulo="Ganhos" indicador={relatorio.resumo_geral.ganhos} />
+                <LinhaValor titulo="Perdidos" indicador={relatorio.resumo_geral.perdidos} />
+                <LinhaValor titulo="Abertos" indicador={relatorio.resumo_geral.abertos} />
+              </div>
+            </section>
 
-          <div className="space-y-4">
-            {relatorio.operadoras.map((operadora) => (
-              <OperadoraCard
-                key={operadora.operadora.id || operadora.operadora.nome}
-                item={operadora}
+            <section className="grid gap-4 md:grid-cols-2">
+              <CardConversao
+                titulo="Conversão global"
+                valor={percentual(relatorio.resumo_geral.conversao_global_percentual)}
+                descricao="ganhos / ganhos + perdidos"
               />
-            ))}
-          </div>
-        </>
+              <CardConversao
+                titulo="Conversão por valor"
+                valor={percentual(relatorio.resumo_geral.conversao_qualitativa_valor_percentual)}
+                descricao="valor ganho / valor ganho + valor perdido"
+              />
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-xl font-bold text-slate-950">Volume por modalidade</h2>
+              <ModalidadesTable modalidades={relatorio.resumo_geral.modalidades} />
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-xl font-bold text-slate-950">Responsáveis comerciais</h2>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {relatorio.operadoras.map((operadora) => (
+                  <OperadoraCard
+                    key={operadora.operadora.id || operadora.operadora.nome}
+                    item={operadora}
+                  />
+                ))}
+              </div>
+            </section>
+          </CardContent>
+        </Card>
       ) : carregando ? (
         <Card>
           <CardContent className="flex items-center gap-2 p-6 text-sm text-slate-600">
