@@ -67,16 +67,10 @@ function CardConversao({
   )
 }
 
-function ModalidadesTable({
-  modalidades,
-  compacto = false,
-}: {
-  modalidades: ModalidadeRelatorioEquipe[]
-  compacto?: boolean
-}) {
+function ModalidadesTable({ modalidades }: { modalidades: ModalidadeRelatorioEquipe[] }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-      <table className={`w-full text-sm ${compacto ? 'min-w-[680px]' : 'min-w-[780px]'}`}>
+      <table className="w-full min-w-[780px] text-sm">
         <thead className="bg-slate-50 text-left text-slate-600">
           <tr>
             <th className="px-4 py-3">Modalidade</th>
@@ -142,7 +136,7 @@ function OperadoraCard({ item }: { item: OperadoraRelatorioEquipe }) {
 
       <div className="mt-5 space-y-2">
         <p className="text-sm font-semibold text-slate-800">Detalhamento por modalidade</p>
-        <ModalidadesTable modalidades={item.indicadores.modalidades} compacto />
+        <ModalidadesTable modalidades={item.indicadores.modalidades} />
       </div>
     </div>
   )
@@ -289,7 +283,7 @@ export default function NexoRelatorioEquipeComercial() {
 
             <section className="space-y-3">
               <h2 className="text-xl font-bold text-slate-950">Responsáveis comerciais</h2>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-4">
                 {relatorio.operadoras.map((operadora) => (
                   <OperadoraCard
                     key={operadora.operadora.id || operadora.operadora.nome}
