@@ -86,7 +86,7 @@ const limparTextoEmailNexo = (valor?: string | null) =>
     .replace(/[ \t]+$/gm, '')
     .trim()
 
-const LINK_PROPOSTA_TITULO = 'Acesso a proposta'
+const LINK_PROPOSTA_TITULO = '[LINK_PROPOSTA]'
 
 const removerPreambuloNexo = (linhas: string[]) => {
   const indiceAssunto = linhas.findIndex((linha) => /^assunto\s*:\s*.+$/i.test(linha.trim()))
@@ -107,6 +107,7 @@ const URL_PUBLICA_PROPOSTA_REGEX = /https?:\/\/[^\s)\]]+\/p\/[^\s)\]]+/gi
 
 const formatarLinkEditavelProposta = (corpo: string, link: string) => {
   const escaped = link.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const tituloEscapado = LINK_PROPOSTA_TITULO.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   let texto = corpo
     .replace(new RegExp(`\\s*${escaped}\\s*`, 'g'), `\n\n${LINK_PROPOSTA_TITULO}\n\n`)
     .replace(URL_PUBLICA_PROPOSTA_REGEX, `\n\n${LINK_PROPOSTA_TITULO}\n\n`)
@@ -116,8 +117,8 @@ const formatarLinkEditavelProposta = (corpo: string, link: string) => {
   return limparTextoEmailNexo(
     texto
       .replace(/(link\s*:\s*)\n+/gi, '$1\n\n')
-      .replace(new RegExp(`\\n{3,}${LINK_PROPOSTA_TITULO}`, 'g'), `\n\n${LINK_PROPOSTA_TITULO}`)
-      .replace(new RegExp(`${LINK_PROPOSTA_TITULO}\\n{3,}`, 'g'), `${LINK_PROPOSTA_TITULO}\n\n`),
+      .replace(new RegExp(`\\n{3,}${tituloEscapado}`, 'g'), `\n\n${LINK_PROPOSTA_TITULO}`)
+      .replace(new RegExp(`${tituloEscapado}\\n{3,}`, 'g'), `${LINK_PROPOSTA_TITULO}\n\n`),
   )
 }
 

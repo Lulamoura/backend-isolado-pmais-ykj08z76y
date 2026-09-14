@@ -175,8 +175,8 @@ describe('Propostas', () => {
     )
     const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
     expect(mensagem).toContain('Olá, Brenda! Tudo bem?')
-    expect(mensagem).toContain('Acesso a proposta')
-    expect(mensagem).toContain('pelo link:\n\nAcesso a proposta\n\nPara alinharmos')
+    expect(mensagem).toContain('[LINK_PROPOSTA]')
+    expect(mensagem).toContain('pelo link:\n\n[LINK_PROPOSTA]\n\nPara alinharmos')
     expect(mensagem).not.toContain('Leitura breve')
     expect(mensagem).not.toContain('Segue rascunho editável')
     expect(mensagem).not.toContain('Assunto:')
