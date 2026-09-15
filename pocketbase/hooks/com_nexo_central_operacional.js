@@ -560,3 +560,250 @@ routerAdd(
   },
   $apis.requireAuth('users'),
 )
+
+// Nexo — consulta técnica e somente leitura ao Aplicativo Comercial.
+// Endpoint: POST /backend/v1/nexo/consulta-app
+// Uso: canal governado para o Nexo responder perguntas específicas sem login humano.
+routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
+  function esc(value) {
+    return String(value || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+  }
+
+  function limparTexto(value, max) {
+    var text = String(value || '')
+      .replace(/<br\s*\/?\s*>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\r\n/g, '\n')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n[ \t]+/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+    if (max && text.length > max) text = text.slice(0, max - 1).trim() + '…'
+    return text
+  }
+
+  function dataCivil(value) {
+    return value ? String(value).slice(0, 10) : ''
+  }
+
+  function hojeRecife() {
+    return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  }
+
+  function formatarDataBR(value) {
+    var d = dataCivil(value)
+    if (!d || d.length !== 10) return null
+    return d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4)
+  }
+
+  function nomeUsuario(id) {
+    if (!id) return null
+    try {
+      var u = $app.findRecordById('users', id)
+      return u.getString('name') || u.getString('email') || id
+    } catch (_) {
+      return id
+    }
+  }
+
+  function nomeRelacionado(collection, id, fields) {
+    if (!id) return null
+    try {
+      var rec = $app.findRecordById(collection, id)
+      for (var i = 0; i < fields.length; i++) {
+        var value = rec.getString(fields[i])
+        if (value) return value
+      }
+    } catch (_) {}
+    return null
+  }
+
+  function moneyCentavos(value) {
+    var n = Number(value || 0)
+    if (!isFinite(n)) n = 0
+    var cents = Math.round(n)
+    var sinal = cents < 0 ? '-' : ''
+    cents = Math.abs(cents)
+    var inteiro = Math.floor(cents / 100)
+    var decimal = String(cents % 100)
+    if (decimal.length < 2) decimal = '0' + decimal
+    var inteiroStr = String(inteiro)
+    var partes = []
+    while (inteiroStr.length > 3) {
+      partes.unshift(inteiroStr.slice(-3))
+      inteiroStr = inteiroStr.slice(0, -3)
+    }
+    partes.unshift(inteiroStr || '0')
+    return sinal + 'R$ ' + partes.join('.') + ',' + decimal
+  }
+
+  function externalIdNegocio(negocio) {
+    try {
+      var rows = $app.findRecordsByFilter(
+        'com_vinculos_externos',
+        "collection_name = 'com_negocios' && record_id = '" + esc(negocio.id) + "' && sistema_origem = 'activecampaign' && external_type = 'business'",
+        '-created',
+        1,
+        0,
+      )
+      if (rows.length) return rows[0].getString('external_id')
+    } catch (_) {}
+    try {
+      return negocio.getString('external_id') || null
+    } catch (_) {}
+    return null
+  }
+
+  function resumoNegocio(n) {
+    var responsavelId = n.getString('responsavel_id')
+    var empresaId = n.getString('empresa_id')
+    var contatoId = n.getString('contato_principal_id')
+    var external = externalIdNegocio(n)
+    var oeNumero = ''
+    try {
+      oeNumero = n.getString('oe_numero') || ''
+    } catch (_) {}
+    return {
+      id: n.id,
+      id_negocio: oeNumero || external || n.id,
+      external_id: external,
+      titulo: n.getString('titulo') || 'Negócio sem título',
+      cliente: nomeRelacionado('com_empresas', empresaId, ['nome', 'razao_social']),
+      contato: nomeRelacionado('com_contatos', contatoId, ['nome']),
+      responsavel: nomeUsuario(responsavelId),
+      etapa: n.getString('etapa') || null,
+      fase_crm: n.getString('fase_crm') || null,
+      qualificacao: n.getString('qualificacao') || null,
+      resultado: n.getString('resultado') || null,
+      modalidade: n.getString('modalidade') || null,
+      valor_centavos: n.getInt('valor_centavos') || 0,
+      valor_formatado: moneyCentavos(n.getInt('valor_centavos') || 0),
+      proxima_acao_em: formatarDataBR(n.getString('proxima_acao_em')),
+      atualizado_em: formatarDataBR(n.getString('updated')),
+    }
+  }
+
+  function contratoBase(tipo) {
+    return {
+      contrato: 'nexo_consulta_app_v1',
+      tipo_consulta: tipo,
+      somente_leitura: true,
+      read_only: true,
+      sem_mutacao: true,
+      no_mutation: true,
+      aviso: 'Consulta técnica do Nexo. Nenhuma mensagem foi enviada e nenhum dado do aplicativo foi alterado.',
+    }
+  }
+
+  function resposta(tipo, dados) {
+    var base = contratoBase(tipo)
+    for (var k in dados) base[k] = dados[k]
+    return e.json(200, base)
+  }
+
+  function filtroPeriodo(body) {
+    var filtro = 'inativo = false'
+    var inicio = String(body.inicio || body.data_inicio || '').slice(0, 10)
+    var fim = String(body.fim || body.data_fim || '').slice(0, 10)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(inicio)) filtro += " && created >= '" + esc(inicio) + " 03:00:00.000Z'"
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fim)) filtro += " && created <= '" + esc(fim) + " 23:59:59.999Z'"
+    return filtro
+  }
+
+  function resolverTipo(body) {
+    var tipo = String(body.tipo_consulta || '').trim()
+    var pergunta = String(body.pergunta || '').toLowerCase()
+    if (tipo) return tipo
+    if (pergunta.indexOf('proposta') >= 0 && (pergunta.indexOf('retorno') >= 0 || pergunta.indexOf('abertura') >= 0)) return 'propostas_sem_retorno'
+    if (pergunta.indexOf('follow') >= 0 || pergunta.indexOf('vencid') >= 0 || pergunta.indexOf('atrasad') >= 0) return 'followups_vencidos'
+    if (pergunta.indexOf('aprendizado') >= 0 || pergunta.indexOf('perdid') >= 0 || pergunta.indexOf('ganh') >= 0) return 'aprendizados_comerciais'
+    if (pergunta.indexOf('negócio') >= 0 || pergunta.indexOf('negocio') >= 0 || body.id_negocio || body.external_id) return 'negocio_por_id'
+    return 'resumo_pipeline'
+  }
+
+  var expected = ''
+  try {
+    expected = $secrets.get('PMAIS_NEXO_SERVICE_SECRET') || $secrets.get('AC_WEBHOOK_SECRET') || ''
+  } catch (_) {}
+  var provided = e.request.header.get('x-pmais-nexo-service-secret') || e.request.header.get('x-pmais-skip-bridge-secret') || ''
+  if (!expected || provided !== expected) return e.forbiddenError('NEXO_CONSULTA_FORBIDDEN')
+
+  var body = e.requestInfo().body || {}
+  var tipo = resolverTipo(body)
+  var permitidas = {
+    resumo_pipeline: true,
+    negocio_por_id: true,
+    propostas_sem_retorno: true,
+    followups_vencidos: true,
+    aprendizados_comerciais: true,
+  }
+  if (!permitidas[tipo]) return e.json(400, { error: 'TIPO_CONSULTA_INVALIDO', permitidas: Object.keys(permitidas) })
+
+  if (tipo === 'negocio_por_id') {
+    var id = String(body.id_negocio || body.external_id || '').trim()
+    if (!id) return e.json(400, { error: 'ID_NEGOCIO_OBRIGATORIO' })
+    var negocio = null
+    try {
+      var vinculos = $app.findRecordsByFilter(
+        'com_vinculos_externos',
+        "collection_name = 'com_negocios' && external_id = '" + esc(id) + "' && sistema_origem = 'activecampaign' && external_type = 'business'",
+        '-created',
+        1,
+        0,
+      )
+      if (vinculos.length) negocio = $app.findRecordById('com_negocios', vinculos[0].getString('record_id'))
+    } catch (_) {}
+    if (!negocio) {
+      try {
+        negocio = $app.findFirstRecordByFilter('com_negocios', "oe_numero = '" + esc(id) + "' || id = '" + esc(id) + "'")
+      } catch (_) {}
+    }
+    if (!negocio) return e.json(404, { error: 'NEGOCIO_NAO_ENCONTRADO' })
+    return resposta(tipo, { negocio: resumoNegocio(negocio) })
+  }
+
+  var filtro = filtroPeriodo(body)
+  if (tipo === 'propostas_sem_retorno') filtro += " && resultado = ''"
+  if (tipo === 'followups_vencidos') filtro += " && resultado = '' && proxima_acao_em < '" + hojeRecife() + " 03:00:00.000Z'"
+
+  var rows = []
+  try {
+    rows = $app.findRecordsByFilter('com_negocios', filtro, '-updated', 80, 0)
+  } catch (err) {
+    return e.json(500, { error: 'NEXO_CONSULTA_APP_FALHA', message: String(err).substring(0, 180) })
+  }
+
+  var resumo = {
+    total_lido: rows.length,
+    abertos: 0,
+    ganhos: 0,
+    perdidos_ou_desqualificados: 0,
+    em_qualificacao: 0,
+    valor_total_formatado: 'R$ 0,00',
+  }
+  var totalCentavos = 0
+  var itens = []
+  for (var i = 0; i < rows.length; i++) {
+    var r = resumoNegocio(rows[i])
+    totalCentavos += r.valor_centavos || 0
+    if (r.resultado === 'ganho') resumo.ganhos++
+    else if (r.resultado) resumo.perdidos_ou_desqualificados++
+    else resumo.abertos++
+    if (r.etapa === 'prospects' && (r.qualificacao === 'pendente' || !r.qualificacao)) resumo.em_qualificacao++
+    if (tipo !== 'resumo_pipeline' && itens.length < 15) itens.push(r)
+  }
+  resumo.valor_total_formatado = moneyCentavos(totalCentavos)
+
+  if (tipo === 'aprendizados_comerciais') {
+    return resposta(tipo, {
+      resumo: resumo,
+      leitura: 'Base liberada para leitura histórica do Nexo, incluindo ganhos, perdas/desqualificações e qualificação quando existirem no escopo consultado.',
+      itens: itens,
+    })
+  }
+
+  return resposta(tipo, { resumo: resumo, itens: itens })
+})
