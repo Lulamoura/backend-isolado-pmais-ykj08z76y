@@ -9,9 +9,10 @@ const timeline = fs.readFileSync(
 const page = fs.readFileSync(path.join(root, 'src/pages/PropostaPublica.tsx'), 'utf8')
 const service = fs.readFileSync(path.join(root, 'src/services/propostas.ts'), 'utf8')
 const alertas = fs.readFileSync(path.join(root, 'pocketbase/hooks/com_proposta_alertas.js'), 'utf8')
-const avisoDecisao = fs.existsSync(path.join(root, 'pocketbase/hooks/com_proposta_decisao_email.js'))
-  ? fs.readFileSync(path.join(root, 'pocketbase/hooks/com_proposta_decisao_email.js'), 'utf8')
-  : ''
+const avisoDecisao = fs.readFileSync(
+  path.join(root, 'pocketbase/hooks/com_proposta_abertura_email.js'),
+  'utf8',
+)
 const sino = fs.readFileSync(path.join(root, 'src/components/ProposalNotifications.tsx'), 'utf8')
 
 const checks = [
