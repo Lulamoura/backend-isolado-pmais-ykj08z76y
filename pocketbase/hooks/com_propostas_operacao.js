@@ -1495,6 +1495,15 @@
           aviso:
             'Contingência contextual porque a chave de IA não está configurada. Nenhuma mensagem foi enviada automaticamente.',
           fallback: true,
+          auditoria_geracao: {
+            origem: 'fallback_local',
+            provider: 'fallback_local',
+            modelo: 'sem_modelo',
+            fallback: true,
+            segundo_cerebro_usado: false,
+            segundo_cerebro_fontes: [],
+            audit_id: 'nexo-' + externalId + '-' + Date.now(),
+          },
         }
       }
 
@@ -1628,11 +1637,28 @@
           aviso:
             nexoLimparTextoAjuda(gatewayJson.aviso, 500) ||
             'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
-          modelo: gatewayJson.nexo_provider || 'pmais_agent_gateway',
+          modelo: gatewayJson.modelo || gatewayJson.nexo_provider || 'pmais_agent_gateway',
           provider: 'nexo_hermes',
           gateway_provider: gatewayJson.provider || 'pmais_agent_gateway',
-          fallback: false,
+          fallback: Boolean(gatewayJson.fallback),
           second_brain: gatewayJson.second_brain || null,
+          auditoria_geracao: {
+            origem: gatewayJson.nexo_provider || 'nexo_hermes',
+            provider: gatewayJson.nexo_provider || 'nexo_hermes',
+            gateway_provider: gatewayJson.provider || 'pmais_agent_gateway',
+            model_provider:
+              gatewayJson.model_provider || gatewayJson.nexo_provider || 'nexo_hermes',
+            modelo:
+              gatewayJson.modelo ||
+              (gatewayJson.model_routing || {}).selected_model ||
+              '' ||
+              gatewayJson.nexo_provider ||
+              'pmais_agent_gateway',
+            fallback: Boolean(gatewayJson.fallback),
+            segundo_cerebro_usado: Boolean((gatewayJson.second_brain || {}).used),
+            segundo_cerebro_fontes: (gatewayJson.second_brain || {}).sources || [],
+            audit_id: 'nexo-' + externalId + '-' + Date.now(),
+          },
         }
       }
 
@@ -1887,6 +1913,15 @@
           modelo: model,
           provider: provider,
           fallback: false,
+          auditoria_geracao: {
+            origem: provider,
+            provider: provider,
+            modelo: model,
+            fallback: false,
+            segundo_cerebro_usado: false,
+            segundo_cerebro_fontes: [],
+            audit_id: 'nexo-' + externalId + '-' + Date.now(),
+          },
         })
       } catch (err) {
         return e.json(

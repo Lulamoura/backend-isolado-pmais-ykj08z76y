@@ -83,6 +83,18 @@ export type NexoAcaoAssistida =
   | 'avaliar_risco_perda'
   | 'melhorar_notas'
 
+export interface NexoAjudaGeracaoAuditavel {
+  origem?: string
+  provider?: string
+  gateway_provider?: string
+  model_provider?: string
+  modelo?: string
+  fallback?: boolean
+  segundo_cerebro_usado?: boolean
+  segundo_cerebro_fontes?: string[]
+  audit_id?: string
+}
+
 export interface NexoAjudaComercial {
   contrato: 'nexo_ajuda_comercial_v1' | string
   external_id: string
@@ -96,7 +108,10 @@ export interface NexoAjudaComercial {
   resposta_curta?: string
   aviso: string
   modelo?: string
+  provider?: string
+  gateway_provider?: string
   fallback?: boolean
+  auditoria_geracao?: NexoAjudaGeracaoAuditavel
 }
 
 export function obterContextoNexoNegocio(externalId: string) {

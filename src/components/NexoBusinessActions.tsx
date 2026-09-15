@@ -79,6 +79,14 @@ function CampoTexto({ titulo, texto }: { titulo: string; texto?: string | null }
 }
 
 function AjudaResposta({ ajuda }: { ajuda: NexoAjudaComercial }) {
+  const auditoria = ajuda.auditoria_geracao
+  const origem = auditoria?.origem || ajuda.provider || 'não informada'
+  const modelo = auditoria?.modelo || ajuda.modelo || 'não informado'
+  const gatewayProvider = auditoria?.gateway_provider || ajuda.gateway_provider || ''
+  const fallback = Boolean(auditoria?.fallback ?? ajuda.fallback)
+  const segundoCerebroUsado = Boolean(auditoria?.segundo_cerebro_usado)
+  const fontesSegundoCerebro = auditoria?.segundo_cerebro_fontes || []
+  const modeloAcionado = !fallback && origem !== 'fallback_local'
   const resposta =
     ajuda.resposta_curta ||
     [
@@ -111,6 +119,48 @@ function AjudaResposta({ ajuda }: { ajuda: NexoAjudaComercial }) {
             </p>
           ))}
         </div>
+      </section>
+      <section className="rounded-md border bg-white p-3 text-xs text-slate-700">
+        <p className="font-semibold text-slate-900">Detalhes da geração</p>
+        <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+          <div>
+            <dt className="text-muted-foreground">Modelo acionado</dt>
+            <dd>{modeloAcionado ? 'Sim' : 'Não — contingência local'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Origem</dt>
+            <dd>{origem}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Modelo/rota</dt>
+            <dd>{modelo}</dd>
+          </div>
+          {gatewayProvider ? (
+            <div>
+              <dt className="text-muted-foreground">Gateway</dt>
+              <dd>{gatewayProvider}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt className="text-muted-foreground">Fallback</dt>
+            <dd>{fallback ? 'Sim' : 'Não'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Segundo cérebro</dt>
+            <dd>{segundoCerebroUsado ? 'Usado' : 'Não confirmado'}</dd>
+          </div>
+          {auditoria?.audit_id ? (
+            <div>
+              <dt className="text-muted-foreground">Auditoria</dt>
+              <dd>{auditoria.audit_id}</dd>
+            </div>
+          ) : null}
+        </dl>
+        {fontesSegundoCerebro.length ? (
+          <p className="mt-2 text-muted-foreground">
+            Fontes do segundo cérebro: {fontesSegundoCerebro.join(', ')}
+          </p>
+        ) : null}
       </section>
       <p className="text-xs text-muted-foreground">
         {ajuda.aviso || 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada.'}
