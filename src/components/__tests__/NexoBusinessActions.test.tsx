@@ -61,6 +61,20 @@ const ajuda = {
   resposta_curta:
     'Leitura breve: a proposta está em negociação e Brenda aguarda análise da gestora de RH.\n\nSugestão de follow-up: Olá, Brenda. Conseguiu algum retorno da análise do RH? Se houver dúvida sobre escopo ou operação, posso ajudar a organizar os pontos para facilitar a decisão.\n\nDica extra: registre o prazo informado pela gestora.',
   aviso: 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
+  modelo: 'nexo_hermes',
+  provider: 'nexo_hermes',
+  gateway_provider: 'pmais_agent_gateway',
+  fallback: false,
+  auditoria_geracao: {
+    origem: 'nexo_hermes',
+    provider: 'nexo_hermes',
+    gateway_provider: 'pmais_agent_gateway',
+    modelo: 'nexo_hermes',
+    fallback: false,
+    segundo_cerebro_usado: true,
+    segundo_cerebro_fontes: ['CONTRATO-OPERACIONAL.md'],
+    audit_id: 'nexo-4792-123',
+  },
 }
 
 const ajudaWhatsapp = {
@@ -112,6 +126,12 @@ describe('NexoBusinessActions', () => {
     expect(screen.queryByText('Perguntas críticas')).not.toBeInTheDocument()
     expect(screen.queryByText('Riscos percebidos')).not.toBeInTheDocument()
     expect(screen.queryByText('Diagnóstico comercial')).not.toBeInTheDocument()
+    expect(screen.getByText('Detalhes da geração')).toBeInTheDocument()
+    expect(screen.getByText('Sim')).toBeInTheDocument()
+    expect(screen.getAllByText('nexo_hermes')).toHaveLength(2)
+    expect(screen.getByText('pmais_agent_gateway')).toBeInTheDocument()
+    expect(screen.getByText('Usado')).toBeInTheDocument()
+    expect(screen.getByText(/CONTRATO-OPERACIONAL\.md/)).toBeInTheDocument()
     expect(screen.queryByText(/App: ok/i)).not.toBeInTheDocument()
     expect(
       screen.queryByText('Cliente aguardando análise pela gestora de RH.'),
