@@ -73,7 +73,7 @@
       try {
         eventos = $app.findRecordsByFilter(
           'com_proposta_eventos_publicos',
-          "tipo='pagina_acessada'",
+          "tipo='pagina_acessada' || tipo='aceite_confirmado' || tipo='recusa_confirmada'",
           '-ocorrido_em',
           100,
           0,
@@ -87,14 +87,16 @@
           )
           var ctx = contexto($app, pub)
           if (!podeReceber($app, user, slug, ctx.negocio)) continue
-          var primeiro = $app.findRecordsByFilter(
-            'com_proposta_eventos_publicos',
-            "publicacao_id='" + pub.id + "' && tipo='pagina_acessada'",
-            'ocorrido_em',
-            1,
-            0,
-          )
-          if (!primeiro.length || primeiro[0].id !== eventos[i].id) continue
+          if (eventos[i].getString('tipo') === 'pagina_acessada') {
+            var primeiro = $app.findRecordsByFilter(
+              'com_proposta_eventos_publicos',
+              "publicacao_id='" + pub.id + "' && tipo='pagina_acessada'",
+              'ocorrido_em',
+              1,
+              0,
+            )
+            if (!primeiro.length || primeiro[0].id !== eventos[i].id) continue
+          }
           var lida = false
           try {
             $app.findFirstRecordByFilter(
@@ -105,6 +107,7 @@
           } catch (_) {}
           itens.push({
             id: eventos[i].id,
+            tipo: eventos[i].getString('tipo'),
             negocio_id: ctx.negocio.id,
             external_id: ctx.external_id,
             cliente: ctx.cliente,
