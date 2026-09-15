@@ -319,7 +319,7 @@ routerAdd(
         linhas.push('Síntese da Central: a leitura separa follow-ups vencidos, sem data clara ou incompatíveis com o ritmo do cliente. No escopo atual, ' + vencidos + ' negócio(s) têm próxima ação vencida e ' + proximos + ' exigem atenção nos próximos dias.')
         linhas.push('Prioridade prática: regularizar os vencidos hoje e registrar novo compromisso verificável com o cliente/contato externo.')
       } else {
-        linhas.push('Síntese da Central: a leitura busca padrões comerciais nos negócios abertos do escopo atual. Foram considerados ' + total + ' negócio(s), com ' + semNotas + ' casos em que o histórico ainda limita aprendizado confiável.')
+        linhas.push('Síntese da Central: a leitura busca padrões comerciais nos negócios do escopo atual. Foram considerados ' + total + ' negócio(s), com ' + semNotas + ' casos em que o histórico ainda limita aprendizado confiável.')
         linhas.push('Prioridade prática: transformar os casos citados em orientação de playbook apenas quando houver contexto suficiente de proposta, objeção, prazo e resultado.')
       }
       if (citados.length) {
@@ -472,7 +472,10 @@ routerAdd(
       perfil_slug: slug,
     }
 
-    var filtro = "inativo = false && (etapa != 'ganho' && etapa != 'perdido' && etapa != 'desqualificado')"
+    var filtro = 'inativo = false'
+    if (frente !== 'aprendizados-comerciais') {
+      filtro += " && resultado = '' && (etapa != 'prospects' || (qualificacao != 'pendente' && qualificacao != ''))"
+    }
     if (podeVisaoGeral(slug)) {
       if (responsavelId) {
         filtro += " && responsavel_id='" + esc(responsavelId) + "'"
