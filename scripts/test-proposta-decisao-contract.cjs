@@ -8,6 +8,11 @@ const timeline = fs.readFileSync(
 )
 const page = fs.readFileSync(path.join(root, 'src/pages/PropostaPublica.tsx'), 'utf8')
 const service = fs.readFileSync(path.join(root, 'src/services/propostas.ts'), 'utf8')
+const alertas = fs.readFileSync(path.join(root, 'pocketbase/hooks/com_proposta_alertas.js'), 'utf8')
+const avisoDecisao = fs.existsSync(path.join(root, 'pocketbase/hooks/com_proposta_decisao_email.js'))
+  ? fs.readFileSync(path.join(root, 'pocketbase/hooks/com_proposta_decisao_email.js'), 'utf8')
+  : ''
+const sino = fs.readFileSync(path.join(root, 'src/components/ProposalNotifications.tsx'), 'utf8')
 
 const checks = [
   ['acesso público registrado', hook.includes("evento.set('tipo', 'pagina_acessada')")],
@@ -56,6 +61,23 @@ const checks = [
     page.includes('Aceitar proposta') && page.includes('Recusar proposta'),
   ],
   ['UI não envia e-mail ou WhatsApp', !page.includes('Resend') && !page.includes('WhatsApp')],
+  [
+    'sino inclui aceite e recusa pública',
+    alertas.includes("tipo='pagina_acessada' || tipo='aceite_confirmado' || tipo='recusa_confirmada'") &&
+      service.includes("tipo: 'pagina_acessada' | 'aceite_confirmado' | 'recusa_confirmada'") &&
+      sino.includes('Proposta aceita') &&
+      sino.includes('Proposta recusada'),
+  ],
+  [
+    'e-mail interno de decisão pública',
+    avisoDecisao.includes("evento.getString('tipo') !== 'aceite_confirmado'") &&
+      avisoDecisao.includes("evento.getString('tipo') !== 'recusa_confirmada'") &&
+      avisoDecisao.includes("'Idempotency-Key': 'proposta-decisao-' + evento.id") &&
+      avisoDecisao.includes("parametro('proposta.email_notificar_responsavel_decisao'") &&
+      avisoDecisao.includes('Proposta aceita') &&
+      avisoDecisao.includes('Proposta recusada') &&
+      avisoDecisao.includes('https://comercial.pmaisservicos.com.br/propostas?negocio='),
+  ],
 ]
 
 let failed = 0

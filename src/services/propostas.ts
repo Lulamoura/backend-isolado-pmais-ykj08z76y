@@ -53,6 +53,7 @@ export const listarPropostas = () =>
   )
 export interface NotificacaoAberturaProposta {
   id: string
+  tipo: 'pagina_acessada' | 'aceite_confirmado' | 'recusa_confirmada'
   negocio_id: string
   external_id: string
   cliente: string

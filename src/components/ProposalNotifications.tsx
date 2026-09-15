@@ -32,6 +32,17 @@ export function ProposalNotifications() {
   }, [carregar])
 
   const naoLidas = itens.filter((item) => !item.lida)
+  const tituloNotificacao = (item: NotificacaoAberturaProposta) => {
+    if (item.tipo === 'aceite_confirmado') return 'Proposta aceita'
+    if (item.tipo === 'recusa_confirmada') return 'Proposta recusada'
+    return 'Proposta aberta'
+  }
+  const detalheNotificacao = (item: NotificacaoAberturaProposta) => {
+    const quando = new Date(item.ocorrido_em).toLocaleString('pt-BR')
+    if (item.tipo === 'aceite_confirmado') return `Aceita em ${quando}`
+    if (item.tipo === 'recusa_confirmada') return `Recusada em ${quando}`
+    return `Aberta${item.visitante_nome ? ` por ${item.visitante_nome}` : ''} em ${quando}`
+  }
   const marcarTodas = async () => {
     if (!naoLidas.length) return
     await marcarNotificacoesPropostaComoLidas(naoLidas.map((item) => item.id))
@@ -57,7 +68,7 @@ export function ProposalNotifications() {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between border-b p-3">
-          <p className="font-semibold">Aberturas de propostas</p>
+          <p className="font-semibold">Notificações de propostas</p>
           <Button
             variant="ghost"
             size="sm"
@@ -69,7 +80,7 @@ export function ProposalNotifications() {
         </div>
         <div className="max-h-80 overflow-y-auto">
           {!itens.length ? (
-            <p className="p-4 text-sm text-muted-foreground">Nenhuma abertura registrada.</p>
+            <p className="p-4 text-sm text-muted-foreground">Nenhuma notificação registrada.</p>
           ) : (
             itens.slice(0, 20).map((item) => (
               <Link
@@ -79,12 +90,10 @@ export function ProposalNotifications() {
                 className={`block border-b p-3 text-sm hover:bg-muted ${item.lida ? 'opacity-70' : 'bg-violet-50'}`}
               >
                 <p className="font-medium">
-                  AC #{item.external_id || '—'} · {item.cliente || 'Cliente'}
+                  {tituloNotificacao(item)} · AC #{item.external_id || '—'}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Aberta{item.visitante_nome ? ` por ${item.visitante_nome}` : ''} em{' '}
-                  {new Date(item.ocorrido_em).toLocaleString('pt-BR')}
-                </p>
+                <p className="text-xs text-muted-foreground">{item.cliente || 'Cliente'}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{detalheNotificacao(item)}</p>
               </Link>
             ))
           )}
