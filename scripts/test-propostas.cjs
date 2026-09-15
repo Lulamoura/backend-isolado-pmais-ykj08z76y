@@ -13,7 +13,8 @@ const checks = [
   [
     'helpers isolados nos handlers do JSVM',
     hook.match(/function propostaPerfil/g)?.length === 3 &&
-      hook.match(/function propostaPodeAcessar/g)?.length === 3,
+      hook.match(/function propostaPodeAcessar/g)?.length === 3 &&
+      hook.match(/function propostaSubstituicaoAutoriza/g)?.length === 4,
   ],
   [
     'autenticacao e comercial ativo',
@@ -43,6 +44,18 @@ const checks = [
       hook.includes(
         "findRecordsByFilter(\n            'com_negocios',\n            propostaFiltroNegociosFila($app, ator, perfil)",
       ),
+  ],
+  [
+    'eventos mantém helper de substituição dentro do handler JSVM',
+    hook.includes("'/backend/v1/propostas/eventos'") &&
+      hook.indexOf(
+        'function propostaSubstituicaoAutoriza',
+        hook.indexOf("'/backend/v1/propostas/eventos'"),
+      ) > -1 &&
+      hook.indexOf(
+        'if (!propostaPodeAcessar(tx, user, perfilTx, negocio))',
+        hook.indexOf("'/backend/v1/propostas/eventos'"),
+      ) > -1,
   ],
   [
     'fila mantém helpers de escopo dentro do handler JSVM',

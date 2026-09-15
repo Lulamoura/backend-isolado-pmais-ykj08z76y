@@ -699,10 +699,45 @@
       }
       if (propostaPerfil($app, e.auth) === 'leitura-executiva')
         return e.json(403, { error: 'SOMENTE_LEITURA' })
-      function propostaPodeAcessar(user, perfil, negocio) {
+      function propostaHojeRecife() {
+        return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      }
+      function propostaListaContem(lista, id) {
+        if (!lista || !id) return false
+        if (Array.isArray(lista)) return lista.indexOf(id) >= 0
+        return String(lista).indexOf(id) >= 0
+      }
+      function propostaSubstituicaoAutoriza(app, user, negocio) {
+        var titularId = negocio.getString('responsavel_id')
+        if (!titularId || !user || !user.id) return false
+        try {
+          var hoje = propostaHojeRecife()
+          var inicioDia = hoje + ' 00:00:00.000Z'
+          var fimDia = hoje + ' 23:59:59.999Z'
+          var filtro =
+            "titular_id='" +
+            titularId +
+            "' && cancelada_em = null && data_inicio <= '" +
+            fimDia +
+            "' && data_fim >= '" +
+            inicioDia +
+            "' && (substituto_principal_id='" +
+            user.id +
+            "' || substituto_reserva_id='" +
+            user.id +
+            "')"
+          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
+          for (var i = 0; i < subs.length; i++) {
+            if (subs[i].getString('tipo_cobertura') === 'integral') return true
+            if (propostaListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
+          }
+        } catch (_) {}
+        return false
+      }
+      function propostaPodeAcessar(app, user, perfil, negocio) {
         if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
         if (negocio.getString('responsavel_id') === user.id) return true
-        if (propostaSubstituicaoAutoriza($app, user, negocio)) return true
+        if (propostaSubstituicaoAutoriza(app, user, negocio)) return true
         if (perfil === 'negociacao-propria') return false
         return (
           !!user.getString('equipe_id') &&
@@ -869,7 +904,7 @@
           var user = tx.findRecordById('users', ator.id),
             perfilTx = propostaPerfil(tx, user)
           var negocio = tx.findRecordById('com_negocios', body.negocio_id)
-          if (!propostaPodeAcessar(user, perfilTx, negocio)) throw new Error('FORBIDDEN')
+          if (!propostaPodeAcessar(tx, user, perfilTx, negocio)) throw new Error('FORBIDDEN')
           var proposta = null,
             versao = null
           try {
