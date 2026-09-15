@@ -178,5 +178,20 @@ assert.doesNotMatch(
   /com_negocios[^\n]+5000/,
   'Central deve limitar volume inicial de negócios',
 )
+assert.match(
+  hook,
+  /frente !== 'aprendizados-comerciais'[\s\S]{0,180}resultado = ''/,
+  'Frentes operacionais devem excluir negócios ganhos/perdidos/desqualificados pelo resultado terminal',
+)
+assert.match(
+  hook,
+  /frente !== 'aprendizados-comerciais'[\s\S]{0,220}etapa != 'prospects'[\s\S]{0,120}qualificacao != 'pendente'/,
+  'Frentes operacionais devem excluir negócios ainda em qualificação de prospect',
+)
+assert.match(
+  hook,
+  /aprendizados-comerciais/,
+  'Aprendizados comerciais deve permanecer como exceção explícita ao filtro operacional',
+)
 
 console.log('nexo-central-operacional contract: PASS')

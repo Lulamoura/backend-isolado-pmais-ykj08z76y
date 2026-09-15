@@ -388,7 +388,7 @@ routerAdd(
         )
       } else {
         linhas.push(
-          'Síntese da Central: a leitura busca padrões comerciais nos negócios abertos do escopo atual. Foram considerados ' +
+          'Síntese da Central: a leitura busca padrões comerciais nos negócios do escopo atual. Foram considerados ' +
             total +
             ' negócio(s), com ' +
             semNotas +
@@ -756,8 +756,11 @@ routerAdd(
       perfil_slug: slug,
     }
 
-    var filtro =
-      "inativo = false && (etapa != 'ganho' && etapa != 'perdido' && etapa != 'desqualificado')"
+    var filtro = 'inativo = false'
+    if (frente !== 'aprendizados-comerciais') {
+      filtro +=
+        " && resultado = '' && (etapa != 'prospects' || (qualificacao != 'pendente' && qualificacao != ''))"
+    }
     if (podeVisaoGeral(slug)) {
       if (responsavelId) {
         filtro += " && responsavel_id='" + esc(responsavelId) + "'"
