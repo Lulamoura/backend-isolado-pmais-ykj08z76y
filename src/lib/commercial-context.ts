@@ -112,7 +112,7 @@ export const filterAndSortCommercial = <T extends ContextualItem>(
   return items
     .filter((item) => {
       const c = item.contexto
-      const haystack = [item.negocio.titulo, c.empresa?.nome, c.contato?.nome]
+      const haystack = [item.negocio.titulo, c.external_id, c.empresa?.nome, c.contato?.nome]
         .filter(Boolean)
         .join(' ')
         .toLocaleLowerCase('pt-BR')

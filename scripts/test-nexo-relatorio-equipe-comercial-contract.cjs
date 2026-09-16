@@ -14,6 +14,16 @@ assert.match(
 assert.match(hook, /\$apis\.requireAuth\('users'\)/, 'deve exigir autenticação users')
 assert.match(hook, /ativo_comercial/, 'deve exigir usuário comercial ativo')
 assert.match(hook, /dashboard\.view/, 'deve exigir permissão gerencial dashboard.view')
+assert.match(
+  hook,
+  /directPerfil\.getString\('slug'\) === 'leitura-executiva'[\s\S]*?scope = 'todos'/,
+  'perfil direto Leitura Executiva deve ter visão global do time',
+)
+assert.match(
+  hook,
+  /perfil\.getString\('slug'\) === 'leitura-executiva'[\s\S]*?scope = 'todos'/,
+  'vínculo de equipe com perfil Leitura Executiva deve ter visão global do time',
+)
 assert.match(hook, /modo:\s*'somente_leitura'/, 'resposta deve declarar modo somente leitura')
 assert.match(
   hook,

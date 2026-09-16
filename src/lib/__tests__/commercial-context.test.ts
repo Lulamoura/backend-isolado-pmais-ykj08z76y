@@ -76,4 +76,16 @@ describe('contexto comercial', () => {
     expect(filterAndSortCommercial(items, 'beta', '', '', 'maior_valor')).toHaveLength(1)
     expect(filterAndSortCommercial(items, '', '', '', 'maior_valor')[0].negocio.titulo).toBe('B')
   })
+
+  it('filtra pelo ID externo do negócio usado nas propostas', () => {
+    const items = [
+      { negocio: { titulo: 'A' }, contexto: context({ external_id: '4792' }) },
+      { negocio: { titulo: 'B' }, contexto: context({ external_id: '4847' }) },
+    ]
+
+    const filtrados = filterAndSortCommercial(items, '4847', '', '', 'maior_valor')
+
+    expect(filtrados).toHaveLength(1)
+    expect(filtrados[0].contexto.external_id).toBe('4847')
+  })
 })

@@ -209,7 +209,11 @@ routerAdd(
         if (directPerfilId) {
           var directPerfil = $app.findRecordById('com_perfis', directPerfilId)
           if (directPerfil.getBool('ativo')) {
-            if (directPerfil.getString('slug') === 'superadministrador') scope = 'todos'
+            if (
+              directPerfil.getString('slug') === 'superadministrador' ||
+              directPerfil.getString('slug') === 'leitura-executiva'
+            )
+              scope = 'todos'
             var directLinks = $app.findRecordsByFilter(
               'com_perfil_permissoes',
               "perfil_id = '" + esc(directPerfilId) + "'",
@@ -245,7 +249,11 @@ routerAdd(
           }
           var perfil = $app.findRecordById('com_perfis', b.getString('perfil_id'))
           if (!perfil.getBool('ativo')) continue
-          if (perfil.getString('slug') === 'superadministrador') scope = 'todos'
+          if (
+            perfil.getString('slug') === 'superadministrador' ||
+            perfil.getString('slug') === 'leitura-executiva'
+          )
+            scope = 'todos'
           var links = $app.findRecordsByFilter(
             'com_perfil_permissoes',
             "perfil_id = '" + esc(perfil.id) + "'",
