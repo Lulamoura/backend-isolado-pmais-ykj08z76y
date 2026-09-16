@@ -19,7 +19,7 @@
         try {
           var links = $app.findRecordsByFilter(
             'com_perfil_permissoes',
-            "perfil_id='" + user.getString('perfil_id') + "'",
+            "perfil_id = '" + user.getString('perfil_id') + "'",
             '',
             500,
             0,
@@ -74,15 +74,15 @@
           var hojeInicio = fechamentoInicioDiaUtc(hoje)
           var hojeFim = fechamentoFimDiaUtc(hoje)
           var filtro =
-            "titular_id='" +
+            "titular_id = '" +
             titularId +
             "' && cancelada_em = null && data_inicio <= '" +
             hojeFim +
             "' && data_fim >= '" +
             hojeInicio +
-            "' && (substituto_principal_id='" +
+            "' && (substituto_principal_id = '" +
             user.id +
-            "' || substituto_reserva_id='" +
+            "' || substituto_reserva_id = '" +
             user.id +
             "')"
           var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
@@ -112,7 +112,7 @@
           try {
             reagendamento = $app.findRecordsByFilter(
               'com_negocio_historico',
-              "negocio_id='" + negocio.id + "' && origem_alteracao='activecampaign_data_acao'",
+              "negocio_id = '" + negocio.id + "' && origem_alteracao='activecampaign_data_acao'",
               '-reagendada_em,-created',
               1,
               0,
@@ -121,7 +121,7 @@
           try {
             nota = $app.findRecordsByFilter(
               'com_notas_negocio',
-              "negocio_id='" + negocio.id + "'",
+              "negocio_id = '" + negocio.id + "'",
               '-criada_em,-id',
               1,
               0,
@@ -143,7 +143,7 @@
           externalId = $app
             .findFirstRecordByFilter(
               'com_vinculos_externos',
-              "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+              "sistema_origem='activecampaign' && external_type='business' && record_id = '" +
                 negocio.id +
                 "'",
             )
@@ -228,7 +228,7 @@
           var p = $app.findFirstRecordByData('com_propostas', 'negocio_id', n.id)
           var vs = $app.findRecordsByFilter(
             'com_proposta_versoes',
-            "proposta_id='" + p.id + "'",
+            "proposta_id = '" + p.id + "'",
             '-numero',
             1,
             0,
@@ -242,7 +242,7 @@
         try {
           tentativas = $app.findRecordsByFilter(
             'com_atividades',
-            "negocio_id='" + n.id + "' && tipo='tentativa_contato' && estado='realizada'",
+            "negocio_id = '" + n.id + "' && tipo='tentativa_contato' && estado='realizada'",
             'realizada_em',
             100,
             0,
@@ -251,7 +251,7 @@
         try {
           agenda = $app.findFirstRecordByFilter(
             'com_recuperacao_agendas',
-            "negocio_perdido_id='" + n.id + "' && estado='ativa'",
+            "negocio_perdido_id = '" + n.id + "' && estado='ativa'",
           )
         } catch (_) {}
         if (recuperacao === 'acionavel') {
@@ -350,15 +350,15 @@
           var hojeInicio = fechamentoInicioDiaUtc(hoje)
           var hojeFim = fechamentoFimDiaUtc(hoje)
           var filtro =
-            "titular_id='" +
+            "titular_id = '" +
             titularId +
             "' && cancelada_em = null && data_inicio <= '" +
             hojeFim +
             "' && data_fim >= '" +
             hojeInicio +
-            "' && (substituto_principal_id='" +
+            "' && (substituto_principal_id = '" +
             user.id +
-            "' || substituto_reserva_id='" +
+            "' || substituto_reserva_id = '" +
             user.id +
             "')"
           var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
@@ -438,7 +438,7 @@
       try {
         var known = $app.findRecordsByFilter(
           'com_idempotencia',
-          "ator_id='" +
+          "ator_id = '" +
             ator.id +
             "' && comando='" +
             comando +
@@ -489,7 +489,7 @@
           var proposta = $app.findFirstRecordByData('com_propostas', 'negocio_id', negocio.id)
           var versoes = $app.findRecordsByFilter(
             'com_proposta_versoes',
-            "proposta_id='" + proposta.id + "'",
+            "proposta_id = '" + proposta.id + "'",
             '-numero',
             1,
             0,
@@ -506,7 +506,7 @@
         if (body.motivo === 'perdeu_contato') {
           var ts = $app.findRecordsByFilter(
             'com_atividades',
-            "negocio_id='" + negocio.id + "' && tipo='tentativa_contato' && estado='realizada'",
+            "negocio_id = '" + negocio.id + "' && tipo='tentativa_contato' && estado='realizada'",
             'realizada_em',
             100,
             0,
@@ -626,7 +626,7 @@
       try {
         var known = $app.findRecordsByFilter(
           'com_idempotencia',
-          "ator_id='" +
+          "ator_id = '" +
             ator.id +
             "' && comando='" +
             comando +
@@ -762,15 +762,15 @@
           var hojeInicio = fechamentoInicioDiaUtc(hoje)
           var hojeFim = fechamentoFimDiaUtc(hoje)
           var filtro =
-            "titular_id='" +
+            "titular_id = '" +
             titularId +
             "' && cancelada_em = null && data_inicio <= '" +
             hojeFim +
             "' && data_fim >= '" +
             hojeInicio +
-            "' && (substituto_principal_id='" +
+            "' && (substituto_principal_id = '" +
             user.id +
-            "' || substituto_reserva_id='" +
+            "' || substituto_reserva_id = '" +
             user.id +
             "')"
           var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
@@ -828,7 +828,7 @@
       try {
         var known = $app.findRecordsByFilter(
           'com_idempotencia',
-          "ator_id='" +
+          "ator_id = '" +
             ator.id +
             "' && comando='" +
             comando +

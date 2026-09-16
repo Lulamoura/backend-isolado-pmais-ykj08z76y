@@ -38,7 +38,7 @@ const checks = [
   [
     'fila filtra negócios por escopo antes de iterar',
     hook.includes('function propostaFiltroNegociosFila') &&
-      hook.includes("responsavel_id='") &&
+      hook.includes("responsavel_id = '") &&
       hook.includes("etapa='producao_proposta' || etapa='negociacao'") &&
       hook.includes(
         "findRecordsByFilter(\n            'com_negocios',\n            propostaFiltroNegociosFila($app, ator, perfil)",

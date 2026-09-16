@@ -65,9 +65,9 @@ routerAdd(
           hojeFim +
           "' && data_fim >= '" +
           hojeInicio +
-          "' && (substituto_principal_id='" +
+          "' && (substituto_principal_id = '" +
           user.id +
-          "' || substituto_reserva_id='" +
+          "' || substituto_reserva_id = '" +
           user.id +
           "')"
         var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
@@ -204,7 +204,7 @@ routerAdd(
         externalId = $app
           .findFirstRecordByFilter(
             'com_vinculos_externos',
-            "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+            "sistema_origem='activecampaign' && external_type='business' && record_id = '" +
               negocio.id +
               "'",
           )
@@ -283,15 +283,15 @@ routerAdd(
         var hojeInicio = hoje + ' 00:00:00.000Z'
         var hojeFim = hoje + ' 23:59:59.999Z'
         var filtro =
-          "titular_id='" +
+          "titular_id = '" +
           titularId +
           "' && cancelada_em = null && data_inicio <= '" +
           hojeFim +
           "' && data_fim >= '" +
           hojeInicio +
-          "' && (substituto_principal_id='" +
+          "' && (substituto_principal_id = '" +
           user.id +
-          "' || substituto_reserva_id='" +
+          "' || substituto_reserva_id = '" +
           user.id +
           "')"
         var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
@@ -413,7 +413,7 @@ routerAdd(
     try {
       anteriores = $app.findRecordsByFilter(
         'com_idempotencia',
-        "ator_id='" +
+        "ator_id = '" +
           ator.id +
           "' && comando='" +
           comando +

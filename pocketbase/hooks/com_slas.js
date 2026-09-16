@@ -64,9 +64,9 @@ routerAdd(
           hojeFim +
           "' && data_fim >= '" +
           hojeInicio +
-          "' && (substituto_principal_id='" +
+          "' && (substituto_principal_id = '" +
           user.id +
-          "' || substituto_reserva_id='" +
+          "' || substituto_reserva_id = '" +
           user.id +
           "')"
         var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
@@ -86,7 +86,7 @@ routerAdd(
     }
     function filtroNegociosSubstituidos(ids) {
       var partes = []
-      for (var i = 0; i < ids.length; i++) partes.push("id='" + ids[i] + "'")
+      for (var i = 0; i < ids.length; i++) partes.push("id = '" + ids[i] + "'")
       return partes.join(' || ')
     }
     function feriados() {
@@ -173,8 +173,8 @@ routerAdd(
       var filtroSubstituidos = filtroNegociosSubstituidos(substituidos)
       var filtroProprio =
         escopo === 'equipe' && equipe
-          ? "equipe_id='" + equipe + "'"
-          : "responsavel_id='" + ator.id + "'"
+          ? "equipe_id = '" + equipe + "'"
+          : "responsavel_id = '" + ator.id + "'"
       filtro += filtroSubstituidos
         ? ' && (' + filtroProprio + ' || ' + filtroSubstituidos + ')'
         : ' && ' + filtroProprio
@@ -216,7 +216,7 @@ routerAdd(
       var marco = n.getString('etapa_entrou_em')
       var proxima = $app.findRecordsByFilter(
         'com_atividades',
-        "negocio_id='" + n.id + "' && estado='planejada'",
+        "negocio_id = '" + n.id + "' && estado='planejada'",
         'planejada_para',
         1,
         0,
@@ -295,7 +295,7 @@ routerAdd(
         try {
           reagendamento = $app.findRecordsByFilter(
             'com_negocio_historico',
-            "negocio_id='" + negocio.id + "' && origem_alteracao='activecampaign_data_acao'",
+            "negocio_id = '" + negocio.id + "' && origem_alteracao='activecampaign_data_acao'",
             '-reagendada_em,-created',
             1,
             0,
@@ -304,7 +304,7 @@ routerAdd(
         try {
           nota = $app.findRecordsByFilter(
             'com_notas_negocio',
-            "negocio_id='" + negocio.id + "'",
+            "negocio_id = '" + negocio.id + "'",
             '-criada_em,-id',
             1,
             0,
@@ -345,7 +345,7 @@ routerAdd(
         externalId = $app
           .findFirstRecordByFilter(
             'com_vinculos_externos',
-            "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+            "sistema_origem='activecampaign' && external_type='business' && record_id = '" +
               n.id +
               "'",
           )

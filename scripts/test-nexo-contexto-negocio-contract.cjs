@@ -21,7 +21,7 @@ assert.match(
 assert.match(hook, /propostaSubstituicaoAutoriza/, 'endpoint deve respeitar substituições vigentes')
 assert.match(
   hook,
-  /sistema_origem='activecampaign' && external_type='business' && external_id='/,
+  /sistema_origem\s*=\s*'activecampaign' && external_type\s*=\s*'business' && external_id\s*=\s*'/,
   'endpoint deve localizar o negócio pelo vínculo ActiveCampaign business/external_id',
 )
 assert.match(hook, /AC_API_URL/, 'endpoint deve usar segredo AC_API_URL, sem expor valor')

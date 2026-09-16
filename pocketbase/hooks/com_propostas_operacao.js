@@ -28,7 +28,7 @@
     try {
       var links = $app.findRecordsByFilter(
         'com_perfil_permissoes',
-        "perfil_id='" + user.getString('perfil_id') + "'",
+        "perfil_id = '" + user.getString('perfil_id') + "'",
         '',
         500,
         0,
@@ -72,15 +72,15 @@
       var hojeInicio = propostaInicioDiaUtc(hoje)
       var hojeFim = propostaFimDiaUtc(hoje)
       var filtro =
-        "titular_id='" +
+        "titular_id = '" +
         titularId +
         "' && cancelada_em = null && data_inicio <= '" +
         hojeFim +
         "' && data_fim >= '" +
         hojeInicio +
-        "' && (substituto_principal_id='" +
+        "' && (substituto_principal_id = '" +
         user.id +
-        "' || substituto_reserva_id='" +
+        "' || substituto_reserva_id = '" +
         user.id +
         "')"
       var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
@@ -95,7 +95,7 @@
   function propostaFiltroIdsNegocios(ids) {
     if (!ids || !ids.length) return ''
     var partes = []
-    for (var i = 0; i < ids.length; i++) partes.push("id='" + ids[i] + "'")
+    for (var i = 0; i < ids.length; i++) partes.push("id = '" + ids[i] + "'")
     return '(' + partes.join(' || ') + ')'
   }
 
@@ -112,9 +112,9 @@
         hojeFim +
         "' && data_fim >= '" +
         hojeInicio +
-        "' && (substituto_principal_id='" +
+        "' && (substituto_principal_id = '" +
         user.id +
-        "' || substituto_reserva_id='" +
+        "' || substituto_reserva_id = '" +
         user.id +
         "')"
       var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
@@ -124,7 +124,7 @@
           if (!titularId) continue
           var negociosTitular = app.findRecordsByFilter(
             'com_negocios',
-            "responsavel_id='" + titularId + "' && inativo = false",
+            "responsavel_id = '" + titularId + "' && inativo = false",
             '',
             500,
             0,
@@ -155,7 +155,7 @@
     var etapa = "(etapa='producao_proposta' || etapa='negociacao')"
     if (perfil === 'superadministrador' || perfil === 'leitura-executiva')
       return 'inativo = false && ' + etapa
-    var partesEscopo = ["responsavel_id='" + user.id + "'"]
+    var partesEscopo = ["responsavel_id = '" + user.id + "'"]
     var substituidos = propostaIdsNegociosSubstituidos(app, user)
     var filtroSubstituidos = propostaFiltroIdsNegocios(substituidos)
     if (filtroSubstituidos) partesEscopo.push(filtroSubstituidos)
@@ -163,7 +163,7 @@
     try {
       var links = app.findRecordsByFilter(
         'com_perfil_permissoes',
-        "perfil_id='" + user.getString('perfil_id') + "'",
+        "perfil_id = '" + user.getString('perfil_id') + "'",
         '',
         500,
         0,
@@ -175,7 +175,7 @@
     } catch (_) {}
     if (escopo === 'todos') return 'inativo = false && ' + etapa
     if (escopo === 'equipe' && user.getString('equipe_id'))
-      partesEscopo.push("equipe_id='" + user.getString('equipe_id') + "'")
+      partesEscopo.push("equipe_id = '" + user.getString('equipe_id') + "'")
     return 'inativo = false && ' + etapa + ' && (' + partesEscopo.join(' || ') + ')'
   }
 
@@ -204,7 +204,7 @@
     try {
       var rows = app.findRecordsByFilter(
         'com_auditoria',
-        "record_id='" + versaoId + "' && escopo='proposta'",
+        "record_id = '" + versaoId + "' && escopo='proposta'",
         'evento_em',
         100,
         0,
@@ -255,15 +255,15 @@
           var hojeInicio = propostaInicioDiaUtc(hoje)
           var hojeFim = propostaFimDiaUtc(hoje)
           var filtro =
-            "titular_id='" +
+            "titular_id = '" +
             titularId +
             "' && cancelada_em = null && data_inicio <= '" +
             hojeFim +
             "' && data_fim >= '" +
             hojeInicio +
-            "' && (substituto_principal_id='" +
+            "' && (substituto_principal_id = '" +
             user.id +
-            "' || substituto_reserva_id='" +
+            "' || substituto_reserva_id = '" +
             user.id +
             "')"
           var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
@@ -277,7 +277,7 @@
       function propostaFiltroIdsNegocios(ids) {
         if (!ids || !ids.length) return ''
         var partes = []
-        for (var i = 0; i < ids.length; i++) partes.push("id='" + ids[i] + "'")
+        for (var i = 0; i < ids.length; i++) partes.push("id = '" + ids[i] + "'")
         return '(' + partes.join(' || ') + ')'
       }
       function propostaIdsNegociosSubstituidos(app, user) {
@@ -293,9 +293,9 @@
             hojeFim +
             "' && data_fim >= '" +
             hojeInicio +
-            "' && (substituto_principal_id='" +
+            "' && (substituto_principal_id = '" +
             user.id +
-            "' || substituto_reserva_id='" +
+            "' || substituto_reserva_id = '" +
             user.id +
             "')"
           var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
@@ -305,7 +305,7 @@
               if (!titularId) continue
               var negociosTitular = app.findRecordsByFilter(
                 'com_negocios',
-                "responsavel_id='" + titularId + "' && inativo = false",
+                "responsavel_id = '" + titularId + "' && inativo = false",
                 '',
                 500,
                 0,
@@ -335,7 +335,7 @@
         var etapa = "(etapa='producao_proposta' || etapa='negociacao')"
         if (perfil === 'superadministrador' || perfil === 'leitura-executiva')
           return 'inativo = false && ' + etapa
-        var partesEscopo = ["responsavel_id='" + user.id + "'"]
+        var partesEscopo = ["responsavel_id = '" + user.id + "'"]
         var substituidos = propostaIdsNegociosSubstituidos(app, user)
         var filtroSubstituidos = propostaFiltroIdsNegocios(substituidos)
         if (filtroSubstituidos) partesEscopo.push(filtroSubstituidos)
@@ -343,7 +343,7 @@
         try {
           var links = app.findRecordsByFilter(
             'com_perfil_permissoes',
-            "perfil_id='" + user.getString('perfil_id') + "'",
+            "perfil_id = '" + user.getString('perfil_id') + "'",
             '',
             500,
             0,
@@ -356,7 +356,7 @@
         } catch (_) {}
         if (escopo === 'todos') return 'inativo = false && ' + etapa
         if (escopo === 'equipe' && user.getString('equipe_id'))
-          partesEscopo.push("equipe_id='" + user.getString('equipe_id') + "'")
+          partesEscopo.push("equipe_id = '" + user.getString('equipe_id') + "'")
         return 'inativo = false && ' + etapa + ' && (' + partesEscopo.join(' || ') + ')'
       }
       function propostaPodeAcessar(user, perfil, negocio) {
@@ -367,7 +367,7 @@
         try {
           var links = $app.findRecordsByFilter(
             'com_perfil_permissoes',
-            "perfil_id='" + user.getString('perfil_id') + "'",
+            "perfil_id = '" + user.getString('perfil_id') + "'",
             '',
             500,
             0,
@@ -393,7 +393,7 @@
         try {
           var rows = app.findRecordsByFilter(
             'com_auditoria',
-            "record_id='" + versaoId + "' && escopo='proposta'",
+            "record_id = '" + versaoId + "' && escopo='proposta'",
             'evento_em',
             100,
             0,
@@ -441,7 +441,7 @@
           try {
             reagendamento = app.findRecordsByFilter(
               'com_negocio_historico',
-              "negocio_id='" + negocio.id + "' && origem_alteracao='activecampaign_data_acao'",
+              "negocio_id = '" + negocio.id + "' && origem_alteracao='activecampaign_data_acao'",
               '-reagendada_em,-created',
               1,
               0,
@@ -450,7 +450,7 @@
           try {
             nota = app.findRecordsByFilter(
               'com_notas_negocio',
-              "negocio_id='" + negocio.id + "'",
+              "negocio_id = '" + negocio.id + "'",
               '-criada_em,-id',
               1,
               0,
@@ -472,7 +472,7 @@
           externalId = app
             .findFirstRecordByFilter(
               'com_vinculos_externos',
-              "sistema_origem='activecampaign' && external_type='business' && record_id='" +
+              "sistema_origem='activecampaign' && external_type='business' && record_id = '" +
                 negocio.id +
                 "'",
             )
@@ -538,7 +538,7 @@
             proposta = $app.findFirstRecordByData('com_propostas', 'negocio_id', n.id)
             var versoes = $app.findRecordsByFilter(
               'com_proposta_versoes',
-              "proposta_id='" + proposta.id + "'",
+              "proposta_id = '" + proposta.id + "'",
               '-numero',
               1,
               0,
@@ -550,11 +550,11 @@
             try {
               var publicacaoAtiva = $app.findFirstRecordByFilter(
                 'com_proposta_publicacoes',
-                "proposta_id='" + proposta.id + "' && estado='ativa'",
+                "proposta_id = '" + proposta.id + "' && estado='ativa'",
               )
               var acessosPublicacao = $app.findRecordsByFilter(
                 'com_proposta_eventos_publicos',
-                "publicacao_id='" + publicacaoAtiva.id + "' && tipo='pagina_acessada'",
+                "publicacao_id = '" + publicacaoAtiva.id + "' && tipo='pagina_acessada'",
                 'ocorrido_em',
                 1,
                 0,
@@ -566,7 +566,7 @@
             try {
               var enviosSistema = $app.findRecordsByFilter(
                 'com_proposta_envios',
-                "proposta_id='" + proposta.id + "' && canal='email' && estado='enviado'",
+                "proposta_id = '" + proposta.id + "' && canal='email' && estado='enviado'",
                 '-enviado_em',
                 1,
                 0,
@@ -664,7 +664,7 @@
           try {
             var links = $app.findRecordsByFilter(
               'com_perfil_permissoes',
-              "perfil_id='" + ator.getString('perfil_id') + "'",
+              "perfil_id = '" + ator.getString('perfil_id') + "'",
               '',
               500,
               0,
@@ -743,15 +743,15 @@
           var inicioDia = hoje + ' 00:00:00.000Z'
           var fimDia = hoje + ' 23:59:59.999Z'
           var filtro =
-            "titular_id='" +
+            "titular_id = '" +
             titularId +
             "' && cancelada_em = null && data_inicio <= '" +
             fimDia +
             "' && data_fim >= '" +
             inicioDia +
-            "' && (substituto_principal_id='" +
+            "' && (substituto_principal_id = '" +
             user.id +
-            "' || substituto_reserva_id='" +
+            "' || substituto_reserva_id = '" +
             user.id +
             "')"
           var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
@@ -783,7 +783,7 @@
         try {
           var rows = app.findRecordsByFilter(
             'com_auditoria',
-            "record_id='" + versaoId + "' && escopo='proposta'",
+            "record_id = '" + versaoId + "' && escopo='proposta'",
             'evento_em',
             100,
             0,
@@ -878,7 +878,7 @@
       try {
         known = $app.findRecordsByFilter(
           'com_idempotencia',
-          "ator_id='" +
+          "ator_id = '" +
             ator.id +
             "' && comando='" +
             comando +
@@ -939,7 +939,7 @@
             proposta = tx.findFirstRecordByData('com_propostas', 'negocio_id', negocio.id)
             var vv = tx.findRecordsByFilter(
               'com_proposta_versoes',
-              "proposta_id='" + proposta.id + "'",
+              "proposta_id = '" + proposta.id + "'",
               '-numero',
               1,
               0,
@@ -1138,15 +1138,15 @@
           var hojeInicio = propostaInicioDiaUtc(hoje)
           var hojeFim = propostaFimDiaUtc(hoje)
           var filtro =
-            "titular_id='" +
+            "titular_id = '" +
             titularId +
             "' && cancelada_em = null && data_inicio <= '" +
             hojeFim +
             "' && data_fim >= '" +
             hojeInicio +
-            "' && (substituto_principal_id='" +
+            "' && (substituto_principal_id = '" +
             user.id +
-            "' || substituto_reserva_id='" +
+            "' || substituto_reserva_id = '" +
             user.id +
             "')"
           var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
@@ -1166,7 +1166,7 @@
         try {
           var links = app.findRecordsByFilter(
             'com_perfil_permissoes',
-            "perfil_id='" + user.getString('perfil_id') + "'",
+            "perfil_id = '" + user.getString('perfil_id') + "'",
             '',
             500,
             0,
@@ -1308,7 +1308,7 @@
           var proposta = app.findFirstRecordByData('com_propostas', 'negocio_id', negocioId)
           var versoes = app.findRecordsByFilter(
             'com_proposta_versoes',
-            "proposta_id='" + proposta.id + "'",
+            "proposta_id = '" + proposta.id + "'",
             '-numero',
             1,
             0,
@@ -1364,7 +1364,7 @@
       try {
         vinculo = $app.findFirstRecordByFilter(
           'com_vinculos_externos',
-          "sistema_origem='activecampaign' && external_type='business' && external_id='" +
+          "sistema_origem='activecampaign' && external_type='business' && external_id = '" +
             externalId +
             "'",
         )

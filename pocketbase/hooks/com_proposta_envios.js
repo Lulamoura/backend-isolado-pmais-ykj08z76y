@@ -42,15 +42,15 @@ routerAdd(
         var hojeInicio = inicioDiaUtc(hoje)
         var hojeFim = fimDiaUtc(hoje)
         var filtro =
-          "titular_id='" +
+          "titular_id = '" +
           titularId +
           "' && cancelada_em = null && data_inicio <= '" +
           hojeFim +
           "' && data_fim >= '" +
           hojeInicio +
-          "' && (substituto_principal_id='" +
+          "' && (substituto_principal_id = '" +
           user.id +
-          "' || substituto_reserva_id='" +
+          "' || substituto_reserva_id = '" +
           user.id +
           "')"
         var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
@@ -302,15 +302,15 @@ routerAdd(
         var hojeInicio = inicioDiaUtc(hoje)
         var hojeFim = fimDiaUtc(hoje)
         var filtro =
-          "titular_id='" +
+          "titular_id = '" +
           titularId +
           "' && cancelada_em = null && data_inicio <= '" +
           hojeFim +
           "' && data_fim >= '" +
           hojeInicio +
-          "' && (substituto_principal_id='" +
+          "' && (substituto_principal_id = '" +
           user.id +
-          "' || substituto_reserva_id='" +
+          "' || substituto_reserva_id = '" +
           user.id +
           "')"
         var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)

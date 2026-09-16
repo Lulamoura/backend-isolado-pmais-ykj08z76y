@@ -108,9 +108,9 @@ routerAdd(
           hojeFim +
           "' && data_fim >= '" +
           hojeInicio +
-          "' && (substituto_principal_id='" +
+          "' && (substituto_principal_id = '" +
           esc(user.id) +
-          "' || substituto_reserva_id='" +
+          "' || substituto_reserva_id = '" +
           esc(user.id) +
           "')"
         var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)

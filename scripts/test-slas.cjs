@@ -35,7 +35,7 @@ const checks = [
     hook.includes("permissao.getString('slug') === 'negocios.view'") &&
       hook.includes("escopo === 'equipe'") &&
       hook.includes("escopo !== 'todos'") &&
-      hook.includes("responsavel_id='") &&
+      hook.includes("responsavel_id = '") &&
       hook.includes('Permissao negocios.view necessaria'),
   ],
   [
@@ -44,8 +44,8 @@ const checks = [
       hook.includes('filtroNegociosSubstituidos') &&
       hook.includes('com_substituicoes') &&
       hook.includes('negocios_cobertos') &&
-      hook.includes("responsavel_id='") &&
-      hook.includes("id='"),
+      hook.includes("responsavel_id = '") &&
+      hook.includes("id = '"),
   ],
   ['tres situacoes', ['vencido', 'alerta', 'no_prazo'].every((v) => hook.includes(v))],
   [
