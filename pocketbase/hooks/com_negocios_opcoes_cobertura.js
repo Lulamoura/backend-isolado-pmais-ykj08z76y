@@ -138,7 +138,7 @@ routerAdd(
       if (!user || !user.id) return ids
       try {
         var hoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
-        var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
+        var subs = app.findRecordsByFilter('com_substituicoes', filtro, '-created', 500, 0)
         var seen = {}
         for (var i = 0; i < subs.length; i++) {
           if (

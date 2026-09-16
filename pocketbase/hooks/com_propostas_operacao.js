@@ -97,7 +97,7 @@
         "' || substituto_reserva_id = '" +
         user.id +
         "')"
-      var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
+      var subs = app.findRecordsByFilter('com_substituicoes', filtro, '-created', 500, 0)
       for (var i = 0; i < subs.length; i++) {
         if (subs[i].getString('titular_id') !== titularId) continue
         if (
@@ -128,7 +128,7 @@
       var hoje = propostaHojeRecife()
       var filtro =
         "substituto_principal_id = '" + user.id + "' || substituto_reserva_id = '" + user.id + "'"
-      var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
+      var subs = app.findRecordsByFilter('com_substituicoes', filtro, '-created', 500, 0)
       for (var i = 0; i < subs.length; i++) {
         if (
           subs[i].getString('substituto_principal_id') !== user.id &&
@@ -303,7 +303,7 @@
             "' || substituto_reserva_id = '" +
             user.id +
             "')"
-          var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
+          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '-created', 500, 0)
           for (var i = 0; i < subs.length; i++) {
             if (subs[i].getString('titular_id') !== titularId) continue
             if (
@@ -336,7 +336,7 @@
             "' || substituto_reserva_id = '" +
             user.id +
             "'"
-          var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
+          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '-created', 500, 0)
           for (var i = 0; i < subs.length; i++) {
             if (
               subs[i].getString('substituto_principal_id') !== user.id &&
@@ -818,7 +818,7 @@
             "' || substituto_reserva_id = '" +
             user.id +
             "')"
-          var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
+          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '-created', 500, 0)
           for (var i = 0; i < subs.length; i++) {
             if (subs[i].getString('titular_id') !== titularId) continue
             if (
@@ -1223,7 +1223,7 @@
             "' || substituto_reserva_id = '" +
             user.id +
             "')"
-          var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
+          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '-created', 500, 0)
           for (var i = 0; i < subs.length; i++) {
             if (subs[i].getString('titular_id') !== titularId) continue
             if (
