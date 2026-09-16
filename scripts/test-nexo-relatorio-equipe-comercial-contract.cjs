@@ -56,7 +56,36 @@ assert.match(
 assert.match(hook, /html_executivo/, 'deve retornar HTML executivo opcional')
 assert.match(hook, /nexo_relatorio_equipe_comercial_v1/, 'deve declarar contrato versionado')
 assert.match(hook, /Valores monetários estão em centavos/, 'deve avisar unidade monetária')
-assert.match(hook, /campo:\s*'created'/, 'período deve ser baseado no campo created inicialmente')
+assert.doesNotMatch(
+  hook,
+  /if \(params\.inicio\) parts\.push\("created >=/,
+  'período do relatório não deve filtrar todo o relatório por created',
+)
+assert.match(
+  hook,
+  /ganhos: 'resultado ganho com fechamento_data dentro do periodo selecionado'/,
+  'ganhos devem ser contabilizados por fechamento_data no período',
+)
+assert.match(
+  hook,
+  /perdidos: 'resultado perdido\/desqualificado com fechamento_data dentro do periodo selecionado'/,
+  'perdidos devem ser contabilizados por fechamento_data no período',
+)
+assert.match(
+  hook,
+  /abertos: 'sem resultado, criado ate o fim do periodo e ainda ativo no corte'/,
+  'abertos devem representar carteira ativa no corte final',
+)
+assert.match(
+  hook,
+  /novos_negocios: 'crm_created_at dentro do periodo selecionado'/,
+  'novos negócios devem ser métrica separada baseada em crm_created_at',
+)
+assert.match(
+  hook,
+  /campo:\s*'fechamento_data_para_decisoes__carteira_aberta_no_fim__crm_created_at_para_novos'/,
+  'payload deve declarar os campos usados em cada métrica',
+)
 assert.match(hook, /responsavel_id != ''/, 'deve excluir negócios sem responsável comercial')
 assert.match(
   hook,
