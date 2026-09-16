@@ -123,7 +123,11 @@ routerAdd(
         var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
         var seen = {}
         for (var i = 0; i < subs.length; i++) {
-          if (subs[i].getString('substituto_principal_id') !== user.id && subs[i].getString('substituto_reserva_id') !== user.id) continue
+          if (
+            subs[i].getString('substituto_principal_id') !== user.id &&
+            subs[i].getString('substituto_reserva_id') !== user.id
+          )
+            continue
           if (!substituicaoVigente(subs[i], hoje)) continue
           if (subs[i].getString('tipo_cobertura') === 'integral') {
             var titularId = subs[i].getString('titular_id')
@@ -135,7 +139,8 @@ routerAdd(
               500,
               0,
             )
-            for (var ti = 0; ti < negociosTitular.length; ti++) pushIdUnico(ids, seen, negociosTitular[ti].id)
+            for (var ti = 0; ti < negociosTitular.length; ti++)
+              pushIdUnico(ids, seen, negociosTitular[ti].id)
           } else {
             var cobertura = subs[i].get('negocios_cobertos') || []
             if (!Array.isArray(cobertura)) cobertura = String(cobertura).split(',')

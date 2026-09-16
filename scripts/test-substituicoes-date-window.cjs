@@ -22,10 +22,13 @@ for (const file of files) {
   const touchesSubstituicoes = src.includes('com_substituicoes')
   check(`${file} toca com_substituicoes`, touchesSubstituicoes)
   const usaJanelaCivil = /00:00:00\.000Z/.test(src) && /23:59:59\.999Z/.test(src)
-  const usaDataCivilJs = src.includes('substituicaoVigente') || src.includes('propostaSubstituicaoVigente')
+  const usaDataCivilJs =
+    src.includes('substituicaoVigente') || src.includes('propostaSubstituicaoVigente')
   check(
     `${file} não compara substituição vigente por data crua`,
-    (usaJanelaCivil || usaDataCivilJs) && !/data_fim >= '\" \+\s*\n\s*hoje\s*\+/m.test(src) && !/data_inicio <= '\" \+\s*\n\s*hoje\s*\+/m.test(src),
+    (usaJanelaCivil || usaDataCivilJs) &&
+      !/data_fim >= '\" \+\s*\n\s*hoje\s*\+/m.test(src) &&
+      !/data_inicio <= '\" \+\s*\n\s*hoje\s*\+/m.test(src),
   )
 }
 
