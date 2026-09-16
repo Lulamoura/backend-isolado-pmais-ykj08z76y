@@ -96,33 +96,50 @@ routerAdd(
       )
     }
 
+    function dataCivil(valor) {
+      return String(valor || '').slice(0, 10)
+    }
+
+    function substituicaoVigente(rec, hoje) {
+      if (!rec || rec.getString('cancelada_em')) return false
+      var inicio = dataCivil(rec.getString('data_inicio'))
+      var fim = dataCivil(rec.getString('data_fim'))
+      return (!inicio || inicio <= hoje) && (!fim || fim >= hoje)
+    }
+
+    function pushIdUnico(ids, seen, id) {
+      id = String(id || '').trim()
+      if (id && !seen[id]) {
+        seen[id] = true
+        ids.push(id)
+      }
+    }
+
     function idsNegociosSubstituidos(app, user) {
       var ids = []
       if (!user || !user.id) return ids
       try {
         var hoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
-        var hojeInicio = hoje + ' 00:00:00.000Z'
-        var hojeFim = hoje + ' 23:59:59.999Z'
-        var filtro =
-          "cancelada_em = null && data_inicio <= '" +
-          hojeFim +
-          "' && data_fim >= '" +
-          hojeInicio +
-          "' && (substituto_principal_id = '" +
-          esc(user.id) +
-          "' || substituto_reserva_id = '" +
-          esc(user.id) +
-          "')"
-        var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
+        var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
         var seen = {}
         for (var i = 0; i < subs.length; i++) {
-          var cobertura = subs[i].get('negocios_cobertos')
-          if (!cobertura || subs[i].getString('tipo_cobertura') === 'integral') continue
-          for (var j = 0; j < cobertura.length; j++) {
-            if (cobertura[j] && !seen[cobertura[j]]) {
-              seen[cobertura[j]] = true
-              ids.push(cobertura[j])
-            }
+          if (subs[i].getString('substituto_principal_id') !== user.id && subs[i].getString('substituto_reserva_id') !== user.id) continue
+          if (!substituicaoVigente(subs[i], hoje)) continue
+          if (subs[i].getString('tipo_cobertura') === 'integral') {
+            var titularId = subs[i].getString('titular_id')
+            if (!titularId) continue
+            var negociosTitular = app.findRecordsByFilter(
+              'com_negocios',
+              "responsavel_id = '" + esc(titularId) + "' && inativo != true",
+              '-updated',
+              500,
+              0,
+            )
+            for (var ti = 0; ti < negociosTitular.length; ti++) pushIdUnico(ids, seen, negociosTitular[ti].id)
+          } else {
+            var cobertura = subs[i].get('negocios_cobertos') || []
+            if (!Array.isArray(cobertura)) cobertura = String(cobertura).split(',')
+            for (var j = 0; j < cobertura.length; j++) pushIdUnico(ids, seen, cobertura[j])
           }
         }
       } catch (_) {}

@@ -21,13 +21,11 @@ for (const file of files) {
   const src = fs.readFileSync(file, 'utf8')
   const touchesSubstituicoes = src.includes('com_substituicoes')
   check(`${file} toca com_substituicoes`, touchesSubstituicoes)
+  const usaJanelaCivil = /00:00:00\.000Z/.test(src) && /23:59:59\.999Z/.test(src)
+  const usaDataCivilJs = src.includes('substituicaoVigente') || src.includes('propostaSubstituicaoVigente')
   check(
-    `${file} usa início do dia civil para data_fim`,
-    /00:00:00\.000Z/.test(src) && !/data_fim >= '\" \+\s*\n\s*hoje\s*\+/m.test(src),
-  )
-  check(
-    `${file} usa fim do dia civil para data_inicio`,
-    /23:59:59\.999Z/.test(src) && !/data_inicio <= '\" \+\s*\n\s*hoje\s*\+/m.test(src),
+    `${file} não compara substituição vigente por data crua`,
+    (usaJanelaCivil || usaDataCivilJs) && !/data_fim >= '\" \+\s*\n\s*hoje\s*\+/m.test(src) && !/data_inicio <= '\" \+\s*\n\s*hoje\s*\+/m.test(src),
   )
 }
 
@@ -44,4 +42,4 @@ check(
     propostas.includes('propostaFiltroIdsNegocios(substituidos)'),
 )
 
-console.log(`\nRESULTADO: ${passed}/${files.length * 3 + 2} aprovados`)
+console.log(`\nRESULTADO: ${passed}/${files.length * 2 + 2} aprovados`)
