@@ -50,6 +50,14 @@
     return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   }
 
+  function propostaInicioDiaUtc(dataCivil) {
+    return dataCivil + ' 00:00:00.000Z'
+  }
+
+  function propostaFimDiaUtc(dataCivil) {
+    return dataCivil + ' 23:59:59.999Z'
+  }
+
   function propostaListaContem(lista, id) {
     if (!lista || !id) return false
     if (Array.isArray(lista)) return lista.indexOf(id) >= 0
@@ -61,13 +69,15 @@
     if (!titularId || !user || !user.id) return false
     try {
       var hoje = propostaHojeRecife()
+      var hojeInicio = propostaInicioDiaUtc(hoje)
+      var hojeFim = propostaFimDiaUtc(hoje)
       var filtro =
         "titular_id='" +
         titularId +
         "' && cancelada_em = null && data_inicio <= '" +
-        hoje +
+        hojeFim +
         "' && data_fim >= '" +
-        hoje +
+        hojeInicio +
         "' && (substituto_principal_id='" +
         user.id +
         "' || substituto_reserva_id='" +
@@ -95,11 +105,13 @@
     if (!user || !user.id) return ids
     try {
       var hoje = propostaHojeRecife()
+      var hojeInicio = propostaInicioDiaUtc(hoje)
+      var hojeFim = propostaFimDiaUtc(hoje)
       var filtro =
         "cancelada_em = null && data_inicio <= '" +
-        hoje +
+        hojeFim +
         "' && data_fim >= '" +
-        hoje +
+        hojeInicio +
         "' && (substituto_principal_id='" +
         user.id +
         "' || substituto_reserva_id='" +
@@ -224,6 +236,12 @@
       function propostaHojeRecife() {
         return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
       }
+      function propostaInicioDiaUtc(dataCivil) {
+        return dataCivil + ' 00:00:00.000Z'
+      }
+      function propostaFimDiaUtc(dataCivil) {
+        return dataCivil + ' 23:59:59.999Z'
+      }
       function propostaListaContem(lista, id) {
         if (!lista || !id) return false
         if (Array.isArray(lista)) return lista.indexOf(id) >= 0
@@ -234,13 +252,15 @@
         if (!titularId || !user || !user.id) return false
         try {
           var hoje = propostaHojeRecife()
+          var hojeInicio = propostaInicioDiaUtc(hoje)
+          var hojeFim = propostaFimDiaUtc(hoje)
           var filtro =
             "titular_id='" +
             titularId +
             "' && cancelada_em = null && data_inicio <= '" +
-            hoje +
+            hojeFim +
             "' && data_fim >= '" +
-            hoje +
+            hojeInicio +
             "' && (substituto_principal_id='" +
             user.id +
             "' || substituto_reserva_id='" +
@@ -266,11 +286,13 @@
         if (!user || !user.id) return ids
         try {
           var hoje = propostaHojeRecife()
+          var hojeInicio = propostaInicioDiaUtc(hoje)
+          var hojeFim = propostaFimDiaUtc(hoje)
           var filtro =
             "cancelada_em = null && data_inicio <= '" +
-            hoje +
+            hojeFim +
             "' && data_fim >= '" +
-            hoje +
+            hojeInicio +
             "' && (substituto_principal_id='" +
             user.id +
             "' || substituto_reserva_id='" +
@@ -702,6 +724,12 @@
       function propostaHojeRecife() {
         return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
       }
+      function propostaInicioDiaUtc(dataCivil) {
+        return dataCivil + ' 00:00:00.000Z'
+      }
+      function propostaFimDiaUtc(dataCivil) {
+        return dataCivil + ' 23:59:59.999Z'
+      }
       function propostaListaContem(lista, id) {
         if (!lista || !id) return false
         if (Array.isArray(lista)) return lista.indexOf(id) >= 0
@@ -1088,6 +1116,14 @@
         return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
       }
 
+      function propostaInicioDiaUtc(dataCivil) {
+        return dataCivil + ' 00:00:00.000Z'
+      }
+
+      function propostaFimDiaUtc(dataCivil) {
+        return dataCivil + ' 23:59:59.999Z'
+      }
+
       function propostaListaContem(lista, id) {
         if (!lista || !id) return false
         if (Array.isArray(lista)) return lista.indexOf(id) >= 0
@@ -1099,13 +1135,15 @@
         if (!titularId || !user || !user.id) return false
         try {
           var hoje = propostaHojeRecife()
+          var hojeInicio = propostaInicioDiaUtc(hoje)
+          var hojeFim = propostaFimDiaUtc(hoje)
           var filtro =
             "titular_id='" +
             titularId +
             "' && cancelada_em = null && data_inicio <= '" +
-            hoje +
+            hojeFim +
             "' && data_fim >= '" +
-            hoje +
+            hojeInicio +
             "' && (substituto_principal_id='" +
             user.id +
             "' || substituto_reserva_id='" +

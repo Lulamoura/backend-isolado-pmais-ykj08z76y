@@ -23,11 +23,11 @@ for (const file of files) {
   check(`${file} toca com_substituicoes`, touchesSubstituicoes)
   check(
     `${file} usa início do dia civil para data_fim`,
-    /00:00:00\.000Z/.test(src) && !/data_fim >= ['"] \+\s*\n\s*hoje\s*\+/.test(src),
+    /00:00:00\.000Z/.test(src) && !/data_fim >= '\" \+\s*\n\s*hoje\s*\+/m.test(src),
   )
   check(
     `${file} usa fim do dia civil para data_inicio`,
-    /23:59:59\.999Z/.test(src) && !/data_inicio <= ['"] \+\s*\n\s*hoje\s*\+/.test(src),
+    /23:59:59\.999Z/.test(src) && !/data_inicio <= '\" \+\s*\n\s*hoje\s*\+/m.test(src),
   )
 }
 
