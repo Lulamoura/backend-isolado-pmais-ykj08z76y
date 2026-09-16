@@ -112,11 +112,7 @@
     try {
       var hoje = propostaHojeRecife()
       var filtro =
-        "substituto_principal_id = '" +
-        user.id +
-        "' || substituto_reserva_id = '" +
-        user.id +
-        "'"
+        "substituto_principal_id = '" + user.id + "' || substituto_reserva_id = '" + user.id + "'"
       var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
       for (var i = 0; i < subs.length; i++) {
         if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
