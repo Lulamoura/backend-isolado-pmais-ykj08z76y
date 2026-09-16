@@ -68,15 +68,14 @@ const checks = [
       hook.includes('propostaFiltroIdsNegocios(substituidos)'),
   ],
   [
-    'substituição compara data civil contra datetime completo',
-    hook.includes('function propostaInicioDiaUtc') &&
-      hook.includes('function propostaFimDiaUtc') &&
-      hook.includes('data_inicio <=') &&
-      hook.includes('hojeFim') &&
-      hook.includes('data_fim >=') &&
-      hook.includes('hojeInicio') &&
-      !hook.includes("data_inicio <= '" + '" +\n        hoje +') &&
-      !hook.includes("data_fim >= '" + '" +\n        hoje +'),
+    'substituição filtra vigência por data civil em JS',
+    hook.includes('function propostaDataCivil') &&
+      hook.includes('function propostaSubstituicaoVigente') &&
+      hook.includes("rec.getString('cancelada_em')") &&
+      hook.includes("rec.getString('data_inicio')") &&
+      hook.includes("rec.getString('data_fim')") &&
+      hook.includes('propostaSubstituicaoVigente(subs[i], hoje)') &&
+      !hook.includes('cancelada_em = null && data_inicio <='),
   ],
   ['idempotência', hook.includes('com_idempotencia') && hook.includes('replay: true')],
   [

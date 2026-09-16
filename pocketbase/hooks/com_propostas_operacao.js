@@ -58,6 +58,17 @@
     return dataCivil + ' 23:59:59.999Z'
   }
 
+  function propostaDataCivil(valor) {
+    return String(valor || '').slice(0, 10)
+  }
+
+  function propostaSubstituicaoVigente(rec, hoje) {
+    if (!rec || rec.getString('cancelada_em')) return false
+    var inicio = propostaDataCivil(rec.getString('data_inicio'))
+    var fim = propostaDataCivil(rec.getString('data_fim'))
+    return (!inicio || inicio <= hoje) && (!fim || fim >= hoje)
+  }
+
   function propostaListaContem(lista, id) {
     if (!lista || !id) return false
     if (Array.isArray(lista)) return lista.indexOf(id) >= 0
@@ -69,15 +80,9 @@
     if (!titularId || !user || !user.id) return false
     try {
       var hoje = propostaHojeRecife()
-      var hojeInicio = propostaInicioDiaUtc(hoje)
-      var hojeFim = propostaFimDiaUtc(hoje)
       var filtro =
         "titular_id = '" +
         titularId +
-        "' && cancelada_em = null && data_inicio <= '" +
-        hojeFim +
-        "' && data_fim >= '" +
-        hojeInicio +
         "' && (substituto_principal_id = '" +
         user.id +
         "' || substituto_reserva_id = '" +
@@ -85,6 +90,7 @@
         "')"
       var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
       for (var i = 0; i < subs.length; i++) {
+        if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
         if (subs[i].getString('tipo_cobertura') === 'integral') return true
         if (propostaListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
       }
@@ -105,20 +111,15 @@
     if (!user || !user.id) return ids
     try {
       var hoje = propostaHojeRecife()
-      var hojeInicio = propostaInicioDiaUtc(hoje)
-      var hojeFim = propostaFimDiaUtc(hoje)
       var filtro =
-        "cancelada_em = null && data_inicio <= '" +
-        hojeFim +
-        "' && data_fim >= '" +
-        hojeInicio +
-        "' && (substituto_principal_id = '" +
+        "substituto_principal_id = '" +
         user.id +
         "' || substituto_reserva_id = '" +
         user.id +
-        "')"
+        "'"
       var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
       for (var i = 0; i < subs.length; i++) {
+        if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
         if (subs[i].getString('tipo_cobertura') === 'integral') {
           var titularId = subs[i].getString('titular_id')
           if (!titularId) continue
@@ -242,6 +243,15 @@
       function propostaFimDiaUtc(dataCivil) {
         return dataCivil + ' 23:59:59.999Z'
       }
+      function propostaDataCivil(valor) {
+        return String(valor || '').slice(0, 10)
+      }
+      function propostaSubstituicaoVigente(rec, hoje) {
+        if (!rec || rec.getString('cancelada_em')) return false
+        var inicio = propostaDataCivil(rec.getString('data_inicio'))
+        var fim = propostaDataCivil(rec.getString('data_fim'))
+        return (!inicio || inicio <= hoje) && (!fim || fim >= hoje)
+      }
       function propostaListaContem(lista, id) {
         if (!lista || !id) return false
         if (Array.isArray(lista)) return lista.indexOf(id) >= 0
@@ -252,15 +262,9 @@
         if (!titularId || !user || !user.id) return false
         try {
           var hoje = propostaHojeRecife()
-          var hojeInicio = propostaInicioDiaUtc(hoje)
-          var hojeFim = propostaFimDiaUtc(hoje)
           var filtro =
             "titular_id = '" +
             titularId +
-            "' && cancelada_em = null && data_inicio <= '" +
-            hojeFim +
-            "' && data_fim >= '" +
-            hojeInicio +
             "' && (substituto_principal_id = '" +
             user.id +
             "' || substituto_reserva_id = '" +
@@ -268,6 +272,7 @@
             "')"
           var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
           for (var i = 0; i < subs.length; i++) {
+            if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
             if (subs[i].getString('tipo_cobertura') === 'integral') return true
             if (propostaListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
           }
@@ -286,20 +291,15 @@
         if (!user || !user.id) return ids
         try {
           var hoje = propostaHojeRecife()
-          var hojeInicio = propostaInicioDiaUtc(hoje)
-          var hojeFim = propostaFimDiaUtc(hoje)
           var filtro =
-            "cancelada_em = null && data_inicio <= '" +
-            hojeFim +
-            "' && data_fim >= '" +
-            hojeInicio +
-            "' && (substituto_principal_id = '" +
+            "substituto_principal_id = '" +
             user.id +
             "' || substituto_reserva_id = '" +
             user.id +
-            "')"
+            "'"
           var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
           for (var i = 0; i < subs.length; i++) {
+            if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
             if (subs[i].getString('tipo_cobertura') === 'integral') {
               var titularId = subs[i].getString('titular_id')
               if (!titularId) continue
@@ -730,6 +730,15 @@
       function propostaFimDiaUtc(dataCivil) {
         return dataCivil + ' 23:59:59.999Z'
       }
+      function propostaDataCivil(valor) {
+        return String(valor || '').slice(0, 10)
+      }
+      function propostaSubstituicaoVigente(rec, hoje) {
+        if (!rec || rec.getString('cancelada_em')) return false
+        var inicio = propostaDataCivil(rec.getString('data_inicio'))
+        var fim = propostaDataCivil(rec.getString('data_fim'))
+        return (!inicio || inicio <= hoje) && (!fim || fim >= hoje)
+      }
       function propostaListaContem(lista, id) {
         if (!lista || !id) return false
         if (Array.isArray(lista)) return lista.indexOf(id) >= 0
@@ -740,15 +749,9 @@
         if (!titularId || !user || !user.id) return false
         try {
           var hoje = propostaHojeRecife()
-          var inicioDia = hoje + ' 00:00:00.000Z'
-          var fimDia = hoje + ' 23:59:59.999Z'
           var filtro =
             "titular_id = '" +
             titularId +
-            "' && cancelada_em = null && data_inicio <= '" +
-            fimDia +
-            "' && data_fim >= '" +
-            inicioDia +
             "' && (substituto_principal_id = '" +
             user.id +
             "' || substituto_reserva_id = '" +
@@ -756,6 +759,7 @@
             "')"
           var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
           for (var i = 0; i < subs.length; i++) {
+            if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
             if (subs[i].getString('tipo_cobertura') === 'integral') return true
             if (propostaListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
           }
@@ -1135,15 +1139,9 @@
         if (!titularId || !user || !user.id) return false
         try {
           var hoje = propostaHojeRecife()
-          var hojeInicio = propostaInicioDiaUtc(hoje)
-          var hojeFim = propostaFimDiaUtc(hoje)
           var filtro =
             "titular_id = '" +
             titularId +
-            "' && cancelada_em = null && data_inicio <= '" +
-            hojeFim +
-            "' && data_fim >= '" +
-            hojeInicio +
             "' && (substituto_principal_id = '" +
             user.id +
             "' || substituto_reserva_id = '" +
@@ -1151,6 +1149,7 @@
             "')"
           var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
           for (var i = 0; i < subs.length; i++) {
+            if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
             if (subs[i].getString('tipo_cobertura') === 'integral') return true
             if (propostaListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
           }
