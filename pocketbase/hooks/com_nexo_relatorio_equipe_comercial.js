@@ -92,6 +92,7 @@ routerAdd(
         modalidade: slug,
         modalidade_label: labels[slug] || slug || 'Não informada',
         total: { quantidade: 0, valor_centavos: 0 },
+        novos_negocios: { quantidade: 0, valor_centavos: 0 },
         ganhos: { quantidade: 0, valor_centavos: 0 },
         perdidos: { quantidade: 0, valor_centavos: 0 },
         abertos: { quantidade: 0, valor_centavos: 0 },
@@ -161,6 +162,14 @@ routerAdd(
       return match ? match[1] : ''
     }
 
+    function safeString(rec, field) {
+      try {
+        return rec.getString(field) || ''
+      } catch (_) {
+        return ''
+      }
+    }
+
     function dentroPeriodo(value, params) {
       var key = civilKey(value)
       if (!key) return false
@@ -170,8 +179,8 @@ routerAdd(
     }
 
     function abertoNoCorte(rec, corte) {
-      if (rec.getString('resultado')) return false
-      var criado = civilKey(rec.getString('crm_created_at') || rec.getString('created'))
+      if (safeString(rec, 'resultado')) return false
+      var criado = civilKey(safeString(rec, 'crm_created_at') || safeString(rec, 'created'))
       return !!criado && criado <= corte
     }
 
@@ -431,8 +440,8 @@ routerAdd(
         )
           modalidade = 'serv_eventual'
         var valor = centavos(rec.get('valor'))
-        var fechamentoData = rec.getString('fechamento_data') || ''
-        var crmCreated = rec.getString('crm_created_at') || rec.getString('created') || ''
+        var fechamentoData = safeString(rec, 'fechamento_data')
+        var crmCreated = safeString(rec, 'crm_created_at') || safeString(rec, 'created')
         var situacao = classificarSituacao(rec)
         var entra = false
         if (
@@ -496,7 +505,8 @@ routerAdd(
       formulas: {
         total_exibido:
           'ganhos_no_periodo + perdidos_no_periodo + carteira_aberta_no_fim_do_periodo',
-        novos_negocios: 'crm_created_at dentro do periodo selecionado',
+        novos_negocios:
+          'crm_created_at quando existir; fallback para created dentro do periodo selecionado',
         ganhos: 'resultado ganho com fechamento_data dentro do periodo selecionado',
         perdidos:
           'resultado perdido/desqualificado com fechamento_data dentro do periodo selecionado',
@@ -511,7 +521,7 @@ routerAdd(
         'Endpoint somente leitura: não cria, altera, envia, publica ou sincroniza dados.',
         'Valores monetários estão em centavos; valores zero e um centavo não entram nas somas monetárias.',
         'Ganhos e perdidos são contabilizados pela data de fechamento; abertos representam a carteira ativa na data final do período.',
-        'Novos negócios no período são métrica separada e usam a data de criação no CRM quando disponível.',
+        'Novos negócios no período são métrica separada e usam a data de criação no CRM quando disponível; caso contrário usam a data de criação no app.',
         'Negócios abertos entram na carteira, mas não entram no denominador das taxas de conversão.',
         'Negócios em qualificação ou sem responsável comercial não compõem este relatório gerencial.',
         'Negócios sem modalidade oficial são classificados como Serv. Eventual até saneamento da origem.',

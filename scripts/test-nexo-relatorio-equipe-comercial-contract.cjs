@@ -78,8 +78,8 @@ assert.match(
 )
 assert.match(
   hook,
-  /novos_negocios: 'crm_created_at dentro do periodo selecionado'/,
-  'novos negócios devem ser métrica separada baseada em crm_created_at',
+  /novos_negocios: 'crm_created_at quando existir; fallback para created dentro do periodo selecionado'/,
+  'novos negócios devem ser métrica separada baseada em crm_created_at, com fallback para created',
 )
 assert.match(
   hook,
