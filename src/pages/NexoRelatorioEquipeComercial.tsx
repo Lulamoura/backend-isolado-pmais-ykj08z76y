@@ -39,10 +39,10 @@ function dataBr(data: string | null | undefined) {
 
 function LinhaValor({ titulo, indicador }: { titulo: string; indicador: IndicadorVolumeValor }) {
   return (
-    <div className="rounded-2xl border border-zinc-400/60 bg-zinc-600 p-4 text-white shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{titulo}</p>
+    <div className="rounded-2xl border border-zinc-300 bg-zinc-500 p-4 text-white shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-white">{titulo}</p>
       <p className="mt-2 text-3xl font-black leading-none">{indicador.quantidade}</p>
-      <p className="mt-2 text-sm font-medium text-slate-200">
+      <p className="mt-2 text-sm font-medium text-white">
         {dinheiro(indicador.valor_centavos)}
       </p>
     </div>
@@ -75,6 +75,7 @@ function ModalidadesTable({ modalidades }: { modalidades: ModalidadeRelatorioEqu
           <tr>
             <th className="px-4 py-3">Modalidade</th>
             <th className="px-4 py-3">Total</th>
+            <th className="px-4 py-3">Novos</th>
             <th className="px-4 py-3">Ganhos</th>
             <th className="px-4 py-3">Perdidos</th>
             <th className="px-4 py-3">Abertos</th>
@@ -90,6 +91,9 @@ function ModalidadesTable({ modalidades }: { modalidades: ModalidadeRelatorioEqu
               </td>
               <td className="px-4 py-3">
                 {modalidade.total.quantidade} · {dinheiro(modalidade.total.valor_centavos)}
+              </td>
+              <td className="px-4 py-3">
+                {modalidade.novos_negocios.quantidade} · {dinheiro(modalidade.novos_negocios.valor_centavos)}
               </td>
               <td className="px-4 py-3">
                 {modalidade.ganhos.quantidade} · {dinheiro(modalidade.ganhos.valor_centavos)}
@@ -137,6 +141,10 @@ function OperadoraCard({ item }: { item: OperadoraRelatorioEquipe }) {
         <LinhaValor titulo="Ganhos" indicador={item.indicadores.ganhos} />
         <LinhaValor titulo="Perdidos" indicador={item.indicadores.perdidos} />
         <LinhaValor titulo="Abertos" indicador={item.indicadores.abertos} />
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <LinhaValor titulo="Novos no período" indicador={item.indicadores.novos_negocios} />
+        <LinhaValor titulo="Movimento + carteira" indicador={item.indicadores.total} />
       </div>
 
       <div className="mt-5 space-y-2">
@@ -189,8 +197,8 @@ export default function NexoRelatorioEquipeComercial() {
               equipe comercial
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/90">
-              Visão executiva condensada por período, modalidade e responsável. O relatório é
-              somente leitura e respeita o perfil de acesso do usuário logado.
+              Visão executiva por movimento do período, carteira aberta no corte, modalidade e
+              responsável. O relatório é somente leitura e respeita o perfil de acesso do usuário logado.
             </p>
           </div>
           <Badge className="border-violet-300/50 bg-white/10 text-violet-50 hover:bg-white/10">
@@ -250,7 +258,8 @@ export default function NexoRelatorioEquipeComercial() {
                 <CardTitle>Relatório consolidado</CardTitle>
                 <CardDescription>
                   Período: {dataBr(relatorio.periodo.inicio)} a {dataBr(relatorio.periodo.fim)} ·
-                  Escopo: {relatorio.escopo}
+                  Carteira aberta no corte: {dataBr(relatorio.periodo.corte_carteira_aberta)} · Escopo:{' '}
+                  {relatorio.escopo}
                 </CardDescription>
               </div>
               <Badge variant="outline">
@@ -260,12 +269,18 @@ export default function NexoRelatorioEquipeComercial() {
           </CardHeader>
           <CardContent className="max-h-[calc(100vh-11rem)] space-y-6 overflow-y-auto pr-2">
             <section>
-              <div className="grid gap-4 md:grid-cols-4">
-                <LinhaValor titulo="Volume total" indicador={relatorio.resumo_geral.total} />
+              <div className="grid gap-4 md:grid-cols-5">
+                <LinhaValor titulo="Movimento + carteira" indicador={relatorio.resumo_geral.total} />
+                <LinhaValor titulo="Novos no período" indicador={relatorio.resumo_geral.novos_negocios} />
                 <LinhaValor titulo="Ganhos" indicador={relatorio.resumo_geral.ganhos} />
                 <LinhaValor titulo="Perdidos" indicador={relatorio.resumo_geral.perdidos} />
                 <LinhaValor titulo="Abertos" indicador={relatorio.resumo_geral.abertos} />
               </div>
+              <p className="mt-3 text-xs leading-5 text-slate-600">
+                Ganhos e perdidos usam a data de fechamento dentro do período. Abertos representam
+                a carteira ativa na data final. Novos negócios são medidos separadamente pela data
+                de criação no CRM quando disponível.
+              </p>
             </section>
 
             <section className="grid gap-4 md:grid-cols-2">

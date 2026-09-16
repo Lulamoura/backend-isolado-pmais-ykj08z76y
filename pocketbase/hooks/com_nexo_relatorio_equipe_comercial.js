@@ -92,6 +92,7 @@ routerAdd(
         modalidade: slug,
         modalidade_label: labels[slug] || slug || 'Não informada',
         total: { quantidade: 0, valor_centavos: 0 },
+        novos_negocios: { quantidade: 0, valor_centavos: 0 },
         ganhos: { quantidade: 0, valor_centavos: 0 },
         perdidos: { quantidade: 0, valor_centavos: 0 },
         abertos: { quantidade: 0, valor_centavos: 0 },
@@ -103,6 +104,7 @@ routerAdd(
     function indicadorBase() {
       return {
         total: { quantidade: 0, valor_centavos: 0 },
+        novos_negocios: { quantidade: 0, valor_centavos: 0 },
         ganhos: { quantidade: 0, valor_centavos: 0 },
         perdidos: { quantidade: 0, valor_centavos: 0 },
         abertos: { quantidade: 0, valor_centavos: 0 },
@@ -131,9 +133,12 @@ routerAdd(
       }
     }
 
+    function acumularNovo(bucket, valor) {
+      bucket.novos_negocios.quantidade++
+      if (valor > 1) bucket.novos_negocios.valor_centavos += valor
+    }
+
     function acumular(bucket, situacao, valor) {
-      bucket.total.quantidade++
-      if (valor > 1) bucket.total.valor_centavos += valor
       if (situacao === 'ganho') {
         bucket.ganhos.quantidade++
         if (valor > 1) bucket.ganhos.valor_centavos += valor
@@ -144,6 +149,37 @@ routerAdd(
         bucket.abertos.quantidade++
         if (valor > 1) bucket.abertos.valor_centavos += valor
       }
+      bucket.total.quantidade =
+        bucket.ganhos.quantidade + bucket.perdidos.quantidade + bucket.abertos.quantidade
+      bucket.total.valor_centavos =
+        bucket.ganhos.valor_centavos + bucket.perdidos.valor_centavos + bucket.abertos.valor_centavos
+    }
+
+    function civilKey(value) {
+      var match = String(value || '').match(/^(\d{4}-\d{2}-\d{2})/)
+      return match ? match[1] : ''
+    }
+
+    function safeString(rec, field) {
+      try {
+        return rec.getString(field) || ''
+      } catch (_) {
+        return ''
+      }
+    }
+
+    function dentroPeriodo(value, params) {
+      var key = civilKey(value)
+      if (!key) return false
+      if (params.inicio && key < params.inicio) return false
+      if (params.fim && key > params.fim) return false
+      return true
+    }
+
+    function abertoNoCorte(rec, corte) {
+      if (safeString(rec, 'resultado')) return false
+      var criado = civilKey(safeString(rec, 'crm_created_at') || safeString(rec, 'created'))
+      return !!criado && criado <= corte
     }
 
     function fecharIndicadores(ind) {
@@ -277,8 +313,6 @@ routerAdd(
         "responsavel_id != ''",
         "(etapa != 'prospects' || qualificacao != 'pendente')",
       ]
-      if (params.inicio) parts.push("created >= '" + civilStartUtc(params.inicio) + "'")
-      if (params.fim) parts.push("created < '" + civilStartUtc(nextCivilDate(params.fim)) + "'")
       if (params.equipe_id) parts.push("equipe_id = '" + esc(params.equipe_id) + "'")
       if (params.responsavel_id) parts.push("responsavel_id = '" + esc(params.responsavel_id) + "'")
       if (escopo.scope === 'proprios') parts.push("responsavel_id = '" + esc(e.auth.id) + "'")
@@ -314,6 +348,10 @@ routerAdd(
             '</td><td>' +
             money(m.total.valor_centavos) +
             '</td><td>' +
+            m.novos_negocios.quantidade +
+            '</td><td>' +
+            money(m.novos_negocios.valor_centavos) +
+            '</td><td>' +
             m.ganhos.quantidade +
             '</td><td>' +
             money(m.ganhos.valor_centavos) +
@@ -332,13 +370,13 @@ routerAdd(
           htmlEsc(op.operadora.nome) +
           '</h2><div class="kpis"><div><b>' +
           op.indicadores.total.quantidade +
-          '</b><span>negócios</span></div><div><b>' +
+          '</b><span>movimento + carteira</span></div><div><b>' +
           money(op.indicadores.total.valor_centavos) +
           '</b><span>valor total</span></div><div><b>' +
           pct(op.indicadores.conversao_global_percentual) +
           '</b><span>conversão global</span></div><div><b>' +
           pct(op.indicadores.conversao_qualitativa_valor_percentual) +
-          '</b><span>conversão por valor</span></div></div><table><thead><tr><th>Modalidade</th><th>Total</th><th>Valor</th><th>Ganhos</th><th>Valor ganho</th><th>Perdidos</th><th>Valor perdido</th><th>Conv.</th><th>Conv. valor</th></tr></thead><tbody>' +
+          '</b><span>conversão por valor</span></div></div><table><thead><tr><th>Modalidade</th><th>Total</th><th>Valor</th><th>Novos</th><th>Valor novos</th><th>Ganhos</th><th>Valor ganho</th><th>Perdidos</th><th>Valor perdido</th><th>Conv.</th><th>Conv. valor</th></tr></thead><tbody>' +
           rows +
           '</tbody></table></section>'
       }
@@ -349,13 +387,15 @@ routerAdd(
         htmlEsc(payload.periodo.fim || 'fim aberto') +
         '</p><section class="hero"><div class="kpis"><div><b>' +
         payload.resumo_geral.total.quantidade +
-        '</b><span>negócios totais</span></div><div><b>' +
+        '</b><span>movimento + carteira</span></div><div><b>' +
         money(payload.resumo_geral.total.valor_centavos) +
         '</b><span>valor total</span></div><div><b>' +
+        payload.resumo_geral.novos_negocios.quantidade +
+        '</b><span>novos negócios</span></div><div><b>' +
         pct(payload.resumo_geral.conversao_global_percentual) +
         '</b><span>conversão global</span></div><div><b>' +
         pct(payload.resumo_geral.conversao_qualitativa_valor_percentual) +
-        '</b><span>conversão por valor</span></div></div><p class="note">Base somente leitura. Abertos não entram no denominador das conversões.</p></section>' +
+        '</b><span>conversão por valor</span></div></div><p class="note">Ganhos/perdidos usam data de fechamento. Abertos representam carteira ativa no corte. Novos negócios são métrica separada.</p></section>' +
         cards +
         '</main></body></html>'
       )
@@ -374,6 +414,7 @@ routerAdd(
     if (!escopo.scope) return e.forbiddenError('Permissao dashboard.view necessaria')
 
     var filter = filtroNegocios(params, escopo)
+    var corteCarteira = params.fim || hojeRecife()
     var resumoGeral = indicadorBase()
     var porOperadora = {}
     var offset = 0
@@ -397,7 +438,20 @@ routerAdd(
         )
           modalidade = 'serv_eventual'
         var valor = centavos(rec.get('valor'))
+        var fechamentoData = safeString(rec, 'fechamento_data')
+        var crmCreated = safeString(rec, 'crm_created_at') || safeString(rec, 'created')
         var situacao = classificarSituacao(rec)
+        var entra = false
+        if ((situacao === 'ganho' || situacao === 'perdido') && dentroPeriodo(fechamentoData, params))
+          entra = true
+        if (situacao === 'aberto' && abertoNoCorte(rec, corteCarteira)) entra = true
+        if (dentroPeriodo(crmCreated, params)) {
+          acumularNovo(resumoGeral, valor)
+          acumularNovo(resumoGeral.modalidades[modalidade], valor)
+          acumularNovo(porOperadora[responsavelId].indicadores, valor)
+          acumularNovo(porOperadora[responsavelId].indicadores.modalidades[modalidade], valor)
+        }
+        if (!entra) continue
         acumular(resumoGeral, situacao, valor)
         acumular(resumoGeral.modalidades[modalidade], situacao, valor)
         acumular(porOperadora[responsavelId].indicadores, situacao, valor)
@@ -430,7 +484,8 @@ routerAdd(
         inicio: params.inicio || null,
         fim: params.fim || null,
         data_civil: 'America/Recife',
-        campo: 'created',
+        campo: 'fechamento_data_para_decisoes__carteira_aberta_no_fim__crm_created_at_para_novos',
+        corte_carteira_aberta: corteCarteira,
       },
       escopo: escopo.scope,
       filtros: {
@@ -443,6 +498,12 @@ routerAdd(
         { slug: 'serv_eventual', label: 'Serv. Eventual' },
       ],
       formulas: {
+        total_exibido:
+          'ganhos_no_periodo + perdidos_no_periodo + carteira_aberta_no_fim_do_periodo',
+        novos_negocios: 'crm_created_at quando existir; fallback para created dentro do periodo selecionado',
+        ganhos: 'resultado ganho com fechamento_data dentro do periodo selecionado',
+        perdidos: 'resultado perdido/desqualificado com fechamento_data dentro do periodo selecionado',
+        abertos: 'sem resultado, criado ate o fim do periodo e ainda ativo no corte',
         taxa_conversao_global: 'ganhos_quantidade / (ganhos_quantidade + perdidos_quantidade)',
         taxa_qualitativa_valor:
           'valor_ganho_centavos / (valor_ganho_centavos + valor_perdido_centavos)',
@@ -452,7 +513,9 @@ routerAdd(
       avisos: [
         'Endpoint somente leitura: não cria, altera, envia, publica ou sincroniza dados.',
         'Valores monetários estão em centavos; valores zero e um centavo não entram nas somas monetárias.',
-        'Negócios abertos entram em volume/carteira, mas não entram no denominador das taxas de conversão.',
+        'Ganhos e perdidos são contabilizados pela data de fechamento; abertos representam a carteira ativa na data final do período.',
+        'Novos negócios no período são métrica separada e usam a data de criação no CRM quando disponível; caso contrário usam a data de criação no app.',
+        'Negócios abertos entram na carteira, mas não entram no denominador das taxas de conversão.',
         'Negócios em qualificação ou sem responsável comercial não compõem este relatório gerencial.',
         'Negócios sem modalidade oficial são classificados como Serv. Eventual até saneamento da origem.',
       ],

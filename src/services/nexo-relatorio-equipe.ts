@@ -7,6 +7,7 @@ export interface IndicadorVolumeValor {
 
 export interface IndicadoresRelatorioEquipe {
   total: IndicadorVolumeValor
+  novos_negocios: IndicadorVolumeValor
   ganhos: IndicadorVolumeValor
   perdidos: IndicadorVolumeValor
   abertos: IndicadorVolumeValor
@@ -19,6 +20,7 @@ export interface ModalidadeRelatorioEquipe {
   modalidade: string
   modalidade_label: string
   total: IndicadorVolumeValor
+  novos_negocios: IndicadorVolumeValor
   ganhos: IndicadorVolumeValor
   perdidos: IndicadorVolumeValor
   abertos: IndicadorVolumeValor
@@ -43,7 +45,8 @@ export interface RelatorioEquipeComercialResponse {
     inicio: string | null
     fim: string | null
     data_civil: 'America/Recife'
-    campo: 'created'
+    campo: 'fechamento_data_para_decisoes__carteira_aberta_no_fim__crm_created_at_para_novos'
+    corte_carteira_aberta: string
   }
   escopo: 'proprios' | 'equipe' | 'todos'
   filtros: {
