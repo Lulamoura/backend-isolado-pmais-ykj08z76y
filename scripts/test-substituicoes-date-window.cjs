@@ -32,9 +32,16 @@ for (const file of files) {
 }
 
 const opcoes = fs.readFileSync('pocketbase/hooks/com_negocios_opcoes_cobertura.js', 'utf8')
-check('opções de cobertura busca negócio coberto por substituição vigente', opcoes.includes('idsNegociosSubstituidos') && opcoes.includes('filtroSubs'))
+check(
+  'opções de cobertura busca negócio coberto por substituição vigente',
+  opcoes.includes('idsNegociosSubstituidos') && opcoes.includes('filtroSubs'),
+)
 
 const propostas = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
-check('fila de propostas preserva negócio coberto por substituição vigente', propostas.includes('propostaIdsNegociosSubstituidos') && propostas.includes('propostaFiltroIdsNegocios(substituidos)'))
+check(
+  'fila de propostas preserva negócio coberto por substituição vigente',
+  propostas.includes('propostaIdsNegociosSubstituidos') &&
+    propostas.includes('propostaFiltroIdsNegocios(substituidos)'),
+)
 
 console.log(`\nRESULTADO: ${passed}/${files.length * 3 + 2} aprovados`)

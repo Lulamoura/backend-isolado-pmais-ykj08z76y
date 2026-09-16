@@ -159,7 +159,6 @@ describe('NexoBusinessActions', () => {
     expect(screen.queryByText('Diagnóstico comercial')).not.toBeInTheDocument()
   })
 
-
   it('mostra alerta vermelho somente quando há fallback do modelo', async () => {
     gerarAjudaNexoNegocio.mockResolvedValue({
       ...ajuda,

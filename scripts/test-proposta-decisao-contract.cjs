@@ -64,7 +64,9 @@ const checks = [
   ['UI não envia e-mail ou WhatsApp', !page.includes('Resend') && !page.includes('WhatsApp')],
   [
     'sino inclui aceite e recusa pública',
-    alertas.includes("tipo='pagina_acessada' || tipo='aceite_confirmado' || tipo='recusa_confirmada'") &&
+    alertas.includes(
+      "tipo='pagina_acessada' || tipo='aceite_confirmado' || tipo='recusa_confirmada'",
+    ) &&
       service.includes("tipo: 'pagina_acessada' | 'aceite_confirmado' | 'recusa_confirmada'") &&
       sino.includes('Proposta aceita') &&
       sino.includes('Proposta recusada'),
