@@ -156,7 +156,11 @@
           var lista = subs[i].get('negocios_cobertos') || []
           if (!Array.isArray(lista)) {
             var listaTexto = ''
-            try { listaTexto = JSON.stringify(lista) } catch (_) { listaTexto = String(lista || '') }
+            try {
+              listaTexto = JSON.stringify(lista)
+            } catch (_) {
+              listaTexto = String(lista || '')
+            }
             lista = listaTexto.match(/[a-z0-9]{15}/g) || String(lista || '').split(',')
           }
           for (var li = 0; li < lista.length; li++) {
@@ -360,7 +364,11 @@
               var lista = subs[i].get('negocios_cobertos') || []
               if (!Array.isArray(lista)) {
                 var listaTexto = ''
-                try { listaTexto = JSON.stringify(lista) } catch (_) { listaTexto = String(lista || '') }
+                try {
+                  listaTexto = JSON.stringify(lista)
+                } catch (_) {
+                  listaTexto = String(lista || '')
+                }
                 lista = listaTexto.match(/[a-z0-9]{15}/g) || String(lista || '').split(',')
               }
               for (var li = 0; li < lista.length; li++) {
