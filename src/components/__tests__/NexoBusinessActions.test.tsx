@@ -61,6 +61,20 @@ const ajuda = {
   resposta_curta:
     'Leitura breve: a proposta está em negociação e Brenda aguarda análise da gestora de RH.\n\nSugestão de follow-up: Olá, Brenda. Conseguiu algum retorno da análise do RH? Se houver dúvida sobre escopo ou operação, posso ajudar a organizar os pontos para facilitar a decisão.\n\nDica extra: registre o prazo informado pela gestora.',
   aviso: 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
+  modelo: 'nexo_hermes',
+  provider: 'nexo_hermes',
+  gateway_provider: 'pmais_agent_gateway',
+  fallback: false,
+  auditoria_geracao: {
+    origem: 'nexo_hermes',
+    provider: 'nexo_hermes',
+    gateway_provider: 'pmais_agent_gateway',
+    modelo: 'nexo_hermes',
+    fallback: false,
+    segundo_cerebro_usado: true,
+    segundo_cerebro_fontes: ['CONTRATO-OPERACIONAL.md'],
+    audit_id: 'nexo-4792-123',
+  },
 }
 
 const ajudaWhatsapp = {
@@ -112,6 +126,10 @@ describe('NexoBusinessActions', () => {
     expect(screen.queryByText('Perguntas críticas')).not.toBeInTheDocument()
     expect(screen.queryByText('Riscos percebidos')).not.toBeInTheDocument()
     expect(screen.queryByText('Diagnóstico comercial')).not.toBeInTheDocument()
+    expect(screen.queryByText('Detalhes da geração')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Falha de acionamento de modelo - Avisar administrador do sistema.'),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText(/App: ok/i)).not.toBeInTheDocument()
     expect(
       screen.queryByText('Cliente aguardando análise pela gestora de RH.'),
@@ -139,6 +157,33 @@ describe('NexoBusinessActions', () => {
     expect(screen.queryByText('Perguntas críticas')).not.toBeInTheDocument()
     expect(screen.queryByText('Riscos percebidos')).not.toBeInTheDocument()
     expect(screen.queryByText('Diagnóstico comercial')).not.toBeInTheDocument()
+  })
+
+
+  it('mostra alerta vermelho somente quando há fallback do modelo', async () => {
+    gerarAjudaNexoNegocio.mockResolvedValue({
+      ...ajuda,
+      fallback: true,
+      auditoria_geracao: {
+        ...ajuda.auditoria_geracao,
+        fallback: true,
+        origem: 'fallback_local',
+        provider: 'fallback_local',
+      },
+    })
+    const user = userEvent.setup()
+    render(
+      <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
+    await screen.findByText('Escolha a ajuda do Nexo')
+    await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
+
+    expect(
+      await screen.findByText('Falha de acionamento de modelo - Avisar administrador do sistema.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Detalhes da geração')).not.toBeInTheDocument()
   })
 
   it('não mostra e-mail de envio de proposta dentro da modal Ajuda do Nexo', async () => {
