@@ -72,7 +72,16 @@
   function propostaListaContem(lista, id) {
     if (!lista || !id) return false
     if (Array.isArray(lista)) return lista.indexOf(id) >= 0
-    return String(lista).indexOf(id) >= 0
+    if (typeof lista.length === 'number' && typeof lista !== 'string') {
+      for (var i = 0; i < lista.length; i++) if (String(lista[i] || '') === id) return true
+    }
+    var texto = ''
+    try {
+      texto = JSON.stringify(lista)
+    } catch (_) {
+      texto = String(lista || '')
+    }
+    return texto.indexOf(id) >= 0
   }
 
   function propostaSubstituicaoAutoriza(app, user, negocio) {
@@ -145,7 +154,11 @@
           }
         } else {
           var lista = subs[i].get('negocios_cobertos') || []
-          if (!Array.isArray(lista)) lista = String(lista).split(',')
+          if (!Array.isArray(lista)) {
+            var listaTexto = ''
+            try { listaTexto = JSON.stringify(lista) } catch (_) { listaTexto = String(lista || '') }
+            lista = listaTexto.match(/[a-z0-9]{15}/g) || String(lista || '').split(',')
+          }
           for (var li = 0; li < lista.length; li++) {
             var id = String(lista[li] || '').trim()
             if (id && !vistos[id]) {
@@ -262,7 +275,16 @@
       function propostaListaContem(lista, id) {
         if (!lista || !id) return false
         if (Array.isArray(lista)) return lista.indexOf(id) >= 0
-        return String(lista).indexOf(id) >= 0
+        if (typeof lista.length === 'number' && typeof lista !== 'string') {
+          for (var i = 0; i < lista.length; i++) if (String(lista[i] || '') === id) return true
+        }
+        var texto = ''
+        try {
+          texto = JSON.stringify(lista)
+        } catch (_) {
+          texto = String(lista || '')
+        }
+        return texto.indexOf(id) >= 0
       }
       function propostaSubstituicaoAutoriza(app, user, negocio) {
         var titularId = negocio.getString('responsavel_id')
@@ -336,7 +358,11 @@
               }
             } else {
               var lista = subs[i].get('negocios_cobertos') || []
-              if (!Array.isArray(lista)) lista = String(lista).split(',')
+              if (!Array.isArray(lista)) {
+                var listaTexto = ''
+                try { listaTexto = JSON.stringify(lista) } catch (_) { listaTexto = String(lista || '') }
+                lista = listaTexto.match(/[a-z0-9]{15}/g) || String(lista || '').split(',')
+              }
               for (var li = 0; li < lista.length; li++) {
                 var id = String(lista[li] || '').trim()
                 if (id && !vistos[id]) {
@@ -760,7 +786,16 @@
       function propostaListaContem(lista, id) {
         if (!lista || !id) return false
         if (Array.isArray(lista)) return lista.indexOf(id) >= 0
-        return String(lista).indexOf(id) >= 0
+        if (typeof lista.length === 'number' && typeof lista !== 'string') {
+          for (var i = 0; i < lista.length; i++) if (String(lista[i] || '') === id) return true
+        }
+        var texto = ''
+        try {
+          texto = JSON.stringify(lista)
+        } catch (_) {
+          texto = String(lista || '')
+        }
+        return texto.indexOf(id) >= 0
       }
       function propostaSubstituicaoAutoriza(app, user, negocio) {
         var titularId = negocio.getString('responsavel_id')
@@ -1155,7 +1190,16 @@
       function propostaListaContem(lista, id) {
         if (!lista || !id) return false
         if (Array.isArray(lista)) return lista.indexOf(id) >= 0
-        return String(lista).indexOf(id) >= 0
+        if (typeof lista.length === 'number' && typeof lista !== 'string') {
+          for (var i = 0; i < lista.length; i++) if (String(lista[i] || '') === id) return true
+        }
+        var texto = ''
+        try {
+          texto = JSON.stringify(lista)
+        } catch (_) {
+          texto = String(lista || '')
+        }
+        return texto.indexOf(id) >= 0
       }
 
       function propostaSubstituicaoAutoriza(app, user, negocio) {

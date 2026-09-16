@@ -115,6 +115,24 @@ routerAdd(
       }
     }
 
+    function idsDaCobertura(valor) {
+      if (!valor) return []
+      if (Array.isArray(valor)) return valor
+      if (typeof valor.length === 'number' && typeof valor !== 'string') {
+        var arr = []
+        for (var i = 0; i < valor.length; i++) arr.push(valor[i])
+        return arr
+      }
+      var texto = ''
+      try {
+        texto = JSON.stringify(valor)
+      } catch (_) {
+        texto = String(valor || '')
+      }
+      var ids = texto.match(/[a-z0-9]{15}/g) || []
+      return ids.length ? ids : String(valor || '').split(',')
+    }
+
     function idsNegociosSubstituidos(app, user) {
       var ids = []
       if (!user || !user.id) return ids
@@ -142,8 +160,7 @@ routerAdd(
             for (var ti = 0; ti < negociosTitular.length; ti++)
               pushIdUnico(ids, seen, negociosTitular[ti].id)
           } else {
-            var cobertura = subs[i].get('negocios_cobertos') || []
-            if (!Array.isArray(cobertura)) cobertura = String(cobertura).split(',')
+            var cobertura = idsDaCobertura(subs[i].get('negocios_cobertos'))
             for (var j = 0; j < cobertura.length; j++) pushIdUnico(ids, seen, cobertura[j])
           }
         }
