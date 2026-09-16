@@ -588,7 +588,9 @@
                 if (
                   negocioSubstituidoFila &&
                   !negocioSubstituidoFila.getBool('inativo') &&
-                  ['producao_proposta', 'negociacao'].indexOf(negocioSubstituidoFila.getString('etapa')) >= 0
+                  ['producao_proposta', 'negociacao'].indexOf(
+                    negocioSubstituidoFila.getString('etapa'),
+                  ) >= 0
                 ) {
                   negocios.push(negocioSubstituidoFila)
                   vistosNegociosFila[idSubstituidoFila] = true
