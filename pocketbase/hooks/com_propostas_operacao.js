@@ -575,6 +575,28 @@
             0,
           ),
           itens = []
+        if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva') {
+          try {
+            var idsSubstituidosFila = propostaIdsNegociosSubstituidos($app, ator)
+            var vistosNegociosFila = {}
+            for (var vi = 0; vi < negocios.length; vi++) vistosNegociosFila[negocios[vi].id] = true
+            for (var si = 0; si < idsSubstituidosFila.length; si++) {
+              var idSubstituidoFila = idsSubstituidosFila[si]
+              if (!idSubstituidoFila || vistosNegociosFila[idSubstituidoFila]) continue
+              try {
+                var negocioSubstituidoFila = $app.findRecordById('com_negocios', idSubstituidoFila)
+                if (
+                  negocioSubstituidoFila &&
+                  !negocioSubstituidoFila.getBool('inativo') &&
+                  ['producao_proposta', 'negociacao'].indexOf(negocioSubstituidoFila.getString('etapa')) >= 0
+                ) {
+                  negocios.push(negocioSubstituidoFila)
+                  vistosNegociosFila[idSubstituidoFila] = true
+                }
+              } catch (_) {}
+            }
+          } catch (_) {}
+        }
         for (var i = 0; i < negocios.length; i++) {
           var n = negocios[i],
             proposta = null,
