@@ -101,11 +101,13 @@ routerAdd(
       if (!user || !user.id) return ids
       try {
         var hoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        var hojeInicio = hoje + ' 00:00:00.000Z'
+        var hojeFim = hoje + ' 23:59:59.999Z'
         var filtro =
           "cancelada_em = null && data_inicio <= '" +
-          hoje +
+          hojeFim +
           "' && data_fim >= '" +
-          hoje +
+          hojeInicio +
           "' && (substituto_principal_id='" +
           esc(user.id) +
           "' || substituto_reserva_id='" +

@@ -23,6 +23,12 @@ routerAdd(
     function hojeRecife() {
       return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
     }
+    function inicioDiaUtc(dataCivil) {
+      return dataCivil + ' 00:00:00.000Z'
+    }
+    function fimDiaUtc(dataCivil) {
+      return dataCivil + ' 23:59:59.999Z'
+    }
     function listaContem(lista, id) {
       if (!lista || !id) return false
       if (Array.isArray(lista)) return lista.indexOf(id) >= 0
@@ -33,13 +39,15 @@ routerAdd(
       if (!titularId || !user || !user.id) return false
       try {
         var hoje = hojeRecife()
+        var hojeInicio = inicioDiaUtc(hoje)
+        var hojeFim = fimDiaUtc(hoje)
         var filtro =
           "titular_id='" +
           titularId +
           "' && cancelada_em = null && data_inicio <= '" +
-          hoje +
+          hojeFim +
           "' && data_fim >= '" +
-          hoje +
+          hojeInicio +
           "' && (substituto_principal_id='" +
           user.id +
           "' || substituto_reserva_id='" +
@@ -275,6 +283,12 @@ routerAdd(
     function hojeRecife() {
       return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
     }
+    function inicioDiaUtc(dataCivil) {
+      return dataCivil + ' 00:00:00.000Z'
+    }
+    function fimDiaUtc(dataCivil) {
+      return dataCivil + ' 23:59:59.999Z'
+    }
     function listaContem(lista, id) {
       if (!lista || !id) return false
       if (Array.isArray(lista)) return lista.indexOf(id) >= 0
@@ -285,13 +299,15 @@ routerAdd(
       if (!titularId || !user || !user.id) return false
       try {
         var hoje = hojeRecife()
+        var hojeInicio = inicioDiaUtc(hoje)
+        var hojeFim = fimDiaUtc(hoje)
         var filtro =
           "titular_id='" +
           titularId +
           "' && cancelada_em = null && data_inicio <= '" +
-          hoje +
+          hojeFim +
           "' && data_fim >= '" +
-          hoje +
+          hojeInicio +
           "' && (substituto_principal_id='" +
           user.id +
           "' || substituto_reserva_id='" +

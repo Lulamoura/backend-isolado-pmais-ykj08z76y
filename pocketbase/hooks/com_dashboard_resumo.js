@@ -317,11 +317,13 @@ routerAdd(
       var ids = []
       if (!actorId) return ids
       try {
+        var hojeInicio = hoje + ' 00:00:00.000Z'
+        var hojeFim = hoje + ' 23:59:59.999Z'
         var filtro =
           "cancelada_em = null && data_inicio <= '" +
-          hoje +
+          hojeFim +
           "' && data_fim >= '" +
-          hoje +
+          hojeInicio +
           "' && (substituto_principal_id='" +
           actorId +
           "' || substituto_reserva_id='" +
