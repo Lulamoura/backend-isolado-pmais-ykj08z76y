@@ -88,8 +88,10 @@
         "' || substituto_reserva_id = '" +
         user.id +
         "')"
-      var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
+      var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
       for (var i = 0; i < subs.length; i++) {
+        if (subs[i].getString('titular_id') !== titularId) continue
+        if (subs[i].getString('substituto_principal_id') !== user.id && subs[i].getString('substituto_reserva_id') !== user.id) continue
         if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
         if (subs[i].getString('tipo_cobertura') === 'integral') return true
         if (propostaListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
@@ -112,9 +114,14 @@
     try {
       var hoje = propostaHojeRecife()
       var filtro =
-        "substituto_principal_id = '" + user.id + "' || substituto_reserva_id = '" + user.id + "'"
-      var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
+        "substituto_principal_id = '" +
+        user.id +
+        "' || substituto_reserva_id = '" +
+        user.id +
+        "'"
+      var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
       for (var i = 0; i < subs.length; i++) {
+        if (subs[i].getString('substituto_principal_id') !== user.id && subs[i].getString('substituto_reserva_id') !== user.id) continue
         if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
         if (subs[i].getString('tipo_cobertura') === 'integral') {
           var titularId = subs[i].getString('titular_id')
@@ -266,8 +273,10 @@
             "' || substituto_reserva_id = '" +
             user.id +
             "')"
-          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
+          var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
           for (var i = 0; i < subs.length; i++) {
+            if (subs[i].getString('titular_id') !== titularId) continue
+            if (subs[i].getString('substituto_principal_id') !== user.id && subs[i].getString('substituto_reserva_id') !== user.id) continue
             if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
             if (subs[i].getString('tipo_cobertura') === 'integral') return true
             if (propostaListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
@@ -293,8 +302,9 @@
             "' || substituto_reserva_id = '" +
             user.id +
             "'"
-          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 100, 0)
+          var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
           for (var i = 0; i < subs.length; i++) {
+            if (subs[i].getString('substituto_principal_id') !== user.id && subs[i].getString('substituto_reserva_id') !== user.id) continue
             if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
             if (subs[i].getString('tipo_cobertura') === 'integral') {
               var titularId = subs[i].getString('titular_id')
@@ -753,8 +763,10 @@
             "' || substituto_reserva_id = '" +
             user.id +
             "')"
-          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
+          var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
           for (var i = 0; i < subs.length; i++) {
+            if (subs[i].getString('titular_id') !== titularId) continue
+            if (subs[i].getString('substituto_principal_id') !== user.id && subs[i].getString('substituto_reserva_id') !== user.id) continue
             if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
             if (subs[i].getString('tipo_cobertura') === 'integral') return true
             if (propostaListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
@@ -1143,8 +1155,10 @@
             "' || substituto_reserva_id = '" +
             user.id +
             "')"
-          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '', 20, 0)
+          var subs = app.findRecordsByFilter('com_substituicoes', '', '-created', 500, 0)
           for (var i = 0; i < subs.length; i++) {
+            if (subs[i].getString('titular_id') !== titularId) continue
+            if (subs[i].getString('substituto_principal_id') !== user.id && subs[i].getString('substituto_reserva_id') !== user.id) continue
             if (!propostaSubstituicaoVigente(subs[i], hoje)) continue
             if (subs[i].getString('tipo_cobertura') === 'integral') return true
             if (propostaListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
