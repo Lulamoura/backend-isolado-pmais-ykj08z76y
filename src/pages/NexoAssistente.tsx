@@ -333,9 +333,12 @@ export default function NexoAssistente() {
             e conversões.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-wrap gap-3">
           <Button asChild>
             <Link to="/nexo/relatorio-equipe-comercial">Abrir relatório da equipe comercial</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/nexo/ipcp-simulacao">Abrir piloto gerencial do IPCP</Link>
           </Button>
         </CardContent>
       </Card>

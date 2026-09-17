@@ -8,7 +8,9 @@ vi.mock('@/lib/pocketbase/client', () => ({
 
 import {
   IPCP_DIARIO_READONLY_PATH,
+  IPCP_SIMULACAO_READONLY_PATH,
   obterIpcpDiarioReadOnly,
+  obterIpcpSimulacaoReadOnly,
   ipcpDiarioFixtureHomologado,
 } from '@/services/ipcp'
 
@@ -41,5 +43,33 @@ describe('obterIpcpDiarioReadOnly', () => {
     expect(data).toBe(ipcpDiarioFixtureHomologado)
     expect(data.read_only).toBe(true)
     expect(data.sem_mutacao).toBe(true)
+  })
+
+  it('consulta a simulação read-only com evidências e escopo de equipe', async () => {
+    pbSend.mockResolvedValue({
+      ...ipcpDiarioFixtureHomologado,
+      modo: 'simulacao',
+      simulacao: {
+        ativa: true,
+        colecao_snapshot_criada: false,
+        gravacao_snapshot_realizada: false,
+        job_automatico_ativo: false,
+      },
+    })
+
+    const data = await obterIpcpSimulacaoReadOnly()
+
+    expect(pbSend).toHaveBeenCalledWith(
+      `${IPCP_SIMULACAO_READONLY_PATH}?incluir_evidencias=true&escopo=equipe`,
+      { method: 'GET' },
+    )
+    expect(data.modo).toBe('simulacao')
+    expect(data.simulacao?.gravacao_snapshot_realizada).toBe(false)
+  })
+
+  it('rejeita simulação sem garantias read-only', async () => {
+    pbSend.mockResolvedValue({ ...ipcpDiarioFixtureHomologado, modo: 'simulacao', sem_mutacao: false })
+
+    await expect(obterIpcpSimulacaoReadOnly()).rejects.toThrow(/read-only/i)
   })
 })

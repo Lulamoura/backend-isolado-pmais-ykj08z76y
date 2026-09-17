@@ -20,6 +20,7 @@ import OrdensExecucao from './pages/OrdensExecucao'
 import PropostaPublica from './pages/PropostaPublica'
 import NexoAssistente from './pages/NexoAssistente'
 import NexoRelatorioEquipeComercial from './pages/NexoRelatorioEquipeComercial'
+import IpcpSimulacaoGerencial from './pages/IpcpSimulacaoGerencial'
 
 import NotFound from './pages/NotFound'
 import AccessDenied from './pages/AccessDenied'
@@ -101,6 +102,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <NexoRelatorioEquipeComercial />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/nexo/ipcp-simulacao"
+                element={
+                  <ProtectedRoute>
+                    <IpcpSimulacaoGerencial />
                   </ProtectedRoute>
                 }
               />
