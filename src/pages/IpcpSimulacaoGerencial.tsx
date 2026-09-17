@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   criarIpcpSnapshotSimulado,
+  executarIpcpProcessamentoDiarioHomologacao,
   obterIpcpSimulacaoReadOnly,
   type IpcpDiarioReadOnly,
   type IpcpSnapshotSimuladoResponse,
@@ -109,6 +110,8 @@ export default function IpcpSimulacaoGerencial() {
   const [snapshot, setSnapshot] = useState<IpcpSnapshotSimuladoResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [processamentoExecutado, setProcessamentoExecutado] = useState(false)
   const [erro, setErro] = useState('')
 
   async function carregar() {
@@ -132,6 +135,7 @@ export default function IpcpSimulacaoGerencial() {
     setErro('')
     try {
       setSnapshot(await criarIpcpSnapshotSimulado())
+      setProcessamentoExecutado(false)
     } catch (error) {
       setErro(
         error instanceof Error
@@ -140,6 +144,23 @@ export default function IpcpSimulacaoGerencial() {
       )
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function executarProcessamentoDiario() {
+    setProcessing(true)
+    setErro('')
+    try {
+      setSnapshot(await executarIpcpProcessamentoDiarioHomologacao())
+      setProcessamentoExecutado(true)
+    } catch (error) {
+      setErro(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível executar o processamento diário controlado do IPCP.',
+      )
+    } finally {
+      setProcessing(false)
     }
   }
 
@@ -177,7 +198,7 @@ export default function IpcpSimulacaoGerencial() {
           </Link>
         </Button>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => void carregar()} disabled={loading || saving} variant="outline">
+          <Button onClick={() => void carregar()} disabled={loading || saving || processing} variant="outline">
             {loading ? (
               <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -185,9 +206,17 @@ export default function IpcpSimulacaoGerencial() {
             )}
             Atualizar simulação
           </Button>
-          <Button onClick={() => void gravarSnapshotSimulado()} disabled={!data || loading || saving}>
+          <Button onClick={() => void gravarSnapshotSimulado()} disabled={!data || loading || saving || processing}>
             {saving ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : null}
             Gravar snapshot simulado
+          </Button>
+          <Button
+            onClick={() => void executarProcessamentoDiario()}
+            disabled={!data || loading || saving || processing}
+            variant="secondary"
+          >
+            {processing ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Processar dia em homologação
           </Button>
         </div>
       </div>
@@ -202,7 +231,11 @@ export default function IpcpSimulacaoGerencial() {
       {snapshot ? (
         <Alert>
           <ShieldCheck aria-hidden="true" className="h-4 w-4" />
-          <AlertTitle>Snapshot simulado gravado para homologação</AlertTitle>
+          <AlertTitle>
+            {processamentoExecutado
+              ? 'Processamento diário executado em homologação'
+              : 'Snapshot simulado gravado para homologação'}
+          </AlertTitle>
           <AlertDescription>
             Registro {snapshot.snapshot.id} · {snapshot.snapshot.data_referencia} ·{' '}
             {snapshot.snapshot.escopo}. Job automático permanece inativo.
