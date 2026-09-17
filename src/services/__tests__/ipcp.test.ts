@@ -8,6 +8,7 @@ vi.mock('@/lib/pocketbase/client', () => ({
 
 import {
   IPCP_DIARIO_READONLY_PATH,
+  IPCP_JOB_DIARIO_HOMOLOGACAO_STATUS_PATH,
   IPCP_PROCESSAMENTO_DIARIO_HOMOLOGACAO_PATH,
   IPCP_SIMULACAO_READONLY_PATH,
   IPCP_SNAPSHOT_SIMULADO_PATH,
@@ -15,6 +16,7 @@ import {
   executarIpcpProcessamentoDiarioHomologacao,
   obterIpcpDiarioReadOnly,
   obterIpcpSimulacaoReadOnly,
+  obterStatusIpcpJobDiarioHomologacao,
   ipcpDiarioFixtureHomologado,
 } from '@/services/ipcp'
 
@@ -170,5 +172,30 @@ describe('obterIpcpDiarioReadOnly', () => {
     })
     expect(data.processamento_diario?.agendamento_automatico_ativo).toBe(false)
     expect(data.processamento_diario?.producao_publicada).toBe(false)
+  })
+
+  it('consulta o status do job diário de homologação', async () => {
+    pbSend.mockResolvedValue({
+      ok: true,
+      job: {
+        ativo: true,
+        ambiente: 'homologacao_preview',
+        horario_recife: '19:00',
+        cron_utc: '0 22 * * *',
+        agendamento_automatico_ativo: true,
+        producao_publicada: false,
+        sem_crm_write: true,
+        sem_envio: true,
+      },
+    })
+
+    const data = await obterStatusIpcpJobDiarioHomologacao()
+
+    expect(pbSend).toHaveBeenCalledWith(IPCP_JOB_DIARIO_HOMOLOGACAO_STATUS_PATH, {
+      method: 'GET',
+    })
+    expect(data.job.ativo).toBe(true)
+    expect(data.job.producao_publicada).toBe(false)
+    expect(data.job.sem_crm_write).toBe(true)
   })
 })

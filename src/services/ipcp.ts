@@ -93,6 +93,8 @@ export const IPCP_SIMULACAO_READONLY_PATH = '/backend/v1/ipcp/simulacao'
 export const IPCP_SNAPSHOT_SIMULADO_PATH = '/backend/v1/ipcp/snapshots/simulado'
 export const IPCP_PROCESSAMENTO_DIARIO_HOMOLOGACAO_PATH =
   '/backend/v1/ipcp/processamento-diario/homologacao'
+export const IPCP_JOB_DIARIO_HOMOLOGACAO_STATUS_PATH =
+  '/backend/v1/ipcp/job-diario/homologacao/status'
 
 export type IpcpSnapshotSimuladoResponse = {
   ok: true
@@ -114,6 +116,20 @@ export type IpcpSnapshotSimuladoResponse = {
     homologacao: true
     agendamento_automatico_ativo: false
     producao_publicada: false
+  }
+}
+
+export type IpcpJobDiarioHomologacaoStatus = {
+  ok: true
+  job: {
+    ativo: boolean
+    ambiente: 'homologacao_preview'
+    horario_recife: string
+    cron_utc: string
+    agendamento_automatico_ativo: boolean
+    producao_publicada: false
+    sem_crm_write: true
+    sem_envio: true
   }
 }
 
@@ -255,6 +271,22 @@ export async function executarIpcpProcessamentoDiarioHomologacao(): Promise<Ipcp
     data?.processamento_diario?.producao_publicada !== false
   ) {
     throw new Error('Resposta de processamento diário IPCP sem garantias de homologação.')
+  }
+  return data
+}
+
+export async function obterStatusIpcpJobDiarioHomologacao(): Promise<IpcpJobDiarioHomologacaoStatus> {
+  const data = await pb.send<IpcpJobDiarioHomologacaoStatus>(
+    IPCP_JOB_DIARIO_HOMOLOGACAO_STATUS_PATH,
+    { method: 'GET' },
+  )
+  if (
+    data?.job?.ativo !== true ||
+    data?.job?.ambiente !== 'homologacao_preview' ||
+    data?.job?.producao_publicada !== false ||
+    data?.job?.sem_crm_write !== true
+  ) {
+    throw new Error('Status do job diário IPCP sem garantias de homologação.')
   }
   return data
 }

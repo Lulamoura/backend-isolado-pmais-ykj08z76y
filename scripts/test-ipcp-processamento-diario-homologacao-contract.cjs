@@ -3,8 +3,9 @@ const path = require('node:path')
 
 const hookPath = path.join(__dirname, '..', 'pocketbase', 'hooks', 'com_ipcp_diario.js')
 const source = fs.readFileSync(hookPath, 'utf8')
-const postSource =
+const postSource = (
   source.split("routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao'")[1] || ''
+).split('var IPCP_JOB_DIARIO_HOMOLOGACAO_ATIVO')[0]
 
 function assert(condition, message) {
   if (!condition) {

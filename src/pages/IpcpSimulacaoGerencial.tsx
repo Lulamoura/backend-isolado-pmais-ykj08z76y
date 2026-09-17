@@ -11,7 +11,9 @@ import {
   criarIpcpSnapshotSimulado,
   executarIpcpProcessamentoDiarioHomologacao,
   obterIpcpSimulacaoReadOnly,
+  obterStatusIpcpJobDiarioHomologacao,
   type IpcpDiarioReadOnly,
+  type IpcpJobDiarioHomologacaoStatus,
   type IpcpSnapshotSimuladoResponse,
 } from '@/services/ipcp'
 
@@ -106,9 +108,38 @@ function EvidenciasResumo({ data }: { data: IpcpDiarioReadOnly }) {
   )
 }
 
+function JobDiarioStatus({ status }: { status: IpcpJobDiarioHomologacaoStatus | null }) {
+  if (!status) return null
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Rotina diária em homologação</CardTitle>
+        <CardDescription>
+          Execução automática ativa apenas no Preview de homologação. Produção continua bloqueada.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3 md:grid-cols-4">
+        <Badge className="justify-center bg-emerald-700 py-2 text-white hover:bg-emerald-700">
+          Ativa em homologação
+        </Badge>
+        <Badge variant="outline" className="justify-center py-2">
+          Horário: {status.job.horario_recife}
+        </Badge>
+        <Badge variant="outline" className="justify-center py-2">
+          Produção: bloqueada
+        </Badge>
+        <Badge variant="outline" className="justify-center py-2">
+          CRM: sem alteração
+        </Badge>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function IpcpSimulacaoGerencial() {
   const [data, setData] = useState<IpcpDiarioReadOnly | null>(null)
   const [snapshot, setSnapshot] = useState<IpcpSnapshotSimuladoResponse | null>(null)
+  const [jobStatus, setJobStatus] = useState<IpcpJobDiarioHomologacaoStatus | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -119,7 +150,12 @@ export default function IpcpSimulacaoGerencial() {
     setLoading(true)
     setErro('')
     try {
-      setData(await obterIpcpSimulacaoReadOnly())
+      const [simulacao, statusJob] = await Promise.all([
+        obterIpcpSimulacaoReadOnly(),
+        obterStatusIpcpJobDiarioHomologacao(),
+      ])
+      setData(simulacao)
+      setJobStatus(statusJob)
     } catch (error) {
       setErro(
         error instanceof Error
@@ -273,6 +309,7 @@ export default function IpcpSimulacaoGerencial() {
               </CardDescription>
             </CardHeader>
           </Card>
+          <JobDiarioStatus status={jobStatus} />
           <SimulacaoGuardrails data={data} snapshot={snapshot} />
           <IpcpEducativoDiarioCard data={data} />
           <EvidenciasResumo data={data} />
