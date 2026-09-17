@@ -147,6 +147,9 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
                   {formatScore(data.ipcp.total)}
                   <span className="text-base font-semibold text-slate-500">/100</span>
                 </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Índice de Performance Comercial PMais — leitura educativa da rotina comercial.
+                </p>
                 <p className="mt-1 text-xs text-slate-500">
                   A nota é leitura secundária. A rotina deve priorizar as ações recomendadas.
                 </p>

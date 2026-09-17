@@ -197,6 +197,11 @@ describe('Operação do Dia', () => {
     expect(screen.getByText('Prioridades do dia')).toBeInTheDocument()
     expect(screen.getByText('Negócios que merecem atenção')).toBeInTheDocument()
     expect(screen.getByText('IPCP do dia')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Índice de Performance Comercial PMais — leitura educativa da rotina comercial.',
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByText('Atualização diária')).toBeInTheDocument()
     const resultadoButton = screen.getByRole('button', { name: /Explicar Resultado comercial/i })
     expect(resultadoButton).not.toHaveAttribute('title')
