@@ -2,7 +2,11 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 const hookPath = path.join(__dirname, '..', 'pocketbase', 'hooks', 'com_ipcp_diario.js')
-const source = fs.readFileSync(hookPath, 'utf8')
+const servicePath = path.join(__dirname, '..', 'src', 'services', 'ipcp.ts')
+const pagePath = path.join(__dirname, '..', 'src', 'pages', 'IpcpSimulacaoGerencial.tsx')
+const hookSource = fs.readFileSync(hookPath, 'utf8')
+const serviceSource = fs.readFileSync(servicePath, 'utf8')
+const pageSource = fs.readFileSync(pagePath, 'utf8')
 
 function assert(condition, message) {
   if (!condition) {
@@ -11,16 +15,14 @@ function assert(condition, message) {
   }
 }
 
-assert(source.includes('IPCP_JOB_DIARIO_HOMOLOGACAO_ATIVO = true'), 'job de homologação deve estar ativo no Preview')
-assert(source.includes("IPCP_JOB_DIARIO_HOMOLOGACAO_CRON_UTC = '0 22 * * *'"), 'cron deve rodar 19:00 Recife / 22:00 UTC')
-assert(source.includes("routerAdd('GET', '/backend/v1/ipcp/job-diario/homologacao/status'"), 'deve expor status do job')
-assert(source.includes("cronAdd('ipcp_processamento_diario_homologacao'"), 'deve registrar cron do processamento diário')
-assert(source.includes("contrato: 'ipcp_job_diario_homologacao_v0_1'"), 'payload do cron deve ter contrato próprio')
-assert(source.includes("record.set('origem', 'ipcp_job_diario_homologacao_automatico')"), 'origem deve identificar job automático')
-assert(source.includes('producao_publicada: false'), 'produção deve continuar bloqueada')
-assert(source.includes('sem_crm_write: true'), 'job não pode escrever no CRM')
-assert(source.includes('sem_envio: true'), 'job não pode fazer envio externo')
-assert(source.includes('somente_colecao_snapshot: true'), 'job deve gravar somente snapshot')
-assert(!/cronAdd\('ipcp_processamento_diario_producao'/.test(source), 'não deve haver cron de produção')
+assert(!/cronAdd\(/.test(hookSource), 'app não deve registrar cron interno enquanto Produção estiver bloqueada')
+assert(serviceSource.includes("horario_recife: '19:00'"), 'status da rotina deve mostrar horário Recife')
+assert(serviceSource.includes('agendamento_automatico_ativo: true'), 'status deve indicar automação de homologação ativa')
+assert(serviceSource.includes('producao_publicada: false'), 'status deve manter Produção bloqueada')
+assert(serviceSource.includes('sem_crm_write: true'), 'status deve manter CRM sem alteração')
+assert(pageSource.includes('Rotina diária em homologação'), 'tela deve exibir status da rotina diária')
+assert(pageSource.includes('Ativa em homologação'), 'tela deve informar que está ativa em homologação')
+assert(pageSource.includes('Produção: bloqueada'), 'tela deve deixar claro que Produção segue bloqueada')
+assert(pageSource.includes('CRM: sem alteração'), 'tela deve deixar claro que CRM não é alterado')
 
 console.log('OK: contrato IPCP job diario homologacao protegido')
