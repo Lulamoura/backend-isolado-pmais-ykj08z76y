@@ -69,6 +69,14 @@ export type IpcpDiarioReadOnly = {
     gravacao_snapshot_realizada: boolean
     job_automatico_ativo: boolean
   }
+  snapshot?: {
+    id: string
+    key: string
+    modo: 'simulado'
+    status: 'homologacao'
+    data_referencia: string
+    escopo: 'proprio' | 'equipe' | 'todos'
+  }
   evidencias?: {
     criterio: string
     fonte: string
@@ -82,6 +90,24 @@ export type IpcpDiarioReadOnly = {
 
 export const IPCP_DIARIO_READONLY_PATH = '/backend/v1/ipcp/diario'
 export const IPCP_SIMULACAO_READONLY_PATH = '/backend/v1/ipcp/simulacao'
+export const IPCP_SNAPSHOT_SIMULADO_PATH = '/backend/v1/ipcp/snapshots/simulado'
+
+export type IpcpSnapshotSimuladoResponse = {
+  ok: true
+  replay?: boolean
+  contrato: 'ipcp_snapshot_simulado_v0_1'
+  snapshot: NonNullable<IpcpDiarioReadOnly['snapshot']>
+  simulacao: NonNullable<IpcpDiarioReadOnly['simulacao']>
+  guardrails: {
+    sem_ranking_punitivo: true
+    fallback_openai_bloqueado: true
+    sem_envio: true
+    sem_crm_write: true
+    sem_job_automatico: true
+    somente_colecao_snapshot: true
+    homologacao_preview: true
+  }
+}
 
 export const ipcpDiarioFixtureHomologado: IpcpDiarioReadOnly = {
   contrato: 'ipcp_diario_readonly_v0_2',
@@ -178,6 +204,26 @@ export async function obterIpcpSimulacaoReadOnly(): Promise<IpcpDiarioReadOnly> 
   )
   if (data?.read_only !== true || data?.sem_mutacao !== true || data?.modo !== 'simulacao') {
     throw new Error('Resposta de simulação IPCP sem garantias read-only.')
+  }
+  return data
+}
+
+export async function criarIpcpSnapshotSimulado(): Promise<IpcpSnapshotSimuladoResponse> {
+  const data = await pb.send<IpcpSnapshotSimuladoResponse>(IPCP_SNAPSHOT_SIMULADO_PATH, {
+    method: 'POST',
+    body: {
+      confirmacao: 'CRIAR_SNAPSHOT_SIMULADO_IPCP',
+      escopo: 'equipe',
+    },
+  })
+  if (
+    data?.contrato !== 'ipcp_snapshot_simulado_v0_1' ||
+    data?.simulacao?.gravacao_snapshot_realizada !== true ||
+    data?.simulacao?.job_automatico_ativo !== false ||
+    data?.guardrails?.sem_crm_write !== true ||
+    data?.guardrails?.somente_colecao_snapshot !== true
+  ) {
+    throw new Error('Resposta de snapshot IPCP sem garantias de homologação.')
   }
   return data
 }

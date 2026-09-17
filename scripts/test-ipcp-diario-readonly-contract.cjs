@@ -3,6 +3,7 @@ const path = require('node:path')
 
 const hookPath = path.join(__dirname, '..', 'pocketbase', 'hooks', 'com_ipcp_diario.js')
 const source = fs.readFileSync(hookPath, 'utf8')
+const readonlySource = source.split("routerAdd('POST', '/backend/v1/ipcp/snapshots/simulado'")[0]
 
 function assert(condition, message) {
   if (!condition) {
@@ -26,10 +27,10 @@ assert(source.includes('fallback_openai_bloqueado: true'), 'deve bloquear fallba
 assert(source.includes("provider_oficial_followup: 'nexo_hermes'"), 'deve exigir Nexo/Hermes')
 assert(source.includes('sem_snapshot: true'), 'não deve criar snapshot nesta etapa')
 assert(source.includes('sem_job_automatico: true'), 'não deve ativar job automático nesta etapa')
-assert(!/\$app\.save\s*\(/.test(source), 'endpoint read-only não pode usar $app.save')
-assert(!/\.save\s*\(/.test(source), 'endpoint read-only não pode usar save')
-assert(!/\$app\.delete\s*\(/.test(source), 'endpoint read-only não pode usar $app.delete')
-assert(!/\.delete\s*\(/.test(source), 'endpoint read-only não pode usar delete')
-assert(!/send\s*\(/.test(source), 'endpoint read-only não pode acionar envio externo')
+assert(!/\$app\.save\s*\(/.test(readonlySource), 'endpoint read-only não pode usar $app.save')
+assert(!/\.save\s*\(/.test(readonlySource), 'endpoint read-only não pode usar save')
+assert(!/\$app\.delete\s*\(/.test(readonlySource), 'endpoint read-only não pode usar $app.delete')
+assert(!/\.delete\s*\(/.test(readonlySource), 'endpoint read-only não pode usar delete')
+assert(!/send\s*\(/.test(readonlySource), 'endpoint read-only não pode acionar envio externo')
 
 console.log('OK: contrato IPCP read-only protegido')
