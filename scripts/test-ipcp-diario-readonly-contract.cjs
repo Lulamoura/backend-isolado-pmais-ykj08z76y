@@ -15,6 +15,10 @@ assert(
   source.includes("routerAdd('GET', '/backend/v1/ipcp/diario'"),
   'deve registrar GET /backend/v1/ipcp/diario',
 )
+assert(
+  source.includes("routerAdd('GET', '/backend/v1/ipcp/simulacao'"),
+  'deve registrar GET /backend/v1/ipcp/simulacao',
+)
 assert(source.includes("contrato: 'ipcp_diario_readonly_v0_2'"), 'deve declarar contrato v0.2')
 assert(source.includes('read_only: true'), 'deve retornar read_only=true')
 assert(source.includes('sem_mutacao: true'), 'deve retornar sem_mutacao=true')
