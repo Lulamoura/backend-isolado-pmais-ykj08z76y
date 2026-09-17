@@ -20,14 +20,21 @@ function dataBr(data: string) {
   return `${partes[2]}/${partes[1]}/${partes[0]}`
 }
 
-function SimulacaoGuardrails({ data }: { data: IpcpDiarioReadOnly }) {
-  const simulacao = data.simulacao
+function SimulacaoGuardrails({
+  data,
+  snapshot,
+}: {
+  data: IpcpDiarioReadOnly
+  snapshot?: IpcpSnapshotSimuladoResponse | null
+}) {
+  const simulacao = snapshot?.simulacao ?? data.simulacao
   return (
     <Card>
       <CardHeader>
         <CardTitle>Guardrails da simulação</CardTitle>
         <CardDescription>
-          Leitura piloto para gestão, sem persistência e sem job automático.
+          Leitura piloto para gestão, com snapshot simulado apenas quando autorizado e sem job
+          automático.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-4">
@@ -126,12 +133,13 @@ export default function IpcpSimulacaoGerencial() {
               Simulação do Índice de Performance Comercial PMais
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-100/90">
-              Leitura da simulação read-only para homologar fórmula, escopo e apresentação antes de
-              qualquer snapshot persistido ou rotina automática.
+              Leitura da simulação para homologar fórmula, escopo, apresentação e snapshot
+              controlado antes de qualquer rotina automática.
             </p>
           </div>
           <Badge className="border-emerald-300/50 bg-white/10 text-emerald-50 hover:bg-white/10">
-            <ShieldCheck aria-hidden="true" className="mr-1 h-3.5 w-3.5" /> Sem gravação
+            <ShieldCheck aria-hidden="true" className="mr-1 h-3.5 w-3.5" />{' '}
+            {snapshot ? 'Snapshot simulado' : 'Sem gravação'}
           </Badge>
         </div>
       </section>
@@ -199,7 +207,7 @@ export default function IpcpSimulacaoGerencial() {
               </CardDescription>
             </CardHeader>
           </Card>
-          <SimulacaoGuardrails data={data} />
+          <SimulacaoGuardrails data={data} snapshot={snapshot} />
           <IpcpEducativoDiarioCard data={data} />
           <EvidenciasResumo data={data} />
         </>
