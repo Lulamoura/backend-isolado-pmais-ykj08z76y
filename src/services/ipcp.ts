@@ -26,9 +26,17 @@ export type IpcpDiarioReadOnly = {
   contrato: 'ipcp_diario_readonly_v0_2' | 'nexo_ipcp_diario_v1'
   read_only: true
   sem_mutacao: true
+  modo?: 'diario' | 'simulacao'
   formula_version: string
   data_referencia: string
   atualizacao: 'diaria'
+  escopo?: {
+    tipo: 'proprio' | 'equipe' | 'todos'
+    responsavel_id: string
+    responsavel_nome: string
+    pode_ver_equipe: boolean
+    pode_ver_todos?: boolean
+  }
   resumo_nexo: {
     texto: string
     prioridades: IpcpPrioridadeDia[]
@@ -52,10 +60,28 @@ export type IpcpDiarioReadOnly = {
     sem_recalculo_tempo_real: true
     fallback_openai_bloqueado: true
     provider_oficial_followup: 'nexo_hermes'
+    sem_snapshot?: true
+    sem_job_automatico?: true
+  }
+  simulacao?: {
+    ativa: boolean
+    colecao_snapshot_criada: boolean
+    gravacao_snapshot_realizada: boolean
+    job_automatico_ativo: boolean
+  }
+  evidencias?: {
+    criterio: string
+    fonte: string
+    exemplos: Array<{
+      bloco: IpcpBlocoId
+      sinal: string
+      acao: string
+    }>
   }
 }
 
 export const IPCP_DIARIO_READONLY_PATH = '/backend/v1/ipcp/diario'
+export const IPCP_SIMULACAO_READONLY_PATH = '/backend/v1/ipcp/simulacao'
 
 export const ipcpDiarioFixtureHomologado: IpcpDiarioReadOnly = {
   contrato: 'ipcp_diario_readonly_v0_2',
@@ -143,4 +169,15 @@ export async function obterIpcpDiarioReadOnly(): Promise<IpcpDiarioReadOnly> {
     // Mantém a tela educativa funcional se o Preview ainda não tiver materializado o hook.
   }
   return ipcpDiarioFixtureHomologado
+}
+
+export async function obterIpcpSimulacaoReadOnly(): Promise<IpcpDiarioReadOnly> {
+  const data = await pb.send<IpcpDiarioReadOnly>(
+    `${IPCP_SIMULACAO_READONLY_PATH}?incluir_evidencias=true&escopo=equipe`,
+    { method: 'GET' },
+  )
+  if (data?.read_only !== true || data?.sem_mutacao !== true || data?.modo !== 'simulacao') {
+    throw new Error('Resposta de simulação IPCP sem garantias read-only.')
+  }
+  return data
 }
