@@ -8,6 +8,7 @@ const listarOrdensExecucao = vi.hoisted(() => vi.fn())
 const listarFechamentos = vi.hoisted(() => vi.fn())
 const listarPropostasSemAbertura = vi.hoisted(() => vi.fn())
 const useDashboardResumo = vi.hoisted(() => vi.fn())
+const pbSend = vi.hoisted(() => vi.fn())
 const perfil = vi.hoisted(() => ({ slug: 'gestor-comercial' }))
 
 vi.mock('@/services/atividades', () => ({ listarFilaAtividades }))
@@ -15,6 +16,7 @@ vi.mock('@/services/slas', () => ({ listarSlas }))
 vi.mock('@/services/ordens-execucao', () => ({ listarOrdensExecucao }))
 vi.mock('@/services/fechamentos', () => ({ listarFechamentos }))
 vi.mock('@/services/propostas', () => ({ listarPropostasSemAbertura }))
+vi.mock('@/lib/pocketbase/client', () => ({ default: { send: pbSend } }))
 vi.mock('@/hooks/use-dashboard', () => ({ useDashboardResumo }))
 vi.mock('@/hooks/use-is-superadmin', () => ({
   useIsSuperAdmin: () => ({ perfilSlug: perfil.slug, loading: false, isSuperAdmin: false }),
@@ -41,6 +43,43 @@ beforeEach(() => {
     itens: [{ agenda: { estado: 'ativa' } }, { agenda: null }],
   })
   listarPropostasSemAbertura.mockResolvedValue({ itens: [], limite_dias_uteis: 2 })
+  pbSend.mockResolvedValue({
+    contrato: 'ipcp_diario_readonly_v0_2',
+    read_only: true,
+    sem_mutacao: true,
+    formula_version: 'ipcp_v0_2_simulacao_readonly_ia_followup',
+    data_referencia: '2026-09-17',
+    atualizacao: 'diaria',
+    resumo_nexo: {
+      texto: 'Texto vindo do endpoint read-only do IPCP.',
+      prioridades: [
+        {
+          titulo: 'Prioridade vinda do endpoint',
+          motivo: 'Mantém a tela alimentada pela rota read-only.',
+          bloco_afetado: 'qualidade_followup',
+        },
+      ],
+    },
+    ipcp: {
+      total: 61.2,
+      blocos: {
+        resultado_comercial: 20.9,
+        valor_estrategico: 5.9,
+        disciplina_carteira: 13.3,
+        qualidade_followup: 9.7,
+        registros_aprendizado: 5.5,
+      },
+      cobertura_ia: { avaliados: 63, total: 63, pendentes: 0 },
+    },
+    negocios_atencao: [],
+    evolucao: { status: 'sem_historico', comentario: 'Sem histórico.' },
+    guardrails: {
+      sem_ranking_punitivo: true,
+      sem_recalculo_tempo_real: true,
+      fallback_openai_bloqueado: true,
+      provider_oficial_followup: 'nexo_hermes',
+    },
+  })
   useDashboardResumo.mockReturnValue({
     data: {
       escopo: 'proprios',
@@ -151,22 +190,23 @@ describe('Operação do Dia', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByText('Orientação do Nexo para hoje')).toBeInTheDocument()
-    expect(screen.getByText('Indicador educativo atualizado diariamente')).toBeInTheDocument()
+    expect(await screen.findByText('Texto vindo do endpoint read-only do IPCP.')).toBeInTheDocument()
+    expect(pbSend).toHaveBeenCalledWith('/backend/v1/ipcp/diario', { method: 'GET' })
     expect(screen.getByText('Prioridades do dia')).toBeInTheDocument()
     expect(screen.getByText('Negócios que merecem atenção')).toBeInTheDocument()
     expect(screen.getByText('IPCP do dia')).toBeInTheDocument()
     expect(screen.getByText('Atualização diária')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Explicar Resultado comercial/i })).toHaveAttribute(
-      'title',
+    const resultadoButton = screen.getByRole('button', { name: /Explicar Resultado comercial/i })
+    expect(resultadoButton).not.toHaveAttribute('title')
+    expect(resultadoButton).toHaveAccessibleDescription(
       expect.stringContaining('ganhos, conversão e valor convertido'),
     )
-    expect(screen.getByRole('button', { name: /Explicar Valor estratégico/i })).toHaveAttribute(
-      'title',
-      expect.stringContaining('recorrência e maior valor'),
-    )
-    expect(screen.getByRole('button', { name: /Explicar Follow-up/i })).toHaveAttribute(
-      'title',
+    const valorButton = screen.getByRole('button', { name: /Explicar Valor estratégico/i })
+    expect(valorButton).not.toHaveAttribute('title')
+    expect(valorButton).toHaveAccessibleDescription(expect.stringContaining('recorrência e maior valor'))
+    const followupButton = screen.getByRole('button', { name: /Explicar Follow-up/i })
+    expect(followupButton).not.toHaveAttribute('title')
+    expect(followupButton).toHaveAccessibleDescription(
       expect.stringContaining('decisor, objeção, pendência e próximo passo'),
     )
 
