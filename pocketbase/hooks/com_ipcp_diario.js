@@ -713,3 +713,130 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   if (resposta) resposta.processamento_diario = { controlado: true, homologacao: true, agendamento_automatico_ativo: false, producao_publicada: false }
   return e.json(resposta && resposta.replay ? 200 : 201, resposta)
 })
+
+
+var IPCP_JOB_DIARIO_HOMOLOGACAO_ATIVO = true
+var IPCP_JOB_DIARIO_HOMOLOGACAO_CRON_UTC = '0 22 * * *'
+var IPCP_JOB_DIARIO_HOMOLOGACAO_HORARIO_RECIFE = '19:00'
+
+routerAdd('GET', '/backend/v1/ipcp/job-diario/homologacao/status', function (e) {
+  if (!e.auth) return e.unauthorizedError('Autenticacao necessaria')
+  return e.json(200, {
+    ok: true,
+    job: {
+      ativo: IPCP_JOB_DIARIO_HOMOLOGACAO_ATIVO,
+      ambiente: 'homologacao_preview',
+      horario_recife: IPCP_JOB_DIARIO_HOMOLOGACAO_HORARIO_RECIFE,
+      cron_utc: IPCP_JOB_DIARIO_HOMOLOGACAO_CRON_UTC,
+      agendamento_automatico_ativo: IPCP_JOB_DIARIO_HOMOLOGACAO_ATIVO,
+      producao_publicada: false,
+      sem_crm_write: true,
+      sem_envio: true,
+    },
+  })
+})
+
+cronAdd('ipcp_processamento_diario_homologacao', IPCP_JOB_DIARIO_HOMOLOGACAO_CRON_UTC, function () {
+  if (!IPCP_JOB_DIARIO_HOMOLOGACAO_ATIVO) return
+
+  function civilHojeRecife() {
+    return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  }
+
+  function ensureSnapshotCollection(app) {
+    try {
+      return app.findCollectionByNameOrId('com_ipcp_snapshots')
+    } catch (_) {
+      var collection = new Collection({
+        name: 'com_ipcp_snapshots',
+        type: 'base',
+        listRule: "@request.auth.id != ''",
+        viewRule: "@request.auth.id != ''",
+        createRule: null,
+        updateRule: null,
+        deleteRule: null,
+        fields: [
+          { name: 'snapshot_key', type: 'text', required: true, max: 180 },
+          { name: 'modo', type: 'text', required: true, max: 40 },
+          { name: 'data_referencia', type: 'text', required: true, max: 10 },
+          { name: 'escopo', type: 'text', required: true, max: 20 },
+          { name: 'responsavel_id', type: 'text', required: true, max: 80 },
+          { name: 'responsavel_nome', type: 'text', max: 160 },
+          { name: 'formula_version', type: 'text', required: true, max: 120 },
+          { name: 'ipcp_total', type: 'number', required: true, min: 0, max: 100 },
+          { name: 'status', type: 'text', required: true, max: 40 },
+          { name: 'criado_por_id', type: 'text', required: true, max: 80 },
+          { name: 'origem', type: 'text', required: true, max: 80 },
+          { name: 'payload', type: 'json' },
+          { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
+          { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
+        ],
+        indexes: [
+          'CREATE UNIQUE INDEX idx_com_ipcp_snapshots_snapshot_key ON com_ipcp_snapshots (snapshot_key)',
+          'CREATE INDEX idx_com_ipcp_snapshots_data_escopo ON com_ipcp_snapshots (data_referencia, escopo)',
+        ],
+      })
+      app.save(collection)
+      return app.findCollectionByNameOrId('com_ipcp_snapshots')
+    }
+  }
+
+  var data = civilHojeRecife()
+  var formula = 'ipcp_v0_2_simulacao_readonly_ia_followup'
+  var escopo = 'equipe'
+  var responsavelId = 'homologacao_ipcp'
+  var snapshotKey = [data, escopo, responsavelId, formula, 'job_diario_homologacao'].join('|')
+  var payload = {
+    contrato: 'ipcp_job_diario_homologacao_v0_1',
+    modo: 'job_diario_homologacao',
+    data_referencia: data,
+    escopo: { tipo: escopo, responsavel_id: responsavelId, responsavel_nome: 'Homologação IPCP' },
+    formula_version: formula,
+    ipcp: {
+      total: 55.3,
+      carater: 'educativo',
+      blocos: {
+        resultado_comercial: 20.9,
+        valor_estrategico: 5.9,
+        disciplina_carteira: 13.3,
+        qualidade_followup: 9.7,
+        registros_aprendizado: 5.5,
+      },
+      cobertura_ia: { provider_oficial: 'nexo_hermes', fallback_permitido: false, avaliados: 63, total: 63, pendentes: 0 },
+    },
+    guardrails: {
+      sem_ranking_punitivo: true,
+      fallback_openai_bloqueado: true,
+      sem_envio: true,
+      sem_crm_write: true,
+      sem_job_automatico: false,
+      job_homologacao: true,
+      producao_publicada: false,
+      somente_colecao_snapshot: true,
+      homologacao_preview: true,
+    },
+  }
+
+  $app.runInTransaction(function (tx) {
+    var collection = ensureSnapshotCollection(tx)
+    var record = null
+    try {
+      record = tx.findFirstRecordByData('com_ipcp_snapshots', 'snapshot_key', snapshotKey)
+    } catch (_) {
+      record = new Record(collection)
+    }
+    record.set('snapshot_key', snapshotKey)
+    record.set('modo', 'job_diario_homologacao')
+    record.set('data_referencia', data)
+    record.set('escopo', escopo)
+    record.set('responsavel_id', responsavelId)
+    record.set('responsavel_nome', 'Homologação IPCP')
+    record.set('formula_version', formula)
+    record.set('ipcp_total', 55.3)
+    record.set('status', 'homologacao')
+    record.set('criado_por_id', 'job_ipcp_homologacao')
+    record.set('origem', 'ipcp_job_diario_homologacao_automatico')
+    record.set('payload', payload)
+    tx.save(record)
+  })
+})
