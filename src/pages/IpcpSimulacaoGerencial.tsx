@@ -38,7 +38,7 @@ function SimulacaoGuardrails({
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-4">
         <Badge className="justify-center bg-emerald-700 py-2 text-white hover:bg-emerald-700">
-          Read-only confirmado
+          Leitura segura confirmada
         </Badge>
         <Badge variant="outline" className="justify-center py-2">
           Snapshot: {simulacao?.gravacao_snapshot_realizada ? 'gravado' : 'não gravado'}
@@ -54,6 +54,27 @@ function SimulacaoGuardrails({
   )
 }
 
+const rotulosBlocos: Record<string, string> = {
+  qualidade_followup: 'Qualidade do acompanhamento',
+  disciplina_carteira: 'Organização da carteira',
+  registros_aprendizado: 'Registros e aprendizados',
+  resultado_comercial: 'Resultado comercial',
+  valor_estrategico: 'Valor estratégico',
+}
+
+const rotulosSinais: Record<string, string> = {
+  nota_sem_decisor_pendencia_ou_prazo:
+    'Acompanhamento sem decisor, pendência ou prazo de retorno claros.',
+  acao_vencida_ou_distante: 'Próxima ação vencida ou distante demais.',
+}
+
+const rotulosAcoes: Record<string, string> = {
+  complementar_proximo_passo_objetivo:
+    'Completar o próximo passo com responsável, prazo e pendência principal.',
+  redefinir_data_e_objetivo_comercial_verificavel:
+    'Revisar a data e deixar claro o objetivo comercial do próximo contato.',
+}
+
 function EvidenciasResumo({ data }: { data: IpcpDiarioReadOnly }) {
   if (!data.evidencias?.exemplos?.length) return null
   return (
@@ -61,15 +82,21 @@ function EvidenciasResumo({ data }: { data: IpcpDiarioReadOnly }) {
       <CardHeader>
         <CardTitle>Evidências resumidas</CardTitle>
         <CardDescription>
-          Amostra de sinais comerciais, sem payload técnico sensível.
+          Amostra de sinais comerciais em linguagem gerencial, sem detalhes internos.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-2">
         {data.evidencias.exemplos.map((item) => (
           <div key={`${item.bloco}-${item.sinal}`} className="rounded-xl border bg-white p-4">
-            <p className="text-sm font-semibold text-slate-950">{item.bloco}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Sinal: {item.sinal}</p>
-            <p className="mt-1 text-sm leading-6 text-slate-700">Ação: {item.acao}</p>
+            <p className="text-sm font-semibold text-slate-950">
+              {rotulosBlocos[item.bloco] ?? item.bloco}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Sinal: {rotulosSinais[item.sinal] ?? item.sinal}
+            </p>
+            <p className="mt-1 text-sm leading-6 text-slate-700">
+              Ação: {rotulosAcoes[item.acao] ?? item.acao}
+            </p>
           </div>
         ))}
       </CardContent>
