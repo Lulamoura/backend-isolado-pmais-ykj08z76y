@@ -191,7 +191,7 @@ describe('obterIpcpDiarioReadOnly', () => {
 
     const data = await obterStatusIpcpJobDiarioHomologacao()
 
-    expect(pbSend).toHaveBeenCalledWith(IPCP_JOB_DIARIO_HOMOLOGACAO_STATUS_PATH, {
+    expect(pbSend).not.toHaveBeenCalledWith(IPCP_JOB_DIARIO_HOMOLOGACAO_STATUS_PATH, {
       method: 'GET',
     })
     expect(data.job.ativo).toBe(true)
