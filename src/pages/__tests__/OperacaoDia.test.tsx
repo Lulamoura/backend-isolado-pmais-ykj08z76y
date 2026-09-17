@@ -157,6 +157,18 @@ describe('Operação do Dia', () => {
     expect(screen.getByText('Negócios que merecem atenção')).toBeInTheDocument()
     expect(screen.getByText('IPCP do dia')).toBeInTheDocument()
     expect(screen.getByText('Atualização diária')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Explicar Resultado comercial/i })).toHaveAttribute(
+      'title',
+      expect.stringContaining('ganhos, conversão e valor convertido'),
+    )
+    expect(screen.getByRole('button', { name: /Explicar Valor estratégico/i })).toHaveAttribute(
+      'title',
+      expect.stringContaining('recorrência e maior valor'),
+    )
+    expect(screen.getByRole('button', { name: /Explicar Follow-up/i })).toHaveAttribute(
+      'title',
+      expect.stringContaining('decisor, objeção, pendência e próximo passo'),
+    )
 
     const operacao = screen.getByText('Operação do Dia').closest('.space-y-6')!
     const texto = operacao.textContent ?? ''

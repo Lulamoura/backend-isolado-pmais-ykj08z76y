@@ -1,8 +1,16 @@
 import { Link } from 'react-router-dom'
-import { BookOpenCheck, CalendarClock, CheckCircle2, Lightbulb, Sparkles } from 'lucide-react'
+import {
+  BookOpenCheck,
+  CalendarClock,
+  CheckCircle2,
+  HelpCircle,
+  Lightbulb,
+  Sparkles,
+} from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { IpcpDiarioReadOnly, IpcpBlocoId } from '@/services/ipcp'
 
 const blocoLabels: Record<IpcpBlocoId, string> = {
@@ -11,6 +19,45 @@ const blocoLabels: Record<IpcpBlocoId, string> = {
   disciplina_carteira: 'Disciplina da carteira',
   qualidade_followup: 'Follow-up',
   registros_aprendizado: 'Registros/aprendizado',
+}
+
+const blocoExplicacoes: Record<
+  IpcpBlocoId,
+  {
+    descricao: string
+    evolucao: string
+  }
+> = {
+  resultado_comercial: {
+    descricao:
+      'Mede o resultado efetivo do período: ganhos, conversão e valor convertido. Tem peso alto porque reflete fechamento comercial real.',
+    evolucao:
+      'Como evoluir: avançar propostas qualificadas, reduzir perdas por falta de retorno, melhorar taxa de conversão e converter negócios de maior valor.',
+  },
+  valor_estrategico: {
+    descricao:
+      'Avalia a qualidade estratégica da carteira: recorrência e maior valor, com atenção especial para propostas recorrentes relevantes.',
+    evolucao:
+      'Como evoluir: priorizar oportunidades recorrentes, qualificar melhor o potencial de valor e manter propostas de maior impacto bem acompanhadas.',
+  },
+  disciplina_carteira: {
+    descricao:
+      'Mede organização da carteira aberta: prazos, negócios antigos, próximas ações coerentes e ausência de oportunidades vencidas ou paradas.',
+    evolucao:
+      'Como evoluir: manter próxima ação realista, resolver negócios antigos, evitar datas distantes sem justificativa e tratar pendências dentro do prazo.',
+  },
+  qualidade_followup: {
+    descricao:
+      'Avalia a qualidade das notas de acompanhamento: decisor, objeção, pendência e próximo passo, além da clareza sobre avanço ou espera.',
+    evolucao:
+      'Como evoluir: registrar quem decidiu ou influenciou, qual objeção existe, qual pendência ficou aberta, o prazo combinado e o próximo contato objetivo.',
+  },
+  registros_aprendizado: {
+    descricao:
+      'Mede se os registros deixam aprendizado comercial: motivo de perda explicado, objeções documentadas e sinais úteis para melhorar a abordagem.',
+    evolucao:
+      'Como evoluir: registrar por que o cliente perdeu ou avançou, quais objeções se repetem e quais aprendizados podem orientar propostas futuras.',
+  },
 }
 
 function formatDate(date: string): string {
@@ -25,9 +72,36 @@ function formatScore(score: number): string {
   }).format(score)
 }
 
+function BlocoAjuda({ bloco }: { bloco: IpcpBlocoId }) {
+  const label = blocoLabels[bloco]
+  const explicacao = blocoExplicacoes[bloco]
+  const title = `${explicacao.descricao} ${explicacao.evolucao}`
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          aria-label={`Explicar ${label}`}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+          title={title}
+          type="button"
+        >
+          <HelpCircle aria-hidden="true" className="h-4 w-4" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-sm space-y-2 text-left leading-5" side="left">
+        <p className="font-semibold">{label}</p>
+        <p>{explicacao.descricao}</p>
+        <p>{explicacao.evolucao}</p>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) {
   return (
-    <section aria-label="IPCP educativo diário" className="space-y-4">
+    <TooltipProvider delayDuration={120}>
+      <section aria-label="IPCP educativo diário" className="space-y-4">
       <Card className="border-emerald-200 bg-emerald-50/50">
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -140,7 +214,10 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
                 key={bloco}
                 className="flex items-center justify-between gap-3 rounded-lg border p-3"
               >
-                <span className="text-sm text-slate-700">{blocoLabels[bloco as IpcpBlocoId]}</span>
+                <span className="flex items-center gap-2 text-sm text-slate-700">
+                  {blocoLabels[bloco as IpcpBlocoId]}
+                  <BlocoAjuda bloco={bloco as IpcpBlocoId} />
+                </span>
                 <span className="font-semibold text-slate-950">{formatScore(score)}</span>
               </div>
             ))}
@@ -150,6 +227,7 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
           </CardContent>
         </Card>
       </div>
-    </section>
+      </section>
+    </TooltipProvider>
   )
 }
