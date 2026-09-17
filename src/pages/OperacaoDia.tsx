@@ -34,6 +34,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { IpcpEducativoDiarioCard } from '@/components/ipcp/IpcpEducativoDiarioCard'
+import { obterIpcpDiarioReadOnly } from '@/services/ipcp'
 
 type OperationSummary = {
   semProximaAcao: number
@@ -126,6 +128,7 @@ export default function OperacaoDia() {
     refresh: refreshIndicators,
   } = useDashboardResumo(indicatorPeriod)
   const indicators = indicatorData?.resumo
+  const ipcpDiario = obterIpcpDiarioReadOnly()
 
   useEffect(() => {
     let active = true
@@ -247,6 +250,8 @@ export default function OperacaoDia() {
           <RefreshCw aria-hidden="true" className="h-4 w-4" /> Atualizar
         </Button>
       </section>
+
+      <IpcpEducativoDiarioCard data={ipcpDiario} />
 
       {partialError && (
         <Alert>
