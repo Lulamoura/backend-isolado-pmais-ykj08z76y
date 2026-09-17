@@ -75,15 +75,13 @@ function formatScore(score: number): string {
 function BlocoAjuda({ bloco }: { bloco: IpcpBlocoId }) {
   const label = blocoLabels[bloco]
   const explicacao = blocoExplicacoes[bloco]
-  const title = `${explicacao.descricao} ${explicacao.evolucao}`
-
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           aria-label={`Explicar ${label}`}
+          aria-description={`${explicacao.descricao} ${explicacao.evolucao}`}
           className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
-          title={title}
           type="button"
         >
           <HelpCircle aria-hidden="true" className="h-4 w-4" />

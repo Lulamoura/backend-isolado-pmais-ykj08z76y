@@ -35,7 +35,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { IpcpEducativoDiarioCard } from '@/components/ipcp/IpcpEducativoDiarioCard'
-import { obterIpcpDiarioReadOnly } from '@/services/ipcp'
+import { obterIpcpDiarioReadOnly, ipcpDiarioFixtureHomologado } from '@/services/ipcp'
 
 type OperationSummary = {
   semProximaAcao: number
@@ -121,6 +121,7 @@ export default function OperacaoDia() {
   const [indicatorPeriod, setIndicatorPeriod] = useState<DashboardResumoParams>(() =>
     defaultIndicatorPeriod(),
   )
+  const [ipcpDiario, setIpcpDiario] = useState(ipcpDiarioFixtureHomologado)
   const {
     data: indicatorData,
     loading: indicatorLoading,
@@ -128,7 +129,16 @@ export default function OperacaoDia() {
     refresh: refreshIndicators,
   } = useDashboardResumo(indicatorPeriod)
   const indicators = indicatorData?.resumo
-  const ipcpDiario = obterIpcpDiarioReadOnly()
+
+  useEffect(() => {
+    let active = true
+    obterIpcpDiarioReadOnly().then((data) => {
+      if (active) setIpcpDiario(data)
+    })
+    return () => {
+      active = false
+    }
+  }, [reloadKey])
 
   useEffect(() => {
     let active = true

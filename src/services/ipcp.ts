@@ -1,3 +1,5 @@
+import pb from '@/lib/pocketbase/client'
+
 export type IpcpBlocoId =
   | 'resultado_comercial'
   | 'valor_estrategico'
@@ -21,7 +23,7 @@ export type IpcpNegocioAtencao = {
 }
 
 export type IpcpDiarioReadOnly = {
-  contrato: 'nexo_ipcp_diario_v1'
+  contrato: 'ipcp_diario_readonly_v0_2' | 'nexo_ipcp_diario_v1'
   read_only: true
   sem_mutacao: true
   formula_version: string
@@ -53,8 +55,10 @@ export type IpcpDiarioReadOnly = {
   }
 }
 
+export const IPCP_DIARIO_READONLY_PATH = '/backend/v1/ipcp/diario'
+
 export const ipcpDiarioFixtureHomologado: IpcpDiarioReadOnly = {
-  contrato: 'nexo_ipcp_diario_v1',
+  contrato: 'ipcp_diario_readonly_v0_2',
   read_only: true,
   sem_mutacao: true,
   formula_version: 'ipcp_v0_2_simulacao_readonly_ia_followup',
@@ -129,6 +133,14 @@ export const ipcpDiarioFixtureHomologado: IpcpDiarioReadOnly = {
   },
 }
 
-export function obterIpcpDiarioReadOnly(): IpcpDiarioReadOnly {
+export async function obterIpcpDiarioReadOnly(): Promise<IpcpDiarioReadOnly> {
+  try {
+    const data = await pb.send<IpcpDiarioReadOnly>(IPCP_DIARIO_READONLY_PATH, {
+      method: 'GET',
+    })
+    if (data?.read_only === true && data?.sem_mutacao === true) return data
+  } catch (_) {
+    // Mantém a tela educativa funcional se o Preview ainda não tiver materializado o hook.
+  }
   return ipcpDiarioFixtureHomologado
 }
