@@ -160,9 +160,7 @@ describe('Operação do Dia', () => {
 
     const operacao = screen.getByText('Operação do Dia').closest('.space-y-6')!
     const texto = operacao.textContent ?? ''
-    expect(texto.indexOf('Orientação do Nexo para hoje')).toBeLessThan(
-      texto.indexOf('IPCP do dia'),
-    )
+    expect(texto.indexOf('Orientação do Nexo para hoje')).toBeLessThan(texto.indexOf('IPCP do dia'))
     expect(texto).not.toMatch(/ranking/i)
     expect(texto).not.toMatch(/pior operadora/i)
   })

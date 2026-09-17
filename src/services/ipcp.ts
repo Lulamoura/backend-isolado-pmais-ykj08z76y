@@ -100,7 +100,8 @@ export const ipcpDiarioFixtureHomologado: IpcpDiarioReadOnly = {
     {
       id_negocio: '4612',
       cliente: 'RCML (PMAIS EVENTOS)',
-      motivo: 'Follow-up precisa preservar decisor, pendência e prazo de retorno de forma mais clara.',
+      motivo:
+        'Follow-up precisa preservar decisor, pendência e prazo de retorno de forma mais clara.',
       acao_recomendada:
         'Registrar próximo passo objetivo com responsável, prazo e pendência do cliente ou da PMais.',
       blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],

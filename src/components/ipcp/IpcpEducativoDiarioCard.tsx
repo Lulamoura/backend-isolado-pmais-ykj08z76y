@@ -41,7 +41,9 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
             <CardTitle className="flex items-center gap-2 text-xl text-slate-950">
               <Sparkles className="h-5 w-5 text-emerald-700" /> Orientação do Nexo para hoje
             </CardTitle>
-            <p className="mt-1 text-sm text-slate-600">Indicador educativo atualizado diariamente</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Indicador educativo atualizado diariamente
+            </p>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -103,7 +105,10 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
                     <p className="mt-1 text-sm leading-6 text-slate-600">{item.motivo}</p>
                   </div>
                   {item.link ? (
-                    <Link className="text-sm font-semibold text-violet-700 hover:underline" to={item.link}>
+                    <Link
+                      className="text-sm font-semibold text-violet-700 hover:underline"
+                      to={item.link}
+                    >
                       Abrir negócio
                     </Link>
                   ) : null}
@@ -131,7 +136,10 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
           </CardHeader>
           <CardContent className="space-y-3">
             {Object.entries(data.ipcp.blocos).map(([bloco, score]) => (
-              <div key={bloco} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div
+                key={bloco}
+                className="flex items-center justify-between gap-3 rounded-lg border p-3"
+              >
                 <span className="text-sm text-slate-700">{blocoLabels[bloco as IpcpBlocoId]}</span>
                 <span className="font-semibold text-slate-950">{formatScore(score)}</span>
               </div>
