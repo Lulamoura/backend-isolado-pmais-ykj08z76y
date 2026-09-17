@@ -1,0 +1,133 @@
+export type IpcpBlocoId =
+  | 'resultado_comercial'
+  | 'valor_estrategico'
+  | 'disciplina_carteira'
+  | 'qualidade_followup'
+  | 'registros_aprendizado'
+
+export type IpcpPrioridadeDia = {
+  titulo: string
+  motivo: string
+  bloco_afetado: IpcpBlocoId
+}
+
+export type IpcpNegocioAtencao = {
+  id_negocio: string
+  cliente: string
+  motivo: string
+  acao_recomendada: string
+  blocos_afetados: IpcpBlocoId[]
+  link?: string
+}
+
+export type IpcpDiarioReadOnly = {
+  contrato: 'nexo_ipcp_diario_v1'
+  read_only: true
+  sem_mutacao: true
+  formula_version: string
+  data_referencia: string
+  atualizacao: 'diaria'
+  resumo_nexo: {
+    texto: string
+    prioridades: IpcpPrioridadeDia[]
+  }
+  ipcp: {
+    total: number
+    blocos: Record<IpcpBlocoId, number>
+    cobertura_ia: {
+      avaliados: number
+      total: number
+      pendentes: number
+    }
+  }
+  negocios_atencao: IpcpNegocioAtencao[]
+  evolucao: {
+    status: 'sem_historico' | 'melhorou' | 'manteve' | 'piorou'
+    comentario: string
+  }
+  guardrails: {
+    sem_ranking_punitivo: true
+    sem_recalculo_tempo_real: true
+    fallback_openai_bloqueado: true
+    provider_oficial_followup: 'nexo_hermes'
+  }
+}
+
+export const ipcpDiarioFixtureHomologado: IpcpDiarioReadOnly = {
+  contrato: 'nexo_ipcp_diario_v1',
+  read_only: true,
+  sem_mutacao: true,
+  formula_version: 'ipcp_v0_2_simulacao_readonly_ia_followup',
+  data_referencia: '2026-09-17',
+  atualizacao: 'diaria',
+  resumo_nexo: {
+    texto:
+      'Hoje o foco deve ser melhorar a clareza dos próximos passos, complementar follow-ups sem decisor, pendência ou prazo de retorno, e reduzir negócios parados sem definição objetiva.',
+    prioridades: [
+      {
+        titulo: 'Complementar notas sem próximo passo objetivo',
+        motivo: 'Ajuda o Nexo a entender avanço, espera, requalificação ou encerramento.',
+        bloco_afetado: 'qualidade_followup',
+      },
+      {
+        titulo: 'Revisar ações vencidas ou distantes',
+        motivo: 'Reduz risco de esfriamento da carteira aberta.',
+        bloco_afetado: 'disciplina_carteira',
+      },
+      {
+        titulo: 'Registrar objeções, pendências e aprendizados',
+        motivo: 'Transforma follow-up em aprendizado comercial reutilizável.',
+        bloco_afetado: 'registros_aprendizado',
+      },
+    ],
+  },
+  ipcp: {
+    total: 55.3,
+    blocos: {
+      resultado_comercial: 20.9,
+      valor_estrategico: 5.9,
+      disciplina_carteira: 13.3,
+      qualidade_followup: 9.7,
+      registros_aprendizado: 5.5,
+    },
+    cobertura_ia: {
+      avaliados: 63,
+      total: 63,
+      pendentes: 0,
+    },
+  },
+  negocios_atencao: [
+    {
+      id_negocio: '4612',
+      cliente: 'RCML (PMAIS EVENTOS)',
+      motivo: 'Follow-up precisa preservar decisor, pendência e prazo de retorno de forma mais clara.',
+      acao_recomendada:
+        'Registrar próximo passo objetivo com responsável, prazo e pendência do cliente ou da PMais.',
+      blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
+      link: '/pipeline?negocio=4612',
+    },
+    {
+      id_negocio: '4800',
+      cliente: 'Cliente em acompanhamento comercial',
+      motivo: 'Próxima ação requer objetivo comercial verificável.',
+      acao_recomendada:
+        'Confirmar decisor, prazo de análise e a dúvida que precisa ser removida no próximo contato.',
+      blocos_afetados: ['qualidade_followup'],
+      link: '/pipeline?negocio=4800',
+    },
+  ],
+  evolucao: {
+    status: 'sem_historico',
+    comentario: 'A evolução diária aparecerá após o próximo ciclo de atualização.',
+  },
+  guardrails: {
+    sem_ranking_punitivo: true,
+    sem_recalculo_tempo_real: true,
+    fallback_openai_bloqueado: true,
+    provider_oficial_followup: 'nexo_hermes',
+  },
+}
+
+export function obterIpcpDiarioReadOnly(): IpcpDiarioReadOnly {
+  return ipcpDiarioFixtureHomologado
+}

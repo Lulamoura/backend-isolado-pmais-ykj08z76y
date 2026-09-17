@@ -144,6 +144,29 @@ describe('Operação do Dia', () => {
     })
   })
 
+  it('mostra o IPCP educativo diário antes da nota e sem linguagem de ranking', async () => {
+    render(
+      <MemoryRouter>
+        <OperacaoDia />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Orientação do Nexo para hoje')).toBeInTheDocument()
+    expect(screen.getByText('Indicador educativo atualizado diariamente')).toBeInTheDocument()
+    expect(screen.getByText('Prioridades do dia')).toBeInTheDocument()
+    expect(screen.getByText('Negócios que merecem atenção')).toBeInTheDocument()
+    expect(screen.getByText('IPCP do dia')).toBeInTheDocument()
+    expect(screen.getByText('Atualização diária')).toBeInTheDocument()
+
+    const operacao = screen.getByText('Operação do Dia').closest('.space-y-6')!
+    const texto = operacao.textContent ?? ''
+    expect(texto.indexOf('Orientação do Nexo para hoje')).toBeLessThan(
+      texto.indexOf('IPCP do dia'),
+    )
+    expect(texto).not.toMatch(/ranking/i)
+    expect(texto).not.toMatch(/pior operadora/i)
+  })
+
   it('mostra todas as propostas sem abertura antes dos indicadores e sinaliza o tempo', async () => {
     listarPropostasSemAbertura.mockResolvedValueOnce({
       limite_dias_uteis: 2,
