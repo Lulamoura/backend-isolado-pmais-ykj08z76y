@@ -7,7 +7,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { obterIpcpSimulacaoReadOnly, type IpcpDiarioReadOnly } from '@/services/ipcp'
+import {
+  criarIpcpSnapshotSimulado,
+  obterIpcpSimulacaoReadOnly,
+  type IpcpDiarioReadOnly,
+  type IpcpSnapshotSimuladoResponse,
+} from '@/services/ipcp'
 
 function dataBr(data: string) {
   const partes = data.split('-')
@@ -68,7 +73,9 @@ function EvidenciasResumo({ data }: { data: IpcpDiarioReadOnly }) {
 
 export default function IpcpSimulacaoGerencial() {
   const [data, setData] = useState<IpcpDiarioReadOnly | null>(null)
+  const [snapshot, setSnapshot] = useState<IpcpSnapshotSimuladoResponse | null>(null)
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [erro, setErro] = useState('')
 
   async function carregar() {
@@ -84,6 +91,22 @@ export default function IpcpSimulacaoGerencial() {
       )
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function gravarSnapshotSimulado() {
+    setSaving(true)
+    setErro('')
+    try {
+      setSnapshot(await criarIpcpSnapshotSimulado())
+    } catch (error) {
+      setErro(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível gravar o snapshot simulado do IPCP.',
+      )
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -119,20 +142,37 @@ export default function IpcpSimulacaoGerencial() {
             <ArrowLeft aria-hidden="true" className="mr-2 h-4 w-4" /> Voltar ao Nexo
           </Link>
         </Button>
-        <Button onClick={() => void carregar()} disabled={loading}>
-          {loading ? (
-            <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
-          )}
-          Atualizar simulação
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => void carregar()} disabled={loading || saving} variant="outline">
+            {loading ? (
+              <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
+            )}
+            Atualizar simulação
+          </Button>
+          <Button onClick={() => void gravarSnapshotSimulado()} disabled={!data || loading || saving}>
+            {saving ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Gravar snapshot simulado
+          </Button>
+        </div>
       </div>
 
       {erro ? (
         <Alert variant="destructive">
           <AlertTitle>Simulação indisponível</AlertTitle>
           <AlertDescription>{erro}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {snapshot ? (
+        <Alert>
+          <ShieldCheck aria-hidden="true" className="h-4 w-4" />
+          <AlertTitle>Snapshot simulado gravado para homologação</AlertTitle>
+          <AlertDescription>
+            Registro {snapshot.snapshot.id} · {snapshot.snapshot.data_referencia} ·{' '}
+            {snapshot.snapshot.escopo}. Job automático permanece inativo.
+          </AlertDescription>
         </Alert>
       ) : null}
 

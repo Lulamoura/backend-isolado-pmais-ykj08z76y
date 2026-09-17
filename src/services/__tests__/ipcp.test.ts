@@ -9,6 +9,8 @@ vi.mock('@/lib/pocketbase/client', () => ({
 import {
   IPCP_DIARIO_READONLY_PATH,
   IPCP_SIMULACAO_READONLY_PATH,
+  IPCP_SNAPSHOT_SIMULADO_PATH,
+  criarIpcpSnapshotSimulado,
   obterIpcpDiarioReadOnly,
   obterIpcpSimulacaoReadOnly,
   ipcpDiarioFixtureHomologado,
@@ -71,5 +73,48 @@ describe('obterIpcpDiarioReadOnly', () => {
     pbSend.mockResolvedValue({ ...ipcpDiarioFixtureHomologado, modo: 'simulacao', sem_mutacao: false })
 
     await expect(obterIpcpSimulacaoReadOnly()).rejects.toThrow(/read-only/i)
+  })
+
+  it('grava snapshot simulado somente com confirmação explícita e guardrails', async () => {
+    pbSend.mockResolvedValue({
+      ok: true,
+      contrato: 'ipcp_snapshot_simulado_v0_1',
+      snapshot: {
+        id: 'snap123',
+        key: '2026-09-17|equipe|user|formula|simulado',
+        modo: 'simulado',
+        status: 'homologacao',
+        data_referencia: '2026-09-17',
+        escopo: 'equipe',
+      },
+      simulacao: {
+        ativa: true,
+        colecao_snapshot_criada: true,
+        gravacao_snapshot_realizada: true,
+        job_automatico_ativo: false,
+      },
+      guardrails: {
+        sem_ranking_punitivo: true,
+        fallback_openai_bloqueado: true,
+        sem_envio: true,
+        sem_crm_write: true,
+        sem_job_automatico: true,
+        somente_colecao_snapshot: true,
+        homologacao_preview: true,
+      },
+    })
+
+    const data = await criarIpcpSnapshotSimulado()
+
+    expect(pbSend).toHaveBeenCalledWith(IPCP_SNAPSHOT_SIMULADO_PATH, {
+      method: 'POST',
+      body: {
+        confirmacao: 'CRIAR_SNAPSHOT_SIMULADO_IPCP',
+        escopo: 'equipe',
+      },
+    })
+    expect(data.snapshot.status).toBe('homologacao')
+    expect(data.simulacao.gravacao_snapshot_realizada).toBe(true)
+    expect(data.simulacao.job_automatico_ativo).toBe(false)
   })
 })
