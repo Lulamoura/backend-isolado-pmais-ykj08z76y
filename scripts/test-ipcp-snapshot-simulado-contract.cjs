@@ -3,7 +3,9 @@ const path = require('node:path')
 
 const hookPath = path.join(__dirname, '..', 'pocketbase', 'hooks', 'com_ipcp_diario.js')
 const source = fs.readFileSync(hookPath, 'utf8')
-const postSource = source.split("routerAdd('POST', '/backend/v1/ipcp/snapshots/simulado'")[1] || ''
+const postSource = (
+  source.split("routerAdd('POST', '/backend/v1/ipcp/snapshots/simulado'")[1] || ''
+).split("routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao'")[0]
 
 function assert(condition, message) {
   if (!condition) {
@@ -48,7 +50,9 @@ assert(
 )
 assert(!/set\(['"]job_automatico_ativo/.test(postSource), 'não deve persistir job automático')
 assert(
-  !/routerAdd\('POST', '\/backend\/v1\/ipcp\/(?!snapshots\/simulado)/.test(source),
+  !/routerAdd\('POST', '\/backend\/v1\/ipcp\/(?!snapshots\/simulado|processamento-diario\/homologacao)/.test(
+    source,
+  ),
   'não deve expor outro POST IPCP',
 )
 

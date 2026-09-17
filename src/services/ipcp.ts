@@ -91,11 +91,13 @@ export type IpcpDiarioReadOnly = {
 export const IPCP_DIARIO_READONLY_PATH = '/backend/v1/ipcp/diario'
 export const IPCP_SIMULACAO_READONLY_PATH = '/backend/v1/ipcp/simulacao'
 export const IPCP_SNAPSHOT_SIMULADO_PATH = '/backend/v1/ipcp/snapshots/simulado'
+export const IPCP_PROCESSAMENTO_DIARIO_HOMOLOGACAO_PATH =
+  '/backend/v1/ipcp/processamento-diario/homologacao'
 
 export type IpcpSnapshotSimuladoResponse = {
   ok: true
   replay?: boolean
-  contrato: 'ipcp_snapshot_simulado_v0_1'
+  contrato: 'ipcp_snapshot_simulado_v0_1' | 'ipcp_processamento_diario_homologacao_v0_1'
   snapshot: NonNullable<IpcpDiarioReadOnly['snapshot']>
   simulacao: NonNullable<IpcpDiarioReadOnly['simulacao']>
   guardrails: {
@@ -106,6 +108,12 @@ export type IpcpSnapshotSimuladoResponse = {
     sem_job_automatico: true
     somente_colecao_snapshot: true
     homologacao_preview: true
+  }
+  processamento_diario?: {
+    controlado: true
+    homologacao: true
+    agendamento_automatico_ativo: false
+    producao_publicada: false
   }
 }
 
@@ -224,6 +232,29 @@ export async function criarIpcpSnapshotSimulado(): Promise<IpcpSnapshotSimuladoR
     data?.guardrails?.somente_colecao_snapshot !== true
   ) {
     throw new Error('Resposta de snapshot IPCP sem garantias de homologação.')
+  }
+  return data
+}
+
+export async function executarIpcpProcessamentoDiarioHomologacao(): Promise<IpcpSnapshotSimuladoResponse> {
+  const data = await pb.send<IpcpSnapshotSimuladoResponse>(
+    IPCP_PROCESSAMENTO_DIARIO_HOMOLOGACAO_PATH,
+    {
+      method: 'POST',
+      body: {
+        confirmacao: 'EXECUTAR_PROCESSAMENTO_DIARIO_IPCP_HOMOLOGACAO',
+        escopo: 'equipe',
+      },
+    },
+  )
+  if (
+    data?.contrato !== 'ipcp_processamento_diario_homologacao_v0_1' ||
+    data?.simulacao?.gravacao_snapshot_realizada !== true ||
+    data?.simulacao?.job_automatico_ativo !== false ||
+    data?.processamento_diario?.agendamento_automatico_ativo !== false ||
+    data?.processamento_diario?.producao_publicada !== false
+  ) {
+    throw new Error('Resposta de processamento diário IPCP sem garantias de homologação.')
   }
   return data
 }

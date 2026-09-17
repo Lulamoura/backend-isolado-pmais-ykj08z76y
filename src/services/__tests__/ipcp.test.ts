@@ -8,9 +8,11 @@ vi.mock('@/lib/pocketbase/client', () => ({
 
 import {
   IPCP_DIARIO_READONLY_PATH,
+  IPCP_PROCESSAMENTO_DIARIO_HOMOLOGACAO_PATH,
   IPCP_SIMULACAO_READONLY_PATH,
   IPCP_SNAPSHOT_SIMULADO_PATH,
   criarIpcpSnapshotSimulado,
+  executarIpcpProcessamentoDiarioHomologacao,
   obterIpcpDiarioReadOnly,
   obterIpcpSimulacaoReadOnly,
   ipcpDiarioFixtureHomologado,
@@ -120,5 +122,53 @@ describe('obterIpcpDiarioReadOnly', () => {
     expect(data.snapshot.status).toBe('homologacao')
     expect(data.simulacao.gravacao_snapshot_realizada).toBe(true)
     expect(data.simulacao.job_automatico_ativo).toBe(false)
+  })
+
+  it('executa processamento diário só em homologação e sem agendamento automático', async () => {
+    pbSend.mockResolvedValue({
+      ok: true,
+      contrato: 'ipcp_processamento_diario_homologacao_v0_1',
+      snapshot: {
+        id: 'proc123',
+        key: '2026-09-17|equipe|user|formula|processamento_diario',
+        modo: 'simulado',
+        status: 'homologacao',
+        data_referencia: '2026-09-17',
+        escopo: 'equipe',
+      },
+      simulacao: {
+        ativa: true,
+        colecao_snapshot_criada: true,
+        gravacao_snapshot_realizada: true,
+        job_automatico_ativo: false,
+      },
+      guardrails: {
+        sem_ranking_punitivo: true,
+        fallback_openai_bloqueado: true,
+        sem_envio: true,
+        sem_crm_write: true,
+        sem_job_automatico: true,
+        somente_colecao_snapshot: true,
+        homologacao_preview: true,
+      },
+      processamento_diario: {
+        controlado: true,
+        homologacao: true,
+        agendamento_automatico_ativo: false,
+        producao_publicada: false,
+      },
+    })
+
+    const data = await executarIpcpProcessamentoDiarioHomologacao()
+
+    expect(pbSend).toHaveBeenCalledWith(IPCP_PROCESSAMENTO_DIARIO_HOMOLOGACAO_PATH, {
+      method: 'POST',
+      body: {
+        confirmacao: 'EXECUTAR_PROCESSAMENTO_DIARIO_IPCP_HOMOLOGACAO',
+        escopo: 'equipe',
+      },
+    })
+    expect(data.processamento_diario?.agendamento_automatico_ativo).toBe(false)
+    expect(data.processamento_diario?.producao_publicada).toBe(false)
   })
 })
