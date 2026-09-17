@@ -26,17 +26,20 @@ function dataBr(data: string) {
 function SimulacaoGuardrails({
   data,
   snapshot,
+  jobStatus,
 }: {
   data: IpcpDiarioReadOnly
   snapshot?: IpcpSnapshotSimuladoResponse | null
+  jobStatus?: IpcpJobDiarioHomologacaoStatus | null
 }) {
   const simulacao = snapshot?.simulacao ?? data.simulacao
+  const jobAtivoHomologacao = Boolean(jobStatus?.job.ativo)
   return (
     <Card>
       <CardHeader>
         <CardTitle>Guardrails da simulação</CardTitle>
         <CardDescription>
-          Leitura piloto para gestão, com snapshot simulado apenas quando autorizado e sem job automático.
+          Leitura piloto para gestão, com snapshot simulado autorizado e rotina automática restrita à homologação.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-4">
@@ -50,7 +53,7 @@ function SimulacaoGuardrails({
           Coleção: {simulacao?.colecao_snapshot_criada ? 'criada' : 'não criada'}
         </Badge>
         <Badge variant="outline" className="justify-center py-2">
-          Job: {simulacao?.job_automatico_ativo ? 'ativo' : 'inativo'}
+          Job: {jobAtivoHomologacao ? 'ativo em homologação' : 'inativo'}
         </Badge>
       </CardContent>
     </Card>
@@ -300,7 +303,7 @@ export default function IpcpSimulacaoGerencial() {
             </CardHeader>
           </Card>
           <JobDiarioStatus status={jobStatus} />
-          <SimulacaoGuardrails data={data} snapshot={snapshot} />
+          <SimulacaoGuardrails data={data} snapshot={snapshot} jobStatus={jobStatus} />
           <IpcpEducativoDiarioCard data={data} />
           <EvidenciasResumo data={data} />
         </>
