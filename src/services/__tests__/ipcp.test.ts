@@ -124,6 +124,65 @@ describe('obterIpcpDiarioReadOnly', () => {
     expect(data.evolucao.comentario).toMatch(/Leitura viva da equipe/)
   })
 
+  it('mantém a Operação do Dia completa quando o snapshot vivo ainda não tem todos os blocos', async () => {
+    pbSend.mockResolvedValue({
+      contrato: 'nexo_ipcp_diario_v1',
+      read_only: true,
+      sem_mutacao: true,
+      modo: 'consulta_viva_controlada',
+      fonte_dados: 'com_ipcp_snapshots',
+      data_referencia: '2026-09-18',
+      formula_version: 'ipcp_v0_2_simulacao_readonly_ia_followup',
+      escopo_efetivo: {
+        tipo: 'equipe',
+        responsavel_id: 'lulamoura52022x',
+        responsavel_nome: 'Luiz Antônio Moura',
+        pode_ver_equipe: true,
+        pode_ver_todos: true,
+      },
+      dados_vivos: {
+        fonte_disponivel: true,
+        snapshot_encontrado: false,
+        total_lido: 0,
+      },
+      resumo: {
+        texto: 'Sem snapshot vivo do IPCP para este escopo na data consultada.',
+        recomendacoes: [
+          {
+            titulo: 'Validar processamento vivo do IPCP',
+            motivo:
+              'Evita orientação gerencial baseada em dado desatualizado ou sem processamento.',
+            bloco_afetado: 'registros_aprendizado',
+          },
+        ],
+      },
+      ipcp: {
+        total: 0,
+        blocos: {},
+        cobertura_ia: {
+          provider_oficial: 'nexo_hermes',
+          fallback_permitido: false,
+          avaliados: 0,
+          total: 0,
+          pendentes: 0,
+        },
+      },
+      guardrails: {
+        sem_ranking_punitivo: true,
+        fallback_openai_bloqueado: true,
+        provider_oficial_followup: 'nexo_hermes',
+        sem_job_automatico: true,
+      },
+    })
+
+    const data = await obterNexoIpcpDiarioEquipe()
+
+    expect(data.ipcp.blocos).toEqual(ipcpDiarioFixtureHomologado.ipcp.blocos)
+    expect(data.negocios_atencao.length).toBeGreaterThan(0)
+    expect(data.resumo_nexo.prioridades.length).toBeGreaterThan(1)
+    expect(data.resumo_nexo.texto).toMatch(/última leitura completa/i)
+  })
+
   it('consulta a simulação read-only com evidências e escopo de equipe', async () => {
     pbSend.mockResolvedValue({
       ...ipcpDiarioFixtureHomologado,

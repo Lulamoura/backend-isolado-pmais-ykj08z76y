@@ -170,36 +170,43 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {data.negocios_atencao.map((item) => (
-                <div key={item.id_negocio} className="rounded-xl border p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">
-                        Negócio {item.id_negocio} — {item.cliente}
-                      </p>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">{item.motivo}</p>
-                    </div>
-                    {item.link ? (
-                      <Link
-                        className="text-sm font-semibold text-violet-700 hover:underline"
-                        to={item.link}
-                      >
-                        Abrir negócio
-                      </Link>
-                    ) : null}
-                  </div>
-                  <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-700">
-                    {item.acao_recomendada}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {item.blocos_afetados.map((bloco) => (
-                      <Badge key={bloco} variant="outline">
-                        {blocoLabels[bloco]}
-                      </Badge>
-                    ))}
-                  </div>
+              {data.negocios_atencao.length === 0 ? (
+                <div className="rounded-xl border border-dashed bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                  Nenhum negócio específico foi destacado pelo IPCP nesta leitura. Use as
+                  prioridades do dia e os cartões operacionais abaixo para conduzir a equipe.
                 </div>
-              ))}
+              ) : (
+                data.negocios_atencao.map((item) => (
+                  <div key={item.id_negocio} className="rounded-xl border p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">
+                          Negócio {item.id_negocio} — {item.cliente}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">{item.motivo}</p>
+                      </div>
+                      {item.link ? (
+                        <Link
+                          className="text-sm font-semibold text-violet-700 hover:underline"
+                          to={item.link}
+                        >
+                          Abrir negócio
+                        </Link>
+                      ) : null}
+                    </div>
+                    <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                      {item.acao_recomendada}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {item.blocos_afetados.map((bloco) => (
+                        <Badge key={bloco} variant="outline">
+                          {blocoLabels[bloco]}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
 

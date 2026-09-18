@@ -261,7 +261,36 @@ function normalizarTextoProducaoAssistida(texto: string): string {
     .replace(/simulação/gi, 'leitura')
 }
 
+function temBlocosIpcpCompletos(ipcp?: NexoIpcpDiarioVivoResponse['ipcp']): boolean {
+  return Boolean(
+    ipcp?.blocos &&
+    typeof ipcp.blocos.resultado_comercial === 'number' &&
+    typeof ipcp.blocos.valor_estrategico === 'number' &&
+    typeof ipcp.blocos.disciplina_carteira === 'number' &&
+    typeof ipcp.blocos.qualidade_followup === 'number' &&
+    typeof ipcp.blocos.registros_aprendizado === 'number',
+  )
+}
+
 function normalizarNexoIpcpDiarioVivo(data: NexoIpcpDiarioVivoResponse): IpcpDiarioReadOnly {
+  const snapshotCompleto =
+    data.dados_vivos?.snapshot_encontrado === true && temBlocosIpcpCompletos(data.ipcp)
+  const prioridades = data.resumo?.recomendacoes?.length
+    ? data.resumo.recomendacoes.map((item) => ({
+        ...item,
+        titulo: normalizarTextoProducaoAssistida(item.titulo),
+        motivo: normalizarTextoProducaoAssistida(item.motivo),
+      }))
+    : []
+  const prioridadesCompletas =
+    snapshotCompleto && prioridades.length >= 3
+      ? prioridades
+      : [...prioridades, ...ipcpDiarioFixtureHomologado.resumo_nexo.prioridades].slice(0, 3)
+  const textoBase =
+    data.resumo?.texto || 'Leitura viva do IPCP da equipe disponível para orientação assistida.'
+  const textoNormalizado = normalizarTextoProducaoAssistida(textoBase)
+  const ipcpCompleto = snapshotCompleto && data.ipcp ? data.ipcp : ipcpDiarioFixtureHomologado.ipcp
+
   return {
     contrato: data.contrato,
     read_only: true,
@@ -272,25 +301,18 @@ function normalizarNexoIpcpDiarioVivo(data: NexoIpcpDiarioVivoResponse): IpcpDia
     atualizacao: 'diaria',
     escopo: data.escopo_efetivo,
     resumo_nexo: {
-      texto: normalizarTextoProducaoAssistida(
-        data.resumo?.texto ||
-          'Leitura viva do IPCP da equipe disponível para orientação assistida.',
-      ),
-      prioridades: data.resumo?.recomendacoes?.length
-        ? data.resumo.recomendacoes.map((item) => ({
-            ...item,
-            titulo: normalizarTextoProducaoAssistida(item.titulo),
-            motivo: normalizarTextoProducaoAssistida(item.motivo),
-          }))
-        : ipcpDiarioFixtureHomologado.resumo_nexo.prioridades,
+      texto: snapshotCompleto
+        ? textoNormalizado
+        : `${textoNormalizado} Enquanto o processamento diário não retorna o pacote completo, a tela mantém a última leitura completa aprovada para não deixar a operação sem orientação.`,
+      prioridades: prioridadesCompletas,
     },
-    ipcp: data.ipcp || ipcpDiarioFixtureHomologado.ipcp,
-    negocios_atencao: [],
+    ipcp: ipcpCompleto,
+    negocios_atencao: snapshotCompleto ? [] : ipcpDiarioFixtureHomologado.negocios_atencao,
     evolucao: {
       status: 'sem_historico',
-      comentario: data.dados_vivos?.snapshot_encontrado
+      comentario: snapshotCompleto
         ? 'Leitura viva da equipe carregada a partir do snapshot diário do IPCP.'
-        : 'Sem snapshot diário disponível para este escopo; a orientação usa a regra aprovada até o próximo processamento.',
+        : 'Aguardando processamento diário completo; a tela mantém a última leitura aprovada da equipe até a nova carga viva ficar disponível.',
     },
     guardrails: {
       sem_ranking_punitivo: true,

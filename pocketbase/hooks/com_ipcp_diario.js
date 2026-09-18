@@ -824,6 +824,17 @@ routerAdd(
         5,
         0,
       )
+      if (!snapshots.length && effectiveScope !== 'proprio' && responsavelId) {
+        var filtroEquipe =
+          "data_referencia <= '" + esc(data) + "' && escopo = '" + esc(effectiveScope) + "'"
+        snapshots = $app.findRecordsByFilter(
+          'com_ipcp_snapshots',
+          filtroEquipe,
+          '-data_referencia,-created',
+          5,
+          0,
+        )
+      }
     } catch (_) {
       fonteDisponivel = false
       snapshots = []
