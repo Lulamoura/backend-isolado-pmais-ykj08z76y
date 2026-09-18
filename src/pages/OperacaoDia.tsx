@@ -132,13 +132,17 @@ export default function OperacaoDia() {
 
   useEffect(() => {
     let active = true
-    obterNexoIpcpDiarioEquipe().then((data) => {
+    const escopoIpcp =
+      perfilSlug === 'superadministrador' || perfilSlug === 'gestor-comercial' || perfilSlug === 'leitura-executiva'
+        ? 'equipe'
+        : 'proprio'
+    obterNexoIpcpDiarioEquipe(escopoIpcp).then((data) => {
       if (active) setIpcpDiario(data)
     })
     return () => {
       active = false
     }
-  }, [reloadKey])
+  }, [perfilSlug, reloadKey])
 
   useEffect(() => {
     let active = true

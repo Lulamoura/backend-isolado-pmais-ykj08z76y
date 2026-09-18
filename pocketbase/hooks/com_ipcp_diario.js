@@ -633,20 +633,116 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     }
   }
 
-  function calcularPacoteIpcpDiario(dataRef) {
-    var dia = Number(String(dataRef || '').slice(8, 10)) || 0
-    var negociosAbertos = contar('com_negocios', "id != ''")
-    var atividades = contar('com_atividades', "id != ''")
-    var slas = contar('com_slas', "id != ''")
-    var propostas = contar('com_proposta_envios', "id != ''")
-    var fechamentos = contar('com_fechamentos', "id != ''")
+  function esc(value) {
+    return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+  }
 
-    var resultadoComercial = round1(clamp(18 + (fechamentos % 8) * 0.8 + (dia % 4) * 0.7, 12, 30))
-    var valorEstrategico = round1(clamp(6 + (propostas % 7) * 0.5 + (dia % 3) * 0.4, 4, 15))
-    var disciplinaCarteira = round1(clamp(11 + (atividades % 10) * 0.45 - (slas % 4) * 0.35 + (dia % 5) * 0.25, 6, 20))
-    var qualidadeFollowup = round1(clamp(8 + (atividades % 9) * 0.4 + (propostas % 4) * 0.35, 5, 20))
-    var registrosAprendizado = round1(clamp(5 + (negociosAbertos % 6) * 0.35 + (dia % 6) * 0.2, 3, 15))
+  function filtroEscopoColecao(collection, scope, responsavelId, actor) {
+    var parts = []
+    if (collection === 'com_negocios') parts.push('inativo = false')
+    if (scope === 'proprio' && responsavelId) parts.push("responsavel_id = '" + esc(responsavelId) + "'")
+    if (scope === 'equipe') {
+      var equipeId = actor.getString('equipe_id') || ''
+      if (equipeId) parts.push("equipe_id = '" + esc(equipeId) + "'")
+    }
+    return parts.length ? parts.join(' && ') : "id != ''"
+  }
+
+  function listar(collection, filtro, sort, limit) {
+    try {
+      return $app.findRecordsByFilter(collection, filtro || "id != ''", sort || '-created', limit || 200, 0)
+    } catch (_) {
+      return []
+    }
+  }
+
+  function classificarResultado(rec) {
+    var resultado = rec.getString('resultado') || rec.getString('status') || ''
+    if (resultado === 'ganho') return 'ganho'
+    if (resultado === 'perdido') return 'perdido'
+    if (resultado === 'desqualificado') return 'desqualificado'
+    return 'aberto'
+  }
+
+  function nomeNegocio(rec) {
+    return (
+      rec.getString('cliente') ||
+      rec.getString('empresa_nome') ||
+      rec.getString('contato_nome') ||
+      rec.getString('titulo') ||
+      rec.getString('nome') ||
+      'Negócio comercial'
+    )
+  }
+
+  function negocioHumanoId(rec) {
+    return rec.getString('oe_numero') || rec.getString('external_id') || rec.getString('codigo') || rec.id
+  }
+
+  function calcularPacoteIpcpDiario(dataRef, scope, responsavelId, actor) {
+    var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
+    var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
+    var filtroOperacional = scope === 'proprio' && responsavelId ? "responsavel_id = '" + esc(responsavelId) + "'" : "id != ''"
+    var atividades = listar('com_atividades', filtroOperacional, '-created', 200)
+    var slas = listar('com_slas', filtroOperacional, '-created', 200)
+    var propostas = listar('com_proposta_envios', filtroOperacional, '-created', 200)
+    var fechamentos = listar('com_fechamentos', filtroOperacional, '-created', 200)
+
+    var abertos = 0, ganhos = 0, perdidos = 0, valorAberto = 0, valorGanho = 0
+    var semResponsavel = 0, semModalidade = 0, prospectPendente = 0
+    for (var i = 0; i < negocios.length; i++) {
+      var n = negocios[i]
+      var situacao = classificarResultado(n)
+      var valor = Number(n.get('valor') || 0)
+      if (!isFinite(valor) || valor < 0) valor = 0
+      if (situacao === 'ganho') { ganhos++; if (valor > 1) valorGanho += valor }
+      else if (situacao === 'perdido' || situacao === 'desqualificado') perdidos++
+      else { abertos++; if (valor > 1) valorAberto += valor }
+      if (!n.getString('responsavel_id')) semResponsavel++
+      if (!n.getString('modalidade')) semModalidade++
+      if ((n.getString('etapa') === 'prospects' || n.getString('qualificacao') === 'pendente') && situacao === 'aberto') prospectPendente++
+    }
+
+    var totalDecididos = ganhos + perdidos
+    var conversao = totalDecididos ? ganhos / totalDecididos : 0
+    var coberturaResponsavel = negocios.length ? (negocios.length - semResponsavel) / negocios.length : 1
+    var coberturaModalidade = negocios.length ? (negocios.length - semModalidade) / negocios.length : 1
+    var atividadePorAberto = abertos ? atividades.length / abertos : atividades.length
+    var propostaPorAberto = abertos ? propostas.length / abertos : propostas.length
+    var slaPressao = slas.length ? Math.min(1, slas.length / Math.max(1, abertos || negocios.length)) : 0
+
+    var resultadoComercial = round1(clamp(12 + conversao * 10 + Math.min(8, ganhos * 0.8), 8, 30))
+    var valorEstrategico = round1(clamp(4 + Math.min(7, valorAberto / 200000) + Math.min(4, valorGanho / 250000) + propostaPorAberto, 3, 15))
+    var disciplinaCarteira = round1(clamp(7 + Math.min(8, atividadePorAberto * 1.6) + coberturaResponsavel * 4 - slaPressao * 3, 4, 20))
+    var qualidadeFollowup = round1(clamp(6 + Math.min(7, atividades.length / 8) + Math.min(4, propostas.length / 10) - prospectPendente * 0.4, 4, 20))
+    var registrosAprendizado = round1(clamp(4 + coberturaResponsavel * 4 + coberturaModalidade * 3 + Math.min(4, negocios.length / 12), 3, 15))
     var total = round1(resultadoComercial + valorEstrategico + disciplinaCarteira + qualidadeFollowup + registrosAprendizado)
+
+    var prioridades = []
+    if (prospectPendente > 0) prioridades.push({ titulo: 'Resolver qualificações pendentes', motivo: prospectPendente + ' negócio(s) precisam sair do limbo entre qualificar, descartar ou complementar dados.', bloco_afetado: 'resultado_comercial' })
+    if (slas.length > 0) prioridades.push({ titulo: 'Tratar SLAs e próximas ações em risco', motivo: 'Há sinais de prazo que podem esfriar oportunidades abertas neste escopo.', bloco_afetado: 'disciplina_carteira' })
+    if (propostas.length > 0) prioridades.push({ titulo: 'Acompanhar propostas enviadas', motivo: 'Propostas sem acompanhamento claro reduzem conversão e valor estratégico.', bloco_afetado: 'qualidade_followup' })
+    if (prioridades.length < 3) prioridades.push({ titulo: 'Registrar objeções e próximos compromissos', motivo: 'Registros claros tornam a orientação do Nexo específica para a carteira consultada.', bloco_afetado: 'registros_aprendizado' })
+    if (prioridades.length < 3) prioridades.push({ titulo: 'Manter cadência da carteira aberta', motivo: 'Cada oportunidade aberta deve ter responsável e próxima ação objetiva.', bloco_afetado: 'disciplina_carteira' })
+
+    var negociosAtencao = []
+    for (var j = 0; j < negocios.length && negociosAtencao.length < 3; j++) {
+      var item = negocios[j]
+      if (classificarResultado(item) !== 'aberto') continue
+      var motivos = []
+      if (!item.getString('responsavel_id')) motivos.push('sem responsável comercial claro')
+      if (!item.getString('modalidade')) motivos.push('sem modalidade registrada')
+      if (item.getString('qualificacao') === 'pendente' || item.getString('etapa') === 'prospects') motivos.push('qualificação pendente')
+      if (!motivos.length) motivos.push('exige próximo passo comercial verificável')
+      negociosAtencao.push({
+        id_negocio: negocioHumanoId(item),
+        cliente: nomeNegocio(item),
+        motivo: motivos.join('; '),
+        acao_recomendada: 'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.',
+        blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
+        link: '/pipeline?negocio=' + encodeURIComponent(negocioHumanoId(item)),
+      })
+    }
 
     return {
       ipcp: {
@@ -662,75 +758,34 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
         cobertura_ia: {
           provider_oficial: 'nexo_hermes',
           fallback_permitido: false,
-          avaliados: atividades + propostas,
-          total: atividades + propostas,
+          avaliados: atividades.length + propostas.length + negocios.length,
+          total: atividades.length + propostas.length + negocios.length,
           pendentes: 0,
         },
       },
       resumo_nexo: {
         texto:
-          'Leitura viva da equipe processada para orientar a Operação do Dia com base nos sinais operacionais disponíveis: atividades, propostas, SLAs, negócios e fechamentos do ambiente.',
-        prioridades: [
-          {
-            titulo: slas > 0 ? 'Tratar SLAs e ações de maior risco' : 'Manter disciplina nas próximas ações',
-            motivo: slas > 0 ? 'Há sinais de prazo que podem esfriar oportunidades abertas.' : 'A carteira deve manter próxima ação objetiva para preservar ritmo comercial.',
-            bloco_afetado: 'disciplina_carteira',
-          },
-          {
-            titulo: propostas > 0 ? 'Acompanhar propostas enviadas' : 'Registrar próximos passos comerciais',
-            motivo: propostas > 0 ? 'Propostas sem acompanhamento claro reduzem conversão e valor estratégico.' : 'Registros completos alimentam a leitura do Nexo e reduzem orientação genérica.',
-            bloco_afetado: 'qualidade_followup',
-          },
-          {
-            titulo: 'Registrar objeções, pendências e aprendizados',
-            motivo: 'Transforma follow-up em aprendizado comercial reutilizável pela equipe.',
-            bloco_afetado: 'registros_aprendizado',
-          },
-        ],
+          'Leitura viva ' + (scope === 'proprio' ? 'da carteira do usuário' : 'da equipe') + ' processada com base nos sinais operacionais disponíveis no ambiente: negócios, atividades, propostas, SLAs e fechamentos.',
+        prioridades: prioridades.slice(0, 3),
       },
-      negocios_atencao: [
-        {
-          id_negocio: '4612',
-          cliente: 'RCML (PMAIS EVENTOS)',
-          motivo: 'Follow-up precisa preservar decisor, pendência e prazo de retorno de forma mais clara.',
-          acao_recomendada: 'Registrar próximo passo objetivo com responsável, prazo e pendência do cliente ou da PMais.',
-          blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
-          link: '/pipeline?negocio=4612',
-        },
-        {
-          id_negocio: '4800',
-          cliente: 'Cliente em acompanhamento comercial',
-          motivo: 'Próxima ação requer objetivo comercial verificável.',
-          acao_recomendada: 'Confirmar decisor, prazo de análise e a dúvida que precisa ser removida no próximo contato.',
-          blocos_afetados: ['qualidade_followup'],
-          link: '/pipeline?negocio=4800',
-        },
-      ],
+      negocios_atencao: negociosAtencao,
       evolucao: {
         status: 'sem_historico',
-        comentario: 'Pacote diário calculado em produção assistida; a evolução comparativa entrará após o próximo ciclo processado.',
+        comentario: 'Pacote diário calculado em produção assistida com dados vivos do escopo consultado.',
       },
       evidencias: {
         criterio: 'sinais_operacionais_resumidos_para_gestao',
-        fonte: 'processamento_diario_ipcp',
+        fonte: 'processamento_diario_ipcp_dados_vivos',
         exemplos: [
-          {
-            bloco: 'qualidade_followup',
-            sinal: 'propostas_e_atividades_do_dia',
-            acao: 'complementar_proximo_passo_objetivo',
-          },
-          {
-            bloco: 'disciplina_carteira',
-            sinal: 'slas_e_acoes_operacionais',
-            acao: 'redefinir_data_e_objetivo_comercial_verificavel',
-          },
+          { bloco: 'resultado_comercial', sinal: ganhos + ' ganho(s), ' + perdidos + ' perda(s) e ' + abertos + ' aberto(s)', acao: 'priorizar decisões e próximos passos' },
+          { bloco: 'disciplina_carteira', sinal: atividades.length + ' atividade(s), ' + slas.length + ' SLA(s)', acao: 'redefinir data e objetivo comercial verificável' },
         ],
       },
     }
   }
 
-  var formula = 'ipcp_v0_3_processamento_diario_operacao_assistida'
-  var pacote = calcularPacoteIpcpDiario(data)
+  var formula = 'ipcp_v0_4_dados_vivos_por_escopo'
+  var pacote = calcularPacoteIpcpDiario(data, effectiveScope, responsavelId, ator)
   var ipcpTotal = pacote.ipcp.total
   var snapshotKey = [data, effectiveScope, responsavelId, formula, 'processamento_diario'].join('|')
 
@@ -871,6 +926,112 @@ routerAdd(
       return text
     }
 
+
+    function round1(value) {
+      return Math.round(Number(value || 0) * 10) / 10
+    }
+
+    function clamp(value, min, max) {
+      value = Number(value || 0)
+      if (value < min) return min
+      if (value > max) return max
+      return value
+    }
+
+    function listar(collection, filtro, sort, limit) {
+      try {
+        return $app.findRecordsByFilter(collection, filtro || "id != ''", sort || '-created', limit || 200, 0)
+      } catch (_) {
+        return []
+      }
+    }
+
+    function filtroEscopoColecao(collection, scope, responsavelId, actor) {
+      var parts = []
+      if (collection === 'com_negocios') parts.push('inativo = false')
+      if (scope === 'proprio' && responsavelId) parts.push("responsavel_id = '" + esc(responsavelId) + "'")
+      if (scope === 'equipe') {
+        var equipeId = actor.getString('equipe_id') || ''
+        if (equipeId) parts.push("equipe_id = '" + esc(equipeId) + "'")
+      }
+      return parts.length ? parts.join(' && ') : "id != ''"
+    }
+
+    function classificarResultado(rec) {
+      var resultado = rec.getString('resultado') || rec.getString('status') || ''
+      if (resultado === 'ganho') return 'ganho'
+      if (resultado === 'perdido') return 'perdido'
+      if (resultado === 'desqualificado') return 'desqualificado'
+      return 'aberto'
+    }
+
+    function nomeNegocio(rec) {
+      return rec.getString('cliente') || rec.getString('empresa_nome') || rec.getString('contato_nome') || rec.getString('titulo') || rec.getString('nome') || 'Negócio comercial'
+    }
+
+    function negocioHumanoId(rec) {
+      return rec.getString('oe_numero') || rec.getString('external_id') || rec.getString('codigo') || rec.id
+    }
+
+    function calcularPacoteIpcpDiarioVivo(dataRef, scope, responsavelId, actor) {
+      var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
+      var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
+      var filtroOperacional = scope === 'proprio' && responsavelId ? "responsavel_id = '" + esc(responsavelId) + "'" : "id != ''"
+      var atividades = listar('com_atividades', filtroOperacional, '-created', 200)
+      var slas = listar('com_slas', filtroOperacional, '-created', 200)
+      var propostas = listar('com_proposta_envios', filtroOperacional, '-created', 200)
+      var fechamentos = listar('com_fechamentos', filtroOperacional, '-created', 200)
+      var abertos = 0, ganhos = 0, perdidos = 0, valorAberto = 0, valorGanho = 0, semResponsavel = 0, semModalidade = 0, prospectPendente = 0
+      for (var i = 0; i < negocios.length; i++) {
+        var n = negocios[i]
+        var situacao = classificarResultado(n)
+        var valor = Number(n.get('valor') || 0)
+        if (!isFinite(valor) || valor < 0) valor = 0
+        if (situacao === 'ganho') { ganhos++; if (valor > 1) valorGanho += valor }
+        else if (situacao === 'perdido' || situacao === 'desqualificado') perdidos++
+        else { abertos++; if (valor > 1) valorAberto += valor }
+        if (!n.getString('responsavel_id')) semResponsavel++
+        if (!n.getString('modalidade')) semModalidade++
+        if ((n.getString('etapa') === 'prospects' || n.getString('qualificacao') === 'pendente') && situacao === 'aberto') prospectPendente++
+      }
+      var totalDecididos = ganhos + perdidos
+      var conversao = totalDecididos ? ganhos / totalDecididos : 0
+      var coberturaResponsavel = negocios.length ? (negocios.length - semResponsavel) / negocios.length : 1
+      var coberturaModalidade = negocios.length ? (negocios.length - semModalidade) / negocios.length : 1
+      var atividadePorAberto = abertos ? atividades.length / abertos : atividades.length
+      var propostaPorAberto = abertos ? propostas.length / abertos : propostas.length
+      var slaPressao = slas.length ? Math.min(1, slas.length / Math.max(1, abertos || negocios.length)) : 0
+      var resultadoComercial = round1(clamp(12 + conversao * 10 + Math.min(8, ganhos * 0.8), 8, 30))
+      var valorEstrategico = round1(clamp(4 + Math.min(7, valorAberto / 200000) + Math.min(4, valorGanho / 250000) + propostaPorAberto, 3, 15))
+      var disciplinaCarteira = round1(clamp(7 + Math.min(8, atividadePorAberto * 1.6) + coberturaResponsavel * 4 - slaPressao * 3, 4, 20))
+      var qualidadeFollowup = round1(clamp(6 + Math.min(7, atividades.length / 8) + Math.min(4, propostas.length / 10) - prospectPendente * 0.4, 4, 20))
+      var registrosAprendizado = round1(clamp(4 + coberturaResponsavel * 4 + coberturaModalidade * 3 + Math.min(4, negocios.length / 12), 3, 15))
+      var prioridades = []
+      if (prospectPendente > 0) prioridades.push({ titulo: 'Resolver qualificações pendentes', motivo: prospectPendente + ' negócio(s) precisam sair do limbo entre qualificar, descartar ou complementar dados.', bloco_afetado: 'resultado_comercial' })
+      if (slas.length > 0) prioridades.push({ titulo: 'Tratar SLAs e próximas ações em risco', motivo: 'Há sinais de prazo que podem esfriar oportunidades abertas neste escopo.', bloco_afetado: 'disciplina_carteira' })
+      if (propostas.length > 0) prioridades.push({ titulo: 'Acompanhar propostas enviadas', motivo: 'Propostas sem acompanhamento claro reduzem conversão e valor estratégico.', bloco_afetado: 'qualidade_followup' })
+      if (prioridades.length < 3) prioridades.push({ titulo: 'Registrar objeções e próximos compromissos', motivo: 'Registros claros tornam a orientação do Nexo específica para a carteira consultada.', bloco_afetado: 'registros_aprendizado' })
+      if (prioridades.length < 3) prioridades.push({ titulo: 'Manter cadência da carteira aberta', motivo: 'Cada oportunidade aberta deve ter responsável e próxima ação objetiva.', bloco_afetado: 'disciplina_carteira' })
+      var negociosAtencao = []
+      for (var j = 0; j < negocios.length && negociosAtencao.length < 3; j++) {
+        var item = negocios[j]
+        if (classificarResultado(item) !== 'aberto') continue
+        var motivos = []
+        if (!item.getString('responsavel_id')) motivos.push('sem responsável comercial claro')
+        if (!item.getString('modalidade')) motivos.push('sem modalidade registrada')
+        if (item.getString('qualificacao') === 'pendente' || item.getString('etapa') === 'prospects') motivos.push('qualificação pendente')
+        if (!motivos.length) motivos.push('exige próximo passo comercial verificável')
+        negociosAtencao.push({ id_negocio: negocioHumanoId(item), cliente: nomeNegocio(item), motivo: motivos.join('; '), acao_recomendada: 'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.', blocos_afetados: ['qualidade_followup', 'disciplina_carteira'], link: '/pipeline?negocio=' + encodeURIComponent(negocioHumanoId(item)) })
+      }
+      return {
+        ipcp: { total: round1(resultadoComercial + valorEstrategico + disciplinaCarteira + qualidadeFollowup + registrosAprendizado), carater: 'educativo', blocos: { resultado_comercial: resultadoComercial, valor_estrategico: valorEstrategico, disciplina_carteira: disciplinaCarteira, qualidade_followup: qualidadeFollowup, registros_aprendizado: registrosAprendizado }, cobertura_ia: { provider_oficial: 'nexo_hermes', fallback_permitido: false, avaliados: atividades.length + propostas.length + negocios.length, total: atividades.length + propostas.length + negocios.length, pendentes: 0 } },
+        resumo_nexo: { texto: 'Leitura viva ' + (scope === 'proprio' ? 'da carteira do usuário' : 'da equipe') + ' processada com base nos sinais operacionais disponíveis no ambiente: negócios, atividades, propostas, SLAs e fechamentos.', prioridades: prioridades.slice(0, 3) },
+        negocios_atencao: negociosAtencao,
+        evolucao: { status: 'sem_historico', comentario: 'Pacote calculado em leitura viva com dados do escopo consultado.' },
+        evidencias: { criterio: 'sinais_operacionais_resumidos_para_gestao', fonte: 'leitura_viva_ipcp_dados_reais', exemplos: [{ bloco: 'resultado_comercial', sinal: ganhos + ' ganho(s), ' + perdidos + ' perda(s) e ' + abertos + ' aberto(s)', acao: 'priorizar decisões e próximos passos' }] },
+      }
+    }
+
     var ator = e.auth
     if (!ator) return e.unauthorizedError('Autenticacao necessaria')
     if (ator.getBool && ator.getBool('ativo_comercial') === false) {
@@ -912,29 +1073,18 @@ routerAdd(
 
     var snapshot = snapshots.length ? snapshots[0] : null
     var payload = snapshot ? leituraPayload(snapshot) : {}
-    var ipcpPayload = payload.ipcp || {}
-    var resumoPayload = payload.resumo_nexo || {}
+    var pacoteVivo = calcularPacoteIpcpDiarioVivo(data, effectiveScope, responsavelId, ator)
+    var ipcpPayload = pacoteVivo.ipcp || payload.ipcp || {}
+    var resumoPayload = pacoteVivo.resumo_nexo || payload.resumo_nexo || {}
     var guardrailsPayload = payload.guardrails || {}
 
-    var ipcpTotal = snapshot ? Number(snapshot.get('ipcp_total') || ipcpPayload.total || 0) : 0
-    var formula = snapshot
-      ? snapshot.getString('formula_version') || String(payload.formula_version || '')
-      : 'ipcp_v0_2_simulacao_readonly_ia_followup'
-    var dataReferencia = snapshot ? snapshot.getString('data_referencia') || data : data
+    var ipcpTotal = Number(ipcpPayload.total || 0)
+    var formula = 'ipcp_v0_4_dados_vivos_por_escopo'
+    var dataReferencia = data
 
-    var resumoTexto = textoCurto(
-      resumoPayload.texto ||
-        'Sem snapshot vivo do IPCP para este escopo na data consultada. O Nexo deve orientar pela regra aprovada e solicitar processamento/homologação antes de tratar como indicador vivo.',
-      700,
-    )
+    var resumoTexto = textoCurto(resumoPayload.texto, 700)
 
-    var prioridades = resumoPayload.prioridades || [
-      {
-        titulo: 'Validar processamento vivo do IPCP',
-        motivo: 'Evita orientação gerencial baseada em dado desatualizado ou simulado.',
-        bloco_afetado: 'registros_aprendizado',
-      },
-    ]
+    var prioridades = resumoPayload.prioridades || []
 
     return e.json(200, {
       ok: true,
@@ -947,9 +1097,10 @@ routerAdd(
         consultados: true,
         fonte_disponivel: fonteDisponivel,
         snapshot_encontrado: !!snapshot,
+        calculado_ao_vivo: true,
         total_lido: snapshots.length,
         limite_leitura: 5,
-        pacote_completo: !!payload.pacote_completo,
+        pacote_completo: true,
       },
       data_referencia: dataReferencia,
       escopo_efetivo: {
@@ -976,12 +1127,12 @@ routerAdd(
           pendentes: 0,
         },
       },
-      negocios_atencao: payload.negocios_atencao || [],
-      evolucao: payload.evolucao || null,
+      negocios_atencao: pacoteVivo.negocios_atencao || [],
+      evolucao: pacoteVivo.evolucao || null,
       evidencias: {
-        criterio: payload.evidencias ? payload.evidencias.criterio : 'snapshot_ipcp_resumido_sem_payload_tecnico_bruto',
-        fonte: payload.evidencias ? payload.evidencias.fonte : null,
-        exemplos: payload.evidencias ? payload.evidencias.exemplos || [] : [],
+        criterio: pacoteVivo.evidencias ? pacoteVivo.evidencias.criterio : 'leitura_viva_ipcp_dados_reais',
+        fonte: pacoteVivo.evidencias ? pacoteVivo.evidencias.fonte : 'leitura_viva',
+        exemplos: pacoteVivo.evidencias ? pacoteVivo.evidencias.exemplos || [] : [],
         snapshot_id: snapshot ? snapshot.id : null,
         snapshot_status: snapshot ? snapshot.getString('status') || null : null,
         origem: snapshot ? snapshot.getString('origem') || null : null,
