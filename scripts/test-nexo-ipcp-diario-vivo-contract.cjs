@@ -135,8 +135,13 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /calculado_em:\s*snapshot \? \(snapshot\.getString\('updated'\)/,
-  'rota deve expor a data/hora da última atualização do cálculo diário a partir do snapshot',
+  /var calculadoEm = snapshot[\s\S]{0,250}new Date\(\)\.toISOString\(\)/,
+  'rota deve expor data/hora de base: snapshot quando existir ou cálculo vivo do servidor quando não houver snapshot',
+)
+assert.match(
+  routeSource,
+  /pacoteVivoResponsavelId = responsavelId === '__todos__' \? '' : responsavelId/,
+  'leitura Todos deve usar snapshot __todos__ sem filtrar cálculo vivo por um responsável técnico',
 )
 assert.match(
   routeSource,
