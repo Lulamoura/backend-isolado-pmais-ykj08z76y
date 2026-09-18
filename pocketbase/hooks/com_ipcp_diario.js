@@ -639,15 +639,29 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     return 'aberto'
   }
 
+  function nomeRelacionado(collection, id, fields) {
+    if (!id) return ''
+    try {
+      var rec = $app.findRecordById(collection, id)
+      for (var ri = 0; ri < fields.length; ri++) {
+        var value = rec.getString(fields[ri])
+        if (value) return value
+      }
+    } catch (_) {}
+    return ''
+  }
+
   function nomeNegocio(rec) {
-    return (
-      rec.getString('cliente') ||
-      rec.getString('empresa_nome') ||
-      rec.getString('contato_nome') ||
-      rec.getString('titulo') ||
-      rec.getString('nome') ||
-      'Negócio comercial'
-    )
+    var empresaId = rec.getString('empresa_id') || ''
+    var contatoId = rec.getString('contato_principal_id') || ''
+    var empresa = nomeRelacionado('com_empresas', empresaId, ['nome', 'razao_social'])
+    var contato = nomeRelacionado('com_contatos', contatoId, ['nome'])
+    var titulo = rec.getString('titulo') || rec.getString('nome') || ''
+    if (empresa && contato) return empresa + ' — ' + contato
+    if (empresa) return empresa
+    if (contato) return contato
+    if (titulo && titulo !== 'Proposta Qualificada') return titulo
+    return 'Negócio comercial'
   }
 
   function negocioHumanoId(rec) {
@@ -1181,15 +1195,29 @@ routerAdd(
       return 'aberto'
     }
 
+    function nomeRelacionado(collection, id, fields) {
+      if (!id) return ''
+      try {
+        var rec = $app.findRecordById(collection, id)
+        for (var ri = 0; ri < fields.length; ri++) {
+          var value = rec.getString(fields[ri])
+          if (value) return value
+        }
+      } catch (_) {}
+      return ''
+    }
+
     function nomeNegocio(rec) {
-      return (
-        rec.getString('cliente') ||
-        rec.getString('empresa_nome') ||
-        rec.getString('contato_nome') ||
-        rec.getString('titulo') ||
-        rec.getString('nome') ||
-        'Negócio comercial'
-      )
+      var empresaId = rec.getString('empresa_id') || ''
+      var contatoId = rec.getString('contato_principal_id') || ''
+      var empresa = nomeRelacionado('com_empresas', empresaId, ['nome', 'razao_social'])
+      var contato = nomeRelacionado('com_contatos', contatoId, ['nome'])
+      var titulo = rec.getString('titulo') || rec.getString('nome') || ''
+      if (empresa && contato) return empresa + ' — ' + contato
+      if (empresa) return empresa
+      if (contato) return contato
+      if (titulo && titulo !== 'Proposta Qualificada') return titulo
+      return 'Negócio comercial'
     }
 
     function negocioHumanoId(rec) {
