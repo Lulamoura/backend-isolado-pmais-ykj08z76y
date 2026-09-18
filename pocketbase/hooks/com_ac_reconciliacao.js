@@ -270,12 +270,20 @@ routerAdd(
           fieldLabels[String(customMeta[cm].id)] = customMeta[cm].fieldLabel || ''
         var customRows = []
         for (var sdi = 0; sdi < deals.length; sdi++) {
-          var selectedCustomRows = list(
-            '/api/3/dealCustomFieldData',
-            'dealCustomFieldData',
-            false,
-            '&filters[dealId]=' + encodeURIComponent(String(deals[sdi].id)),
-          )
+          var selectedCustomRows = []
+          try {
+            selectedCustomRows = list(
+              '/api/3/dealCustomFieldData',
+              'dealCustomFieldData',
+              false,
+              '&filters[dealId]=' + encodeURIComponent(String(deals[sdi].id)),
+            )
+          } catch (_) {
+            var failedDealId = String(deals[sdi].id)
+            if (!customByDeal[failedDealId]) customByDeal[failedDealId] = {}
+            customByDeal[failedDealId].__custom_fetch_failed = 'CUSTOM_FIELDS_INDISPONIVEIS'
+            continue
+          }
           for (var scr = 0; scr < selectedCustomRows.length; scr++)
             customRows.push(selectedCustomRows[scr])
         }
@@ -371,6 +379,7 @@ routerAdd(
             phase: customFields['Fase'] || '',
             source: customFields['Fonte de Prospecção'] || '',
             loss_reason: customFields['Motivo Perda'] || '',
+            custom_fields_status: customFields.__custom_fetch_failed || '',
             closed_at: terminalAt,
             recovery_at:
               customFields['meta:42'] || customFields['Data de Recuperação Comercial'] || '',
@@ -380,7 +389,7 @@ routerAdd(
           {
             company_id: String(deals[d].account || deals[d].organization || ''),
             contact_id: String(deals[d].contact || ''),
-            owner_code: customFields['Responsável'] || String(deals[d].owner || ''),
+            owner_code: customFields['Responsável'] || '',
           },
           deals[d].isDisabled === true,
         )
@@ -465,14 +474,9 @@ routerAdd(
       }
       if (ev.entity_type === 'business') {
         var eventIsProspect = String(ev.data.stage || '') === 'prospects'
-        if (
-          !ev.links.company_id ||
-          !ev.links.contact_id ||
-          (!eventIsProspect && !ev.links.owner_code)
-        )
-          kind = 'error'
+        if (!ev.links.contact_id || (!eventIsProspect && !ev.links.owner_code)) kind = 'error'
         try {
-          if (!incomingCompanies[ev.links.company_id])
+          if (ev.links.company_id && !incomingCompanies[ev.links.company_id])
             $app.findFirstRecordByFilter(
               'com_vinculos_externos',
               "sistema_origem='activecampaign' && external_type='company' && external_id='" +
@@ -576,7 +580,7 @@ routerAdd(
         detail: String(saveError).slice(0, 120),
       })
     }
-    var blocked = counts.conflict > 0 || counts.error > 0
+    var blocked = counts.conflict > 0
     return e.json(200, {
       dry_run_id: dryId,
       fingerprint: fingerprint,
@@ -691,8 +695,7 @@ routerAdd(
       Date.parse(stored.expires_at || '') < Date.now()
     )
       return e.json(409, { error: 'FINGERPRINT_OBSOLETO' })
-    if ((stored.counts.conflict || 0) > 0 || (stored.counts.error || 0) > 0)
-      return e.json(409, { error: 'PLANO_BLOQUEADO' })
+    if ((stored.counts.conflict || 0) > 0) return e.json(409, { error: 'PLANO_BLOQUEADO' })
 
     // Refaz a leitura imediatamente antes da escrita. O segundo dry-run usa a
     // mesma normalização determinística; qualquer mudança no AC ou no estado
@@ -813,12 +816,14 @@ routerAdd(
               target.set('empresa_id', companyLink.getString('record_id'))
             }
           } else {
-            var company = tx.findFirstRecordByFilter(
-              'com_vinculos_externos',
-              "sistema_origem='activecampaign' && external_type='company' && external_id='" +
-                ev.links.company_id +
-                "'",
-            )
+            var company = null
+            if (ev.links.company_id)
+              company = tx.findFirstRecordByFilter(
+                'com_vinculos_externos',
+                "sistema_origem='activecampaign' && external_type='company' && external_id='" +
+                  ev.links.company_id +
+                  "'",
+              )
             var contact = tx.findFirstRecordByFilter(
               'com_vinculos_externos',
               "sistema_origem='activecampaign' && external_type='contact' && external_id='" +
@@ -848,7 +853,7 @@ routerAdd(
             if (dealStatus !== '0' && dealStatus !== '1' && dealStatus !== '2')
               throw new Error('STATUS_AC_INVALIDO')
             target.set('titulo', ev.data.title || 'Negocio importado')
-            target.set('empresa_id', company.getString('record_id'))
+            target.set('empresa_id', company ? company.getString('record_id') : '')
             target.set('contato_principal_id', contact.getString('record_id'))
             target.set('responsavel_id', owner ? owner.getString('record_id') : '')
             target.set('valor', Math.round(Number(ev.data.value_cents || 0)))

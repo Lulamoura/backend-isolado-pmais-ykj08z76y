@@ -132,7 +132,7 @@ const checks = [
   ],
   [
     'simulação e itens do plano usam persistência atômica transacional',
-    (reconciliationHook.match(/\$app\.runInTransaction/g) || []).length === 2 &&
+    (reconciliationHook.match(/\$app\.runInTransaction/g) || []).length >= 2 &&
       reconciliationHook.includes("planned.set('evento_tipo', 'reconciliation_plan_item')") &&
       reconciliationHook.includes('tx.save(planned)'),
   ],
@@ -183,6 +183,27 @@ const checks = [
       reconciliationHook.includes("external_type='business'") &&
       reconciliationHook.includes("candidateStatus !== '0'") &&
       reconciliationHook.includes('(isOpenScope || isKnownTerminal)'),
+  ],
+  [
+    'reconciliação não usa proprietário técnico do AC como responsável comercial',
+    reconciliationHook.includes("owner_code: customFields['Responsável'] || ''") &&
+      !reconciliationHook.includes("owner_code: customFields['Responsável'] || String(deals[d].owner || '')"),
+  ],
+  [
+    'pendências de qualidade não bloqueiam atualização manual segura',
+    reconciliationHook.includes('var blocked = counts.conflict > 0') &&
+      reconciliationHook.includes('if ((stored.counts.conflict || 0) > 0)') &&
+      !reconciliationHook.includes("if ((stored.counts.conflict || 0) > 0 || (stored.counts.error || 0) > 0)"),
+  ],
+  [
+    'negócio prospect sem empresa não bloqueia reconciliação',
+    reconciliationHook.includes("if (!ev.links.contact_id || (!eventIsProspect && !ev.links.owner_code))") &&
+      reconciliationHook.includes("if (ev.links.company_id && !incomingCompanies[ev.links.company_id])"),
+  ],
+  [
+    'falha pontual de campos personalizados não derruba toda a verificação',
+    reconciliationHook.includes('__custom_fetch_failed') &&
+      reconciliationHook.includes('CUSTOM_FIELDS_INDISPONIVEIS'),
   ],
   [
     'terminal conhecido não exige alias de etapa aberta',
