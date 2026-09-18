@@ -75,7 +75,7 @@ describe('obterIpcpDiarioReadOnly', () => {
         total_lido: 2,
       },
       resumo: {
-        texto: 'Leitura viva da equipe.',
+        texto: 'Leitura viva da equipe em homologação com snapshot simulado.',
         recomendacoes: [
           {
             titulo: 'Ação de equipe',
@@ -116,7 +116,9 @@ describe('obterIpcpDiarioReadOnly', () => {
     expect(data.read_only).toBe(true)
     expect(data.sem_mutacao).toBe(true)
     expect(data.escopo?.tipo).toBe('equipe')
-    expect(data.resumo_nexo.texto).toBe('Leitura viva da equipe.')
+    expect(data.resumo_nexo.texto).toBe(
+      'Leitura viva da equipe em produção assistida com snapshot controlado.',
+    )
     expect(data.resumo_nexo.prioridades[0].titulo).toBe('Ação de equipe')
     expect(data.ipcp.total).toBe(62.4)
     expect(data.evolucao.comentario).toMatch(/Leitura viva da equipe/)

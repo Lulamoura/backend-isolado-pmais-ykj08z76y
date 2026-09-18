@@ -250,6 +250,14 @@ type NexoIpcpDiarioVivoResponse = {
   }
 }
 
+function normalizarTextoProducaoAssistida(texto: string): string {
+  return texto
+    .replace(/homologação/gi, 'produção assistida')
+    .replace(/homologacao/gi, 'produção assistida')
+    .replace(/simulado/gi, 'controlado')
+    .replace(/simulação/gi, 'leitura')
+}
+
 function normalizarNexoIpcpDiarioVivo(data: NexoIpcpDiarioVivoResponse): IpcpDiarioReadOnly {
   return {
     contrato: data.contrato,
@@ -261,11 +269,16 @@ function normalizarNexoIpcpDiarioVivo(data: NexoIpcpDiarioVivoResponse): IpcpDia
     atualizacao: 'diaria',
     escopo: data.escopo_efetivo,
     resumo_nexo: {
-      texto:
+      texto: normalizarTextoProducaoAssistida(
         data.resumo?.texto ||
-        'Leitura viva do IPCP da equipe disponível para orientação assistida.',
+          'Leitura viva do IPCP da equipe disponível para orientação assistida.',
+      ),
       prioridades: data.resumo?.recomendacoes?.length
-        ? data.resumo.recomendacoes
+        ? data.resumo.recomendacoes.map((item) => ({
+            ...item,
+            titulo: normalizarTextoProducaoAssistida(item.titulo),
+            motivo: normalizarTextoProducaoAssistida(item.motivo),
+          }))
         : ipcpDiarioFixtureHomologado.resumo_nexo.prioridades,
     },
     ipcp: data.ipcp || ipcpDiarioFixtureHomologado.ipcp,
