@@ -11,15 +11,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import {
   executarIpcpProcessamentoDiarioHomologacao,
   obterNexoIpcpDiarioEquipe,
-  obterStatusIpcpJobDiarioHomologacao,
   type IpcpDiarioReadOnly,
-  type IpcpJobDiarioHomologacaoStatus,
 } from '@/services/ipcp'
 
 function dataBr(data: string) {
   const partes = data.split('-')
   if (partes.length !== 3) return data
   return `${partes[2]}/${partes[1]}/${partes[0]}`
+}
+
+function horaBaseIpcp() {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Recife',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date())
 }
 
 const rotulosBlocos: Record<string, string> = {
@@ -55,37 +61,8 @@ function EvidenciasResumo({ data }: { data: IpcpDiarioReadOnly }) {
   )
 }
 
-function JobDiarioStatus({ status }: { status: IpcpJobDiarioHomologacaoStatus | null }) {
-  if (!status) return null
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Rotina diária em produção assistida</CardTitle>
-        <CardDescription>
-          Execução diária supervisionada, sem alteração automática de negócios ou CRM.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3 md:grid-cols-4">
-        <Badge className="justify-center bg-emerald-700 py-2 text-white hover:bg-emerald-700">
-          Ativa em produção assistida
-        </Badge>
-        <Badge variant="outline" className="justify-center py-2">
-          Horário: {status.job.horario_recife}
-        </Badge>
-        <Badge variant="outline" className="justify-center py-2">
-          Produção assistida
-        </Badge>
-        <Badge variant="outline" className="justify-center py-2">
-          CRM: sem alteração
-        </Badge>
-      </CardContent>
-    </Card>
-  )
-}
-
 export default function IpcpSimulacaoGerencial() {
   const [data, setData] = useState<IpcpDiarioReadOnly | null>(null)
-  const [jobStatus, setJobStatus] = useState<IpcpJobDiarioHomologacaoStatus | null>(null)
   const [loading, setLoading] = useState(false)
   const [recalculando, setRecalculando] = useState(false)
   const [erro, setErro] = useState('')
@@ -98,12 +75,8 @@ export default function IpcpSimulacaoGerencial() {
     setLoading(true)
     setErro('')
     try {
-      const [leitura, statusJob] = await Promise.all([
-        obterNexoIpcpDiarioEquipe(escopoSolicitado, responsavelId),
-        obterStatusIpcpJobDiarioHomologacao(),
-      ])
+      const leitura = await obterNexoIpcpDiarioEquipe(escopoSolicitado, responsavelId)
       setData(leitura)
-      setJobStatus(statusJob)
     } catch (error) {
       setErro(
         error instanceof Error ? error.message : 'Não foi possível carregar a leitura do IPCP.',
@@ -137,10 +110,10 @@ export default function IpcpSimulacaoGerencial() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-emerald-200">
-              IPCP — produção assistida
+              IPCP — Índice de Performance Comercial PMais
             </p>
             <h1 className="mt-1 text-3xl font-extrabold tracking-tight">
-              Índice de Performance Comercial PMais
+              Análise gerencial do IPCP
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-100/90">
               Leitura viva gerencial por responsável ou visão consolidada de todos. A tela mostra
@@ -232,14 +205,13 @@ export default function IpcpSimulacaoGerencial() {
             <CardHeader>
               <CardTitle>Escopo da leitura</CardTitle>
               <CardDescription>
-                Base {dataBr(data.data_referencia)} ·{' '}
+                Base {dataBr(data.data_referencia)} às {horaBaseIpcp()} ·{' '}
                 {responsavelId
                   ? `Responsável: ${responsavelSelecionado?.name ?? data.escopo?.responsavel_nome ?? 'selecionado'}`
                   : 'Todos — visão global consolidada'}
               </CardDescription>
             </CardHeader>
           </Card>
-          <JobDiarioStatus status={jobStatus} />
           <IpcpEducativoDiarioCard data={data} />
           <EvidenciasResumo data={data} />
         </>

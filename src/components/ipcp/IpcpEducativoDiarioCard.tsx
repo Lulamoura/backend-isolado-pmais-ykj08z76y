@@ -60,11 +60,6 @@ const blocoExplicacoes: Record<
   },
 }
 
-function formatDate(date: string): string {
-  const [year, month, day] = date.split('-')
-  return `${day}/${month}/${year}`
-}
-
 function formatScore(score: number): string {
   return new Intl.NumberFormat('pt-BR', {
     minimumFractionDigits: 1,
@@ -119,13 +114,6 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
       <section aria-label="IPCP educativo diário" className="space-y-4">
         <Card className="border-emerald-200 bg-emerald-50/50">
           <CardHeader className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-emerald-700 text-white hover:bg-emerald-700">
-                Atualização diária
-              </Badge>
-              <Badge variant="outline">Base {formatDate(data.data_referencia)}</Badge>
-              <Badge variant="outline">Produção assistida</Badge>
-            </div>
             <div>
               <CardTitle className="flex items-center gap-2 text-xl text-slate-950">
                 <Sparkles className="h-5 w-5 text-emerald-700" /> Orientação do Nexo para hoje

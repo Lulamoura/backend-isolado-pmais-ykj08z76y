@@ -216,7 +216,9 @@ describe('Operação do Dia', () => {
         'Índice de Performance Comercial PMais — leitura assistida da rotina comercial.',
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText('Atualização diária')).toBeInTheDocument()
+    expect(screen.queryByText('Atualização diária')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Base /)).not.toBeInTheDocument()
+    expect(screen.queryByText('Produção assistida')).not.toBeInTheDocument()
     const resultadoButton = screen.getByRole('button', { name: /Explicar Resultado comercial/i })
     expect(resultadoButton).not.toHaveAttribute('title')
     expect(resultadoButton).toHaveAccessibleDescription(

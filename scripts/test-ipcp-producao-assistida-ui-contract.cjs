@@ -67,6 +67,26 @@ assert.match(
 )
 assert.match(
   ipcpGerencial,
+  /Análise gerencial do IPCP/,
+  'tela gerencial deve usar o título aprovado Análise gerencial do IPCP',
+)
+assert.doesNotMatch(
+  ipcpGerencial,
+  /<JobDiarioStatus|Rotina diária em produção assistida/,
+  'tela gerencial não deve exibir o card Rotina diária em produção assistida',
+)
+assert.match(
+  ipcpGerencial,
+  /horaBaseIpcp|Base .* às /,
+  'Escopo da leitura deve mostrar data e hora da base',
+)
+assert.doesNotMatch(
+  card,
+  /Atualização diária|Base \{formatDate\(data\.data_referencia\)\}|Produção assistida/,
+  'card Orientação do Nexo deve exibir apenas título e subtítulo, sem badges superiores',
+)
+assert.match(
+  ipcpGerencial,
   /executarIpcpProcessamentoDiarioHomologacao|Recalcular IPCP/,
   'IPCP gerencial assistido deve manter botão de recálculo manual controlado',
 )
