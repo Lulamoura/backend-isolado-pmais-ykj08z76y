@@ -1651,6 +1651,9 @@ routerAdd(
     var resumoTexto = textoCurto(resumoPayload.texto, 700)
 
     var prioridades = resumoPayload.prioridades || []
+    var calculadoEm = snapshot
+      ? snapshot.getString('updated') || snapshot.getString('created') || null
+      : new Date().toISOString()
 
     return e.json(200, {
       ok: true,
@@ -1667,9 +1670,7 @@ routerAdd(
         limite_leitura: 5,
         pacote_completo: true,
         calculado_ao_vivo: true,
-        calculado_em: snapshot
-          ? snapshot.getString('updated') || snapshot.getString('created') || null
-          : null,
+        calculado_em: calculadoEm,
       },
       data_referencia: dataReferencia,
       escopo_efetivo: {
