@@ -1,4 +1,4 @@
-onRecordListRequest((e) => {
+onRecordsListRequest((e) => {
   var colName = e.collection.name
 
   var permMap = {
