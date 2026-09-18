@@ -1363,7 +1363,8 @@ routerAdd(
         snapshot_encontrado: !!snapshot,
         total_lido: snapshots.length,
         limite_leitura: 5,
-        pacote_completo: !!payload.pacote_completo,
+        pacote_completo: true,
+        calculado_ao_vivo: true,
       },
       data_referencia: dataReferencia,
       escopo_efetivo: {
@@ -1390,14 +1391,14 @@ routerAdd(
           pendentes: 0,
         },
       },
-      negocios_atencao: payload.negocios_atencao || [],
-      evolucao: payload.evolucao || null,
+      negocios_atencao: pacoteVivo.negocios_atencao || [],
+      evolucao: pacoteVivo.evolucao || null,
       evidencias: {
-        criterio: payload.evidencias
-          ? payload.evidencias.criterio
-          : 'snapshot_ipcp_resumido_sem_payload_tecnico_bruto',
-        fonte: payload.evidencias ? payload.evidencias.fonte : null,
-        exemplos: payload.evidencias ? payload.evidencias.exemplos || [] : [],
+        criterio: pacoteVivo.evidencias
+          ? pacoteVivo.evidencias.criterio
+          : 'leitura_viva_ipcp_dados_reais',
+        fonte: pacoteVivo.evidencias ? pacoteVivo.evidencias.fonte : 'leitura_viva_ipcp_dados_reais',
+        exemplos: pacoteVivo.evidencias ? pacoteVivo.evidencias.exemplos || [] : [],
         snapshot_id: snapshot ? snapshot.id : null,
         snapshot_status: snapshot ? snapshot.getString('status') || null : null,
         origem: snapshot ? snapshot.getString('origem') || null : null,
