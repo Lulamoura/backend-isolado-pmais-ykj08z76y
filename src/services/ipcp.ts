@@ -90,8 +90,13 @@ export type IpcpDiarioReadOnly = {
 
 export const IPCP_DIARIO_READONLY_PATH = '/backend/v1/ipcp/diario'
 export const NEXO_IPCP_DIARIO_VIVO_PATH = '/backend/v1/nexo/ipcp/diario'
-export function nexoIpcpDiarioVivoPath(escopo: 'proprio' | 'equipe' | 'todos' = 'proprio') {
-  return `${NEXO_IPCP_DIARIO_VIVO_PATH}?escopo=${escopo}`
+export function nexoIpcpDiarioVivoPath(
+  escopo: 'proprio' | 'equipe' | 'todos' = 'proprio',
+  responsavelId?: string | null,
+) {
+  const params = new URLSearchParams({ escopo })
+  if (responsavelId) params.set('responsavel_id', responsavelId)
+  return `${NEXO_IPCP_DIARIO_VIVO_PATH}?${params.toString()}`
 }
 export const IPCP_SIMULACAO_READONLY_PATH = '/backend/v1/ipcp/simulacao'
 export const IPCP_SNAPSHOT_SIMULADO_PATH = '/backend/v1/ipcp/snapshots/simulado'
@@ -316,10 +321,14 @@ function normalizarNexoIpcpDiarioVivo(data: NexoIpcpDiarioVivoResponse): IpcpDia
 
 export async function obterNexoIpcpDiarioEquipe(
   escopo: 'proprio' | 'equipe' | 'todos' = 'equipe',
+  responsavelId?: string | null,
 ): Promise<IpcpDiarioReadOnly> {
-  const data = await pb.send<NexoIpcpDiarioVivoResponse>(nexoIpcpDiarioVivoPath(escopo), {
-    method: 'GET',
-  })
+  const data = await pb.send<NexoIpcpDiarioVivoResponse>(
+    nexoIpcpDiarioVivoPath(escopo, responsavelId),
+    {
+      method: 'GET',
+    },
+  )
   if (
     data?.contrato === 'nexo_ipcp_diario_v1' &&
     data?.read_only === true &&
