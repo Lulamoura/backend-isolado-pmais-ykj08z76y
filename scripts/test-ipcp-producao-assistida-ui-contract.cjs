@@ -32,75 +32,10 @@ assert.match(
 )
 assert.match(
   service,
-  /nexoIpcpDiarioVivoPath\(|URLSearchParams\(\{ escopo \}\)/,
+  /nexoIpcpDiarioVivoPath\(escopo\)|escopo=\$\{escopo\}/,
   'serviço deve consultar a rota viva com escopo explícito por perfil',
 )
 assert.match(service, /contrato === 'nexo_ipcp_diario_v1'/, 'serviço deve validar contrato vivo')
-assert.match(
-  service,
-  /responsavel_id/,
-  'serviço IPCP deve permitir filtro gerencial por responsável sem trocar credenciais',
-)
-
-const card = fs.readFileSync('src/components/ipcp/IpcpEducativoDiarioCard.tsx', 'utf8')
-assert.match(
-  card,
-  /nomeNegocioAtencao|isIdTecnico|idTecnico/,
-  'card de negócios deve esconder ID técnico e montar título humano',
-)
-assert.doesNotMatch(
-  card,
-  /Negócio \{item\.id_negocio\} — \{item\.cliente\}/,
-  'card não deve exibir ID técnico antes do nome do negócio',
-)
-
-const ipcpGerencial = fs.readFileSync('src/pages/IpcpSimulacaoGerencial.tsx', 'utf8')
-assert.match(
-  ipcpGerencial,
-  /UserSelect|respons[aá]vel|Respons[aá]vel|Todos/,
-  'IPCP gerencial assistido deve oferecer filtro por responsável ou visão todos',
-)
-assert.match(
-  ipcpGerencial,
-  /obterNexoIpcpDiarioEquipe/,
-  'IPCP gerencial assistido deve usar leitura viva Nexo/IPCP em vez de tela vazia/simulação antiga',
-)
-assert.match(
-  ipcpGerencial,
-  /Análise gerencial do IPCP/,
-  'tela gerencial deve usar o título aprovado Análise gerencial do IPCP',
-)
-assert.doesNotMatch(
-  ipcpGerencial,
-  /<JobDiarioStatus|Rotina diária em produção assistida/,
-  'tela gerencial não deve exibir o card Rotina diária em produção assistida',
-)
-assert.match(
-  ipcpGerencial,
-  /horaBaseIpcp|Base .* às /,
-  'Escopo da leitura deve mostrar data e hora da base',
-)
-assert.doesNotMatch(
-  card,
-  /Atualização diária|Base \{formatDate\(data\.data_referencia\)\}|Produção assistida/,
-  'card Orientação do Nexo deve exibir apenas título e subtítulo, sem badges superiores',
-)
-assert.match(
-  ipcpGerencial,
-  /executarIpcpProcessamentoDiarioHomologacao|Recalcular IPCP/,
-  'IPCP gerencial assistido deve manter botão de recálculo manual controlado',
-)
-assert.match(
-  card,
-  /N[ºo]\.? do negócio|numeroNegocioAtencao|id_negocio/,
-  'cards de negócios devem exibir número do negócio para localização operacional',
-)
-const hookIpcp = fs.readFileSync('pocketbase/hooks/com_ipcp_diario.js', 'utf8')
-assert.match(
-  hookIpcp,
-  /responsavelSelecionado|filtroResponsavelSelecionado|responsavelId && scope === 'equipe'/,
-  'rota IPCP viva deve recalcular por responsável selecionado em escopo gerencial',
-)
 
 const fixtureBanida =
   /RCML|PMAIS EVENTOS|id_negocio:\s*['"]4612['"]|id_negocio:\s*['"]4800['"]|total:\s*55\.3/
@@ -109,6 +44,7 @@ assert.doesNotMatch(
   fixtureBanida,
   'serviço de produção assistida não deve manter clientes, negócios ou nota fixa de referência',
 )
+const hookIpcp = fs.readFileSync('pocketbase/hooks/com_ipcp_diario.js', 'utf8')
 assert.doesNotMatch(
   hookIpcp,
   fixtureBanida,

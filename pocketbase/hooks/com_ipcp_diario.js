@@ -81,8 +81,7 @@ routerAdd('GET', '/backend/v1/ipcp/diario', function (e) {
         },
         {
           titulo: 'Conferir responsável e escopo',
-          motivo:
-            'A carteira precisa ser lida pelo perfil correto antes da publicação operacional.',
+          motivo: 'A carteira precisa ser lida pelo perfil correto antes da publicação operacional.',
           bloco_afetado: 'disciplina_carteira',
         },
         {
@@ -210,8 +209,7 @@ routerAdd('GET', '/backend/v1/ipcp/simulacao', function (e) {
         },
         {
           titulo: 'Conferir responsável e escopo',
-          motivo:
-            'A carteira precisa ser lida pelo perfil correto antes da publicação operacional.',
+          motivo: 'A carteira precisa ser lida pelo perfil correto antes da publicação operacional.',
           bloco_afetado: 'disciplina_carteira',
         },
         {
@@ -640,6 +638,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     return 'aberto'
   }
 
+
   function nomeRelacionado(collection, id, fields) {
     if (!id) return ''
     try {
@@ -682,13 +681,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   }
 
   function negocioHumanoId(rec) {
-    return (
-      rec.getString('oe_numero') ||
-      findExternalBusinessId(rec.id) ||
-      rec.getString('external_id') ||
-      rec.getString('codigo') ||
-      ''
-    )
+    return rec.getString('oe_numero') || findExternalBusinessId(rec.id) || rec.getString('external_id') || rec.getString('codigo') || ''
   }
   function textoRegistroComercial(rec) {
     try {
@@ -728,47 +721,11 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
       var pontos = 0
       if (proxima) pontos += 0.15
       if (texto && texto.trim().length >= 40) pontos += 0.15
-      if (
-        contemQualidadeRegistro(texto, [
-          /decisor/,
-          /respons[aá]vel pela decis[aã]o/,
-          /quem decide/,
-          /influenciador/,
-        ])
-      )
-        pontos += 0.18
-      if (contemQualidadeRegistro(texto, [/necessidade/, /dor/, /demanda/, /objetivo/, /escopo/]))
-        pontos += 0.18
-      if (
-        contemQualidadeRegistro(texto, [
-          /obje[cç][aã]o/,
-          /risco/,
-          /pend[eê]ncia/,
-          /bloqueio/,
-          /restri[cç][aã]o/,
-        ])
-      )
-        pontos += 0.18
-      if (
-        contemQualidadeRegistro(texto, [
-          /pr[oó]ximo passo/,
-          /combinado/,
-          /retorno/,
-          /validar/,
-          /enviar/,
-          /reuni[aã]o/,
-        ])
-      )
-        pontos += 0.16
-      if (
-        contemQualidadeRegistro(texto, [
-          /prazo/,
-          /data/,
-          /\d{1,2}\/\d{1,2}/,
-          /\d{4}-\d{2}-\d{2}/,
-        ])
-      )
-        pontos += 0.15
+      if (contemQualidadeRegistro(texto, [/decisor/, /respons[aá]vel pela decis[aã]o/, /quem decide/, /influenciador/])) pontos += 0.18
+      if (contemQualidadeRegistro(texto, [/necessidade/, /dor/, /demanda/, /objetivo/, /escopo/])) pontos += 0.18
+      if (contemQualidadeRegistro(texto, [/obje[cç][aã]o/, /risco/, /pend[eê]ncia/, /bloqueio/, /restri[cç][aã]o/])) pontos += 0.18
+      if (contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /enviar/, /reuni[aã]o/])) pontos += 0.16
+      if (contemQualidadeRegistro(texto, [/prazo/, /data/, /\d{1,2}\/\d{1,2}/, /\d{4}-\d{2}-\d{2}/])) pontos += 0.15
       if (pontos > 1) pontos = 1
       if (pontos < 0.35) fracos++
       if (pontos >= 0.7) bons++
@@ -781,8 +738,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   function calcularPacoteIpcpDiario(dataRef, scope, responsavelId, actor) {
     var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
     var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
-    var filtroResponsavelSelecionado =
-      !!responsavelId && (scope === 'proprio' || scope === 'equipe')
+    var filtroResponsavelSelecionado = !!responsavelId && (scope === 'proprio' || scope === 'equipe')
     var filtroOperacional = filtroResponsavelSelecionado
       ? "responsavel_id = '" + esc(responsavelId) + "'"
       : "id != ''"
@@ -866,10 +822,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     var qualidadeRegistro = calcularQualidadeRegistroComercial(negocios)
     var registrosAprendizado = round1(
       clamp(
-        3 +
-          qualidadeRegistro.media * 9 +
-          coberturaModalidade * 1.5 +
-          Math.min(1.5, qualidadeRegistro.bons * 0.3),
+        3 + qualidadeRegistro.media * 9 + coberturaModalidade * 1.5 + Math.min(1.5, qualidadeRegistro.bons * 0.3),
         3,
         15,
       ),
@@ -1215,6 +1168,7 @@ routerAdd(
       return 'aberto'
     }
 
+
     function nomeRelacionado(collection, id, fields) {
       if (!id) return ''
       try {
@@ -1257,13 +1211,7 @@ routerAdd(
     }
 
     function negocioHumanoId(rec) {
-      return (
-        rec.getString('oe_numero') ||
-        findExternalBusinessId(rec.id) ||
-        rec.getString('external_id') ||
-        rec.getString('codigo') ||
-        ''
-      )
+      return rec.getString('oe_numero') || findExternalBusinessId(rec.id) || rec.getString('external_id') || rec.getString('codigo') || ''
     }
     function textoRegistroComercial(rec) {
       try {
@@ -1303,49 +1251,11 @@ routerAdd(
         var pontos = 0
         if (proxima) pontos += 0.15
         if (texto && texto.trim().length >= 40) pontos += 0.15
-        if (
-          contemQualidadeRegistro(texto, [
-            /decisor/,
-            /respons[aá]vel pela decis[aã]o/,
-            /quem decide/,
-            /influenciador/,
-          ])
-        )
-          pontos += 0.18
-        if (
-          contemQualidadeRegistro(texto, [/necessidade/, /dor/, /demanda/, /objetivo/, /escopo/])
-        )
-          pontos += 0.18
-        if (
-          contemQualidadeRegistro(texto, [
-            /obje[cç][aã]o/,
-            /risco/,
-            /pend[eê]ncia/,
-            /bloqueio/,
-            /restri[cç][aã]o/,
-          ])
-        )
-          pontos += 0.18
-        if (
-          contemQualidadeRegistro(texto, [
-            /pr[oó]ximo passo/,
-            /combinado/,
-            /retorno/,
-            /validar/,
-            /enviar/,
-            /reuni[aã]o/,
-          ])
-        )
-          pontos += 0.16
-        if (
-          contemQualidadeRegistro(texto, [
-            /prazo/,
-            /data/,
-            /\d{1,2}\/\d{1,2}/,
-            /\d{4}-\d{2}-\d{2}/,
-          ])
-        )
-          pontos += 0.15
+        if (contemQualidadeRegistro(texto, [/decisor/, /respons[aá]vel pela decis[aã]o/, /quem decide/, /influenciador/])) pontos += 0.18
+        if (contemQualidadeRegistro(texto, [/necessidade/, /dor/, /demanda/, /objetivo/, /escopo/])) pontos += 0.18
+        if (contemQualidadeRegistro(texto, [/obje[cç][aã]o/, /risco/, /pend[eê]ncia/, /bloqueio/, /restri[cç][aã]o/])) pontos += 0.18
+        if (contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /enviar/, /reuni[aã]o/])) pontos += 0.16
+        if (contemQualidadeRegistro(texto, [/prazo/, /data/, /\d{1,2}\/\d{1,2}/, /\d{4}-\d{2}-\d{2}/])) pontos += 0.15
         if (pontos > 1) pontos = 1
         if (pontos < 0.35) fracos++
         if (pontos >= 0.7) bons++
@@ -1358,8 +1268,7 @@ routerAdd(
     function calcularPacoteIpcpDiarioVivo(dataRef, scope, responsavelId, actor) {
       var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
       var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
-      var filtroResponsavelSelecionado =
-        !!responsavelId && (scope === 'proprio' || scope === 'equipe')
+      var filtroResponsavelSelecionado = !!responsavelId && (scope === 'proprio' || scope === 'equipe')
       var filtroOperacional = filtroResponsavelSelecionado
         ? "responsavel_id = '" + esc(responsavelId) + "'"
         : "id != ''"
@@ -1679,9 +1588,7 @@ routerAdd(
         criterio: pacoteVivo.evidencias
           ? pacoteVivo.evidencias.criterio
           : 'leitura_viva_ipcp_dados_reais',
-        fonte: pacoteVivo.evidencias
-          ? pacoteVivo.evidencias.fonte
-          : 'leitura_viva_ipcp_dados_reais',
+        fonte: pacoteVivo.evidencias ? pacoteVivo.evidencias.fonte : 'leitura_viva_ipcp_dados_reais',
         exemplos: pacoteVivo.evidencias ? pacoteVivo.evidencias.exemplos || [] : [],
         snapshot_id: snapshot ? snapshot.id : null,
         snapshot_status: snapshot ? snapshot.getString('status') || null : null,
