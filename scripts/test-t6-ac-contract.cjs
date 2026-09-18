@@ -199,6 +199,13 @@ const checks = [
       reconciliationHook.includes('id_negocio'),
   ],
   [
+    'reconciliação normaliza telefone importado para limite do cadastro',
+    reconciliationHook.includes('function telefoneAcSeguro(value)') &&
+      reconciliationHook.includes('return normalized.slice(0, 30)') &&
+      reconciliationHook.includes("target.set('telefone', telefoneAcSeguro(ev.data.phone))") &&
+      !reconciliationHook.includes("target.set('telefone', ev.data.phone || '')"),
+  ],
+  [
     'incremental limita negócios ao pipeline e ao escopo operacional',
     reconciliationHook.includes('String(candidate.group) !== pipelineId') &&
       reconciliationHook.includes("candidateStatus === '0'") &&

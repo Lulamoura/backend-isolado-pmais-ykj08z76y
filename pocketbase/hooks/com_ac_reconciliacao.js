@@ -732,6 +732,12 @@ routerAdd(
     function acExigeResponsavelComercial(stage) {
       return stage === 'producao_proposta' || stage === 'negociacao'
     }
+    function telefoneAcSeguro(value) {
+      var normalized = String(value || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+      return normalized.slice(0, 30)
+    }
     var actor = e.auth
     if (!actor) return e.unauthorizedError('Autenticacao necessaria')
     var slug = ''
@@ -877,7 +883,7 @@ routerAdd(
             var name = ((ev.data.first_name || '') + ' ' + (ev.data.last_name || '')).trim()
             target.set('nome', name || 'Contato importado')
             target.set('email', ev.data.email || '')
-            target.set('telefone', ev.data.phone || '')
+            target.set('telefone', telefoneAcSeguro(ev.data.phone))
             target.set('ativo', ev.action !== 'archive')
             if (ev.links.company_id) {
               var companyLink = tx.findFirstRecordByFilter(
