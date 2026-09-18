@@ -36,9 +36,9 @@ const blocoExplicacoes: Record<
   },
   valor_estrategico: {
     descricao:
-      'Avalia a qualidade estratégica da carteira: recorrência e maior valor, com atenção especial para propostas recorrentes relevantes.',
+      'Avalia a qualidade estratégica da carteira: recorrência, alto valor e ganhos qualificados; proposta enviada sozinha não aumenta este bloco.',
     evolucao:
-      'Como evoluir: priorizar oportunidades recorrentes, qualificar melhor o potencial de valor e manter propostas de maior impacto bem acompanhadas.',
+      'Como evoluir: priorizar oportunidades recorrentes, negócios de maior valor, recorrentes de alto valor e fechamentos qualificados.',
   },
   disciplina_carteira: {
     descricao:

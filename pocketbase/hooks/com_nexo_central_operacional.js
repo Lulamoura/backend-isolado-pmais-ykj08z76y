@@ -1089,19 +1089,119 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
           200,
           0,
         )
-        var filtroOperacional = responsavelId
-          ? "responsavel_id = '" + esc(responsavelId) + "'"
-          : "id != ''"
+      } catch (_) {}
+      var IPCP_ALTO_VALOR_REFERENCIA_REAIS = 10000
+      var IPCP_ALTO_VALOR_REFERENCIA = IPCP_ALTO_VALOR_REFERENCIA_REAIS * 100
+      var IPCP_MIN_DECIDIDOS_CONFIANCA_TOTAL = 5
+      function clampLocal(v, min, max) {
+        if (v < min) return min
+        if (v > max) return max
+        return v
+      }
+      function roundLocal(v) {
+        return Math.round(Number(v || 0) * 10) / 10
+      }
+      function valorNegocioIpcpTelegram(rec) {
+        var valor = Number(rec.get('valor') || 0)
+        if (!isFinite(valor) || valor <= 0) valor = Number(rec.get('valor_centavos') || 0)
+        if (!isFinite(valor) || valor < 0) return 0
+        return valor
+      }
+      function negocioComputavelIpcpTelegram(rec) {
+        if (!rec.getString('responsavel_id')) return false
+        if (!rec.getString('modalidade')) return false
+        if (valorNegocioIpcpTelegram(rec) <= 1) return false
+        return true
+      }
+      var negociosComputaveisRows = []
+      for (var nci = 0; nci < negociosRows.length; nci++) {
+        if (negocioComputavelIpcpTelegram(negociosRows[nci])) negociosComputaveisRows.push(negociosRows[nci])
+      }
+      function filtroPorIdsIpcpTelegram(campo, ids) {
+        if (!ids || !ids.length) return "id = '__sem_registros__'"
+        var partes = []
+        for (var fi = 0; fi < ids.length && fi < 80; fi++) partes.push(campo + " = '" + esc(ids[fi]) + "'")
+        return partes.length ? '(' + partes.join(' || ') + ')' : "id = '__sem_registros__'"
+      }
+      function filtroPorNegociosIpcpTelegram(campo, negocios) {
+        var ids = []
+        for (var fni = 0; fni < negocios.length; fni++) ids.push(negocios[fni].id)
+        return filtroPorIdsIpcpTelegram(campo, ids)
+      }
+      function filtroPorPropostasIpcpTelegram(campo, propostasCarteira) {
+        var ids = []
+        for (var fpi = 0; fpi < propostasCarteira.length; fpi++) ids.push(propostasCarteira[fpi].id)
+        return filtroPorIdsIpcpTelegram(campo, ids)
+      }
+      function negocioRecorrenteIpcp(rec) {
+        return String(rec.getString('modalidade') || '').toLowerCase() === 'recorrente'
+      }
+      function negocioAltoValorIpcp(valor) {
+        return Number(valor || 0) >= IPCP_ALTO_VALOR_REFERENCIA
+      }
+      function calcularResultadoComercialIpcp(ganhos, perdidos) {
+        var totalDecididos = ganhos + perdidos
+        var conversao = totalDecididos ? ganhos / totalDecididos : 0
+        var confiancaDecididos = Math.min(1, totalDecididos / IPCP_MIN_DECIDIDOS_CONFIANCA_TOTAL)
+        return roundLocal(
+          clampLocal(12 + conversao * 10 * confiancaDecididos + Math.min(8, ganhos * 0.8), 8, 30),
+        )
+      }
+      function calcularValorEstrategicoIpcp(metricas) {
+        var abertos = Math.max(0, Number(metricas.abertos || 0))
+        var recorrenciaCarteiraAberta = Math.min(
+          3,
+          abertos ? (Number(metricas.abertosRecorrentes || 0) / abertos) * 3 : 0,
+        )
+        var valorFinanceiroCarteiraAberta = Math.min(1, Number(metricas.valorAberto || 0) / 200000)
+        var recorrenteAltoValor = Math.min(
+          5,
+          abertos ? (Number(metricas.abertosRecorrentesAltoValor || 0) / abertos) * 5 : 0,
+        )
+        var valorGanhoEstrategico = Math.min(
+          5,
+          Number(metricas.ganhosEstrategicos || 0) * 2.5 +
+            Number(metricas.valorGanhoEstrategico || 0) / 50000,
+        )
+        var maturidadeComercialQualificada = Math.min(
+          1,
+          abertos ? Number(metricas.madurosQualificados || 0) / abertos : 0,
+        )
+        return roundLocal(
+          clampLocal(
+            recorrenciaCarteiraAberta +
+              valorFinanceiroCarteiraAberta +
+              recorrenteAltoValor +
+              valorGanhoEstrategico +
+              maturidadeComercialQualificada,
+            0,
+            15,
+          ),
+        )
+      }
+      var filtroNegociosRelacionadosTelegram = filtroPorNegociosIpcpTelegram(
+        'negocio_id',
+        negociosComputaveisRows,
+      )
+      var propostasCarteiraRows = []
+      try {
         atividadesRows = $app.findRecordsByFilter(
           'com_atividades',
-          filtroOperacional,
+          filtroNegociosRelacionadosTelegram,
+          '-created',
+          200,
+          0,
+        )
+        propostasCarteiraRows = $app.findRecordsByFilter(
+          'com_propostas',
+          filtroNegociosRelacionadosTelegram,
           '-created',
           200,
           0,
         )
         propostasRows = $app.findRecordsByFilter(
           'com_proposta_envios',
-          filtroOperacional,
+          filtroPorPropostasIpcpTelegram('proposta_id', propostasCarteiraRows),
           '-created',
           200,
           0,
@@ -1113,42 +1213,53 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
       var semResponsavel = 0
       var semModalidade = 0
       var valorAberto = 0
-      for (var gi = 0; gi < negociosRows.length; gi++) {
-        var nr = negociosRows[gi]
+      var abertosRecorrentes = 0
+      var abertosRecorrentesAltoValor = 0
+      var ganhosEstrategicos = 0
+      var valorGanhoEstrategico = 0
+      var madurosQualificados = 0
+      for (var gi = 0; gi < negociosComputaveisRows.length; gi++) {
+        var nr = negociosComputaveisRows[gi]
         var resultado = nr.getString('resultado') || ''
-        if (resultado === 'ganho') ganhos++
-        else if (resultado) perdidos++
-        else abertos++
+        var valor = valorNegocioIpcpTelegram(nr)
+        var recorrente = negocioRecorrenteIpcp(nr)
+        var altoValor = negocioAltoValorIpcp(valor)
+        if (resultado === 'ganho') {
+          ganhos++
+          if (recorrente || altoValor) {
+            ganhosEstrategicos++
+            if (valor > 1) valorGanhoEstrategico += valor
+          }
+        } else if (resultado) perdidos++
+        else {
+          abertos++
+          if (valor > 1) valorAberto += valor
+          if (recorrente) abertosRecorrentes++
+          if (recorrente && altoValor) abertosRecorrentesAltoValor++
+          if (nr.getString('modalidade') && valor > 1 && nr.getString('proxima_acao_em'))
+            madurosQualificados++
+        }
         if (!nr.getString('responsavel_id')) semResponsavel++
         if (!nr.getString('modalidade')) semModalidade++
-        var valor = Number(nr.getInt('valor_centavos') || 0)
-        if (!resultado && valor > 1) valorAberto += valor
       }
-      var decididos = ganhos + perdidos
-      var conversao = decididos ? ganhos / decididos : 0
-      var coberturaResponsavel = negociosRows.length
-        ? (negociosRows.length - semResponsavel) / negociosRows.length
+      var coberturaResponsavel = negociosComputaveisRows.length
+        ? (negociosComputaveisRows.length - semResponsavel) / negociosComputaveisRows.length
         : 1
-      var coberturaModalidade = negociosRows.length
-        ? (negociosRows.length - semModalidade) / negociosRows.length
+      var coberturaModalidade = negociosComputaveisRows.length
+        ? (negociosComputaveisRows.length - semModalidade) / negociosComputaveisRows.length
         : 1
       var atividadePorAberto = abertos ? atividadesRows.length / abertos : atividadesRows.length
-      var propostaPorAberto = abertos ? propostasRows.length / abertos : propostasRows.length
-      function clampLocal(v, min, max) {
-        if (v < min) return min
-        if (v > max) return max
-        return v
-      }
-      function roundLocal(v) {
-        return Math.round(Number(v || 0) * 10) / 10
-      }
       var blocosVivos = {
-        resultado_comercial: roundLocal(
-          clampLocal(12 + conversao * 10 + Math.min(8, ganhos * 0.8), 8, 30),
-        ),
-        valor_estrategico: roundLocal(
-          clampLocal(4 + Math.min(7, valorAberto / 200000) + propostaPorAberto, 3, 15),
-        ),
+        resultado_comercial: calcularResultadoComercialIpcp(ganhos, perdidos),
+        valor_estrategico: calcularValorEstrategicoIpcp({
+          abertos: abertos,
+          valorAberto: valorAberto,
+          abertosRecorrentes: abertosRecorrentes,
+          abertosRecorrentesAltoValor: abertosRecorrentesAltoValor,
+          ganhosEstrategicos: ganhosEstrategicos,
+          valorGanhoEstrategico: valorGanhoEstrategico,
+          madurosQualificados: madurosQualificados,
+        }),
         disciplina_carteira: roundLocal(
           clampLocal(7 + Math.min(8, atividadePorAberto * 1.6) + coberturaResponsavel * 4, 4, 20),
         ),

@@ -228,7 +228,7 @@ describe('Operação do Dia', () => {
     const valorButton = screen.getByRole('button', { name: /Explicar Valor estratégico/i })
     expect(valorButton).not.toHaveAttribute('title')
     expect(valorButton).toHaveAccessibleDescription(
-      expect.stringContaining('recorrência e maior valor'),
+      expect.stringContaining('proposta enviada sozinha não aumenta este bloco'),
     )
     const followupButton = screen.getByRole('button', { name: /Explicar Follow-up/i })
     expect(followupButton).not.toHaveAttribute('title')

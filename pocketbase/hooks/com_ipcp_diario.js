@@ -665,6 +665,52 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     }
   }
 
+
+
+  function valorNegocioIpcp(rec) {
+    var valor = Number(rec.get('valor') || 0)
+    if (!isFinite(valor) || valor < 0) return 0
+    return valor
+  }
+
+  function negocioComputavelIpcp(rec) {
+    if (!rec.getString('responsavel_id')) return false
+    if (!rec.getString('modalidade')) return false
+    if (valorNegocioIpcp(rec) <= 1) return false
+    return true
+  }
+
+  function negociosComputaveisIpcp(negocios) {
+    var rows = []
+    for (var nci = 0; nci < negocios.length; nci++) {
+      if (negocioComputavelIpcp(negocios[nci])) rows.push(negocios[nci])
+    }
+    return rows
+  }
+
+  function filtroPorIds(campo, ids) {
+    if (!ids || !ids.length) return "id = '__sem_registros__'"
+    var partes = []
+    for (var fi = 0; fi < ids.length && fi < 80; fi++) partes.push(campo + " = '" + esc(ids[fi]) + "'")
+    return partes.length ? '(' + partes.join(' || ') + ')' : "id = '__sem_registros__'"
+  }
+
+  function filtroPorNegocios(campo, negocios) {
+    var ids = []
+    for (var fni = 0; fni < negocios.length; fni++) ids.push(negocios[fni].id)
+    return filtroPorIds(campo, ids)
+  }
+
+  function propostasDaCarteira(negocios) {
+    return listar('com_propostas', filtroPorNegocios('negocio_id', negocios), '-created', 200)
+  }
+
+  function filtroPorPropostas(campo, propostasCarteira) {
+    var ids = []
+    for (var fpi = 0; fpi < propostasCarteira.length; fpi++) ids.push(propostasCarteira[fpi].id)
+    return filtroPorIds(campo, ids)
+  }
+
   function classificarResultado(rec) {
     var resultado = rec.getString('resultado') || rec.getString('status') || ''
     if (resultado === 'ganho') return 'ganho'
@@ -780,38 +826,120 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     return { media: total / avaliados, avaliados: avaliados, fracos: fracos, bons: bons }
   }
 
+  var IPCP_ALTO_VALOR_REFERENCIA_REAIS = 10000
+  var IPCP_ALTO_VALOR_REFERENCIA = IPCP_ALTO_VALOR_REFERENCIA_REAIS * 100
+  var IPCP_MIN_DECIDIDOS_CONFIANCA_TOTAL = 5
+
+  function negocioRecorrenteIpcp(rec) {
+    return String(rec.getString('modalidade') || '').toLowerCase() === 'recorrente'
+  }
+
+  function negocioAltoValorIpcp(valor) {
+    return Number(valor || 0) >= IPCP_ALTO_VALOR_REFERENCIA
+  }
+
+  function negocioMaduroQualificadoIpcp(rec, valor) {
+    if (!rec.getString('modalidade')) return false
+    if (!(Number(valor || 0) > 1)) return false
+    if (rec.getString('proxima_acao_em')) return true
+    var texto = textoRegistroComercial(rec)
+    if (texto && texto.trim().length >= 80) return true
+    return (
+      contemQualidadeRegistro(texto, [/decisor/, /quem decide/, /respons[aá]vel pela decis[aã]o/]) &&
+      contemQualidadeRegistro(texto, [/necessidade/, /dor\b/, /demanda/, /objetivo/, /escopo/]) &&
+      contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /reuni[aã]o/])
+    )
+  }
+
+  function calcularResultadoComercialIpcp(ganhos, perdidos) {
+    var totalDecididos = ganhos + perdidos
+    var conversao = totalDecididos ? ganhos / totalDecididos : 0
+    var confiancaDecididos = Math.min(1, totalDecididos / IPCP_MIN_DECIDIDOS_CONFIANCA_TOTAL)
+    return round1(clamp(12 + conversao * 10 * confiancaDecididos + Math.min(8, ganhos * 0.8), 8, 30))
+  }
+
+  function calcularValorEstrategicoIpcp(metricas) {
+    var abertos = Math.max(0, Number(metricas.abertos || 0))
+    var recorrenciaCarteiraAberta = Math.min(
+      3,
+      abertos ? (Number(metricas.abertosRecorrentes || 0) / abertos) * 3 : 0,
+    )
+    var valorFinanceiroCarteiraAberta = Math.min(1, Number(metricas.valorAberto || 0) / 200000)
+    var recorrenteAltoValor = Math.min(
+      5,
+      abertos ? (Number(metricas.abertosRecorrentesAltoValor || 0) / abertos) * 5 : 0,
+    )
+    var valorGanhoEstrategico = Math.min(
+      5,
+      Number(metricas.ganhosEstrategicos || 0) * 2.5 +
+        Number(metricas.valorGanhoEstrategico || 0) / 50000,
+    )
+    var maturidadeComercialQualificada = Math.min(
+      1,
+      abertos ? Number(metricas.madurosQualificados || 0) / abertos : 0,
+    )
+    return round1(
+      clamp(
+        recorrenciaCarteiraAberta +
+          valorFinanceiroCarteiraAberta +
+          recorrenteAltoValor +
+          valorGanhoEstrategico +
+          maturidadeComercialQualificada,
+        0,
+        15,
+      ),
+    )
+  }
+
   function calcularPacoteIpcpDiario(dataRef, scope, responsavelId, actor) {
     var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
     var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
-    var filtroOperacional =
-      (scope === 'proprio' || scope === 'equipe') && responsavelId && responsavelId !== '__todos__'
-        ? "responsavel_id = '" + esc(responsavelId) + "'"
-        : "id != ''"
-    var atividades = listar('com_atividades', filtroOperacional, '-created', 200)
-    var slas = listar('com_slas', filtroOperacional, '-created', 200)
-    var propostas = listar('com_proposta_envios', filtroOperacional, '-created', 200)
-    var fechamentos = listar('com_fechamentos', filtroOperacional, '-created', 200)
+    var negociosComputaveis = negociosComputaveisIpcp(negocios)
+    var filtroNegociosRelacionados = filtroPorNegocios('negocio_id', negociosComputaveis)
+    var propostasCarteira = propostasDaCarteira(negociosComputaveis)
+    var atividades = listar('com_atividades', filtroNegociosRelacionados, '-created', 200)
+    var slas = listar('com_slas', filtroNegociosRelacionados, '-created', 200)
+    var propostas = listar(
+      'com_proposta_envios',
+      filtroPorPropostas('proposta_id', propostasCarteira),
+      '-created',
+      200,
+    )
+    var fechamentos = listar('com_fechamentos', filtroNegociosRelacionados, '-created', 200)
 
     var abertos = 0,
       ganhos = 0,
       perdidos = 0,
       valorAberto = 0,
-      valorGanho = 0
+      valorGanho = 0,
+      abertosRecorrentes = 0,
+      abertosRecorrentesAltoValor = 0,
+      ganhosEstrategicos = 0,
+      valorGanhoEstrategico = 0,
+      madurosQualificados = 0
     var semResponsavel = 0,
       semModalidade = 0,
       prospectPendente = 0
-    for (var i = 0; i < negocios.length; i++) {
-      var n = negocios[i]
+    for (var i = 0; i < negociosComputaveis.length; i++) {
+      var n = negociosComputaveis[i]
       var situacao = classificarResultado(n)
-      var valor = Number(n.get('valor') || 0)
-      if (!isFinite(valor) || valor < 0) valor = 0
+      var valor = valorNegocioIpcp(n)
+      var recorrente = negocioRecorrenteIpcp(n)
+      var altoValor = negocioAltoValorIpcp(valor)
       if (situacao === 'ganho') {
         ganhos++
         if (valor > 1) valorGanho += valor
+        if (recorrente || altoValor) {
+          ganhosEstrategicos++
+          if (valor > 1) valorGanhoEstrategico += valor
+        }
       } else if (situacao === 'perdido' || situacao === 'desqualificado') perdidos++
       else {
         abertos++
         if (valor > 1) valorAberto += valor
+        if (recorrente) abertosRecorrentes++
+        if (recorrente && altoValor) abertosRecorrentesAltoValor++
+        if (negocioMaduroQualificadoIpcp(n, valor)) madurosQualificados++
       }
       if (!n.getString('responsavel_id')) semResponsavel++
       if (!n.getString('modalidade')) semModalidade++
@@ -824,29 +952,27 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
 
     var totalDecididos = ganhos + perdidos
     var conversao = totalDecididos ? ganhos / totalDecididos : 0
-    var coberturaResponsavel = negocios.length
-      ? (negocios.length - semResponsavel) / negocios.length
+    var coberturaResponsavel = negociosComputaveis.length
+      ? (negociosComputaveis.length - semResponsavel) / negociosComputaveis.length
       : 1
-    var coberturaModalidade = negocios.length
-      ? (negocios.length - semModalidade) / negocios.length
+    var coberturaModalidade = negociosComputaveis.length
+      ? (negociosComputaveis.length - semModalidade) / negociosComputaveis.length
       : 1
     var atividadePorAberto = abertos ? atividades.length / abertos : atividades.length
-    var propostaPorAberto = abertos ? propostas.length / abertos : propostas.length
     var slaPressao = slas.length
-      ? Math.min(1, slas.length / Math.max(1, abertos || negocios.length))
+      ? Math.min(1, slas.length / Math.max(1, abertos || negociosComputaveis.length))
       : 0
 
-    var resultadoComercial = round1(clamp(12 + conversao * 10 + Math.min(8, ganhos * 0.8), 8, 30))
-    var valorEstrategico = round1(
-      clamp(
-        4 +
-          Math.min(7, valorAberto / 200000) +
-          Math.min(4, valorGanho / 250000) +
-          propostaPorAberto,
-        3,
-        15,
-      ),
-    )
+    var resultadoComercial = calcularResultadoComercialIpcp(ganhos, perdidos)
+    var valorEstrategico = calcularValorEstrategicoIpcp({
+      abertos: abertos,
+      valorAberto: valorAberto,
+      abertosRecorrentes: abertosRecorrentes,
+      abertosRecorrentesAltoValor: abertosRecorrentesAltoValor,
+      ganhosEstrategicos: ganhosEstrategicos,
+      valorGanhoEstrategico: valorGanhoEstrategico,
+      madurosQualificados: madurosQualificados,
+    })
     var disciplinaCarteira = round1(
       clamp(
         7 + Math.min(8, atividadePorAberto * 1.6) + coberturaResponsavel * 4 - slaPressao * 3,
@@ -864,7 +990,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
         20,
       ),
     )
-    var qualidadeRegistro = calcularQualidadeRegistroComercial(negocios)
+    var qualidadeRegistro = calcularQualidadeRegistroComercial(negociosComputaveis)
     var registrosAprendizado = round1(
       clamp(
         3 +
@@ -927,8 +1053,8 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
       })
 
     var negociosAtencao = []
-    for (var j = 0; j < negocios.length && negociosAtencao.length < 3; j++) {
-      var item = negocios[j]
+    for (var j = 0; j < negociosComputaveis.length && negociosAtencao.length < 3; j++) {
+      var item = negociosComputaveis[j]
       if (classificarResultado(item) !== 'aberto') continue
       var motivos = []
       if (!item.getString('responsavel_id')) motivos.push('sem responsável comercial claro')
@@ -960,8 +1086,8 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
         cobertura_ia: {
           provider_oficial: 'nexo_hermes',
           fallback_permitido: false,
-          avaliados: atividades.length + propostas.length + negocios.length,
-          total: atividades.length + propostas.length + negocios.length,
+          avaliados: atividades.length + propostas.length + negociosComputaveis.length,
+          total: atividades.length + propostas.length + negociosComputaveis.length,
           pendentes: 0,
         },
       },
@@ -1003,7 +1129,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     }
   }
 
-  var formula = 'ipcp_v0_4_dados_vivos_por_escopo'
+  var formula = 'ipcp_v0_5_formula_gerencial'
   var pacote = calcularPacoteIpcpDiario(data, effectiveScope, responsavelId, ator)
   var ipcpTotal = pacote.ipcp.total
   var snapshotKey = [data, effectiveScope, responsavelId, formula, 'processamento_diario'].join('|')
@@ -1237,6 +1363,52 @@ cronAdd(
       }
     }
 
+
+
+    function valorNegocioIpcp(rec) {
+      var valor = Number(rec.get('valor') || 0)
+      if (!isFinite(valor) || valor < 0) return 0
+      return valor
+    }
+
+    function negocioComputavelIpcp(rec) {
+      if (!rec.getString('responsavel_id')) return false
+      if (!rec.getString('modalidade')) return false
+      if (valorNegocioIpcp(rec) <= 1) return false
+      return true
+    }
+
+    function negociosComputaveisIpcp(negocios) {
+      var rows = []
+      for (var nci = 0; nci < negocios.length; nci++) {
+        if (negocioComputavelIpcp(negocios[nci])) rows.push(negocios[nci])
+      }
+      return rows
+    }
+
+    function filtroPorIds(campo, ids) {
+      if (!ids || !ids.length) return "id = '__sem_registros__'"
+      var partes = []
+      for (var fi = 0; fi < ids.length && fi < 80; fi++) partes.push(campo + " = '" + esc(ids[fi]) + "'")
+      return partes.length ? '(' + partes.join(' || ') + ')' : "id = '__sem_registros__'"
+    }
+
+    function filtroPorNegocios(campo, negocios) {
+      var ids = []
+      for (var fni = 0; fni < negocios.length; fni++) ids.push(negocios[fni].id)
+      return filtroPorIds(campo, ids)
+    }
+
+    function propostasDaCarteira(negocios) {
+      return listar('com_propostas', filtroPorNegocios('negocio_id', negocios), '-created', 200)
+    }
+
+    function filtroPorPropostas(campo, propostasCarteira) {
+      var ids = []
+      for (var fpi = 0; fpi < propostasCarteira.length; fpi++) ids.push(propostasCarteira[fpi].id)
+      return filtroPorIds(campo, ids)
+    }
+
     function classificarResultado(rec) {
       var resultado = rec.getString('resultado') || rec.getString('status') || ''
       if (resultado === 'ganho') return 'ganho'
@@ -1354,40 +1526,120 @@ cronAdd(
       return { media: total / avaliados, avaliados: avaliados, fracos: fracos, bons: bons }
     }
 
+    var IPCP_ALTO_VALOR_REFERENCIA_REAIS = 10000
+    var IPCP_ALTO_VALOR_REFERENCIA = IPCP_ALTO_VALOR_REFERENCIA_REAIS * 100
+    var IPCP_MIN_DECIDIDOS_CONFIANCA_TOTAL = 5
+
+    function negocioRecorrenteIpcp(rec) {
+      return String(rec.getString('modalidade') || '').toLowerCase() === 'recorrente'
+    }
+
+    function negocioAltoValorIpcp(valor) {
+      return Number(valor || 0) >= IPCP_ALTO_VALOR_REFERENCIA
+    }
+
+    function negocioMaduroQualificadoIpcp(rec, valor) {
+      if (!rec.getString('modalidade')) return false
+      if (!(Number(valor || 0) > 1)) return false
+      if (rec.getString('proxima_acao_em')) return true
+      var texto = textoRegistroComercial(rec)
+      if (texto && texto.trim().length >= 80) return true
+      return (
+        contemQualidadeRegistro(texto, [/decisor/, /quem decide/, /respons[aá]vel pela decis[aã]o/]) &&
+        contemQualidadeRegistro(texto, [/necessidade/, /dor\b/, /demanda/, /objetivo/, /escopo/]) &&
+        contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /reuni[aã]o/])
+      )
+    }
+
+    function calcularResultadoComercialIpcp(ganhos, perdidos) {
+      var totalDecididos = ganhos + perdidos
+      var conversao = totalDecididos ? ganhos / totalDecididos : 0
+      var confiancaDecididos = Math.min(1, totalDecididos / IPCP_MIN_DECIDIDOS_CONFIANCA_TOTAL)
+      return round1(clamp(12 + conversao * 10 * confiancaDecididos + Math.min(8, ganhos * 0.8), 8, 30))
+    }
+
+    function calcularValorEstrategicoIpcp(metricas) {
+      var abertos = Math.max(0, Number(metricas.abertos || 0))
+      var recorrenciaCarteiraAberta = Math.min(
+        3,
+        abertos ? (Number(metricas.abertosRecorrentes || 0) / abertos) * 3 : 0,
+      )
+      var valorFinanceiroCarteiraAberta = Math.min(1, Number(metricas.valorAberto || 0) / 200000)
+      var recorrenteAltoValor = Math.min(
+        5,
+        abertos ? (Number(metricas.abertosRecorrentesAltoValor || 0) / abertos) * 5 : 0,
+      )
+      var valorGanhoEstrategico = Math.min(
+        5,
+        Number(metricas.ganhosEstrategicos || 0) * 2.5 +
+          Number(metricas.valorGanhoEstrategico || 0) / 50000,
+      )
+      var maturidadeComercialQualificada = Math.min(
+        1,
+        abertos ? Number(metricas.madurosQualificados || 0) / abertos : 0,
+      )
+      return round1(
+        clamp(
+          recorrenciaCarteiraAberta +
+            valorFinanceiroCarteiraAberta +
+            recorrenteAltoValor +
+            valorGanhoEstrategico +
+            maturidadeComercialQualificada,
+          0,
+          15,
+        ),
+      )
+    }
+
     function calcularPacoteIpcpDiario(dataRef, scope, responsavelId, actor) {
       var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
       var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
-      var filtroOperacional =
-        (scope === 'proprio' || scope === 'equipe') &&
-        responsavelId &&
-        responsavelId !== '__todos__'
-          ? "responsavel_id = '" + esc(responsavelId) + "'"
-          : "id != ''"
-      var atividades = listar('com_atividades', filtroOperacional, '-created', 200)
-      var slas = listar('com_slas', filtroOperacional, '-created', 200)
-      var propostas = listar('com_proposta_envios', filtroOperacional, '-created', 200)
-      var fechamentos = listar('com_fechamentos', filtroOperacional, '-created', 200)
+      var negociosComputaveis = negociosComputaveisIpcp(negocios)
+      var filtroNegociosRelacionados = filtroPorNegocios('negocio_id', negociosComputaveis)
+      var propostasCarteira = propostasDaCarteira(negociosComputaveis)
+      var atividades = listar('com_atividades', filtroNegociosRelacionados, '-created', 200)
+      var slas = listar('com_slas', filtroNegociosRelacionados, '-created', 200)
+      var propostas = listar(
+        'com_proposta_envios',
+        filtroPorPropostas('proposta_id', propostasCarteira),
+        '-created',
+        200,
+      )
+      var fechamentos = listar('com_fechamentos', filtroNegociosRelacionados, '-created', 200)
 
       var abertos = 0,
         ganhos = 0,
         perdidos = 0,
         valorAberto = 0,
-        valorGanho = 0
+        valorGanho = 0,
+        abertosRecorrentes = 0,
+        abertosRecorrentesAltoValor = 0,
+        ganhosEstrategicos = 0,
+        valorGanhoEstrategico = 0,
+        madurosQualificados = 0
       var semResponsavel = 0,
         semModalidade = 0,
         prospectPendente = 0
-      for (var i = 0; i < negocios.length; i++) {
-        var n = negocios[i]
+      for (var i = 0; i < negociosComputaveis.length; i++) {
+        var n = negociosComputaveis[i]
         var situacao = classificarResultado(n)
-        var valor = Number(n.get('valor') || 0)
-        if (!isFinite(valor) || valor < 0) valor = 0
+        var valor = valorNegocioIpcp(n)
+        var recorrente = negocioRecorrenteIpcp(n)
+        var altoValor = negocioAltoValorIpcp(valor)
         if (situacao === 'ganho') {
           ganhos++
           if (valor > 1) valorGanho += valor
+          if (recorrente || altoValor) {
+            ganhosEstrategicos++
+            if (valor > 1) valorGanhoEstrategico += valor
+          }
         } else if (situacao === 'perdido' || situacao === 'desqualificado') perdidos++
         else {
           abertos++
           if (valor > 1) valorAberto += valor
+          if (recorrente) abertosRecorrentes++
+          if (recorrente && altoValor) abertosRecorrentesAltoValor++
+          if (negocioMaduroQualificadoIpcp(n, valor)) madurosQualificados++
         }
         if (!n.getString('responsavel_id')) semResponsavel++
         if (!n.getString('modalidade')) semModalidade++
@@ -1398,31 +1650,27 @@ cronAdd(
           prospectPendente++
       }
 
-      var totalDecididos = ganhos + perdidos
-      var conversao = totalDecididos ? ganhos / totalDecididos : 0
-      var coberturaResponsavel = negocios.length
-        ? (negocios.length - semResponsavel) / negocios.length
+      var coberturaResponsavel = negociosComputaveis.length
+        ? (negociosComputaveis.length - semResponsavel) / negociosComputaveis.length
         : 1
-      var coberturaModalidade = negocios.length
-        ? (negocios.length - semModalidade) / negocios.length
+      var coberturaModalidade = negociosComputaveis.length
+        ? (negociosComputaveis.length - semModalidade) / negociosComputaveis.length
         : 1
       var atividadePorAberto = abertos ? atividades.length / abertos : atividades.length
-      var propostaPorAberto = abertos ? propostas.length / abertos : propostas.length
       var slaPressao = slas.length
-        ? Math.min(1, slas.length / Math.max(1, abertos || negocios.length))
+        ? Math.min(1, slas.length / Math.max(1, abertos || negociosComputaveis.length))
         : 0
 
-      var resultadoComercial = round1(clamp(12 + conversao * 10 + Math.min(8, ganhos * 0.8), 8, 30))
-      var valorEstrategico = round1(
-        clamp(
-          4 +
-            Math.min(7, valorAberto / 200000) +
-            Math.min(4, valorGanho / 250000) +
-            propostaPorAberto,
-          3,
-          15,
-        ),
-      )
+      var resultadoComercial = calcularResultadoComercialIpcp(ganhos, perdidos)
+      var valorEstrategico = calcularValorEstrategicoIpcp({
+        abertos: abertos,
+        valorAberto: valorAberto,
+        abertosRecorrentes: abertosRecorrentes,
+        abertosRecorrentesAltoValor: abertosRecorrentesAltoValor,
+        ganhosEstrategicos: ganhosEstrategicos,
+        valorGanhoEstrategico: valorGanhoEstrategico,
+        madurosQualificados: madurosQualificados,
+      })
       var disciplinaCarteira = round1(
         clamp(
           7 + Math.min(8, atividadePorAberto * 1.6) + coberturaResponsavel * 4 - slaPressao * 3,
@@ -1440,7 +1688,7 @@ cronAdd(
           20,
         ),
       )
-      var qualidadeRegistro = calcularQualidadeRegistroComercial(negocios)
+      var qualidadeRegistro = calcularQualidadeRegistroComercial(negociosComputaveis)
       var registrosAprendizado = round1(
         clamp(
           3 +
@@ -1503,8 +1751,8 @@ cronAdd(
         })
 
       var negociosAtencao = []
-      for (var j = 0; j < negocios.length && negociosAtencao.length < 3; j++) {
-        var item = negocios[j]
+      for (var j = 0; j < negociosComputaveis.length && negociosAtencao.length < 3; j++) {
+        var item = negociosComputaveis[j]
         if (classificarResultado(item) !== 'aberto') continue
         var motivos = []
         if (!item.getString('responsavel_id')) motivos.push('sem responsável comercial claro')
@@ -1605,7 +1853,7 @@ cronAdd(
       ator,
       origem,
     ) {
-      var formula = 'ipcp_v0_4_dados_vivos_por_escopo'
+      var formula = 'ipcp_v0_5_formula_gerencial'
       var pacote = calcularPacoteIpcpDiario(data, effectiveScope, responsavelId, ator)
       var ipcpTotal = pacote.ipcp.total
       var snapshotKey = [
@@ -2042,6 +2290,71 @@ routerAdd(
       return { media: total / avaliados, avaliados: avaliados, fracos: fracos, bons: bons }
     }
 
+    var IPCP_ALTO_VALOR_REFERENCIA_REAIS = 10000
+    var IPCP_ALTO_VALOR_REFERENCIA = IPCP_ALTO_VALOR_REFERENCIA_REAIS * 100
+    var IPCP_MIN_DECIDIDOS_CONFIANCA_TOTAL = 5
+
+    function negocioRecorrenteIpcp(rec) {
+      return String(rec.getString('modalidade') || '').toLowerCase() === 'recorrente'
+    }
+
+    function negocioAltoValorIpcp(valor) {
+      return Number(valor || 0) >= IPCP_ALTO_VALOR_REFERENCIA
+    }
+
+    function negocioMaduroQualificadoIpcp(rec, valor) {
+      if (!rec.getString('modalidade')) return false
+      if (!(Number(valor || 0) > 1)) return false
+      if (rec.getString('proxima_acao_em')) return true
+      var texto = textoRegistroComercial(rec)
+      if (texto && texto.trim().length >= 80) return true
+      return (
+        contemQualidadeRegistro(texto, [/decisor/, /quem decide/, /respons[aá]vel pela decis[aã]o/]) &&
+        contemQualidadeRegistro(texto, [/necessidade/, /dor\b/, /demanda/, /objetivo/, /escopo/]) &&
+        contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /reuni[aã]o/])
+      )
+    }
+
+    function calcularResultadoComercialIpcp(ganhos, perdidos) {
+      var totalDecididos = ganhos + perdidos
+      var conversao = totalDecididos ? ganhos / totalDecididos : 0
+      var confiancaDecididos = Math.min(1, totalDecididos / IPCP_MIN_DECIDIDOS_CONFIANCA_TOTAL)
+      return round1(clamp(12 + conversao * 10 * confiancaDecididos + Math.min(8, ganhos * 0.8), 8, 30))
+    }
+
+    function calcularValorEstrategicoIpcp(metricas) {
+      var abertos = Math.max(0, Number(metricas.abertos || 0))
+      var recorrenciaCarteiraAberta = Math.min(
+        3,
+        abertos ? (Number(metricas.abertosRecorrentes || 0) / abertos) * 3 : 0,
+      )
+      var valorFinanceiroCarteiraAberta = Math.min(1, Number(metricas.valorAberto || 0) / 200000)
+      var recorrenteAltoValor = Math.min(
+        5,
+        abertos ? (Number(metricas.abertosRecorrentesAltoValor || 0) / abertos) * 5 : 0,
+      )
+      var valorGanhoEstrategico = Math.min(
+        5,
+        Number(metricas.ganhosEstrategicos || 0) * 2.5 +
+          Number(metricas.valorGanhoEstrategico || 0) / 50000,
+      )
+      var maturidadeComercialQualificada = Math.min(
+        1,
+        abertos ? Number(metricas.madurosQualificados || 0) / abertos : 0,
+      )
+      return round1(
+        clamp(
+          recorrenciaCarteiraAberta +
+            valorFinanceiroCarteiraAberta +
+            recorrenteAltoValor +
+            valorGanhoEstrategico +
+            maturidadeComercialQualificada,
+          0,
+          15,
+        ),
+      )
+    }
+
     function calcularPacoteIpcpDiarioVivo(dataRef, scope, responsavelId, actor) {
       var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
       var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
@@ -2063,6 +2376,11 @@ routerAdd(
         perdidos = 0,
         valorAberto = 0,
         valorGanho = 0,
+        abertosRecorrentes = 0,
+        abertosRecorrentesAltoValor = 0,
+        ganhosEstrategicos = 0,
+        valorGanhoEstrategico = 0,
+        madurosQualificados = 0,
         semResponsavel = 0,
         semModalidade = 0,
         prospectPendente = 0
@@ -2070,13 +2388,22 @@ routerAdd(
         var n = negociosComputaveis[i]
         var situacao = classificarResultado(n)
         var valor = valorNegocioIpcp(n)
+        var recorrente = negocioRecorrenteIpcp(n)
+        var altoValor = negocioAltoValorIpcp(valor)
         if (situacao === 'ganho') {
           ganhos++
           if (valor > 1) valorGanho += valor
+          if (recorrente || altoValor) {
+            ganhosEstrategicos++
+            if (valor > 1) valorGanhoEstrategico += valor
+          }
         } else if (situacao === 'perdido' || situacao === 'desqualificado') perdidos++
         else {
           abertos++
           if (valor > 1) valorAberto += valor
+          if (recorrente) abertosRecorrentes++
+          if (recorrente && altoValor) abertosRecorrentesAltoValor++
+          if (negocioMaduroQualificadoIpcp(n, valor)) madurosQualificados++
         }
         if (!n.getString('responsavel_id')) semResponsavel++
         if (!n.getString('modalidade')) semModalidade++
@@ -2095,21 +2422,19 @@ routerAdd(
         ? (negociosComputaveis.length - semModalidade) / negociosComputaveis.length
         : 1
       var atividadePorAberto = abertos ? atividades.length / abertos : atividades.length
-      var propostaPorAberto = abertos ? propostas.length / abertos : propostas.length
       var slaPressao = slas.length
         ? Math.min(1, slas.length / Math.max(1, abertos || negociosComputaveis.length))
         : 0
-      var resultadoComercial = round1(clamp(12 + conversao * 10 + Math.min(8, ganhos * 0.8), 8, 30))
-      var valorEstrategico = round1(
-        clamp(
-          4 +
-            Math.min(7, valorAberto / 200000) +
-            Math.min(4, valorGanho / 250000) +
-            propostaPorAberto,
-          3,
-          15,
-        ),
-      )
+      var resultadoComercial = calcularResultadoComercialIpcp(ganhos, perdidos)
+      var valorEstrategico = calcularValorEstrategicoIpcp({
+        abertos: abertos,
+        valorAberto: valorAberto,
+        abertosRecorrentes: abertosRecorrentes,
+        abertosRecorrentesAltoValor: abertosRecorrentesAltoValor,
+        ganhosEstrategicos: ganhosEstrategicos,
+        valorGanhoEstrategico: valorGanhoEstrategico,
+        madurosQualificados: madurosQualificados,
+      })
       var disciplinaCarteira = round1(
         clamp(
           7 + Math.min(8, atividadePorAberto * 1.6) + coberturaResponsavel * 4 - slaPressao * 3,
@@ -2327,7 +2652,7 @@ routerAdd(
     var guardrailsPayload = payload.guardrails || {}
 
     var ipcpTotal = Number(ipcpPayload.total || 0)
-    var formula = 'ipcp_v0_4_dados_vivos_por_escopo'
+    var formula = 'ipcp_v0_5_formula_gerencial'
     var dataReferencia = data
 
     var resumoTexto = textoCurto(resumoPayload.texto, 700)
