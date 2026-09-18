@@ -1522,13 +1522,14 @@ routerAdd(
         negociosAtencao.push({
           id_negocio: negocioHumanoId(item),
           cliente: nomeNegocio(item),
-          empresa: nomeRelacionado('com_empresas', item.getString('empresa_id'), [
-            'nome',
-            'razao_social',
-          ]),
-          contato: nomeRelacionado('com_contatos', item.getString('contato_principal_id'), [
-            'nome',
-          ]),
+          empresa:
+            nomeRelacionado('com_empresas', item.getString('empresa_id'), [
+              'nome',
+              'razao_social',
+            ]) || 'Empresa não informada',
+          contato:
+            nomeRelacionado('com_contatos', item.getString('contato_principal_id'), ['nome']) ||
+            'Contato não informado',
           motivo: motivos.join('; '),
           acao_recomendada:
             'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.',
