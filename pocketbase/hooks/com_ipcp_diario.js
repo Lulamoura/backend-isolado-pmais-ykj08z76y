@@ -1181,6 +1181,30 @@ routerAdd(
       return "id != ''"
     }
 
+    function filtroPorIds(campo, ids) {
+      if (!ids || !ids.length) return "id = '__sem_registros__'"
+      var partes = []
+      for (var fi = 0; fi < ids.length && fi < 80; fi++)
+        partes.push(campo + " = '" + esc(ids[fi]) + "'")
+      return partes.length ? '(' + partes.join(' || ') + ')' : "id = '__sem_registros__'"
+    }
+
+    function filtroPorNegocios(campo, negocios) {
+      var ids = []
+      for (var fni = 0; fni < negocios.length; fni++) ids.push(negocios[fni].id)
+      return filtroPorIds(campo, ids)
+    }
+
+    function propostasDaCarteira(negocios) {
+      return listar('com_propostas', filtroPorNegocios('negocio_id', negocios), '-created', 200)
+    }
+
+    function filtroPorPropostas(campo, propostasCarteira) {
+      var ids = []
+      for (var fpi = 0; fpi < propostasCarteira.length; fpi++) ids.push(propostasCarteira[fpi].id)
+      return filtroPorIds(campo, ids)
+    }
+
     function classificarResultado(rec) {
       var resultado = rec.getString('resultado') || rec.getString('status') || ''
       if (resultado === 'ganho') return 'ganho'
@@ -1201,12 +1225,20 @@ routerAdd(
     }
 
     function negocioHumanoId(rec) {
-      return (
-        rec.getString('oe_numero') ||
-        rec.getString('external_id') ||
-        rec.getString('codigo') ||
-        rec.id
-      )
+      var oe = rec.getString('oe_numero')
+      if (oe) return oe
+      try {
+        var vinculo = $app.findFirstRecordByFilter(
+          'com_vinculos_externos',
+          "collection_name='com_negocios' && record_id='" + esc(rec.id) + "'",
+        )
+        if (vinculo && vinculo.getString('external_id')) return vinculo.getString('external_id')
+      } catch (_) {}
+      var external = rec.getString('external_id')
+      if (external) return external
+      var codigo = rec.getString('codigo')
+      if (codigo) return codigo
+      return 'Sem número legível'
     }
     function textoRegistroComercial(rec) {
       try {
@@ -1302,10 +1334,17 @@ routerAdd(
       var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
       var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
       var filtroOperacional = filtroResponsavelOperacional(scope, responsavelId)
-      var atividades = listar('com_atividades', filtroOperacional, '-created', 200)
-      var slas = listar('com_slas', filtroOperacional, '-created', 200)
-      var propostas = listar('com_proposta_envios', filtroOperacional, '-created', 200)
-      var fechamentos = listar('com_fechamentos', filtroOperacional, '-created', 200)
+      var filtroNegociosRelacionados = filtroPorNegocios('negocio_id', negocios)
+      var propostasCarteira = propostasDaCarteira(negocios)
+      var atividades = listar('com_atividades', filtroNegociosRelacionados, '-created', 200)
+      var slas = listar('com_slas', filtroNegociosRelacionados, '-created', 200)
+      var propostas = listar(
+        'com_proposta_envios',
+        filtroPorPropostas('proposta_id', propostasCarteira),
+        '-created',
+        200,
+      )
+      var fechamentos = listar('com_fechamentos', filtroNegociosRelacionados, '-created', 200)
       var abertos = 0,
         ganhos = 0,
         perdidos = 0,
@@ -1449,7 +1488,7 @@ routerAdd(
           acao_recomendada:
             'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.',
           blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
-          link: '/pipeline?negocio=' + encodeURIComponent(negocioHumanoId(item)),
+          link: '/pipeline?negocio=' + encodeURIComponent(item.id),
         })
       }
       return {
@@ -1583,6 +1622,9 @@ routerAdd(
         limite_leitura: 5,
         pacote_completo: true,
         calculado_ao_vivo: true,
+        calculado_em: snapshot
+          ? snapshot.getString('updated') || snapshot.getString('created') || null
+          : null,
       },
       data_referencia: dataReferencia,
       escopo_efetivo: {
