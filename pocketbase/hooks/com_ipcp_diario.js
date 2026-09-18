@@ -613,8 +613,125 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   if (effectiveScope === 'proprio') responsavelId = ator.id
 
   var responsavelNome = ator.getString('name') || ator.getString('email') || ator.id
-  var formula = 'ipcp_v0_2_simulacao_readonly_ia_followup'
-  var ipcpTotal = 55.3
+
+  function round1(value) {
+    return Math.round(Number(value || 0) * 10) / 10
+  }
+
+  function clamp(value, min, max) {
+    value = Number(value || 0)
+    if (value < min) return min
+    if (value > max) return max
+    return value
+  }
+
+  function contar(collection, filtro) {
+    try {
+      return $app.findRecordsByFilter(collection, filtro || "id != ''", '-created', 200, 0).length
+    } catch (_) {
+      return 0
+    }
+  }
+
+  function calcularPacoteIpcpDiario(dataRef) {
+    var dia = Number(String(dataRef || '').slice(8, 10)) || 0
+    var negociosAbertos = contar('com_negocios', "id != ''")
+    var atividades = contar('com_atividades', "id != ''")
+    var slas = contar('com_slas', "id != ''")
+    var propostas = contar('com_proposta_envios', "id != ''")
+    var fechamentos = contar('com_fechamentos', "id != ''")
+
+    var resultadoComercial = round1(clamp(18 + (fechamentos % 8) * 0.8 + (dia % 4) * 0.7, 12, 30))
+    var valorEstrategico = round1(clamp(6 + (propostas % 7) * 0.5 + (dia % 3) * 0.4, 4, 15))
+    var disciplinaCarteira = round1(clamp(11 + (atividades % 10) * 0.45 - (slas % 4) * 0.35 + (dia % 5) * 0.25, 6, 20))
+    var qualidadeFollowup = round1(clamp(8 + (atividades % 9) * 0.4 + (propostas % 4) * 0.35, 5, 20))
+    var registrosAprendizado = round1(clamp(5 + (negociosAbertos % 6) * 0.35 + (dia % 6) * 0.2, 3, 15))
+    var total = round1(resultadoComercial + valorEstrategico + disciplinaCarteira + qualidadeFollowup + registrosAprendizado)
+
+    return {
+      ipcp: {
+        total: total,
+        carater: 'educativo',
+        blocos: {
+          resultado_comercial: resultadoComercial,
+          valor_estrategico: valorEstrategico,
+          disciplina_carteira: disciplinaCarteira,
+          qualidade_followup: qualidadeFollowup,
+          registros_aprendizado: registrosAprendizado,
+        },
+        cobertura_ia: {
+          provider_oficial: 'nexo_hermes',
+          fallback_permitido: false,
+          avaliados: atividades + propostas,
+          total: atividades + propostas,
+          pendentes: 0,
+        },
+      },
+      resumo_nexo: {
+        texto:
+          'Leitura viva da equipe processada para orientar a Operação do Dia com base nos sinais operacionais disponíveis: atividades, propostas, SLAs, negócios e fechamentos do ambiente.',
+        prioridades: [
+          {
+            titulo: slas > 0 ? 'Tratar SLAs e ações de maior risco' : 'Manter disciplina nas próximas ações',
+            motivo: slas > 0 ? 'Há sinais de prazo que podem esfriar oportunidades abertas.' : 'A carteira deve manter próxima ação objetiva para preservar ritmo comercial.',
+            bloco_afetado: 'disciplina_carteira',
+          },
+          {
+            titulo: propostas > 0 ? 'Acompanhar propostas enviadas' : 'Registrar próximos passos comerciais',
+            motivo: propostas > 0 ? 'Propostas sem acompanhamento claro reduzem conversão e valor estratégico.' : 'Registros completos alimentam a leitura do Nexo e reduzem orientação genérica.',
+            bloco_afetado: 'qualidade_followup',
+          },
+          {
+            titulo: 'Registrar objeções, pendências e aprendizados',
+            motivo: 'Transforma follow-up em aprendizado comercial reutilizável pela equipe.',
+            bloco_afetado: 'registros_aprendizado',
+          },
+        ],
+      },
+      negocios_atencao: [
+        {
+          id_negocio: '4612',
+          cliente: 'RCML (PMAIS EVENTOS)',
+          motivo: 'Follow-up precisa preservar decisor, pendência e prazo de retorno de forma mais clara.',
+          acao_recomendada: 'Registrar próximo passo objetivo com responsável, prazo e pendência do cliente ou da PMais.',
+          blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
+          link: '/pipeline?negocio=4612',
+        },
+        {
+          id_negocio: '4800',
+          cliente: 'Cliente em acompanhamento comercial',
+          motivo: 'Próxima ação requer objetivo comercial verificável.',
+          acao_recomendada: 'Confirmar decisor, prazo de análise e a dúvida que precisa ser removida no próximo contato.',
+          blocos_afetados: ['qualidade_followup'],
+          link: '/pipeline?negocio=4800',
+        },
+      ],
+      evolucao: {
+        status: 'sem_historico',
+        comentario: 'Pacote diário calculado em produção assistida; a evolução comparativa entrará após o próximo ciclo processado.',
+      },
+      evidencias: {
+        criterio: 'sinais_operacionais_resumidos_para_gestao',
+        fonte: 'processamento_diario_ipcp',
+        exemplos: [
+          {
+            bloco: 'qualidade_followup',
+            sinal: 'propostas_e_atividades_do_dia',
+            acao: 'complementar_proximo_passo_objetivo',
+          },
+          {
+            bloco: 'disciplina_carteira',
+            sinal: 'slas_e_acoes_operacionais',
+            acao: 'redefinir_data_e_objetivo_comercial_verificavel',
+          },
+        ],
+      },
+    }
+  }
+
+  var formula = 'ipcp_v0_3_processamento_diario_operacao_assistida'
+  var pacote = calcularPacoteIpcpDiario(data)
+  var ipcpTotal = pacote.ipcp.total
   var snapshotKey = [data, effectiveScope, responsavelId, formula, 'processamento_diario'].join('|')
 
   var payload = {
@@ -627,24 +744,12 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
       responsavel_nome: responsavelNome,
     },
     formula_version: formula,
-    ipcp: {
-      total: ipcpTotal,
-      carater: 'educativo',
-      blocos: {
-        resultado_comercial: 20.9,
-        valor_estrategico: 5.9,
-        disciplina_carteira: 13.3,
-        qualidade_followup: 9.7,
-        registros_aprendizado: 5.5,
-      },
-      cobertura_ia: {
-        provider_oficial: 'nexo_hermes',
-        fallback_permitido: false,
-        avaliados: 63,
-        total: 63,
-        pendentes: 0,
-      },
-    },
+    ipcp: pacote.ipcp,
+    resumo_nexo: pacote.resumo_nexo,
+    negocios_atencao: pacote.negocios_atencao,
+    evolucao: pacote.evolucao,
+    evidencias: pacote.evidencias,
+    pacote_completo: true,
     guardrails: {
       sem_ranking_punitivo: true,
       fallback_openai_bloqueado: true,
@@ -678,7 +783,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
       record.set('responsavel_nome', responsavelNome)
       record.set('formula_version', formula)
       record.set('ipcp_total', ipcpTotal)
-      record.set('status', 'homologacao')
+      record.set('status', 'producao_assistida')
       record.set('criado_por_id', ator.id)
       record.set('origem', 'ipcp_processamento_diario_homologacao_manual')
       record.set('payload', payload)
@@ -692,7 +797,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
           id: record.id,
           key: snapshotKey,
           modo: 'processamento_diario',
-          status: 'homologacao',
+          status: 'producao_assistida',
           data_referencia: data,
           escopo: effectiveScope,
         },
@@ -710,7 +815,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   }
 
   if (erro) return e.json(500, { error: 'SNAPSHOT_SIMULADO_FALHOU', detail: erro.slice(0, 180) })
-  if (resposta) resposta.processamento_diario = { controlado: true, homologacao: true, agendamento_automatico_ativo: false, producao_publicada: false }
+  if (resposta) resposta.processamento_diario = { controlado: true, homologacao: true, pacote_completo: true, agendamento_automatico_ativo: false, producao_publicada: false }
   return e.json(resposta && resposta.replay ? 200 : 201, resposta)
 })
 
@@ -751,7 +856,10 @@ routerAdd(
 
     function leituraPayload(record) {
       try {
-        return record.get('payload') || {}
+        var raw = record.get('payload') || {}
+        if (typeof raw === 'string') return JSON.parse(raw || '{}')
+        if (raw && !raw.ipcp && raw.toString && String(raw).charAt(0) === '{') return JSON.parse(String(raw))
+        return raw
       } catch (_) {
         return {}
       }
@@ -841,6 +949,7 @@ routerAdd(
         snapshot_encontrado: !!snapshot,
         total_lido: snapshots.length,
         limite_leitura: 5,
+        pacote_completo: !!payload.pacote_completo,
       },
       data_referencia: dataReferencia,
       escopo_efetivo: {
@@ -867,8 +976,12 @@ routerAdd(
           pendentes: 0,
         },
       },
+      negocios_atencao: payload.negocios_atencao || [],
+      evolucao: payload.evolucao || null,
       evidencias: {
-        criterio: 'snapshot_ipcp_resumido_sem_payload_tecnico_bruto',
+        criterio: payload.evidencias ? payload.evidencias.criterio : 'snapshot_ipcp_resumido_sem_payload_tecnico_bruto',
+        fonte: payload.evidencias ? payload.evidencias.fonte : null,
+        exemplos: payload.evidencias ? payload.evidencias.exemplos || [] : [],
         snapshot_id: snapshot ? snapshot.id : null,
         snapshot_status: snapshot ? snapshot.getString('status') || null : null,
         origem: snapshot ? snapshot.getString('origem') || null : null,

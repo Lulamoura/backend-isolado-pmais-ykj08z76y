@@ -67,7 +67,7 @@ beforeEach(() => {
         },
       ],
     },
-    dados_vivos: { fonte_disponivel: true, snapshot_encontrado: true, total_lido: 2 },
+    dados_vivos: { fonte_disponivel: true, snapshot_encontrado: true, total_lido: 2, pacote_completo: true },
     ipcp: {
       total: 61.2,
       blocos: {

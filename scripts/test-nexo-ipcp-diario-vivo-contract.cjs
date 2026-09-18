@@ -25,6 +25,10 @@ assert.match(routeSource, /sem_crm_write:\s*true/, 'deve declarar ausência de e
 assert.match(routeSource, /sem_app_write:\s*true/, 'deve declarar ausência de escrita no app')
 assert.match(routeSource, /sem_envio:\s*true/, 'deve declarar ausência de envio externo')
 assert.match(routeSource, /payload|resumo|recomendacoes|evidencias/, 'deve retornar resumo/evidências para o Nexo sem payload técnico bruto')
+assert.match(routeSource, /JSON\.parse\(raw|JSON\.parse\(String\(raw\)/, 'rota do Nexo deve decodificar payload JSON salvo no PocketBase')
+assert.match(routeSource, /payload\.negocios_atencao|negocios_atencao:\s*payload/, 'rota do Nexo deve devolver negócios gravados no pacote diário')
+assert.match(routeSource, /payload\.evolucao|evolucao:\s*payload/, 'rota do Nexo deve devolver evolução gravada no pacote diário')
+assert.match(routeSource, /pacote_completo/, 'rota do Nexo deve sinalizar pacote completo quando disponível')
 assert.doesNotMatch(routeSource, /\$app\.save|\.save\(|\$app\.delete|\.delete\(|\$http\.send\(/, 'rota viva do Nexo não pode salvar, apagar ou chamar externo')
 assert.doesNotMatch(routeSource, /findRecordsByFilter\([^,]+,[^,]+,[^,]+,\s*(500|1000|5000)/, 'rota deve ter limite conservador de leitura')
 
