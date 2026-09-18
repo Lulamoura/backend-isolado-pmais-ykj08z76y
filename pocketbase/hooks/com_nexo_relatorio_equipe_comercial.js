@@ -505,9 +505,11 @@ routerAdd(
       formulas: {
         total_exibido:
           'ganhos_no_periodo + perdidos_no_periodo + carteira_aberta_no_fim_do_periodo',
-        novos_negocios: 'crm_created_at quando existir; fallback para created dentro do periodo selecionado',
+        novos_negocios:
+          'crm_created_at quando existir; fallback para created dentro do periodo selecionado',
         ganhos: 'resultado ganho com fechamento_data dentro do periodo selecionado',
-        perdidos: 'resultado perdido/desqualificado com fechamento_data dentro do periodo selecionado',
+        perdidos:
+          'resultado perdido/desqualificado com fechamento_data dentro do periodo selecionado',
         abertos: 'sem resultado, criado ate o fim do periodo e ainda ativo no corte',
         taxa_conversao_global: 'ganhos_quantidade / (ganhos_quantidade + perdidos_quantidade)',
         taxa_qualitativa_valor:
