@@ -32,8 +32,13 @@ assert.match(
 )
 assert.match(
   service,
-  /\/backend\/v1\/nexo\/ipcp\/diario\?escopo=equipe/,
-  'serviço deve consultar a rota viva de equipe',
+  /nexoIpcpDiarioVivoPath\(escopo\)|escopo=\$\{escopo\}/,
+  'serviço deve consultar a rota viva com escopo explícito por perfil',
+)
+assert.match(
+  operacao,
+  /escopoIpcp[\s\S]*'proprio'/,
+  'Operação do Dia deve usar escopo próprio para perfil operacional sem visão de equipe',
 )
 assert.match(service, /contrato === 'nexo_ipcp_diario_v1'/, 'serviço deve validar contrato vivo')
 

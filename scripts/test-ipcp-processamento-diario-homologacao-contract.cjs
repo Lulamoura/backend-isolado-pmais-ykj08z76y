@@ -48,6 +48,26 @@ assert(
   postSource.includes('calcularPacoteIpcpDiario'),
   'processamento diário deve calcular pacote antes de gravar',
 )
+assert(
+  postSource.includes('filtroEscopoColecao'),
+  'processamento diário deve filtrar dados pelo escopo efetivo',
+)
+assert(
+  postSource.includes("responsavel_id = '") || postSource.includes('responsavel_id'),
+  'processamento diário deve considerar responsável no escopo próprio',
+)
+assert(
+  !postSource.includes("id_negocio: '4612'"),
+  'processamento diário não pode manter negócio fixo de referência',
+)
+assert(
+  !postSource.includes("id_negocio: '4800'"),
+  'processamento diário não pode manter negócio fixo de referência',
+)
+assert(
+  postSource.includes('ipcp_v0_4_dados_vivos_por_escopo'),
+  'processamento diário deve usar fórmula viva por escopo',
+)
 assert(postSource.includes('sem_job_automatico: true'), 'não pode ativar job automático')
 assert(postSource.includes('sem_crm_write: true'), 'não pode escrever no CRM')
 assert(

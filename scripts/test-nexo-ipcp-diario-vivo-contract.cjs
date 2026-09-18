@@ -7,7 +7,7 @@ assert.ok(fs.existsSync(hookPath), 'hook IPCP diário deve existir')
 const hook = fs.readFileSync(hookPath, 'utf8')
 const routeStart = hook.indexOf("'/backend/v1/nexo/ipcp/diario'")
 assert.notEqual(routeStart, -1, 'deve expor GET /backend/v1/nexo/ipcp/diario para o Nexo')
-const routeSource = hook.slice(Math.max(0, routeStart - 500), routeStart + 9000)
+const routeSource = hook.slice(Math.max(0, routeStart - 500), routeStart + 18000)
 
 assert.match(
   routeSource,
@@ -60,13 +60,24 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /payload\.negocios_atencao|negocios_atencao:\s*payload/,
-  'rota do Nexo deve devolver negócios gravados no pacote diário',
+  /calcularPacoteIpcpDiarioVivo/,
+  'rota deve recalcular a leitura viva por escopo no GET',
 )
 assert.match(
   routeSource,
-  /payload\.evolucao|evolucao:\s*payload/,
-  'rota do Nexo deve devolver evolução gravada no pacote diário',
+  /calculado_ao_vivo:\s*true/,
+  'rota deve declarar cálculo vivo quando entrega pacote dinâmico',
+)
+assert.match(routeSource, /filtroEscopoColecao/, 'rota deve filtrar dados por escopo efetivo')
+assert.match(
+  routeSource,
+  /payload\.negocios_atencao|negocios_atencao:\s*payload|pacoteVivo\.negocios_atencao/,
+  'rota do Nexo deve devolver negócios do pacote diário ou cálculo vivo',
+)
+assert.match(
+  routeSource,
+  /payload\.evolucao|evolucao:\s*payload|pacoteVivo\.evolucao/,
+  'rota do Nexo deve devolver evolução gravada ou calculada no pacote diário',
 )
 assert.match(
   routeSource,

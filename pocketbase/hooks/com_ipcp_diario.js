@@ -637,6 +637,14 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     return value
   }
 
+  function contar(collection, filtro) {
+    try {
+      return $app.findRecordsByFilter(collection, filtro || "id != ''", '-created', 200, 0).length
+    } catch (_) {
+      return 0
+    }
+  }
+
   function esc(value) {
     return String(value || '')
       .replace(/\\/g, '\\\\')
@@ -1059,16 +1067,6 @@ routerAdd(
       return text
     }
 
-    var ator = e.auth
-    if (!ator) return e.unauthorizedError('Autenticacao necessaria')
-    if (ator.getBool && ator.getBool('ativo_comercial') === false) {
-      return e.forbiddenError('Usuario comercial ativo necessario')
-    }
-
-    var query = e.requestInfo().query || {}
-    var data = String(query.data || civilHojeRecife())
-    if (!isCivilDate(data)) return e.json(400, { error: 'DATA_INVALIDA' })
-
     function round1(value) {
       return Math.round(Number(value || 0) * 10) / 10
     }
@@ -1333,6 +1331,16 @@ routerAdd(
       }
     }
 
+    var ator = e.auth
+    if (!ator) return e.unauthorizedError('Autenticacao necessaria')
+    if (ator.getBool && ator.getBool('ativo_comercial') === false) {
+      return e.forbiddenError('Usuario comercial ativo necessario')
+    }
+
+    var query = e.requestInfo().query || {}
+    var data = String(query.data || civilHojeRecife())
+    if (!isCivilDate(data)) return e.json(400, { error: 'DATA_INVALIDA' })
+
     var slug = profileSlug(ator)
     var requestedScope = String(query.escopo || 'proprio')
     var effectiveScope = 'proprio'
@@ -1377,29 +1385,18 @@ routerAdd(
 
     var snapshot = snapshots.length ? snapshots[0] : null
     var payload = snapshot ? leituraPayload(snapshot) : {}
-    var ipcpPayload = payload.ipcp || {}
-    var resumoPayload = payload.resumo_nexo || {}
+    var pacoteVivo = calcularPacoteIpcpDiarioVivo(data, effectiveScope, responsavelId, ator)
+    var ipcpPayload = pacoteVivo.ipcp || payload.ipcp || {}
+    var resumoPayload = pacoteVivo.resumo_nexo || payload.resumo_nexo || {}
     var guardrailsPayload = payload.guardrails || {}
 
-    var ipcpTotal = snapshot ? Number(snapshot.get('ipcp_total') || ipcpPayload.total || 0) : 0
-    var formula = snapshot
-      ? snapshot.getString('formula_version') || String(payload.formula_version || '')
-      : 'ipcp_v0_2_simulacao_readonly_ia_followup'
-    var dataReferencia = snapshot ? snapshot.getString('data_referencia') || data : data
+    var ipcpTotal = Number(ipcpPayload.total || 0)
+    var formula = 'ipcp_v0_4_dados_vivos_por_escopo'
+    var dataReferencia = data
 
-    var resumoTexto = textoCurto(
-      resumoPayload.texto ||
-        'Sem snapshot vivo do IPCP para este escopo na data consultada. O Nexo deve orientar pela regra aprovada e solicitar processamento/homologação antes de tratar como indicador vivo.',
-      700,
-    )
+    var resumoTexto = textoCurto(resumoPayload.texto, 700)
 
-    var prioridades = resumoPayload.prioridades || [
-      {
-        titulo: 'Validar processamento vivo do IPCP',
-        motivo: 'Evita orientação gerencial baseada em dado desatualizado ou simulado.',
-        bloco_afetado: 'registros_aprendizado',
-      },
-    ]
+    var prioridades = resumoPayload.prioridades || []
 
     return e.json(200, {
       ok: true,
@@ -1412,9 +1409,10 @@ routerAdd(
         consultados: true,
         fonte_disponivel: fonteDisponivel,
         snapshot_encontrado: !!snapshot,
+        calculado_ao_vivo: true,
         total_lido: snapshots.length,
         limite_leitura: 5,
-        pacote_completo: !!payload.pacote_completo,
+        pacote_completo: true,
       },
       data_referencia: dataReferencia,
       escopo_efetivo: {
@@ -1441,14 +1439,14 @@ routerAdd(
           pendentes: 0,
         },
       },
-      negocios_atencao: payload.negocios_atencao || [],
-      evolucao: payload.evolucao || null,
+      negocios_atencao: pacoteVivo.negocios_atencao || [],
+      evolucao: pacoteVivo.evolucao || null,
       evidencias: {
-        criterio: payload.evidencias
-          ? payload.evidencias.criterio
-          : 'snapshot_ipcp_resumido_sem_payload_tecnico_bruto',
-        fonte: payload.evidencias ? payload.evidencias.fonte : null,
-        exemplos: payload.evidencias ? payload.evidencias.exemplos || [] : [],
+        criterio: pacoteVivo.evidencias
+          ? pacoteVivo.evidencias.criterio
+          : 'leitura_viva_ipcp_dados_reais',
+        fonte: pacoteVivo.evidencias ? pacoteVivo.evidencias.fonte : 'leitura_viva',
+        exemplos: pacoteVivo.evidencias ? pacoteVivo.evidencias.exemplos || [] : [],
         snapshot_id: snapshot ? snapshot.id : null,
         snapshot_status: snapshot ? snapshot.getString('status') || null : null,
         origem: snapshot ? snapshot.getString('origem') || null : null,

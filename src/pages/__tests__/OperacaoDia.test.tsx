@@ -167,6 +167,9 @@ describe('Operação do Dia', () => {
 
     expect(await screen.findByText('1 sem data · 1 vencida(s) · 1 hoje')).toBeInTheDocument()
     expect(listarOrdensExecucao).not.toHaveBeenCalled()
+    expect(pbSend).toHaveBeenCalledWith('/backend/v1/nexo/ipcp/diario?escopo=proprio', {
+      method: 'GET',
+    })
     expect(screen.queryByText('Ganhos aguardando OE')).not.toBeInTheDocument()
   })
 
