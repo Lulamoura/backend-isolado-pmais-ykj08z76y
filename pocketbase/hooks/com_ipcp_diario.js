@@ -384,8 +384,8 @@ routerAdd('POST', '/backend/v1/ipcp/snapshots/simulado', function (e) {
   if (effectiveScope === 'proprio') responsavelId = ator.id
 
   var responsavelNome = ator.getString('name') || ator.getString('email') || ator.id
-  var formula = 'ipcp_v0_2_simulacao_readonly_ia_followup'
-  var ipcpTotal = 55.3
+  var formula = 'ipcp_sem_leitura_viva_disponivel'
+  var ipcpTotal = 0
   var snapshotKey = [data, effectiveScope, responsavelId, formula, 'simulado'].join('|')
 
   var payload = {
@@ -1337,29 +1337,18 @@ routerAdd(
 
     var snapshot = snapshots.length ? snapshots[0] : null
     var payload = snapshot ? leituraPayload(snapshot) : {}
-    var ipcpPayload = payload.ipcp || {}
-    var resumoPayload = payload.resumo_nexo || {}
+    var pacoteVivo = calcularPacoteIpcpDiarioVivo(data, effectiveScope, responsavelId, ator)
+    var ipcpPayload = pacoteVivo.ipcp || payload.ipcp || {}
+    var resumoPayload = pacoteVivo.resumo_nexo || payload.resumo_nexo || {}
     var guardrailsPayload = payload.guardrails || {}
 
-    var ipcpTotal = snapshot ? Number(snapshot.get('ipcp_total') || ipcpPayload.total || 0) : 0
-    var formula = snapshot
-      ? snapshot.getString('formula_version') || String(payload.formula_version || '')
-      : 'ipcp_v0_2_simulacao_readonly_ia_followup'
-    var dataReferencia = snapshot ? snapshot.getString('data_referencia') || data : data
+    var ipcpTotal = Number(ipcpPayload.total || 0)
+    var formula = 'ipcp_v0_4_dados_vivos_por_escopo'
+    var dataReferencia = data
 
-    var resumoTexto = textoCurto(
-      resumoPayload.texto ||
-        'Sem snapshot vivo do IPCP para este escopo na data consultada. O Nexo deve orientar pela regra aprovada e solicitar processamento/homologação antes de tratar como indicador vivo.',
-      700,
-    )
+    var resumoTexto = textoCurto(resumoPayload.texto, 700)
 
-    var prioridades = resumoPayload.prioridades || [
-      {
-        titulo: 'Validar processamento vivo do IPCP',
-        motivo: 'Evita orientação gerencial baseada em dado desatualizado ou simulado.',
-        bloco_afetado: 'registros_aprendizado',
-      },
-    ]
+    var prioridades = resumoPayload.prioridades || []
 
     return e.json(200, {
       ok: true,
