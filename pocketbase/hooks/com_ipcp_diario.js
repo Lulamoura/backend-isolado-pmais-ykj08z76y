@@ -713,3 +713,173 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   if (resposta) resposta.processamento_diario = { controlado: true, homologacao: true, agendamento_automatico_ativo: false, producao_publicada: false }
   return e.json(resposta && resposta.replay ? 200 : 201, resposta)
 })
+
+routerAdd(
+  'GET',
+  '/backend/v1/nexo/ipcp/diario',
+  function (e) {
+    function civilHojeRecife() {
+      return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    }
+
+    function isCivilDate(value) {
+      return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))
+    }
+
+    function profileSlug(user) {
+      try {
+        var perfilId = user ? user.getString('perfil_id') : ''
+        if (!perfilId) return ''
+        var perfil = $app.findRecordById('com_perfis', perfilId)
+        return perfil.getString('slug') || ''
+      } catch (_) {
+        return ''
+      }
+    }
+
+    function canViewTeam(slug) {
+      return slug === 'superadministrador' || slug === 'gestor-comercial' || slug === 'leitura-executiva'
+    }
+
+    function canViewAll(slug) {
+      return slug === 'superadministrador' || slug === 'leitura-executiva'
+    }
+
+    function esc(value) {
+      return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    }
+
+    function leituraPayload(record) {
+      try {
+        return record.get('payload') || {}
+      } catch (_) {
+        return {}
+      }
+    }
+
+    function textoCurto(value, max) {
+      var text = String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+      if (max && text.length > max) return text.slice(0, max - 1).trim() + '…'
+      return text
+    }
+
+    var ator = e.auth
+    if (!ator) return e.unauthorizedError('Autenticacao necessaria')
+    if (ator.getBool && ator.getBool('ativo_comercial') === false) {
+      return e.forbiddenError('Usuario comercial ativo necessario')
+    }
+
+    var query = e.requestInfo().query || {}
+    var data = String(query.data || civilHojeRecife())
+    if (!isCivilDate(data)) return e.json(400, { error: 'DATA_INVALIDA' })
+
+    var slug = profileSlug(ator)
+    var requestedScope = String(query.escopo || 'proprio')
+    var effectiveScope = 'proprio'
+    if (requestedScope === 'equipe' && canViewTeam(slug)) effectiveScope = 'equipe'
+    if (requestedScope === 'todos' && canViewAll(slug)) effectiveScope = 'todos'
+
+    var responsavelId = ator.id
+    if (String(query.responsavel_id || '') && canViewTeam(slug)) {
+      responsavelId = String(query.responsavel_id || '')
+    }
+    if (effectiveScope === 'todos') responsavelId = ''
+    if (effectiveScope === 'proprio') responsavelId = ator.id
+
+    var filtro = "data_referencia <= '" + esc(data) + "' && escopo = '" + esc(effectiveScope) + "'"
+    if (responsavelId) filtro += " && responsavel_id = '" + esc(responsavelId) + "'"
+
+    var snapshots = []
+    var fonteDisponivel = true
+    try {
+      snapshots = $app.findRecordsByFilter('com_ipcp_snapshots', filtro, '-data_referencia,-created', 5, 0)
+    } catch (_) {
+      fonteDisponivel = false
+      snapshots = []
+    }
+
+    var snapshot = snapshots.length ? snapshots[0] : null
+    var payload = snapshot ? leituraPayload(snapshot) : {}
+    var ipcpPayload = payload.ipcp || {}
+    var resumoPayload = payload.resumo_nexo || {}
+    var guardrailsPayload = payload.guardrails || {}
+
+    var ipcpTotal = snapshot ? Number(snapshot.get('ipcp_total') || ipcpPayload.total || 0) : 0
+    var formula = snapshot
+      ? snapshot.getString('formula_version') || String(payload.formula_version || '')
+      : 'ipcp_v0_2_simulacao_readonly_ia_followup'
+    var dataReferencia = snapshot ? snapshot.getString('data_referencia') || data : data
+
+    var resumoTexto = textoCurto(
+      resumoPayload.texto ||
+        'Sem snapshot vivo do IPCP para este escopo na data consultada. O Nexo deve orientar pela regra aprovada e solicitar processamento/homologação antes de tratar como indicador vivo.',
+      700,
+    )
+
+    var prioridades = resumoPayload.prioridades || [
+      {
+        titulo: 'Validar processamento vivo do IPCP',
+        motivo: 'Evita orientação gerencial baseada em dado desatualizado ou simulado.',
+        bloco_afetado: 'registros_aprendizado',
+      },
+    ]
+
+    return e.json(200, {
+      ok: true,
+      contrato: 'nexo_ipcp_diario_v1',
+      read_only: true,
+      sem_mutacao: true,
+      modo: 'consulta_viva_controlada',
+      fonte_dados: 'com_ipcp_snapshots',
+      dados_vivos: {
+        consultados: true,
+        fonte_disponivel: fonteDisponivel,
+        snapshot_encontrado: !!snapshot,
+        total_lido: snapshots.length,
+        limite_leitura: 5,
+      },
+      data_referencia: dataReferencia,
+      escopo_efetivo: {
+        tipo: effectiveScope,
+        responsavel_id: responsavelId || null,
+        responsavel_nome: ator.getString('name') || ator.getString('email') || ator.id,
+        pode_ver_equipe: canViewTeam(slug),
+        pode_ver_todos: canViewAll(slug),
+      },
+      formula_version: formula,
+      resumo: {
+        texto: resumoTexto,
+        recomendacoes: prioridades.slice(0, 5),
+      },
+      ipcp: {
+        total: ipcpTotal,
+        carater: 'educativo_gerencial',
+        blocos: ipcpPayload.blocos || {},
+        cobertura_ia: ipcpPayload.cobertura_ia || {
+          provider_oficial: 'nexo_hermes',
+          fallback_permitido: false,
+          avaliados: 0,
+          total: 0,
+          pendentes: 0,
+        },
+      },
+      evidencias: {
+        criterio: 'snapshot_ipcp_resumido_sem_payload_tecnico_bruto',
+        snapshot_id: snapshot ? snapshot.id : null,
+        snapshot_status: snapshot ? snapshot.getString('status') || null : null,
+        origem: snapshot ? snapshot.getString('origem') || null : null,
+      },
+      guardrails: {
+        sem_ranking_punitivo: true,
+        fallback_openai_bloqueado: true,
+        sem_envio: true,
+        sem_crm_write: true,
+        sem_app_write: true,
+        somente_leitura_snapshot: true,
+        provider_oficial_followup: 'nexo_hermes',
+        sem_job_automatico: guardrailsPayload.sem_job_automatico !== false,
+      },
+    })
+  },
+  $apis.requireAuth('users'),
+)
