@@ -108,111 +108,186 @@ function BlocoAjuda({ bloco }: { bloco: IpcpBlocoId }) {
 }
 
 export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) {
+  const ipcpScore = data.ipcp.total
+  const ipcpStatus =
+    ipcpScore >= 70
+      ? {
+          border: 'border-l-4 border-l-emerald-500',
+          valueTone: 'text-emerald-600',
+          badge: {
+            label: 'Saudável',
+            className: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+          },
+        }
+      : ipcpScore >= 50
+        ? {
+            border: 'border-l-4 border-l-amber-500',
+            valueTone: 'text-amber-600',
+            badge: {
+              label: 'Atenção',
+              className: 'bg-amber-50 text-amber-700 border-amber-200/60',
+            },
+          }
+        : {
+            border: 'border-l-4 border-l-rose-500',
+            valueTone: 'text-rose-600',
+            badge: {
+              label: 'Comprometido',
+              className: 'bg-rose-50 text-rose-700 border-rose-200/60',
+            },
+          }
+
   return (
     <TooltipProvider delayDuration={120}>
       <section aria-label="IPCP educativo diário" className="space-y-4">
-        <Card className="border-emerald-200 bg-emerald-50/50">
-          <CardHeader className="space-y-3">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-xl text-slate-950">
-                <Sparkles className="h-5 w-5 text-emerald-700" /> Orientação do Nexo para hoje
+        <Card className="border border-slate-200/80 bg-white shadow-sm border-l-4 border-l-emerald-500">
+          <CardHeader className="space-y-1 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
+                <Sparkles className="h-5 w-5 text-emerald-600" /> Orientação do Nexo para hoje
               </CardTitle>
-              <p className="mt-1 text-sm text-slate-600">
-                Leitura viva da equipe atualizada diariamente
-              </p>
+              <Badge
+                variant="outline"
+                className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200/60"
+              >
+                Assistência IA
+              </Badge>
             </div>
+            <p className="text-xs text-slate-500">Leitura viva da equipe atualizada diariamente</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="rounded-xl border border-emerald-200 bg-white p-4 text-sm leading-6 text-slate-800">
+            <p className="rounded-lg border border-slate-200/80 bg-slate-50/60 p-4 text-sm leading-relaxed text-slate-700">
               {data.resumo_nexo.texto}
             </p>
             <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="space-y-3">
-                <h3 className="flex items-center gap-2 font-semibold text-slate-950">
-                  <Lightbulb className="h-4 w-4 text-amber-600" /> Prioridades do dia
+              <div className="space-y-2.5">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Lightbulb className="h-4 w-4 text-amber-500" /> Prioridades do dia
                 </h3>
                 <div className="grid gap-3 md:grid-cols-3">
                   {data.resumo_nexo.prioridades.slice(0, 3).map((prioridade) => (
-                    <div key={prioridade.titulo} className="rounded-xl border bg-white p-3">
-                      <p className="text-sm font-semibold text-slate-950">{prioridade.titulo}</p>
-                      <p className="mt-1 text-xs leading-5 text-slate-600">{prioridade.motivo}</p>
-                      <Badge variant="outline" className="mt-3 text-xs">
+                    <div
+                      key={prioridade.titulo}
+                      className="flex flex-col justify-between rounded-lg border border-slate-200/80 border-l-4 border-l-amber-500 bg-white p-3 shadow-xs"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{prioridade.titulo}</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">{prioridade.motivo}</p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="mt-3 w-fit text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border-slate-200"
+                      >
                         {blocoLabels[prioridade.bloco_afetado]}
                       </Badge>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="rounded-xl border bg-white p-4">
-                <h3 className="flex items-center gap-2 font-semibold text-slate-950">
-                  <BookOpenCheck className="h-4 w-4 text-violet-700" /> IPCP do dia
-                </h3>
-                <p className="mt-3 text-4xl font-bold text-slate-950">
-                  {formatScore(data.ipcp.total)}
-                  <span className="text-base font-semibold text-slate-500">/100</span>
-                </p>
-                <p className="mt-1 text-xs text-slate-600">
-                  Índice de Performance Comercial PMais — leitura assistida da rotina comercial.
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  A nota é leitura secundária. A rotina deve priorizar as ações recomendadas.
-                </p>
-                <p className="mt-3 text-xs text-slate-600">
-                  Follow-up IA: {data.ipcp.cobertura_ia.avaliados}/{data.ipcp.cobertura_ia.total}{' '}
-                  avaliados
-                </p>
+              <div
+                className={`flex flex-col justify-between rounded-lg border border-slate-200/80 bg-white p-4 shadow-xs ${ipcpStatus.border}`}
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                      <BookOpenCheck className="h-4 w-4 text-violet-600" /> IPCP do dia
+                    </h3>
+                    <Badge
+                      variant="outline"
+                      className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${ipcpStatus.badge.className}`}
+                    >
+                      {ipcpStatus.badge.label}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-1">
+                    <p className={`text-3xl font-bold tracking-tight ${ipcpStatus.valueTone}`}>
+                      {formatScore(data.ipcp.total)}
+                    </p>
+                    <span className="text-sm font-medium text-slate-400">/100</span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500 leading-normal">
+                    Índice de Performance Comercial PMais — leitura assistida da rotina comercial.
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    A nota é leitura secundária. A rotina deve priorizar as ações recomendadas.
+                  </p>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                  <span>Follow-up IA</span>
+                  <span className="font-semibold text-slate-700">
+                    {data.ipcp.cobertura_ia.avaliados}/{data.ipcp.cobertura_ia.total} avaliados
+                  </span>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CalendarClock className="h-5 w-5 text-amber-600" /> Negócios que merecem atenção
-              </CardTitle>
+          <Card className="border border-slate-200/80 shadow-sm border-l-4 border-l-amber-500">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-900">
+                  <CalendarClock className="h-5 w-5 text-amber-600" /> Negócios que merecem atenção
+                </CardTitle>
+                {data.negocios_atencao.length > 0 && (
+                  <Badge
+                    variant="outline"
+                    className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border-amber-200/60"
+                  >
+                    {data.negocios_atencao.length}{' '}
+                    {data.negocios_atencao.length === 1 ? 'negócio' : 'negócios'}
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {data.negocios_atencao.length === 0 ? (
-                <div className="rounded-xl border border-dashed bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-4 text-xs leading-5 text-slate-500">
                   Nenhum negócio específico foi destacado pelo IPCP nesta leitura. Use as
                   prioridades do dia e os cartões operacionais abaixo para conduzir a equipe.
                 </div>
               ) : (
                 data.negocios_atencao.map((item) => (
-                  <div key={item.id_negocio} className="rounded-xl border p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950">
+                  <div
+                    key={item.id_negocio}
+                    className="rounded-lg border border-slate-200/80 bg-white p-3.5 shadow-xs"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-semibold text-slate-900">
                           {nomeNegocioAtencao(item)}
                         </p>
                         {numeroNegocioAtencao(item) ? (
-                          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
                             Nº do negócio: {numeroNegocioAtencao(item)}
                           </p>
                         ) : null}
-                        <p className="mt-1 text-sm leading-6 text-slate-600">{item.motivo}</p>
-                        <p className="mt-2 text-xs leading-5 text-slate-500">
-                          Empresa: {item.empresa || 'não informada'} · Contato:{' '}
-                          {item.contato || 'não informado'}
-                        </p>
                       </div>
                       {item.link ? (
                         <Link
-                          className="text-sm font-semibold text-violet-700 hover:underline"
+                          className="text-xs font-medium text-violet-700 hover:text-violet-800 hover:underline"
                           to={item.link}
                         >
                           Abrir negócio
                         </Link>
                       ) : null}
                     </div>
-                    <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                    <p className="mt-1.5 text-xs leading-normal text-slate-600">{item.motivo}</p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Empresa: {item.empresa || 'não informada'} · Contato:{' '}
+                      {item.contato || 'não informado'}
+                    </p>
+                    <p className="mt-2.5 rounded-md bg-slate-50/80 border border-slate-100 p-2.5 text-xs leading-relaxed text-slate-700">
                       {item.acao_recomendada}
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
                       {item.blocos_afetados.map((bloco) => (
-                        <Badge key={bloco} variant="outline">
+                        <Badge
+                          key={bloco}
+                          variant="outline"
+                          className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border-slate-200"
+                        >
                           {blocoLabels[bloco]}
                         </Badge>
                       ))}
@@ -223,26 +298,42 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CheckCircle2 className="h-5 w-5 text-emerald-700" /> Blocos IPCP
-              </CardTitle>
+          <Card className="border border-slate-200/80 shadow-sm border-l-4 border-l-emerald-500">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-900">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" /> Blocos IPCP
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border-slate-200"
+                >
+                  5 dimensões
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {Object.entries(data.ipcp.blocos).map(([bloco, score]) => (
-                <div
-                  key={bloco}
-                  className="flex items-center justify-between gap-3 rounded-lg border p-3"
-                >
-                  <span className="flex items-center gap-2 text-sm text-slate-700">
-                    {blocoLabels[bloco as IpcpBlocoId]}
-                    <BlocoAjuda bloco={bloco as IpcpBlocoId} />
-                  </span>
-                  <span className="font-semibold text-slate-950">{formatScore(score)}</span>
-                </div>
-              ))}
-              <div className="rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-600">
+              {Object.entries(data.ipcp.blocos).map(([bloco, score]) => {
+                const scoreValue = Number(score)
+                const isHealthy = scoreValue >= 14
+                return (
+                  <div
+                    key={bloco}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-slate-200/70 bg-white p-2.5 px-3 shadow-xs"
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
+                      {blocoLabels[bloco as IpcpBlocoId]}
+                      <BlocoAjuda bloco={bloco as IpcpBlocoId} />
+                    </span>
+                    <span
+                      className={`text-xs font-semibold ${isHealthy ? 'text-emerald-600' : 'text-slate-800'}`}
+                    >
+                      {formatScore(score)}
+                    </span>
+                  </div>
+                )
+              })}
+              <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3 text-xs leading-relaxed text-slate-600">
                 {data.evolucao.comentario}
               </div>
             </CardContent>

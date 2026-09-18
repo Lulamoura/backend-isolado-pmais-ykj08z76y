@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T22:35:57.164Z",
+  "generatedAt": "2026-09-18T23:42:16.577Z",
   "collections": [
     {
       "name": "users",
@@ -3692,8 +3692,8 @@
       "name": "com_ipcp_snapshots",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": null,
+        "view": null,
         "create": null,
         "update": null,
         "delete": null

@@ -98,13 +98,16 @@ function tempoSemAbertura(item: PropostaSemAbertura): string {
 }
 
 const STATUS_SEM_ABERTURA = {
-  recente: { label: 'Recente', className: 'border-blue-200 bg-blue-50 text-blue-700' },
-  atencao: { label: 'Atenção', className: 'border-amber-200 bg-amber-50 text-amber-700' },
+  recente: { label: 'Recente', className: 'border-blue-200/80 bg-blue-50 text-blue-700' },
+  atencao: { label: 'Atenção', className: 'border-amber-200/80 bg-amber-50 text-amber-700' },
   prazo_atingido: {
     label: 'Prazo atingido',
-    className: 'border-red-200 bg-red-50 text-red-700',
+    className: 'border-rose-200/80 bg-rose-50 text-rose-700',
   },
-  atrasada: { label: 'Atrasada', className: 'border-red-300 bg-red-100 text-red-800' },
+  atrasada: {
+    label: 'Atrasada',
+    className: 'border-rose-300/80 bg-rose-100/80 text-rose-800 font-medium',
+  },
 } as const
 
 export default function OperacaoDia() {
@@ -201,22 +204,45 @@ export default function OperacaoDia() {
     }
   }, [perfilSlug, reloadKey])
 
+  const acoesTotal = summary.semProximaAcao + summary.acoesVencidas + summary.acoesHoje
+  const slasTotal = summary.slasVencidos + summary.slasAlerta
+
   const cards = [
     {
       title: 'Ações do Dia',
-      value: summary.semProximaAcao + summary.acoesVencidas + summary.acoesHoje,
+      value: acoesTotal,
       detail: `${summary.semProximaAcao} sem data · ${summary.acoesVencidas} vencida(s) · ${summary.acoesHoje} hoje`,
       path: '/atividades?escopo=dia',
       icon: CalendarClock,
-      tone: 'text-rose-700 bg-rose-50',
+      iconTone: 'text-rose-600 bg-rose-50',
+      borderTone:
+        acoesTotal > 0 ? 'border-l-4 border-l-rose-500' : 'border-l-4 border-l-emerald-500',
+      valueTone: acoesTotal > 0 ? 'text-rose-600' : 'text-emerald-600',
+      statusBadge:
+        acoesTotal > 0
+          ? { label: 'Comprometido', className: 'bg-amber-50 text-amber-700 border-amber-200/60' }
+          : {
+              label: 'Saudável',
+              className: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+            },
     },
     {
       title: 'SLAs em atenção',
-      value: summary.slasVencidos + summary.slasAlerta,
+      value: slasTotal,
       detail: `${summary.slasVencidos} vencido(s) · ${summary.slasAlerta} em alerta · prazo da etapa`,
       path: '/slas?situacao=atencao',
       icon: AlertTriangle,
-      tone: 'text-amber-700 bg-amber-50',
+      iconTone: 'text-amber-600 bg-amber-50',
+      borderTone:
+        slasTotal > 0 ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-emerald-500',
+      valueTone: slasTotal > 0 ? 'text-amber-600' : 'text-emerald-600',
+      statusBadge:
+        slasTotal > 0
+          ? { label: 'Comprometido', className: 'bg-amber-50 text-amber-700 border-amber-200/60' }
+          : {
+              label: 'Saudável',
+              className: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+            },
     },
     {
       title: 'Ganhos aguardando OE',
@@ -224,7 +250,14 @@ export default function OperacaoDia() {
       detail: 'Handoff comercial pendente',
       path: '/ordens-execucao?estado=aguardando_oe',
       icon: ClipboardCheck,
-      tone: 'text-violet-700 bg-violet-50',
+      iconTone: 'text-sky-600 bg-sky-50',
+      borderTone:
+        summary.aguardandoOe > 0 ? 'border-l-4 border-l-sky-500' : 'border-l-4 border-l-slate-300',
+      valueTone: summary.aguardandoOe > 0 ? 'text-sky-700' : 'text-slate-900',
+      statusBadge:
+        summary.aguardandoOe > 0
+          ? { label: 'Pendente', className: 'bg-sky-50 text-sky-700 border-sky-200/60' }
+          : { label: 'Regular', className: 'bg-slate-50 text-slate-600 border-slate-200/60' },
     },
     {
       title: 'Oportunidades para recuperar',
@@ -232,7 +265,13 @@ export default function OperacaoDia() {
       detail: 'Agendas de recuperação ativas',
       path: '/fechamentos?recuperacao=acionavel',
       icon: Trophy,
-      tone: 'text-emerald-700 bg-emerald-50',
+      iconTone: 'text-emerald-600 bg-emerald-50',
+      borderTone: 'border-l-4 border-l-emerald-500',
+      valueTone: summary.recuperacoes > 0 ? 'text-emerald-600' : 'text-slate-900',
+      statusBadge:
+        summary.recuperacoes > 0
+          ? { label: 'Ativo', className: 'bg-emerald-50 text-emerald-700 border-emerald-200/60' }
+          : { label: 'Sem agendas', className: 'bg-slate-50 text-slate-600 border-slate-200/60' },
     },
   ].filter(
     (card) => perfilSlug !== 'negociacao-propria' || !card.path.startsWith('/ordens-execucao'),
@@ -240,26 +279,30 @@ export default function OperacaoDia() {
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-end justify-between gap-4 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-6 text-white shadow-lg">
+      <section className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-violet-100">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Prioridades e exceções
           </p>
-          <h2 className="mt-1 text-3xl font-extrabold tracking-tight">Operação do Dia</h2>
-          <p className="mt-2 max-w-2xl text-sm text-violet-100/90">
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Operação do Dia</h2>
+          <p className="mt-1.5 max-w-2xl text-sm text-slate-600">
             Comece pelos itens que exigem ação. Cada cartão abre a fila operacional correspondente.
           </p>
         </div>
         <Button
-          variant="secondary"
-          className="gap-2 bg-white text-violet-900 hover:bg-violet-50 font-medium"
+          variant="outline"
+          className="gap-2 border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
           disabled={loading}
           onClick={() => {
             setReloadKey((value) => value + 1)
             refreshIndicators()
           }}
         >
-          <RefreshCw aria-hidden="true" className="h-4 w-4" /> Atualizar
+          <RefreshCw
+            aria-hidden="true"
+            className={`h-4 w-4 text-slate-500 ${loading ? 'animate-spin' : ''}`}
+          />{' '}
+          Atualizar
         </Button>
       </section>
 
@@ -280,17 +323,33 @@ export default function OperacaoDia() {
         {cards.map((card) => {
           const Icon = card.icon
           return (
-            <Link key={card.title} to={card.path}>
-              <Card className="h-full transition hover:border-violet-300 hover:shadow-md">
+            <Link
+              key={card.title}
+              to={card.path}
+              className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 rounded-xl"
+            >
+              <Card
+                className={`h-full border border-slate-200/80 bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300 ${card.borderTone}`}
+              >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-600">{card.title}</CardTitle>
-                  <span className={`rounded-lg p-2 ${card.tone}`}>
+                  <span className={`rounded-lg p-1.5 ${card.iconTone}`}>
                     <Icon aria-hidden="true" className="h-4 w-4" />
                   </span>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-bold text-slate-950">{loading ? '—' : card.value}</p>
-                  <p className="mt-1 text-xs text-slate-500">{card.detail}</p>
+                <CardContent className="space-y-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className={`text-3xl font-bold tracking-tight ${card.valueTone}`}>
+                      {loading ? '—' : card.value}
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${card.statusBadge.className}`}
+                    >
+                      {card.statusBadge.label}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-500">{card.detail}</p>
                 </CardContent>
               </Card>
             </Link>
@@ -298,70 +357,101 @@ export default function OperacaoDia() {
         })}
       </section>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="border border-slate-200/80 shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div>
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-900">
               <MailWarning className="h-5 w-5 text-amber-600" /> Propostas sem abertura
             </CardTitle>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-xs text-slate-500">
               Todas as propostas enviadas que ainda não tiveram abertura registrada. O prazo de
               atenção é de {limiteDiasUteis} dias úteis.
             </p>
           </div>
-          <Link to="/propostas" className="text-sm font-semibold text-violet-700 hover:underline">
+          <Link
+            to="/propostas"
+            className="text-sm font-medium text-violet-700 hover:text-violet-800 hover:underline"
+          >
             Ver propostas
           </Link>
         </CardHeader>
         <CardContent>
           {semAbertura.length === 0 ? (
-            <p className="rounded-md bg-emerald-50 p-4 text-sm text-emerald-800">
-              Todas as propostas enviadas já possuem abertura registrada.
-            </p>
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/70 p-4 text-sm text-emerald-800">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+              <span>Todas as propostas enviadas já possuem abertura registrada.</span>
+            </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Negócio</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Data do envio</TableHead>
-                    <TableHead>Tempo sem abertura</TableHead>
-                    <TableHead>Modalidade</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Dias de vida</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
+                  <TableRow className="bg-slate-50/75 hover:bg-slate-50/75">
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Negócio
+                    </TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Cliente
+                    </TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Data do envio
+                    </TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Tempo sem abertura
+                    </TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Modalidade
+                    </TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Responsável
+                    </TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Dias de vida
+                    </TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Valor
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {semAbertura.map((item) => {
                     const status = STATUS_SEM_ABERTURA[item.classificacao_sem_abertura]
                     return (
-                      <TableRow key={item.negocio_id} data-status={item.classificacao_sem_abertura}>
+                      <TableRow
+                        key={item.negocio_id}
+                        data-status={item.classificacao_sem_abertura}
+                        className="hover:bg-slate-50/50"
+                      >
                         <TableCell>
                           <Link
-                            className="font-medium text-violet-700 hover:underline"
+                            className="font-medium text-violet-700 hover:text-violet-800 hover:underline"
                             to={`/propostas?negocio=${item.negocio_id}`}
                           >
                             AC #{item.external_id || '—'}
                           </Link>
                         </TableCell>
-                        <TableCell>{item.cliente || '—'}</TableCell>
-                        <TableCell>
+                        <TableCell className="font-medium text-slate-900">
+                          {item.cliente || '—'}
+                        </TableCell>
+                        <TableCell className="text-slate-600">
                           {new Date(item.data_envio).toLocaleDateString('pt-BR')}
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            <p className="whitespace-nowrap text-sm">{tempoSemAbertura(item)}</p>
-                            <Badge variant="outline" className={status.className}>
+                            <p className="whitespace-nowrap text-sm text-slate-800">
+                              {tempoSemAbertura(item)}
+                            </p>
+                            <Badge
+                              variant="outline"
+                              className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${status.className}`}
+                            >
                               {status.label}
                             </Badge>
                           </div>
                         </TableCell>
-                        <TableCell>{item.modalidade || '—'}</TableCell>
-                        <TableCell>{item.responsavel || '—'}</TableCell>
-                        <TableCell>{item.dias_vida}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-slate-600">{item.modalidade || '—'}</TableCell>
+                        <TableCell className="text-slate-600">{item.responsavel || '—'}</TableCell>
+                        <TableCell className="text-slate-600">{item.dias_vida}</TableCell>
+                        <TableCell className="text-right font-semibold text-slate-900">
                           {formatCurrency(item.valor_centavos)}
                         </TableCell>
                       </TableRow>
@@ -377,10 +467,10 @@ export default function OperacaoDia() {
       <section aria-labelledby="primary-indicators-title" className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 id="primary-indicators-title" className="text-lg font-bold text-slate-950">
+            <h2 id="primary-indicators-title" className="text-lg font-bold text-slate-900">
               Indicadores primários
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-xs text-slate-500">
               Resultado comercial conforme sua carteira e suas permissões de acesso.
             </p>
           </div>
@@ -392,7 +482,7 @@ export default function OperacaoDia() {
             }}
           >
             <div className="space-y-1">
-              <Label htmlFor="indicadores-inicio" className="text-xs">
+              <Label htmlFor="indicadores-inicio" className="text-xs text-slate-600 font-medium">
                 Início
               </Label>
               <Input
@@ -404,10 +494,11 @@ export default function OperacaoDia() {
                 onChange={(event) =>
                   setIndicatorDraft((current) => ({ ...current, inicio: event.target.value }))
                 }
+                className="h-9 text-xs"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="indicadores-fim" className="text-xs">
+              <Label htmlFor="indicadores-fim" className="text-xs text-slate-600 font-medium">
                 Fim
               </Label>
               <Input
@@ -419,9 +510,16 @@ export default function OperacaoDia() {
                 onChange={(event) =>
                   setIndicatorDraft((current) => ({ ...current, fim: event.target.value }))
                 }
+                className="h-9 text-xs"
               />
             </div>
-            <Button type="submit" variant="outline" disabled={indicatorLoading}>
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs font-medium"
+              disabled={indicatorLoading}
+            >
               Aplicar período
             </Button>
           </form>
@@ -444,6 +542,9 @@ export default function OperacaoDia() {
                 ? `${indicators.valores.negocios_precificados} negócios precificados`
                 : 'Carregando período',
               icon: Target,
+              borderAccent: 'border-l-4 border-l-sky-500',
+              valueColor: 'text-slate-900',
+              badge: { label: 'Carteira', className: 'bg-sky-50 text-sky-700 border-sky-200/60' },
             },
             {
               title: 'Negócios ganhos',
@@ -452,12 +553,24 @@ export default function OperacaoDia() {
                 ? formatCurrency(indicators.valores.ganho_centavos)
                 : 'Carregando período',
               icon: Trophy,
+              borderAccent: 'border-l-4 border-l-emerald-500',
+              valueColor: 'text-emerald-600',
+              badge: {
+                label: 'Saudável',
+                className: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+              },
             },
             {
               title: 'Conversão global',
               value: indicators ? formatPercent(indicators.conversoes.global_percentual) : '—',
               detail: 'Ganhos sobre decisões registradas',
               icon: Target,
+              borderAccent: 'border-l-4 border-l-violet-500',
+              valueColor: 'text-violet-700',
+              badge: {
+                label: 'Conversão',
+                className: 'bg-violet-50 text-violet-700 border-violet-200/60',
+              },
             },
             {
               title: 'Conversão qualitativa',
@@ -466,16 +579,33 @@ export default function OperacaoDia() {
                 ? `${formatCurrency(indicators.valores.ganho_centavos)} ganhos de ${formatCurrency(indicators.conversoes.decisoes_valor_centavos)} em decisões`
                 : 'Valor ganho sobre decisões',
               icon: CircleDollarSign,
+              borderAccent: 'border-l-4 border-l-emerald-500',
+              valueColor: 'text-emerald-600',
+              badge: {
+                label: 'Qualitativo',
+                className: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+              },
             },
-          ].map(({ title, value, detail, icon: Icon }) => (
-            <Card key={title}>
+          ].map(({ title, value, detail, icon: Icon, borderAccent, valueColor, badge }) => (
+            <Card
+              key={title}
+              className={`border border-slate-200/80 bg-white shadow-sm ${borderAccent}`}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-slate-600">{title}</CardTitle>
-                <Icon aria-hidden="true" className="h-4 w-4 text-violet-600" />
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${badge.className}`}
+                  >
+                    {badge.label}
+                  </Badge>
+                  <Icon aria-hidden="true" className="h-4 w-4 text-slate-400" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold tracking-tight text-slate-950">{value}</p>
-                <p className="mt-1 text-xs text-slate-500">{detail}</p>
+              <CardContent className="space-y-1">
+                <p className={`text-2xl font-bold tracking-tight ${valueColor}`}>{value}</p>
+                <p className="text-xs text-slate-500">{detail}</p>
               </CardContent>
             </Card>
           ))}
@@ -485,18 +615,24 @@ export default function OperacaoDia() {
               title: 'Negócios por modalidade',
               description: 'Quantidade e valor total dos negócios no período.',
               items: indicators?.modalidades ?? [],
+              borderAccent: 'border-l-4 border-l-slate-400',
             },
             {
               title: 'Ganhos por modalidade',
               description: 'Quantidade e valor dos negócios ganhos no período.',
               items: indicators?.ganhos_por_modalidade ?? [],
+              borderAccent: 'border-l-4 border-l-emerald-500',
             },
-          ].map(({ title, description, items }) => (
-            <Card key={title} aria-label={title}>
+          ].map(({ title, description, items, borderAccent }) => (
+            <Card
+              key={title}
+              aria-label={title}
+              className={`border border-slate-200/80 bg-white shadow-sm ${borderAccent}`}
+            >
               <CardHeader className="space-y-1 pb-3">
                 <div className="flex items-center gap-2">
-                  <BriefcaseBusiness aria-hidden="true" className="h-4 w-4 text-violet-600" />
-                  <CardTitle className="text-base text-slate-900">{title}</CardTitle>
+                  <BriefcaseBusiness aria-hidden="true" className="h-4 w-4 text-slate-500" />
+                  <CardTitle className="text-base font-semibold text-slate-900">{title}</CardTitle>
                 </div>
                 <p className="text-xs text-slate-500">{description}</p>
               </CardHeader>
@@ -509,8 +645,10 @@ export default function OperacaoDia() {
                         key={modalidade}
                         className="flex items-center justify-between gap-4 py-2.5"
                       >
-                        <dt className="text-sm text-slate-600">{modalidadeLabel(modalidade)}</dt>
-                        <dd className="text-sm font-semibold text-slate-950">
+                        <dt className="text-sm font-medium text-slate-600">
+                          {modalidadeLabel(modalidade)}
+                        </dt>
+                        <dd className="text-sm font-semibold text-slate-900">
                           {indicatorLoading && !indicators
                             ? '—'
                             : `${item?.quantidade ?? 0} · ${formatCurrency(item?.valor_centavos ?? 0)}`}
