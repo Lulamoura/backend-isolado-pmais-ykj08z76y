@@ -32,10 +32,15 @@ assert.match(
 )
 assert.match(
   service,
-  /\/backend\/v1\/nexo\/ipcp\/diario\?escopo=equipe/,
-  'serviço deve consultar a rota viva de equipe',
+  /nexoIpcpDiarioVivoPath\(escopo\)|escopo=\$\{escopo\}/,
+  'serviço deve consultar a rota viva com escopo explícito por perfil',
 )
 assert.match(service, /contrato === 'nexo_ipcp_diario_v1'/, 'serviço deve validar contrato vivo')
+
+const fixtureBanida = /RCML|PMAIS EVENTOS|id_negocio:\s*['"]4612['"]|id_negocio:\s*['"]4800['"]|total:\s*55\.3/
+assert.doesNotMatch(service, fixtureBanida, 'serviço de produção assistida não deve manter clientes, negócios ou nota fixa de referência')
+const hookIpcp = fs.readFileSync('pocketbase/hooks/com_ipcp_diario.js', 'utf8')
+assert.doesNotMatch(hookIpcp, fixtureBanida, 'hook IPCP não deve expor clientes, negócios ou nota fixa de referência em rotas de produção assistida')
 
 const frasesBanidas = [
   'piloto gerencial',

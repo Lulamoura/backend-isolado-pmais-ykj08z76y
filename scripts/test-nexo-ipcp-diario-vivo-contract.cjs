@@ -7,7 +7,7 @@ assert.ok(fs.existsSync(hookPath), 'hook IPCP diário deve existir')
 const hook = fs.readFileSync(hookPath, 'utf8')
 const routeStart = hook.indexOf("'/backend/v1/nexo/ipcp/diario'")
 assert.notEqual(routeStart, -1, 'deve expor GET /backend/v1/nexo/ipcp/diario para o Nexo')
-const routeSource = hook.slice(Math.max(0, routeStart - 500), routeStart + 9000)
+const routeSource = hook.slice(Math.max(0, routeStart - 500), routeStart + 40000)
 
 assert.match(
   routeSource,

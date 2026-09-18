@@ -68,7 +68,7 @@ assert.match(
 )
 assert.match(
   hook,
-  /perdidos: 'resultado perdido\/desqualificado com fechamento_data dentro do periodo selecionado'/,
+  /perdidos:\s*\n?\s*'resultado perdido\/desqualificado com fechamento_data dentro do periodo selecionado'/,
   'perdidos devem ser contabilizados por fechamento_data no período',
 )
 assert.match(
@@ -78,7 +78,7 @@ assert.match(
 )
 assert.match(
   hook,
-  /novos_negocios: 'crm_created_at quando existir; fallback para created dentro do periodo selecionado'/,
+  /novos_negocios:\s*\n?\s*'crm_created_at quando existir; fallback para created dentro do periodo selecionado'/,
   'novos negócios devem ser métrica separada baseada em crm_created_at, com fallback para created',
 )
 assert.match(

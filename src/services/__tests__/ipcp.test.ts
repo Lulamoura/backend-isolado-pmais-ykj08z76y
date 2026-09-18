@@ -9,6 +9,7 @@ vi.mock('@/lib/pocketbase/client', () => ({
 import {
   IPCP_DIARIO_READONLY_PATH,
   NEXO_IPCP_DIARIO_VIVO_PATH,
+  nexoIpcpDiarioVivoPath,
   IPCP_JOB_DIARIO_HOMOLOGACAO_STATUS_PATH,
   IPCP_PROCESSAMENTO_DIARIO_HOMOLOGACAO_PATH,
   IPCP_SIMULACAO_READONLY_PATH,
@@ -126,7 +127,7 @@ describe('obterIpcpDiarioReadOnly', () => {
 
     const data = await obterNexoIpcpDiarioEquipe()
 
-    expect(pbSend).toHaveBeenCalledWith(NEXO_IPCP_DIARIO_VIVO_PATH, { method: 'GET' })
+    expect(pbSend).toHaveBeenCalledWith(nexoIpcpDiarioVivoPath('equipe'), { method: 'GET' })
     expect(data.contrato).toBe('nexo_ipcp_diario_v1')
     expect(data.read_only).toBe(true)
     expect(data.sem_mutacao).toBe(true)
@@ -194,7 +195,7 @@ describe('obterIpcpDiarioReadOnly', () => {
     const data = await obterNexoIpcpDiarioEquipe()
 
     expect(data.ipcp.blocos).toEqual(ipcpDiarioFixtureHomologado.ipcp.blocos)
-    expect(data.negocios_atencao.length).toBeGreaterThan(0)
+    expect(data.negocios_atencao.length).toBe(0)
     expect(data.resumo_nexo.prioridades.length).toBeGreaterThan(1)
     expect(data.resumo_nexo.texto).toMatch(/última leitura completa/i)
   })
