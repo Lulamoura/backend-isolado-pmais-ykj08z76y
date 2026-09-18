@@ -30,14 +30,17 @@ assert(
 assert(serviceSource.includes('producao_publicada: false'), 'status deve manter Produção bloqueada')
 assert(serviceSource.includes('sem_crm_write: true'), 'status deve manter CRM sem alteração')
 assert(
-  pageSource.includes('Rotina diária em produção assistida'),
-  'tela deve exibir status da rotina diária',
+  !pageSource.includes('Rotina diária em produção assistida'),
+  'tela gerencial não deve exibir card de rotina diária',
 )
 assert(
-  pageSource.includes('Ativa em produção assistida'),
-  'tela deve informar que está ativa em produção assistida',
+  !pageSource.includes('Ativa em produção assistida'),
+  'tela gerencial não deve exibir status operacional da rotina diária',
 )
-assert(pageSource.includes('Produção assistida'), 'tela deve usar linguagem de produção assistida')
-assert(pageSource.includes('CRM: sem alteração'), 'tela deve deixar claro que CRM não é alterado')
+assert(
+  !pageSource.includes('CRM: sem alteração'),
+  'tela gerencial não deve exibir detalhes operacionais do card removido',
+)
+assert(pageSource.includes('Análise gerencial do IPCP'), 'tela deve usar título gerencial aprovado')
 
 console.log('OK: contrato IPCP job diario homologacao protegido')
