@@ -37,6 +37,7 @@ assert.match(
 )
 assert.match(service, /contrato === 'nexo_ipcp_diario_v1'/, 'serviço deve validar contrato vivo')
 const nexo = fs.readFileSync('src/pages/NexoAssistente.tsx', 'utf8')
+const gerencial = fs.readFileSync('src/pages/IpcpSimulacaoGerencial.tsx', 'utf8')
 assert.match(
   nexo,
   />Análise gerencial do IPCP<|Análise gerencial do IPCP<\/Link>/,
@@ -46,6 +47,16 @@ assert.doesNotMatch(
   nexo,
   /Abrir IPCP gerencial assistido/,
   'botão antigo Abrir IPCP gerencial assistido não deve aparecer',
+)
+assert.match(
+  gerencial,
+  /data\.atualizado_em[\s\S]{0,500}dataHoraBr|dataHoraBr[\s\S]{0,500}data\.atualizado_em/,
+  'subtítulo do Escopo da leitura deve usar a última atualização do cálculo diário, não a hora corrente do navegador',
+)
+assert.doesNotMatch(
+  gerencial,
+  /horaBaseIpcp\(\)/,
+  'subtítulo do Escopo da leitura não deve chamar hora corrente do navegador',
 )
 
 const fixtureBanida =

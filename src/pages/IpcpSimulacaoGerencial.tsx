@@ -20,12 +20,19 @@ function dataBr(data: string) {
   return `${partes[2]}/${partes[1]}/${partes[0]}`
 }
 
-function horaBaseIpcp() {
+function dataHoraBr(value?: string | null) {
+  if (!value) return 'horário não informado'
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return dataBr(value)
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return dataBr(value)
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Recife',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date())
+  }).format(parsed)
 }
 
 const rotulosBlocos: Record<string, string> = {
@@ -213,7 +220,7 @@ export default function IpcpSimulacaoGerencial() {
             <CardHeader>
               <CardTitle>Escopo da leitura</CardTitle>
               <CardDescription>
-                Base {dataBr(data.data_referencia)} às {horaBaseIpcp()} ·{' '}
+                Base {dataBr(data.data_referencia)} · Atualizado em {dataHoraBr(data.atualizado_em)} ·{' '}
                 {responsavelId
                   ? `Responsável: ${responsavelSelecionado?.name ?? data.escopo?.responsavel_nome ?? 'selecionado'}`
                   : 'Todos — visão global consolidada'}

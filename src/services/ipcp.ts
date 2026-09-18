@@ -29,6 +29,7 @@ export type IpcpDiarioReadOnly = {
   modo?: 'diario' | 'simulacao' | 'consulta_viva_controlada'
   formula_version: string
   data_referencia: string
+  atualizado_em?: string | null
   atualizacao: 'diaria'
   escopo?: {
     tipo: 'proprio' | 'equipe' | 'todos'
@@ -236,6 +237,7 @@ type NexoIpcpDiarioVivoResponse = {
     snapshot_encontrado?: boolean
     total_lido?: number
     pacote_completo?: boolean
+    calculado_em?: string | null
   }
   negocios_atencao?: IpcpNegocioAtencao[]
   evolucao?: IpcpDiarioReadOnly['evolucao'] | null
@@ -290,6 +292,7 @@ function normalizarNexoIpcpDiarioVivo(data: NexoIpcpDiarioVivoResponse): IpcpDia
     modo: data.modo,
     formula_version: data.formula_version,
     data_referencia: data.data_referencia,
+    atualizado_em: data.dados_vivos?.calculado_em || data.data_referencia,
     atualizacao: 'diaria',
     escopo: data.escopo_efetivo,
     resumo_nexo: {

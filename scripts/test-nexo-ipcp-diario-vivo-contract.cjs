@@ -85,6 +85,31 @@ assert.match(
 )
 assert.match(
   routeSource,
+  /function filtroPorNegocios\(campo, negocios\)/,
+  'cálculo vivo deve montar filtros por negócios da carteira para coleções relacionadas',
+)
+assert.match(
+  routeSource,
+  /com_vinculos_externos[\s\S]{0,1000}record_id='[\s\S]{0,1000}external_id/,
+  'Nº do negócio deve tentar vínculo externo antes de qualquer fallback',
+)
+assert.doesNotMatch(
+  routeSource,
+  /negocioHumanoId\(rec\)[\s\S]*return\s+rec\.id/,
+  'Nº do negócio não pode cair para o ID técnico do PocketBase',
+)
+assert.match(
+  routeSource,
+  /link:\s*'\/pipeline\?negocio=' \+ encodeURIComponent\(item\.id\)/,
+  'link deve continuar usando o ID técnico apenas internamente, nunca como Nº do negócio',
+)
+assert.match(
+  routeSource,
+  /calculado_em:\s*snapshot \? \(snapshot\.getString\('updated'\)/,
+  'rota deve expor a data/hora da última atualização do cálculo diário a partir do snapshot',
+)
+assert.match(
+  routeSource,
   /com_notas_negocio[\s\S]{0,2500}decisor|decisor[\s\S]{0,2500}com_notas_negocio/,
   'qualidade do registro deve considerar notas comerciais com decisor/contexto, não só próxima ação',
 )
