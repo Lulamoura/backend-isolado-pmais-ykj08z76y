@@ -51,7 +51,9 @@ assert(
 assert(
   postSource.includes("responsavelId !== '__todos__'") &&
     postSource.includes("responsavel_id = '") &&
-    postSource.includes("if (scope === 'equipe' && (!responsavelId || responsavelId === '__todos__'))"),
+    postSource.includes(
+      "if (scope === 'equipe' && (!responsavelId || responsavelId === '__todos__'))",
+    ),
   'processamento diário deve distinguir Todos de responsável selecionado no filtro de carteira',
 )
 assert(
@@ -67,7 +69,10 @@ assert(
   !/registrosAprendizado\s*=\s*round1\(\s*clamp\(\s*4\s*\+\s*coberturaResponsavel/.test(postSource),
   'Registros e Aprendizados não pode ser pontuado principalmente por responsável/modalidade/volume',
 )
-assert(postSource.includes('sem_job_automatico: true'), 'acionamento manual deve continuar distinto do job automático')
+assert(
+  postSource.includes('sem_job_automatico: true'),
+  'acionamento manual deve continuar distinto do job automático',
+)
 assert(postSource.includes('sem_crm_write: true'), 'não pode escrever no CRM')
 assert(
   postSource.includes('resumo_nexo'),
@@ -90,6 +95,9 @@ assert(
   postSource.includes('pacote_completo: true'),
   'resposta deve indicar pacote completo para Operação do Dia',
 )
-assert(!/setInterval|setTimeout/.test(postSource), 'processamento diário não deve usar timers em memória')
+assert(
+  !/setInterval|setTimeout/.test(postSource),
+  'processamento diário não deve usar timers em memória',
+)
 
 console.log('OK: contrato IPCP processamento diario homologacao protegido')
