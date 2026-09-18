@@ -60,13 +60,18 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /payload\.negocios_atencao|negocios_atencao:\s*payload/,
-  'rota do Nexo deve devolver negócios gravados no pacote diário',
+  /calcularPacoteIpcpDiarioVivo/,
+  'rota do Nexo deve recalcular a leitura viva por escopo no GET',
 )
 assert.match(
   routeSource,
-  /payload\.evolucao|evolucao:\s*payload/,
-  'rota do Nexo deve devolver evolução gravada no pacote diário',
+  /negocios_atencao:\s*pacoteVivo\.negocios_atencao/,
+  'rota do Nexo deve devolver negócios de atenção calculados ao vivo, não itens fixos do snapshot',
+)
+assert.match(
+  routeSource,
+  /pacoteVivo\.evolucao|evolucao:\s*pacoteVivo/,
+  'rota do Nexo deve devolver evolução calculada ao vivo',
 )
 assert.match(
   routeSource,
