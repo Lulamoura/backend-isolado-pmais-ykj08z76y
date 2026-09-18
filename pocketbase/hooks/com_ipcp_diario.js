@@ -656,6 +656,57 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
       rec.id
     )
   }
+  function textoRegistroComercial(rec) {
+    try {
+      var notas = $app.findRecordsByFilter(
+        'com_notas_negocio',
+        "negocio_id='" + esc(rec.id) + "'",
+        '-criada_em,-created,-id',
+        3,
+        0,
+      )
+      var textos = []
+      for (var ni = 0; ni < notas.length; ni++) textos.push(notas[ni].getString('texto') || '')
+      return textos.join(' ')
+    } catch (_) {
+      return ''
+    }
+  }
+
+  function contemQualidadeRegistro(texto, padroes) {
+    var t = String(texto || '').toLowerCase()
+    for (var pi = 0; pi < padroes.length; pi++) if (padroes[pi].test(t)) return true
+    return false
+  }
+
+  function calcularQualidadeRegistroComercial(negocios) {
+    if (!negocios.length) return { media: 1, avaliados: 0, fracos: 0, bons: 0 }
+    var total = 0,
+      avaliados = 0,
+      fracos = 0,
+      bons = 0
+    for (var qi = 0; qi < negocios.length; qi++) {
+      var rec = negocios[qi]
+      if (classificarResultado(rec) !== 'aberto') continue
+      avaliados++
+      var texto = textoRegistroComercial(rec)
+      var proxima = rec.getString('proxima_acao_em') || ''
+      var pontos = 0
+      if (proxima) pontos += 0.15
+      if (texto && texto.trim().length >= 40) pontos += 0.15
+      if (contemQualidadeRegistro(texto, [/decisor/, /respons[aá]vel pela decis[aã]o/, /quem decide/, /influenciador/])) pontos += 0.18
+      if (contemQualidadeRegistro(texto, [/necessidade/, /dor/, /demanda/, /objetivo/, /escopo/])) pontos += 0.18
+      if (contemQualidadeRegistro(texto, [/obje[cç][aã]o/, /risco/, /pend[eê]ncia/, /bloqueio/, /restri[cç][aã]o/])) pontos += 0.18
+      if (contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /enviar/, /reuni[aã]o/])) pontos += 0.16
+      if (contemQualidadeRegistro(texto, [/prazo/, /data/, /\d{1,2}\/\d{1,2}/, /\d{4}-\d{2}-\d{2}/])) pontos += 0.15
+      if (pontos > 1) pontos = 1
+      if (pontos < 0.35) fracos++
+      if (pontos >= 0.7) bons++
+      total += pontos
+    }
+    if (!avaliados) return { media: 1, avaliados: 0, fracos: 0, bons: 0 }
+    return { media: total / avaliados, avaliados: avaliados, fracos: fracos, bons: bons }
+  }
 
   function calcularPacoteIpcpDiario(dataRef, scope, responsavelId, actor) {
     var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
@@ -741,9 +792,10 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
         20,
       ),
     )
+    var qualidadeRegistro = calcularQualidadeRegistroComercial(negocios)
     var registrosAprendizado = round1(
       clamp(
-        4 + coberturaResponsavel * 4 + coberturaModalidade * 3 + Math.min(4, negocios.length / 12),
+        3 + qualidadeRegistro.media * 9 + coberturaModalidade * 1.5 + Math.min(1.5, qualidadeRegistro.bons * 0.3),
         3,
         15,
       ),
@@ -776,6 +828,14 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
         titulo: 'Acompanhar propostas enviadas',
         motivo: 'Propostas sem acompanhamento claro reduzem conversão e valor estratégico.',
         bloco_afetado: 'qualidade_followup',
+      })
+    if (qualidadeRegistro.fracos > 0)
+      prioridades.push({
+        titulo: 'Qualificar registros comerciais',
+        motivo:
+          qualidadeRegistro.fracos +
+          ' registro(s) têm próximo compromisso ou histórico sem decisor, necessidade, objeção, prazo ou próximo passo claro.',
+        bloco_afetado: 'registros_aprendizado',
       })
     if (prioridades.length < 3)
       prioridades.push({
@@ -854,8 +914,14 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
           },
           {
             bloco: 'disciplina_carteira',
-            sinal: atividades.length + ' atividade(s), ' + slas.length + ' SLA(s)',
-            acao: 'redefinir data e objetivo comercial verificável',
+            sinal:
+              atividades.length +
+              ' atividade(s), ' +
+              slas.length +
+              ' SLA(s), ' +
+              qualidadeRegistro.fracos +
+              ' registro(s) fraco(s)',
+            acao: 'qualificar decisor, necessidade, objeção, prazo e próximo passo verificável',
           },
         ],
       },
@@ -1093,6 +1159,57 @@ routerAdd(
         rec.id
       )
     }
+    function textoRegistroComercial(rec) {
+      try {
+        var notas = $app.findRecordsByFilter(
+          'com_notas_negocio',
+          "negocio_id='" + esc(rec.id) + "'",
+          '-criada_em,-created,-id',
+          3,
+          0,
+        )
+        var textos = []
+        for (var ni = 0; ni < notas.length; ni++) textos.push(notas[ni].getString('texto') || '')
+        return textos.join(' ')
+      } catch (_) {
+        return ''
+      }
+    }
+
+    function contemQualidadeRegistro(texto, padroes) {
+      var t = String(texto || '').toLowerCase()
+      for (var pi = 0; pi < padroes.length; pi++) if (padroes[pi].test(t)) return true
+      return false
+    }
+
+    function calcularQualidadeRegistroComercial(negocios) {
+      if (!negocios.length) return { media: 1, avaliados: 0, fracos: 0, bons: 0 }
+      var total = 0,
+        avaliados = 0,
+        fracos = 0,
+        bons = 0
+      for (var qi = 0; qi < negocios.length; qi++) {
+        var rec = negocios[qi]
+        if (classificarResultado(rec) !== 'aberto') continue
+        avaliados++
+        var texto = textoRegistroComercial(rec)
+        var proxima = rec.getString('proxima_acao_em') || ''
+        var pontos = 0
+        if (proxima) pontos += 0.15
+        if (texto && texto.trim().length >= 40) pontos += 0.15
+        if (contemQualidadeRegistro(texto, [/decisor/, /respons[aá]vel pela decis[aã]o/, /quem decide/, /influenciador/])) pontos += 0.18
+        if (contemQualidadeRegistro(texto, [/necessidade/, /dor/, /demanda/, /objetivo/, /escopo/])) pontos += 0.18
+        if (contemQualidadeRegistro(texto, [/obje[cç][aã]o/, /risco/, /pend[eê]ncia/, /bloqueio/, /restri[cç][aã]o/])) pontos += 0.18
+        if (contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /enviar/, /reuni[aã]o/])) pontos += 0.16
+        if (contemQualidadeRegistro(texto, [/prazo/, /data/, /\d{1,2}\/\d{1,2}/, /\d{4}-\d{2}-\d{2}/])) pontos += 0.15
+        if (pontos > 1) pontos = 1
+        if (pontos < 0.35) fracos++
+        if (pontos >= 0.7) bons++
+        total += pontos
+      }
+      if (!avaliados) return { media: 1, avaliados: 0, fracos: 0, bons: 0 }
+      return { media: total / avaliados, avaliados: avaliados, fracos: fracos, bons: bons }
+    }
 
     function calcularPacoteIpcpDiarioVivo(dataRef, scope, responsavelId, actor) {
       var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
@@ -1175,12 +1292,13 @@ routerAdd(
           20,
         ),
       )
+      var qualidadeRegistro = calcularQualidadeRegistroComercial(negocios)
       var registrosAprendizado = round1(
         clamp(
-          4 +
-            coberturaResponsavel * 4 +
-            coberturaModalidade * 3 +
-            Math.min(4, negocios.length / 12),
+          3 +
+            qualidadeRegistro.media * 9 +
+            coberturaModalidade * 1.5 +
+            Math.min(1.5, qualidadeRegistro.bons * 0.3),
           3,
           15,
         ),
@@ -1205,6 +1323,14 @@ routerAdd(
           titulo: 'Acompanhar propostas enviadas',
           motivo: 'Propostas sem acompanhamento claro reduzem conversão e valor estratégico.',
           bloco_afetado: 'qualidade_followup',
+        })
+      if (qualidadeRegistro.fracos > 0)
+        prioridades.push({
+          titulo: 'Qualificar registros comerciais',
+          motivo:
+            qualidadeRegistro.fracos +
+            ' registro(s) têm próximo compromisso ou histórico sem decisor, necessidade, objeção, prazo ou próximo passo claro.',
+          bloco_afetado: 'registros_aprendizado',
         })
       if (prioridades.length < 3)
         prioridades.push({
@@ -1285,8 +1411,16 @@ routerAdd(
           exemplos: [
             {
               bloco: 'resultado_comercial',
-              sinal: ganhos + ' ganho(s), ' + perdidos + ' perda(s) e ' + abertos + ' aberto(s)',
-              acao: 'priorizar decisões e próximos passos',
+              sinal:
+                ganhos +
+                ' ganho(s), ' +
+                perdidos +
+                ' perda(s), ' +
+                abertos +
+                ' aberto(s), ' +
+                qualidadeRegistro.fracos +
+                ' registro(s) fraco(s)',
+              acao: 'priorizar decisões e qualificar registros comerciais',
             },
           ],
         },
