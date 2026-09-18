@@ -652,6 +652,22 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     return ''
   }
 
+  function findExternalBusinessId(negocioId) {
+    try {
+      var vinculos = $app.findRecordsByFilter(
+        'com_vinculos_externos',
+        "collection_name = 'com_negocios' && record_id = '" +
+          esc(negocioId) +
+          "' && sistema_origem = 'activecampaign' && external_type = 'business'",
+        '',
+        1,
+        0,
+      )
+      if (vinculos && vinculos.length > 0) return vinculos[0].getString('external_id') || ''
+    } catch (_) {}
+    return ''
+  }
+
   function nomeNegocio(rec) {
     var empresaId = rec.getString('empresa_id') || ''
     var contatoId = rec.getString('contato_principal_id') || ''
@@ -668,9 +684,10 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   function negocioHumanoId(rec) {
     return (
       rec.getString('oe_numero') ||
+      findExternalBusinessId(rec.id) ||
       rec.getString('external_id') ||
       rec.getString('codigo') ||
-      rec.id
+      ''
     )
   }
   function textoRegistroComercial(rec) {
@@ -924,7 +941,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
         motivo: motivos.join('; '),
         acao_recomendada: 'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.',
         blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
-        link: '/pipeline?negocio=' + encodeURIComponent(negocioHumanoId(item)),
+        link: '/pipeline?negocio=' + encodeURIComponent(item.id),
       })
     }
 
@@ -1210,6 +1227,22 @@ routerAdd(
       return ''
     }
 
+    function findExternalBusinessId(negocioId) {
+      try {
+        var vinculos = $app.findRecordsByFilter(
+          'com_vinculos_externos',
+          "collection_name = 'com_negocios' && record_id = '" +
+            esc(negocioId) +
+            "' && sistema_origem = 'activecampaign' && external_type = 'business'",
+          '',
+          1,
+          0,
+        )
+        if (vinculos && vinculos.length > 0) return vinculos[0].getString('external_id') || ''
+      } catch (_) {}
+      return ''
+    }
+
     function nomeNegocio(rec) {
       var empresaId = rec.getString('empresa_id') || ''
       var contatoId = rec.getString('contato_principal_id') || ''
@@ -1226,9 +1259,10 @@ routerAdd(
     function negocioHumanoId(rec) {
       return (
         rec.getString('oe_numero') ||
+        findExternalBusinessId(rec.id) ||
         rec.getString('external_id') ||
         rec.getString('codigo') ||
-        rec.id
+        ''
       )
     }
     function textoRegistroComercial(rec) {
@@ -1476,7 +1510,7 @@ routerAdd(
           acao_recomendada:
             'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.',
           blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
-          link: '/pipeline?negocio=' + encodeURIComponent(negocioHumanoId(item)),
+          link: '/pipeline?negocio=' + encodeURIComponent(item.id),
         })
       }
       return {
@@ -1544,10 +1578,11 @@ routerAdd(
     if (requestedScope === 'equipe' && canViewTeam(slug)) effectiveScope = 'equipe'
     if (requestedScope === 'todos' && canViewAll(slug)) effectiveScope = 'todos'
 
-    var responsavelId = ator.id
+    var responsavelId = ''
     if (String(query.responsavel_id || '') && canViewTeam(slug)) {
       responsavelId = String(query.responsavel_id || '')
     }
+    if (effectiveScope === 'equipe' && !String(query.responsavel_id || '')) responsavelId = ''
     if (effectiveScope === 'todos') responsavelId = ''
     if (effectiveScope === 'proprio') responsavelId = ator.id
 

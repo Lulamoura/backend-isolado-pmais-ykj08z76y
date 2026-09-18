@@ -65,8 +65,33 @@ assert.match(
 )
 assert.match(
   routeSource,
+  /calcularQualidadeRegistroComercial/,
+  'rota viva deve aplicar qualidade do registro comercial no bloco Registros e Aprendizados',
+)
+assert.match(
+  routeSource,
+  /com_notas_negocio[\s\S]{0,2500}decisor|decisor[\s\S]{0,2500}com_notas_negocio/,
+  'qualidade do registro deve considerar notas comerciais com decisor/contexto, não só próxima ação',
+)
+assert.match(
+  routeSource,
   /negocios_atencao:\s*pacoteVivo\.negocios_atencao/,
   'rota do Nexo deve devolver negócios de atenção calculados ao vivo, não itens fixos do snapshot',
+)
+assert.match(
+  routeSource,
+  /findExternalBusinessId|com_vinculos_externos/,
+  'negócios de atenção devem usar número externo legível quando não houver OE/código',
+)
+assert.doesNotMatch(
+  routeSource,
+  /rec\.getString\('codigo'\)\s*\|\|\s*rec\.id/,
+  'número do negócio não deve cair no ID técnico do PocketBase',
+)
+assert.match(
+  routeSource,
+  /if \(effectiveScope === 'equipe' && !String\(query\.responsavel_id \|\| ''\)\) responsavelId = ''/,
+  'visão equipe sem responsável selecionado deve ser consolidada, não a carteira do ator',
 )
 assert.match(
   routeSource,
