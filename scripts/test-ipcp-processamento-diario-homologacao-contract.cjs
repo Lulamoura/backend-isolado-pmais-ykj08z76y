@@ -40,6 +40,14 @@ assert(
   'agendamento automático deve estar desligado',
 )
 assert(postSource.includes('producao_publicada: false'), 'produção deve continuar bloqueada')
+assert(
+  !postSource.includes('var ipcpTotal = 55.3'),
+  'processamento diário não pode manter nota fixa de referência',
+)
+assert(
+  postSource.includes('calcularPacoteIpcpDiario'),
+  'processamento diário deve calcular pacote antes de gravar',
+)
 assert(postSource.includes('sem_job_automatico: true'), 'não pode ativar job automático')
 assert(postSource.includes('sem_crm_write: true'), 'não pode escrever no CRM')
 assert(
