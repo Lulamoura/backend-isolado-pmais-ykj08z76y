@@ -193,6 +193,10 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
                           </p>
                         ) : null}
                         <p className="mt-1 text-sm leading-6 text-slate-600">{item.motivo}</p>
+                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                          Empresa: {item.empresa || 'não informada'} · Contato:{' '}
+                          {item.contato || 'não informado'}
+                        </p>
                       </div>
                       {item.link ? (
                         <Link
