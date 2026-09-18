@@ -8,6 +8,7 @@ vi.mock('@/lib/pocketbase/client', () => ({
 
 import {
   IPCP_DIARIO_READONLY_PATH,
+  NEXO_IPCP_DIARIO_VIVO_PATH,
   IPCP_JOB_DIARIO_HOMOLOGACAO_STATUS_PATH,
   IPCP_PROCESSAMENTO_DIARIO_HOMOLOGACAO_PATH,
   IPCP_SIMULACAO_READONLY_PATH,
@@ -15,6 +16,7 @@ import {
   criarIpcpSnapshotSimulado,
   executarIpcpProcessamentoDiarioHomologacao,
   obterIpcpDiarioReadOnly,
+  obterNexoIpcpDiarioEquipe,
   obterIpcpSimulacaoReadOnly,
   obterStatusIpcpJobDiarioHomologacao,
   ipcpDiarioFixtureHomologado,
@@ -49,6 +51,75 @@ describe('obterIpcpDiarioReadOnly', () => {
     expect(data).toBe(ipcpDiarioFixtureHomologado)
     expect(data.read_only).toBe(true)
     expect(data.sem_mutacao).toBe(true)
+  })
+
+  it('consulta a leitura viva de equipe do Nexo e normaliza para o card da Operação do Dia', async () => {
+    pbSend.mockResolvedValue({
+      contrato: 'nexo_ipcp_diario_v1',
+      read_only: true,
+      sem_mutacao: true,
+      modo: 'consulta_viva_controlada',
+      fonte_dados: 'com_ipcp_snapshots',
+      data_referencia: '2026-09-17',
+      formula_version: 'ipcp_v0_2_simulacao_readonly_ia_followup',
+      escopo_efetivo: {
+        tipo: 'equipe',
+        responsavel_id: 'lulamoura52022x',
+        responsavel_nome: 'Luiz Antônio Moura',
+        pode_ver_equipe: true,
+        pode_ver_todos: true,
+      },
+      dados_vivos: {
+        fonte_disponivel: true,
+        snapshot_encontrado: true,
+        total_lido: 2,
+      },
+      resumo: {
+        texto: 'Leitura viva da equipe.',
+        recomendacoes: [
+          {
+            titulo: 'Ação de equipe',
+            motivo: 'Prioridade baseada no snapshot vivo.',
+            bloco_afetado: 'disciplina_carteira',
+          },
+        ],
+      },
+      ipcp: {
+        total: 62.4,
+        blocos: {
+          resultado_comercial: 21,
+          valor_estrategico: 11,
+          disciplina_carteira: 12,
+          qualidade_followup: 13,
+          registros_aprendizado: 5.4,
+        },
+        cobertura_ia: {
+          provider_oficial: 'nexo_hermes',
+          fallback_permitido: false,
+          avaliados: 70,
+          total: 70,
+          pendentes: 0,
+        },
+      },
+      guardrails: {
+        sem_ranking_punitivo: true,
+        fallback_openai_bloqueado: true,
+        provider_oficial_followup: 'nexo_hermes',
+        sem_job_automatico: true,
+      },
+    })
+
+    const data = await obterNexoIpcpDiarioEquipe()
+
+    expect(pbSend).toHaveBeenCalledWith(NEXO_IPCP_DIARIO_VIVO_PATH, { method: 'GET' })
+    expect(data.contrato).toBe('nexo_ipcp_diario_v1')
+    expect(data.read_only).toBe(true)
+    expect(data.sem_mutacao).toBe(true)
+    expect(data.escopo?.tipo).toBe('equipe')
+    expect(data.resumo_nexo.texto).toBe('Leitura viva da equipe.')
+    expect(data.resumo_nexo.prioridades[0].titulo).toBe('Ação de equipe')
+    expect(data.ipcp.total).toBe(62.4)
+    expect(data.evolucao.comentario).toMatch(/Leitura viva da equipe/)
   })
 
   it('consulta a simulação read-only com evidências e escopo de equipe', async () => {

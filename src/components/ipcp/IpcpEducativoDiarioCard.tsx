@@ -107,14 +107,14 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
                 Atualização diária
               </Badge>
               <Badge variant="outline">Base {formatDate(data.data_referencia)}</Badge>
-              <Badge variant="outline">Indicador educativo</Badge>
+              <Badge variant="outline">Produção assistida</Badge>
             </div>
             <div>
               <CardTitle className="flex items-center gap-2 text-xl text-slate-950">
                 <Sparkles className="h-5 w-5 text-emerald-700" /> Orientação do Nexo para hoje
               </CardTitle>
               <p className="mt-1 text-sm text-slate-600">
-                Indicador educativo atualizado diariamente
+                Leitura viva da equipe atualizada diariamente
               </p>
             </div>
           </CardHeader>
@@ -148,7 +148,7 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
                   <span className="text-base font-semibold text-slate-500">/100</span>
                 </p>
                 <p className="mt-1 text-xs text-slate-600">
-                  Índice de Performance Comercial PMais — leitura educativa da rotina comercial.
+                  Índice de Performance Comercial PMais — leitura assistida da rotina comercial.
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   A nota é leitura secundária. A rotina deve priorizar as ações recomendadas.

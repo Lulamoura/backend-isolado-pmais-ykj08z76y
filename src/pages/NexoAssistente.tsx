@@ -338,7 +338,7 @@ export default function NexoAssistente() {
             <Link to="/nexo/relatorio-equipe-comercial">Abrir relatório da equipe comercial</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link to="/nexo/ipcp-simulacao">Abrir piloto gerencial do IPCP</Link>
+            <Link to="/nexo/ipcp-simulacao">Abrir IPCP gerencial assistido</Link>
           </Button>
         </CardContent>
       </Card>

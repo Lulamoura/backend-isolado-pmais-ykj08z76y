@@ -35,7 +35,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { IpcpEducativoDiarioCard } from '@/components/ipcp/IpcpEducativoDiarioCard'
-import { obterIpcpDiarioReadOnly, ipcpDiarioFixtureHomologado } from '@/services/ipcp'
+import { obterNexoIpcpDiarioEquipe, ipcpDiarioFixtureHomologado } from '@/services/ipcp'
 
 type OperationSummary = {
   semProximaAcao: number
@@ -132,7 +132,7 @@ export default function OperacaoDia() {
 
   useEffect(() => {
     let active = true
-    obterIpcpDiarioReadOnly().then((data) => {
+    obterNexoIpcpDiarioEquipe().then((data) => {
       if (active) setIpcpDiario(data)
     })
     return () => {
