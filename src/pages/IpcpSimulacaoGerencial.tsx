@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
+  executarIpcpProcessamentoDiarioHomologacao,
   obterNexoIpcpDiarioEquipe,
   obterStatusIpcpJobDiarioHomologacao,
   type IpcpDiarioReadOnly,
@@ -86,6 +87,7 @@ export default function IpcpSimulacaoGerencial() {
   const [data, setData] = useState<IpcpDiarioReadOnly | null>(null)
   const [jobStatus, setJobStatus] = useState<IpcpJobDiarioHomologacaoStatus | null>(null)
   const [loading, setLoading] = useState(false)
+  const [recalculando, setRecalculando] = useState(false)
   const [erro, setErro] = useState('')
   const [responsavelId, setResponsavelId] = useState<string | null>(null)
   const [responsavelSelecionado, setResponsavelSelecionado] = useState<UserOption | null>(null)
@@ -108,6 +110,19 @@ export default function IpcpSimulacaoGerencial() {
       )
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function recalcularIpcp() {
+    setRecalculando(true)
+    setErro('')
+    try {
+      await executarIpcpProcessamentoDiarioHomologacao()
+      await carregar()
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : 'Não foi possível recalcular o IPCP.')
+    } finally {
+      setRecalculando(false)
     }
   }
 
@@ -144,14 +159,32 @@ export default function IpcpSimulacaoGerencial() {
             <ArrowLeft aria-hidden="true" className="mr-2 h-4 w-4" /> Voltar ao Nexo
           </Link>
         </Button>
-        <Button onClick={() => void carregar()} disabled={loading} variant="outline">
-          {loading ? (
-            <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
-          )}
-          Atualizar leitura
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => void recalcularIpcp()}
+            disabled={loading || recalculando}
+            variant="default"
+          >
+            {recalculando ? (
+              <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
+            )}
+            Recalcular IPCP
+          </Button>
+          <Button
+            onClick={() => void carregar()}
+            disabled={loading || recalculando}
+            variant="outline"
+          >
+            {loading ? (
+              <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
+            )}
+            Atualizar leitura
+          </Button>
+        </div>
       </div>
 
       <Card>

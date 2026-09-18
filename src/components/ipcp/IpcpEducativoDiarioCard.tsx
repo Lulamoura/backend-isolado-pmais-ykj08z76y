@@ -84,6 +84,10 @@ function nomeNegocioAtencao(item: IpcpDiarioReadOnly['negocios_atencao'][number]
   return 'Negócio comercial'
 }
 
+function numeroNegocioAtencao(item: IpcpDiarioReadOnly['negocios_atencao'][number]): string {
+  return String(item.id_negocio || '').trim()
+}
+
 function BlocoAjuda({ bloco }: { bloco: IpcpBlocoId }) {
   const label = blocoLabels[bloco]
   const explicacao = blocoExplicacoes[bloco]
@@ -195,6 +199,11 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
                         <p className="text-sm font-semibold text-slate-950">
                           {nomeNegocioAtencao(item)}
                         </p>
+                        {numeroNegocioAtencao(item) ? (
+                          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Nº do negócio: {numeroNegocioAtencao(item)}
+                          </p>
+                        ) : null}
                         <p className="mt-1 text-sm leading-6 text-slate-600">{item.motivo}</p>
                       </div>
                       {item.link ? (
