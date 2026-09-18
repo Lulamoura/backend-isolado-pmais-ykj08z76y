@@ -1164,13 +1164,21 @@ routerAdd(
     function filtroEscopoColecao(collection, scope, responsavelId, actor) {
       var parts = []
       if (collection === 'com_negocios') parts.push('inativo = false')
-      if (scope === 'proprio' && responsavelId)
+      if ((scope === 'proprio' || scope === 'equipe') && responsavelId)
         parts.push("responsavel_id = '" + esc(responsavelId) + "'")
-      if (scope === 'equipe') {
+      else if (scope === 'equipe') {
         var equipeId = actor.getString('equipe_id') || ''
         if (equipeId) parts.push("equipe_id = '" + esc(equipeId) + "'")
       }
       return parts.length ? parts.join(' && ') : "id != ''"
+    }
+
+    function filtroResponsavelOperacional(scope, responsavelId) {
+      if (scope === 'proprio' && responsavelId)
+        return "responsavel_id = '" + esc(responsavelId) + "'"
+      if (scope === 'equipe' && responsavelId)
+        return "responsavel_id = '" + esc(responsavelId) + "'"
+      return "id != ''"
     }
 
     function classificarResultado(rec) {
@@ -1293,10 +1301,7 @@ routerAdd(
     function calcularPacoteIpcpDiarioVivo(dataRef, scope, responsavelId, actor) {
       var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
       var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
-      var filtroOperacional =
-        scope === 'proprio' && responsavelId
-          ? "responsavel_id = '" + esc(responsavelId) + "'"
-          : "id != ''"
+      var filtroOperacional = filtroResponsavelOperacional(scope, responsavelId)
       var atividades = listar('com_atividades', filtroOperacional, '-created', 200)
       var slas = listar('com_slas', filtroOperacional, '-created', 200)
       var propostas = listar('com_proposta_envios', filtroOperacional, '-created', 200)

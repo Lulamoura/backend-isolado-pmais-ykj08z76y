@@ -70,6 +70,21 @@ assert.match(
 )
 assert.match(
   routeSource,
+  /function filtroResponsavelOperacional\(scope, responsavelId\)/,
+  'rota viva deve ter filtro operacional dedicado para responsável selecionado',
+)
+assert.match(
+  routeSource,
+  /scope === 'equipe' && responsavelId[\s\S]{0,180}responsavel_id = '/,
+  'escopo equipe com responsavel_id deve recalcular atividades, SLAs, propostas e fechamentos para o responsável selecionado',
+)
+assert.match(
+  routeSource,
+  /var filtroOperacional = filtroResponsavelOperacional\(scope, responsavelId\)/,
+  'cálculo vivo deve aplicar o filtro do responsável nas coleções operacionais',
+)
+assert.match(
+  routeSource,
   /com_notas_negocio[\s\S]{0,2500}decisor|decisor[\s\S]{0,2500}com_notas_negocio/,
   'qualidade do registro deve considerar notas comerciais com decisor/contexto, não só próxima ação',
 )
