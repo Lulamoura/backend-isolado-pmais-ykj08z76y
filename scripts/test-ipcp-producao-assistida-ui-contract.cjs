@@ -36,6 +36,17 @@ assert.match(
   'serviço deve consultar a rota viva com escopo explícito por perfil',
 )
 assert.match(service, /contrato === 'nexo_ipcp_diario_v1'/, 'serviço deve validar contrato vivo')
+const nexo = fs.readFileSync('src/pages/NexoAssistente.tsx', 'utf8')
+assert.match(
+  nexo,
+  />Análise gerencial do IPCP<|Análise gerencial do IPCP<\/Link>/,
+  'botão do Nexo deve chamar a tela como Análise gerencial do IPCP',
+)
+assert.doesNotMatch(
+  nexo,
+  /Abrir IPCP gerencial assistido/,
+  'botão antigo Abrir IPCP gerencial assistido não deve aparecer',
+)
 
 const fixtureBanida =
   /RCML|PMAIS EVENTOS|id_negocio:\s*['"]4612['"]|id_negocio:\s*['"]4800['"]|total:\s*55\.3/
