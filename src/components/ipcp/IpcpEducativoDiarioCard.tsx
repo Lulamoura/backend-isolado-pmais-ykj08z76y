@@ -72,6 +72,19 @@ function formatScore(score: number): string {
   }).format(score)
 }
 
+
+function isIdTecnico(value: string): boolean {
+  return /^[a-z0-9]{15}$/.test(String(value || ''))
+}
+
+function nomeNegocioAtencao(item: IpcpDiarioReadOnly['negocios_atencao'][number]): string {
+  const cliente = String(item.cliente || '').trim()
+  const id = String(item.id_negocio || '').trim()
+  if (cliente && cliente !== 'Negócio comercial') return cliente
+  if (id && !isIdTecnico(id)) return `Negócio ${id}`
+  return 'Negócio comercial'
+}
+
 function BlocoAjuda({ bloco }: { bloco: IpcpBlocoId }) {
   const label = blocoLabels[bloco]
   const explicacao = blocoExplicacoes[bloco]
@@ -181,7 +194,7 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <p className="text-sm font-semibold text-slate-950">
-                          Negócio {item.id_negocio} — {item.cliente}
+                          {nomeNegocioAtencao(item)}
                         </p>
                         <p className="mt-1 text-sm leading-6 text-slate-600">{item.motivo}</p>
                       </div>

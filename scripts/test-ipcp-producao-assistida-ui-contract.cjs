@@ -32,10 +32,39 @@ assert.match(
 )
 assert.match(
   service,
-  /nexoIpcpDiarioVivoPath\(escopo\)|escopo=\$\{escopo\}/,
+  /nexoIpcpDiarioVivoPath\(|URLSearchParams\(\{ escopo \}\)/,
   'serviço deve consultar a rota viva com escopo explícito por perfil',
 )
 assert.match(service, /contrato === 'nexo_ipcp_diario_v1'/, 'serviço deve validar contrato vivo')
+assert.match(
+  service,
+  /responsavel_id/,
+  'serviço IPCP deve permitir filtro gerencial por responsável sem trocar credenciais',
+)
+
+const card = fs.readFileSync('src/components/ipcp/IpcpEducativoDiarioCard.tsx', 'utf8')
+assert.match(
+  card,
+  /nomeNegocioAtencao|isIdTecnico|idTecnico/,
+  'card de negócios deve esconder ID técnico e montar título humano',
+)
+assert.doesNotMatch(
+  card,
+  /Negócio \{item\.id_negocio\} — \{item\.cliente\}/,
+  'card não deve exibir ID técnico antes do nome do negócio',
+)
+
+const ipcpGerencial = fs.readFileSync('src/pages/IpcpSimulacaoGerencial.tsx', 'utf8')
+assert.match(
+  ipcpGerencial,
+  /UserSelect|respons[aá]vel|Respons[aá]vel|Todos/,
+  'IPCP gerencial assistido deve oferecer filtro por responsável ou visão todos',
+)
+assert.match(
+  ipcpGerencial,
+  /obterNexoIpcpDiarioEquipe/,
+  'IPCP gerencial assistido deve usar leitura viva Nexo/IPCP em vez de tela vazia/simulação antiga',
+)
 
 const fixtureBanida = /RCML|PMAIS EVENTOS|id_negocio:\s*['"]4612['"]|id_negocio:\s*['"]4800['"]|total:\s*55\.3/
 assert.doesNotMatch(service, fixtureBanida, 'serviço de produção assistida não deve manter clientes, negócios ou nota fixa de referência')

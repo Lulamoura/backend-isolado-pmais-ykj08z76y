@@ -3,18 +3,16 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
 
 import { IpcpEducativoDiarioCard } from '@/components/ipcp/IpcpEducativoDiarioCard'
+import { UserSelect, type UserOption } from '@/components/UserSelect'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
-  criarIpcpSnapshotSimulado,
-  executarIpcpProcessamentoDiarioHomologacao,
-  obterIpcpSimulacaoReadOnly,
+  obterNexoIpcpDiarioEquipe,
   obterStatusIpcpJobDiarioHomologacao,
   type IpcpDiarioReadOnly,
   type IpcpJobDiarioHomologacaoStatus,
-  type IpcpSnapshotSimuladoResponse,
 } from '@/services/ipcp'
 
 function dataBr(data: string) {
@@ -23,62 +21,12 @@ function dataBr(data: string) {
   return `${partes[2]}/${partes[1]}/${partes[0]}`
 }
 
-function SimulacaoGuardrails({
-  data,
-  snapshot,
-  jobStatus,
-}: {
-  data: IpcpDiarioReadOnly
-  snapshot?: IpcpSnapshotSimuladoResponse | null
-  jobStatus?: IpcpJobDiarioHomologacaoStatus | null
-}) {
-  const simulacao = snapshot?.simulacao ?? data.simulacao
-  const jobAtivoHomologacao = Boolean(jobStatus?.job.ativo)
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Guardrails do IPCP</CardTitle>
-        <CardDescription>
-          Leitura assistida para gestão, com snapshot controlado e rotina diária supervisionada.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3 md:grid-cols-4">
-        <Badge className="justify-center bg-emerald-700 py-2 text-white hover:bg-emerald-700">
-          Leitura segura confirmada
-        </Badge>
-        <Badge variant="outline" className="justify-center py-2">
-          Snapshot: {simulacao?.gravacao_snapshot_realizada ? 'gravado' : 'não gravado'}
-        </Badge>
-        <Badge variant="outline" className="justify-center py-2">
-          Coleção: {simulacao?.colecao_snapshot_criada ? 'criada' : 'não criada'}
-        </Badge>
-        <Badge variant="outline" className="justify-center py-2">
-          Job: {jobAtivoHomologacao ? 'ativo em produção assistida' : 'inativo'}
-        </Badge>
-      </CardContent>
-    </Card>
-  )
-}
-
 const rotulosBlocos: Record<string, string> = {
   qualidade_followup: 'Qualidade do acompanhamento',
   disciplina_carteira: 'Organização da carteira',
   registros_aprendizado: 'Registros e aprendizados',
   resultado_comercial: 'Resultado comercial',
   valor_estrategico: 'Valor estratégico',
-}
-
-const rotulosSinais: Record<string, string> = {
-  nota_sem_decisor_pendencia_ou_prazo:
-    'Acompanhamento sem decisor, pendência ou prazo de retorno claros.',
-  acao_vencida_ou_distante: 'Próxima ação vencida ou distante demais.',
-}
-
-const rotulosAcoes: Record<string, string> = {
-  complementar_proximo_passo_objetivo:
-    'Completar o próximo passo com responsável, prazo e pendência principal.',
-  redefinir_data_e_objetivo_comercial_verificavel:
-    'Revisar a data e deixar claro o objetivo comercial do próximo contato.',
 }
 
 function EvidenciasResumo({ data }: { data: IpcpDiarioReadOnly }) {
@@ -97,12 +45,8 @@ function EvidenciasResumo({ data }: { data: IpcpDiarioReadOnly }) {
             <p className="text-sm font-semibold text-slate-950">
               {rotulosBlocos[item.bloco] ?? item.bloco}
             </p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Sinal: {rotulosSinais[item.sinal] ?? item.sinal}
-            </p>
-            <p className="mt-1 text-sm leading-6 text-slate-700">
-              Ação: {rotulosAcoes[item.acao] ?? item.acao}
-            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Sinal: {item.sinal}</p>
+            <p className="mt-1 text-sm leading-6 text-slate-700">Ação: {item.acao}</p>
           </div>
         ))}
       </CardContent>
@@ -140,23 +84,23 @@ function JobDiarioStatus({ status }: { status: IpcpJobDiarioHomologacaoStatus | 
 
 export default function IpcpSimulacaoGerencial() {
   const [data, setData] = useState<IpcpDiarioReadOnly | null>(null)
-  const [snapshot, setSnapshot] = useState<IpcpSnapshotSimuladoResponse | null>(null)
   const [jobStatus, setJobStatus] = useState<IpcpJobDiarioHomologacaoStatus | null>(null)
   const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [processing, setProcessing] = useState(false)
-  const [processamentoExecutado, setProcessamentoExecutado] = useState(false)
   const [erro, setErro] = useState('')
+  const [responsavelId, setResponsavelId] = useState<string | null>(null)
+  const [responsavelSelecionado, setResponsavelSelecionado] = useState<UserOption | null>(null)
+
+  const escopoSolicitado = responsavelId ? 'equipe' : 'todos'
 
   async function carregar() {
     setLoading(true)
     setErro('')
     try {
-      const [simulacao, statusJob] = await Promise.all([
-        obterIpcpSimulacaoReadOnly(),
+      const [leitura, statusJob] = await Promise.all([
+        obterNexoIpcpDiarioEquipe(escopoSolicitado, responsavelId),
         obterStatusIpcpJobDiarioHomologacao(),
       ])
-      setData(simulacao)
+      setData(leitura)
       setJobStatus(statusJob)
     } catch (error) {
       setErro(
@@ -167,43 +111,10 @@ export default function IpcpSimulacaoGerencial() {
     }
   }
 
-  async function gravarSnapshotSimulado() {
-    setSaving(true)
-    setErro('')
-    try {
-      setSnapshot(await criarIpcpSnapshotSimulado())
-      setProcessamentoExecutado(false)
-    } catch (error) {
-      setErro(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível gravar o snapshot controlado do IPCP.',
-      )
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function executarProcessamentoDiario() {
-    setProcessing(true)
-    setErro('')
-    try {
-      setSnapshot(await executarIpcpProcessamentoDiarioHomologacao())
-      setProcessamentoExecutado(true)
-    } catch (error) {
-      setErro(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível executar o processamento diário controlado do IPCP.',
-      )
-    } finally {
-      setProcessing(false)
-    }
-  }
-
   useEffect(() => {
     void carregar()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [responsavelId])
 
   return (
     <div className="container mx-auto max-w-7xl space-y-6 px-4 py-8">
@@ -217,13 +128,12 @@ export default function IpcpSimulacaoGerencial() {
               Índice de Performance Comercial PMais
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-100/90">
-              Leitura viva da equipe para acompanhamento gerencial, com snapshot controlado e
-              guardrails de integridade.
+              Leitura viva gerencial por responsável ou visão consolidada de todos. A tela mostra
+              uma leitura por vez para preservar clareza e governança.
             </p>
           </div>
           <Badge className="border-emerald-300/50 bg-white/10 text-emerald-50 hover:bg-white/10">
-            <ShieldCheck aria-hidden="true" className="mr-1 h-3.5 w-3.5" />{' '}
-            {snapshot ? 'Snapshot controlado' : 'Somente leitura'}
+            <ShieldCheck aria-hidden="true" className="mr-1 h-3.5 w-3.5" /> Somente leitura
           </Badge>
         </div>
       </section>
@@ -234,58 +144,51 @@ export default function IpcpSimulacaoGerencial() {
             <ArrowLeft aria-hidden="true" className="mr-2 h-4 w-4" /> Voltar ao Nexo
           </Link>
         </Button>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            onClick={() => void carregar()}
-            disabled={loading || saving || processing}
-            variant="outline"
-          >
-            {loading ? (
-              <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
-            )}
-            Atualizar leitura
-          </Button>
-          <Button
-            onClick={() => void gravarSnapshotSimulado()}
-            disabled={!data || loading || saving || processing}
-          >
-            {saving ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Gravar snapshot controlado
-          </Button>
-          <Button
-            onClick={() => void executarProcessamentoDiario()}
-            disabled={!data || loading || saving || processing}
-            variant="secondary"
-          >
-            {processing ? (
-              <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
-            ) : null}
-            Processar dia
-          </Button>
-        </div>
+        <Button onClick={() => void carregar()} disabled={loading} variant="outline">
+          {loading ? (
+            <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
+          )}
+          Atualizar leitura
+        </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Filtro de responsáveis</CardTitle>
+          <CardDescription>
+            Selecione uma operadora para ver a leitura individual ou use “Todos” para a visão
+            global consolidada dos gestores.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-[220px_1fr]">
+          <Button
+            type="button"
+            variant={responsavelId ? 'outline' : 'default'}
+            onClick={() => {
+              setResponsavelId(null)
+              setResponsavelSelecionado(null)
+            }}
+            disabled={loading}
+          >
+            Todos
+          </Button>
+          <UserSelect
+            value={responsavelId}
+            onChange={setResponsavelId}
+            onSelect={setResponsavelSelecionado}
+            placeholder="Selecionar responsável"
+            ariaLabel="Selecionar responsável para IPCP"
+            disabled={loading}
+          />
+        </CardContent>
+      </Card>
 
       {erro ? (
         <Alert variant="destructive">
           <AlertTitle>IPCP indisponível</AlertTitle>
           <AlertDescription>{erro}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      {snapshot ? (
-        <Alert>
-          <ShieldCheck aria-hidden="true" className="h-4 w-4" />
-          <AlertTitle>
-            {processamentoExecutado
-              ? 'Processamento diário executado'
-              : 'Snapshot controlado gravado'}
-          </AlertTitle>
-          <AlertDescription>
-            Registro {snapshot.snapshot.id} · {snapshot.snapshot.data_referencia} ·{' '}
-            {snapshot.snapshot.escopo}. Job automático permanece inativo.
-          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -304,13 +207,14 @@ export default function IpcpSimulacaoGerencial() {
             <CardHeader>
               <CardTitle>Escopo da leitura</CardTitle>
               <CardDescription>
-                Base {dataBr(data.data_referencia)} · {data.escopo?.tipo ?? 'escopo resolvido'} ·{' '}
-                {data.escopo?.responsavel_nome ?? 'usuário autenticado'}
+                Base {dataBr(data.data_referencia)} ·{' '}
+                {responsavelId
+                  ? `Responsável: ${responsavelSelecionado?.name ?? data.escopo?.responsavel_nome ?? 'selecionado'}`
+                  : 'Todos — visão global consolidada'}
               </CardDescription>
             </CardHeader>
           </Card>
           <JobDiarioStatus status={jobStatus} />
-          <SimulacaoGuardrails data={data} snapshot={snapshot} jobStatus={jobStatus} />
           <IpcpEducativoDiarioCard data={data} />
           <EvidenciasResumo data={data} />
         </>
