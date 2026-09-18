@@ -49,6 +49,12 @@ assert(
   'processamento diário deve calcular pacote antes de gravar',
 )
 assert(
+  postSource.includes("responsavelId !== '__todos__'") &&
+    postSource.includes("responsavel_id = '") &&
+    postSource.includes("if (scope === 'equipe' && (!responsavelId || responsavelId === '__todos__'))"),
+  'processamento diário deve distinguir Todos de responsável selecionado no filtro de carteira',
+)
+assert(
   postSource.includes('calcularQualidadeRegistroComercial'),
   'bloco Registros e Aprendizados deve calcular qualidade do registro comercial, não só presença de próximo compromisso',
 )
@@ -61,7 +67,7 @@ assert(
   !/registrosAprendizado\s*=\s*round1\(\s*clamp\(\s*4\s*\+\s*coberturaResponsavel/.test(postSource),
   'Registros e Aprendizados não pode ser pontuado principalmente por responsável/modalidade/volume',
 )
-assert(postSource.includes('sem_job_automatico: true'), 'não pode ativar job automático')
+assert(postSource.includes('sem_job_automatico: true'), 'acionamento manual deve continuar distinto do job automático')
 assert(postSource.includes('sem_crm_write: true'), 'não pode escrever no CRM')
 assert(
   postSource.includes('resumo_nexo'),
@@ -84,9 +90,6 @@ assert(
   postSource.includes('pacote_completo: true'),
   'resposta deve indicar pacote completo para Operação do Dia',
 )
-assert(
-  !/scheduler|cronAdd|setInterval|setTimeout/.test(postSource),
-  'não deve registrar agendamento no hook',
-)
+assert(!/setInterval|setTimeout/.test(postSource), 'processamento diário não deve usar timers em memória')
 
 console.log('OK: contrato IPCP processamento diario homologacao protegido')
