@@ -956,7 +956,7 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     } catch (_) {}
     return {
       id: n.id,
-      id_negocio: oeNumero || external || n.id,
+      id_negocio: oeNumero || external || n.getString('codigo') || 'Sem número legível',
       external_id: external,
       titulo: n.getString('titulo') || 'Negócio sem título',
       cliente: nomeRelacionado('com_empresas', empresaId, ['nome', 'razao_social']),
@@ -1048,6 +1048,102 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     var resumo = payload.resumo_nexo || {}
     var prioridades = resumo.prioridades || []
     var negocios = payload.negocios_atencao || []
+
+    if (!Number(ipcp.total || 0)) {
+      var filtroNegocios = 'inativo = false'
+      if (responsavelId) filtroNegocios += " && responsavel_id = '" + esc(responsavelId) + "'"
+      var negociosRows = []
+      var atividadesRows = []
+      var propostasRows = []
+      try {
+        negociosRows = $app.findRecordsByFilter('com_negocios', filtroNegocios, '-updated,-created', 200, 0)
+        var filtroOperacional = responsavelId
+          ? "responsavel_id = '" + esc(responsavelId) + "'"
+          : "id != ''"
+        atividadesRows = $app.findRecordsByFilter('com_atividades', filtroOperacional, '-created', 200, 0)
+        propostasRows = $app.findRecordsByFilter('com_proposta_envios', filtroOperacional, '-created', 200, 0)
+      } catch (_) {}
+      var abertos = 0
+      var ganhos = 0
+      var perdidos = 0
+      var semResponsavel = 0
+      var semModalidade = 0
+      var valorAberto = 0
+      for (var gi = 0; gi < negociosRows.length; gi++) {
+        var nr = negociosRows[gi]
+        var resultado = nr.getString('resultado') || ''
+        if (resultado === 'ganho') ganhos++
+        else if (resultado) perdidos++
+        else abertos++
+        if (!nr.getString('responsavel_id')) semResponsavel++
+        if (!nr.getString('modalidade')) semModalidade++
+        var valor = Number(nr.getInt('valor_centavos') || 0)
+        if (!resultado && valor > 1) valorAberto += valor
+      }
+      var decididos = ganhos + perdidos
+      var conversao = decididos ? ganhos / decididos : 0
+      var coberturaResponsavel = negociosRows.length
+        ? (negociosRows.length - semResponsavel) / negociosRows.length
+        : 1
+      var coberturaModalidade = negociosRows.length
+        ? (negociosRows.length - semModalidade) / negociosRows.length
+        : 1
+      var atividadePorAberto = abertos ? atividadesRows.length / abertos : atividadesRows.length
+      var propostaPorAberto = abertos ? propostasRows.length / abertos : propostasRows.length
+      function clampLocal(v, min, max) {
+        if (v < min) return min
+        if (v > max) return max
+        return v
+      }
+      function roundLocal(v) {
+        return Math.round(Number(v || 0) * 10) / 10
+      }
+      var blocosVivos = {
+        resultado_comercial: roundLocal(clampLocal(12 + conversao * 10 + Math.min(8, ganhos * 0.8), 8, 30)),
+        valor_estrategico: roundLocal(clampLocal(4 + Math.min(7, valorAberto / 200000) + propostaPorAberto, 3, 15)),
+        disciplina_carteira: roundLocal(clampLocal(7 + Math.min(8, atividadePorAberto * 1.6) + coberturaResponsavel * 4, 4, 20)),
+        qualidade_followup: roundLocal(clampLocal(6 + Math.min(7, atividadesRows.length / 8) + Math.min(4, propostasRows.length / 10), 4, 20)),
+        registros_aprendizado: roundLocal(clampLocal(3 + coberturaModalidade * 6 + Math.min(3, atividadesRows.length / 20), 3, 15)),
+      }
+      ipcp = {
+        total: roundLocal(
+          blocosVivos.resultado_comercial +
+            blocosVivos.valor_estrategico +
+            blocosVivos.disciplina_carteira +
+            blocosVivos.qualidade_followup +
+            blocosVivos.registros_aprendizado,
+        ),
+        blocos: blocosVivos,
+      }
+      prioridades = [
+        {
+          titulo: 'Qualificar registros comerciais',
+          motivo: semModalidade + ' negócio(s) sem modalidade ou dados comerciais completos.',
+          bloco_afetado: 'registros_aprendizado',
+        },
+        {
+          titulo: 'Manter cadência da carteira aberta',
+          motivo: abertos + ' negócio(s) aberto(s) exigem responsável, próxima ação e acompanhamento.',
+          bloco_afetado: 'disciplina_carteira',
+        },
+      ]
+      resumo = {
+        texto:
+          'Leitura IPCP gerencial calculada para o Nexo Telegram com base nos sinais comerciais vivos disponíveis: negócios, atividades e propostas.',
+      }
+      negocios = []
+      for (var ni = 0; ni < negociosRows.length && negocios.length < 5; ni++) {
+        var ng = resumoNegocio(negociosRows[ni])
+        if (ng.resultado) continue
+        negocios.push({
+          id_negocio: ng.id_negocio,
+          cliente: (ng.cliente || ng.titulo || 'Negócio sem nome'),
+          motivo: 'negócio aberto requer qualificação e próximo passo verificável',
+          acao_recomendada: 'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.',
+        })
+      }
+    }
+
     return resposta('ipcp_gerencial', {
       contrato_ipcp: 'nexo_telegram_ipcp_v1',
       data_referencia: snapshot ? snapshot.getString('data_referencia') || data : data,

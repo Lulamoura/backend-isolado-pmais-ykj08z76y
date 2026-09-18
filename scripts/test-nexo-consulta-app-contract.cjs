@@ -53,6 +53,11 @@ assert.match(
 )
 assert.doesNotMatch(
   hook,
+  /id_negocio:\s*oeNumero\s*\|\|\s*external\s*\|\|\s*n\.id/,
+  'Consulta Nexo não deve usar ID técnico PocketBase como número do negócio',
+)
+assert.doesNotMatch(
+  hook,
   /consulta-app[\s\S]{0,4000}\.(save|delete|dao\(\)\.save|dao\(\)\.delete)\(/,
   'Rota técnica não pode salvar ou excluir registros',
 )
