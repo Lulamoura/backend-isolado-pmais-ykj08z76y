@@ -113,11 +113,13 @@ const checks = [
       reconciliationHook.includes('reconcile-command|'),
   ],
   [
-    'execução refaz leitura antes da transação',
-    reconciliationHook.includes('revalidation_of') &&
-      reconciliationHook.includes('recheck.json.fingerprint !== body.fingerprint') &&
-      reconciliationHook.includes('function canonicalize(value)') &&
+    'execução usa plano validado sem segunda consulta instável ao ActiveCampaign',
+    reconciliationHook.includes('function canonicalize(value)') &&
       reconciliationHook.includes('$security.sha256(canonicalize(planCore))') &&
+      reconciliationHook.includes('Date.now() + 30 * 60 * 1000') &&
+      reconciliationHook.includes('var plannedRecords = tx.findRecordsByFilter') &&
+      !reconciliationHook.includes('revalidation_of') &&
+      !reconciliationHook.includes('recheck.json.fingerprint !== body.fingerprint') &&
       !reconciliationHook.includes('$security.sha256(JSON.stringify(planCore))'),
   ],
   [

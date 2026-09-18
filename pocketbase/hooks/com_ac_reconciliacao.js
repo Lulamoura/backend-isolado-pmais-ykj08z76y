@@ -591,7 +591,7 @@ routerAdd(
     // A revalidação trafega por HTTP, que pode reorganizar as chaves dos objetos.
     // O fingerprint precisa representar o conteúdo, não a ordem incidental do JSON.
     var fingerprint = $security.sha256(canonicalize(planCore))
-    var expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
+    var expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
     var dryId = ''
     try {
       $app.runInTransaction(function (tx) {
@@ -779,41 +779,6 @@ routerAdd(
         error: 'PLANO_BLOQUEADO',
         detail: 'O plano tem conflito crítico. Corrija a pendência indicada e rode nova verificação.',
       })
-
-    // Refaz a leitura imediatamente antes da escrita. O segundo dry-run usa a
-    // mesma normalização determinística; qualquer mudança no AC ou no estado
-    // local altera o fingerprint e interrompe a execução.
-    var pbUrl = String($secrets.get('PB_INSTANCE_URL') || '').replace(/\/$/, '')
-    var authHeader = e.request.header.get('Authorization') || ''
-    if (!pbUrl || !authHeader) return e.json(500, { error: 'REVALIDACAO_INDISPONIVEL' })
-    try {
-      var recheck = $http.send({
-        url: pbUrl + '/backend/v1/integracao/ac/reconciliacao/simular',
-        method: 'POST',
-        headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: stored.mode || 'incremental',
-          synthetic_events: body.synthetic_events || [],
-          revalidation_of: dry.id,
-        }),
-        timeout: 60,
-      })
-      if (recheck.statusCode !== 200 || !recheck.json)
-        return e.json(409, {
-          error: 'REVALIDACAO_FALHOU',
-          detail: 'O ActiveCampaign não respondeu à checagem final. Rode Verificar atualizações novamente antes de confirmar.',
-        })
-      if (recheck.json.fingerprint !== body.fingerprint)
-        return e.json(409, {
-        error: 'FINGERPRINT_OBSOLETO',
-        detail: 'Plano vencido ou alterado. Rode Verificar atualizações novamente e confirme o novo plano gerado.',
-      })
-    } catch (_) {
-      return e.json(409, {
-        error: 'REVALIDACAO_FALHOU',
-        detail: 'O ActiveCampaign não respondeu à checagem final. Rode Verificar atualizações novamente antes de confirmar.',
-      })
-    }
 
     var running = []
     try {
