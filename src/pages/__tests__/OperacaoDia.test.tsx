@@ -195,7 +195,8 @@ describe('Operação do Dia', () => {
     })
   })
 
-  it('mostra o IPCP vivo da equipe antes da nota e sem linguagem de ranking', async () => {
+  it('mostra o IPCP vivo alinhado à visão consolidada gerencial antes da nota e sem linguagem de ranking', async () => {
+    perfil.slug = 'superadministrador'
     render(
       <MemoryRouter>
         <OperacaoDia />
@@ -205,7 +206,7 @@ describe('Operação do Dia', () => {
     expect(
       await screen.findByText('Texto vindo da leitura viva de equipe do IPCP.'),
     ).toBeInTheDocument()
-    expect(pbSend).toHaveBeenCalledWith('/backend/v1/nexo/ipcp/diario?escopo=equipe', {
+    expect(pbSend).toHaveBeenCalledWith('/backend/v1/nexo/ipcp/diario?escopo=todos', {
       method: 'GET',
     })
     expect(screen.getByText('Prioridades do dia')).toBeInTheDocument()

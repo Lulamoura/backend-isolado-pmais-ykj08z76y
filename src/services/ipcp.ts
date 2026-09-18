@@ -16,6 +16,8 @@ export type IpcpPrioridadeDia = {
 export type IpcpNegocioAtencao = {
   id_negocio: string
   cliente: string
+  empresa?: string | null
+  contato?: string | null
   motivo: string
   acao_recomendada: string
   blocos_afetados: IpcpBlocoId[]

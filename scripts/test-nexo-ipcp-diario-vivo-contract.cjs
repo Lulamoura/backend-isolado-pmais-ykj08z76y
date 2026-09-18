@@ -90,6 +90,36 @@ assert.match(
 )
 assert.match(
   routeSource,
+  /function negocioComputavelIpcp\(rec\)/,
+  'análise gerencial deve separar negócios computáveis antes de calcular o IPCP',
+)
+assert.match(
+  routeSource,
+  /responsavel_id[\s\S]{0,500}modalidade[\s\S]{0,500}valor/,
+  'negócio só deve entrar no cálculo do IPCP quando tiver responsável, modalidade e valor',
+)
+assert.match(
+  routeSource,
+  /var negociosComputaveis = negociosComputaveisIpcp\(negocios\)/,
+  'cálculo vivo deve usar somente negócios com pré-requisitos de IPCP',
+)
+assert.match(
+  routeSource,
+  /filtroPorNegocios\('negocio_id', negociosComputaveis\)/,
+  'coleções operacionais devem ficar alinhadas aos negócios computáveis do escopo',
+)
+assert.match(
+  routeSource,
+  /empresa:\s*nomeRelacionado\('com_empresas'/,
+  'Negócios em atenção devem preservar Empresa no payload',
+)
+assert.match(
+  routeSource,
+  /contato:\s*nomeRelacionado\('com_contatos'/,
+  'Negócios em atenção devem preservar Contato no payload',
+)
+assert.match(
+  routeSource,
   /com_vinculos_externos[\s\S]{0,1000}record_id='[\s\S]{0,1000}external_id/,
   'Nº do negócio deve tentar vínculo externo antes de qualquer fallback',
 )
@@ -105,8 +135,8 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /calculado_em:\s*snapshot \? \(snapshot\.getString\('updated'\)/,
-  'rota deve expor a data/hora da última atualização do cálculo diário a partir do snapshot',
+  /var calculadoEm = snapshot[\s\S]{0,250}new Date\(\)\.toISOString\(\)/,
+  'rota deve expor data/hora de base: snapshot quando existir ou cálculo vivo do servidor quando não houver snapshot',
 )
 assert.match(
   routeSource,

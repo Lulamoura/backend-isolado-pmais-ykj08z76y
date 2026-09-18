@@ -1214,14 +1214,52 @@ routerAdd(
     }
 
     function nomeNegocio(rec) {
+      var empresaId = rec.getString('empresa_id') || ''
+      var contatoId = rec.getString('contato_principal_id') || ''
       return (
         rec.getString('cliente') ||
         rec.getString('empresa_nome') ||
         rec.getString('contato_nome') ||
+        nomeRelacionado('com_empresas', empresaId, ['nome', 'razao_social']) ||
+        nomeRelacionado('com_contatos', contatoId, ['nome']) ||
         rec.getString('titulo') ||
         rec.getString('nome') ||
         'Negócio comercial'
       )
+    }
+
+    function nomeRelacionado(collection, id, fields) {
+      if (!id) return null
+      try {
+        var rec = $app.findRecordById(collection, id)
+        for (var nri = 0; nri < fields.length; nri++) {
+          var value = rec.getString(fields[nri])
+          if (value) return value
+        }
+      } catch (_) {}
+      return null
+    }
+
+    function valorNegocioIpcp(rec) {
+      var valor = Number(rec.get('valor') || 0)
+      if (!isFinite(valor) || valor <= 0) valor = Number(rec.get('valor_centavos') || 0)
+      if (!isFinite(valor) || valor < 0) return 0
+      return valor
+    }
+
+    function negocioComputavelIpcp(rec) {
+      if (!rec.getString('responsavel_id')) return false
+      if (!rec.getString('modalidade')) return false
+      if (valorNegocioIpcp(rec) <= 1) return false
+      return true
+    }
+
+    function negociosComputaveisIpcp(negocios) {
+      var rows = []
+      for (var nci = 0; nci < negocios.length; nci++) {
+        if (negocioComputavelIpcp(negocios[nci])) rows.push(negocios[nci])
+      }
+      return rows
     }
 
     function negocioHumanoId(rec) {
@@ -1333,9 +1371,10 @@ routerAdd(
     function calcularPacoteIpcpDiarioVivo(dataRef, scope, responsavelId, actor) {
       var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
       var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
+      var negociosComputaveis = negociosComputaveisIpcp(negocios)
       var filtroOperacional = filtroResponsavelOperacional(scope, responsavelId)
-      var filtroNegociosRelacionados = filtroPorNegocios('negocio_id', negocios)
-      var propostasCarteira = propostasDaCarteira(negocios)
+      var filtroNegociosRelacionados = filtroPorNegocios('negocio_id', negociosComputaveis)
+      var propostasCarteira = propostasDaCarteira(negociosComputaveis)
       var atividades = listar('com_atividades', filtroNegociosRelacionados, '-created', 200)
       var slas = listar('com_slas', filtroNegociosRelacionados, '-created', 200)
       var propostas = listar(
@@ -1353,11 +1392,10 @@ routerAdd(
         semResponsavel = 0,
         semModalidade = 0,
         prospectPendente = 0
-      for (var i = 0; i < negocios.length; i++) {
-        var n = negocios[i]
+      for (var i = 0; i < negociosComputaveis.length; i++) {
+        var n = negociosComputaveis[i]
         var situacao = classificarResultado(n)
-        var valor = Number(n.get('valor') || 0)
-        if (!isFinite(valor) || valor < 0) valor = 0
+        var valor = valorNegocioIpcp(n)
         if (situacao === 'ganho') {
           ganhos++
           if (valor > 1) valorGanho += valor
@@ -1376,16 +1414,16 @@ routerAdd(
       }
       var totalDecididos = ganhos + perdidos
       var conversao = totalDecididos ? ganhos / totalDecididos : 0
-      var coberturaResponsavel = negocios.length
-        ? (negocios.length - semResponsavel) / negocios.length
+      var coberturaResponsavel = negociosComputaveis.length
+        ? (negociosComputaveis.length - semResponsavel) / negociosComputaveis.length
         : 1
-      var coberturaModalidade = negocios.length
-        ? (negocios.length - semModalidade) / negocios.length
+      var coberturaModalidade = negociosComputaveis.length
+        ? (negociosComputaveis.length - semModalidade) / negociosComputaveis.length
         : 1
       var atividadePorAberto = abertos ? atividades.length / abertos : atividades.length
       var propostaPorAberto = abertos ? propostas.length / abertos : propostas.length
       var slaPressao = slas.length
-        ? Math.min(1, slas.length / Math.max(1, abertos || negocios.length))
+        ? Math.min(1, slas.length / Math.max(1, abertos || negociosComputaveis.length))
         : 0
       var resultadoComercial = round1(clamp(12 + conversao * 10 + Math.min(8, ganhos * 0.8), 8, 30))
       var valorEstrategico = round1(
@@ -1415,7 +1453,7 @@ routerAdd(
           20,
         ),
       )
-      var qualidadeRegistro = calcularQualidadeRegistroComercial(negocios)
+      var qualidadeRegistro = calcularQualidadeRegistroComercial(negociosComputaveis)
       var registrosAprendizado = round1(
         clamp(
           3 +
@@ -1469,8 +1507,8 @@ routerAdd(
           bloco_afetado: 'disciplina_carteira',
         })
       var negociosAtencao = []
-      for (var j = 0; j < negocios.length && negociosAtencao.length < 3; j++) {
-        var item = negocios[j]
+      for (var j = 0; j < negociosComputaveis.length && negociosAtencao.length < 3; j++) {
+        var item = negociosComputaveis[j]
         if (classificarResultado(item) !== 'aberto') continue
         var motivos = []
         if (!item.getString('responsavel_id')) motivos.push('sem responsável comercial claro')
@@ -1484,6 +1522,8 @@ routerAdd(
         negociosAtencao.push({
           id_negocio: negocioHumanoId(item),
           cliente: nomeNegocio(item),
+          empresa: nomeRelacionado('com_empresas', item.getString('empresa_id'), ['nome', 'razao_social']),
+          contato: nomeRelacionado('com_contatos', item.getString('contato_principal_id'), ['nome']),
           motivo: motivos.join('; '),
           acao_recomendada:
             'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.',
@@ -1511,8 +1551,8 @@ routerAdd(
           cobertura_ia: {
             provider_oficial: 'nexo_hermes',
             fallback_permitido: false,
-            avaliados: atividades.length + propostas.length + negocios.length,
-            total: atividades.length + propostas.length + negocios.length,
+            avaliados: atividades.length + propostas.length + negociosComputaveis.length,
+            total: atividades.length + propostas.length + negociosComputaveis.length,
             pendentes: 0,
           },
         },
@@ -1606,6 +1646,9 @@ routerAdd(
     var resumoTexto = textoCurto(resumoPayload.texto, 700)
 
     var prioridades = resumoPayload.prioridades || []
+    var calculadoEm = snapshot
+      ? snapshot.getString('updated') || snapshot.getString('created') || null
+      : new Date().toISOString()
 
     return e.json(200, {
       ok: true,
@@ -1622,7 +1665,7 @@ routerAdd(
         limite_leitura: 5,
         pacote_completo: true,
         calculado_ao_vivo: true,
-        calculado_em: snapshot ? (snapshot.getString('updated') || snapshot.getString('created') || null) : null,
+        calculado_em: calculadoEm,
       },
       data_referencia: dataReferencia,
       escopo_efetivo: {

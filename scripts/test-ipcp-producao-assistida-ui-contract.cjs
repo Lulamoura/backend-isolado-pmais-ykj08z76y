@@ -25,6 +25,14 @@ assert.doesNotMatch(
 )
 
 const service = fs.readFileSync('src/services/ipcp.ts', 'utf8')
+const card = fs.readFileSync('src/components/ipcp/IpcpEducativoDiarioCard.tsx', 'utf8')
+assert.match(
+  service,
+  /empresa\?: string \| null[\s\S]{0,150}contato\?: string \| null/,
+  'tipo de Negócios em atenção deve carregar Empresa e Contato',
+)
+assert.match(card, /item\.empresa/, 'card de negócios em atenção deve renderizar Empresa')
+assert.match(card, /item\.contato/, 'card de negócios em atenção deve renderizar Contato')
 assert.match(
   service,
   /NEXO_IPCP_DIARIO_VIVO_PATH/,
@@ -50,13 +58,23 @@ assert.doesNotMatch(
 )
 assert.match(
   gerencial,
-  /data\.atualizado_em[\s\S]{0,500}dataHoraBr|dataHoraBr[\s\S]{0,500}data\.atualizado_em/,
-  'subtítulo do Escopo da leitura deve usar a última atualização do cálculo diário, não a hora corrente do navegador',
+  /baseIpcp\(data\.atualizado_em\)/,
+  'subtítulo do Escopo da leitura deve usar Base com data e hora da última atualização do cálculo diário',
 )
 assert.doesNotMatch(
   gerencial,
   /horaBaseIpcp\(\)/,
   'subtítulo do Escopo da leitura não deve chamar hora corrente do navegador',
+)
+assert.doesNotMatch(
+  gerencial,
+  /Atualizado em \{dataHoraBr\(data\.atualizado_em\)\}/,
+  'subtítulo não deve repetir Base e Atualizado em; deve ficar no formato Base DD/MM/AAAA - HH:MM',
+)
+assert.match(
+  gerencial,
+  /Base \{baseIpcp\(data\.atualizado_em\)\}/,
+  'subtítulo deve renderizar Base DD/MM/AAAA - HH:MM em vez de data de referência separada',
 )
 
 const fixtureBanida =

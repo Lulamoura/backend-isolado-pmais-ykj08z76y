@@ -129,16 +129,18 @@ export default function OperacaoDia() {
     refresh: refreshIndicators,
   } = useDashboardResumo(indicatorPeriod)
   const indicators = indicatorData?.resumo
+  const escopoIpcpOperacao =
+    perfilSlug === 'superadministrador' || perfilSlug === 'leitura-executiva' ? 'todos' : 'equipe'
 
   useEffect(() => {
     let active = true
-    obterNexoIpcpDiarioEquipe().then((data) => {
+    obterNexoIpcpDiarioEquipe(escopoIpcpOperacao).then((data) => {
       if (active) setIpcpDiario(data)
     })
     return () => {
       active = false
     }
-  }, [reloadKey])
+  }, [reloadKey, escopoIpcpOperacao])
 
   useEffect(() => {
     let active = true

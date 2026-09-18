@@ -20,19 +20,22 @@ function dataBr(data: string) {
   return `${partes[2]}/${partes[1]}/${partes[0]}`
 }
 
-function dataHoraBr(value?: string | null) {
-  if (!value) return 'horário não informado'
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return dataBr(value)
+function baseIpcp(value?: string | null) {
+  if (!value) return 'data/hora não informada'
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${dataBr(value)} - HH:MM não informado`
   const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return dataBr(value)
-  return new Intl.DateTimeFormat('pt-BR', {
+  if (Number.isNaN(parsed.getTime())) return value
+  const parts = new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Recife',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(parsed)
+    hour12: false,
+  }).formatToParts(parsed)
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return `${values.day}/${values.month}/${values.year} - ${values.hour}:${values.minute}`
 }
 
 const rotulosBlocos: Record<string, string> = {
@@ -220,7 +223,7 @@ export default function IpcpSimulacaoGerencial() {
             <CardHeader>
               <CardTitle>Escopo da leitura</CardTitle>
               <CardDescription>
-                Base {dataBr(data.data_referencia)} · Atualizado em {dataHoraBr(data.atualizado_em)} ·{' '}
+                Base {baseIpcp(data.atualizado_em)} ·{' '}
                 {responsavelId
                   ? `Responsável: ${responsavelSelecionado?.name ?? data.escopo?.responsavel_nome ?? 'selecionado'}`
                   : 'Todos — visão global consolidada'}
