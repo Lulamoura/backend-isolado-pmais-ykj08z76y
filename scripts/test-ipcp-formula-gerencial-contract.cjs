@@ -7,7 +7,9 @@ const formulaFiles = [
 ]
 for (const file of formulaFiles) assert.ok(fs.existsSync(file), `${file} deve existir`)
 
-const hook = formulaFiles.map((file) => fs.readFileSync(file, 'utf8')).join('\n/* --- arquivo IPCP --- */\n')
+const hook = formulaFiles
+  .map((file) => fs.readFileSync(file, 'utf8'))
+  .join('\n/* --- arquivo IPCP --- */\n')
 
 const deprecatedPatterns = [
   /4\s*\+\s*\n\s*Math\.min\(7,\s*valorAberto\s*\/\s*200000\)[\s\S]{0,120}propostaPorAberto/,

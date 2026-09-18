@@ -1115,12 +1115,14 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
       }
       var negociosComputaveisRows = []
       for (var nci = 0; nci < negociosRows.length; nci++) {
-        if (negocioComputavelIpcpTelegram(negociosRows[nci])) negociosComputaveisRows.push(negociosRows[nci])
+        if (negocioComputavelIpcpTelegram(negociosRows[nci]))
+          negociosComputaveisRows.push(negociosRows[nci])
       }
       function filtroPorIdsIpcpTelegram(campo, ids) {
         if (!ids || !ids.length) return "id = '__sem_registros__'"
         var partes = []
-        for (var fi = 0; fi < ids.length && fi < 80; fi++) partes.push(campo + " = '" + esc(ids[fi]) + "'")
+        for (var fi = 0; fi < ids.length && fi < 80; fi++)
+          partes.push(campo + " = '" + esc(ids[fi]) + "'")
         return partes.length ? '(' + partes.join(' || ') + ')' : "id = '__sem_registros__'"
       }
       function filtroPorNegociosIpcpTelegram(campo, negocios) {

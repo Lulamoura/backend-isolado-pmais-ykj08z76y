@@ -665,8 +665,6 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     }
   }
 
-
-
   function valorNegocioIpcp(rec) {
     var valor = Number(rec.get('valor') || 0)
     if (!isFinite(valor) || valor < 0) return 0
@@ -691,7 +689,8 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   function filtroPorIds(campo, ids) {
     if (!ids || !ids.length) return "id = '__sem_registros__'"
     var partes = []
-    for (var fi = 0; fi < ids.length && fi < 80; fi++) partes.push(campo + " = '" + esc(ids[fi]) + "'")
+    for (var fi = 0; fi < ids.length && fi < 80; fi++)
+      partes.push(campo + " = '" + esc(ids[fi]) + "'")
     return partes.length ? '(' + partes.join(' || ') + ')' : "id = '__sem_registros__'"
   }
 
@@ -845,9 +844,19 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     var texto = textoRegistroComercial(rec)
     if (texto && texto.trim().length >= 80) return true
     return (
-      contemQualidadeRegistro(texto, [/decisor/, /quem decide/, /respons[aá]vel pela decis[aã]o/]) &&
+      contemQualidadeRegistro(texto, [
+        /decisor/,
+        /quem decide/,
+        /respons[aá]vel pela decis[aã]o/,
+      ]) &&
       contemQualidadeRegistro(texto, [/necessidade/, /dor\b/, /demanda/, /objetivo/, /escopo/]) &&
-      contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /reuni[aã]o/])
+      contemQualidadeRegistro(texto, [
+        /pr[oó]ximo passo/,
+        /combinado/,
+        /retorno/,
+        /validar/,
+        /reuni[aã]o/,
+      ])
     )
   }
 
@@ -855,7 +864,9 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     var totalDecididos = ganhos + perdidos
     var conversao = totalDecididos ? ganhos / totalDecididos : 0
     var confiancaDecididos = Math.min(1, totalDecididos / IPCP_MIN_DECIDIDOS_CONFIANCA_TOTAL)
-    return round1(clamp(12 + conversao * 10 * confiancaDecididos + Math.min(8, ganhos * 0.8), 8, 30))
+    return round1(
+      clamp(12 + conversao * 10 * confiancaDecididos + Math.min(8, ganhos * 0.8), 8, 30),
+    )
   }
 
   function calcularValorEstrategicoIpcp(metricas) {
@@ -1363,8 +1374,6 @@ cronAdd(
       }
     }
 
-
-
     function valorNegocioIpcp(rec) {
       var valor = Number(rec.get('valor') || 0)
       if (!isFinite(valor) || valor < 0) return 0
@@ -1389,7 +1398,8 @@ cronAdd(
     function filtroPorIds(campo, ids) {
       if (!ids || !ids.length) return "id = '__sem_registros__'"
       var partes = []
-      for (var fi = 0; fi < ids.length && fi < 80; fi++) partes.push(campo + " = '" + esc(ids[fi]) + "'")
+      for (var fi = 0; fi < ids.length && fi < 80; fi++)
+        partes.push(campo + " = '" + esc(ids[fi]) + "'")
       return partes.length ? '(' + partes.join(' || ') + ')' : "id = '__sem_registros__'"
     }
 
@@ -1545,9 +1555,19 @@ cronAdd(
       var texto = textoRegistroComercial(rec)
       if (texto && texto.trim().length >= 80) return true
       return (
-        contemQualidadeRegistro(texto, [/decisor/, /quem decide/, /respons[aá]vel pela decis[aã]o/]) &&
+        contemQualidadeRegistro(texto, [
+          /decisor/,
+          /quem decide/,
+          /respons[aá]vel pela decis[aã]o/,
+        ]) &&
         contemQualidadeRegistro(texto, [/necessidade/, /dor\b/, /demanda/, /objetivo/, /escopo/]) &&
-        contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /reuni[aã]o/])
+        contemQualidadeRegistro(texto, [
+          /pr[oó]ximo passo/,
+          /combinado/,
+          /retorno/,
+          /validar/,
+          /reuni[aã]o/,
+        ])
       )
     }
 
@@ -1555,7 +1575,9 @@ cronAdd(
       var totalDecididos = ganhos + perdidos
       var conversao = totalDecididos ? ganhos / totalDecididos : 0
       var confiancaDecididos = Math.min(1, totalDecididos / IPCP_MIN_DECIDIDOS_CONFIANCA_TOTAL)
-      return round1(clamp(12 + conversao * 10 * confiancaDecididos + Math.min(8, ganhos * 0.8), 8, 30))
+      return round1(
+        clamp(12 + conversao * 10 * confiancaDecididos + Math.min(8, ganhos * 0.8), 8, 30),
+      )
     }
 
     function calcularValorEstrategicoIpcp(metricas) {
@@ -2309,9 +2331,19 @@ routerAdd(
       var texto = textoRegistroComercial(rec)
       if (texto && texto.trim().length >= 80) return true
       return (
-        contemQualidadeRegistro(texto, [/decisor/, /quem decide/, /respons[aá]vel pela decis[aã]o/]) &&
+        contemQualidadeRegistro(texto, [
+          /decisor/,
+          /quem decide/,
+          /respons[aá]vel pela decis[aã]o/,
+        ]) &&
         contemQualidadeRegistro(texto, [/necessidade/, /dor\b/, /demanda/, /objetivo/, /escopo/]) &&
-        contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /reuni[aã]o/])
+        contemQualidadeRegistro(texto, [
+          /pr[oó]ximo passo/,
+          /combinado/,
+          /retorno/,
+          /validar/,
+          /reuni[aã]o/,
+        ])
       )
     }
 
@@ -2319,7 +2351,9 @@ routerAdd(
       var totalDecididos = ganhos + perdidos
       var conversao = totalDecididos ? ganhos / totalDecididos : 0
       var confiancaDecididos = Math.min(1, totalDecididos / IPCP_MIN_DECIDIDOS_CONFIANCA_TOTAL)
-      return round1(clamp(12 + conversao * 10 * confiancaDecididos + Math.min(8, ganhos * 0.8), 8, 30))
+      return round1(
+        clamp(12 + conversao * 10 * confiancaDecididos + Math.min(8, ganhos * 0.8), 8, 30),
+      )
     }
 
     function calcularValorEstrategicoIpcp(metricas) {
