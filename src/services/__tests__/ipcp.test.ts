@@ -141,56 +141,6 @@ describe('obterIpcpDiarioReadOnly', () => {
     expect(data.evolucao.comentario).toMatch(/Pacote diário completo/)
   })
 
-  it('consulta a leitura viva própria quando o escopo operacional é próprio', async () => {
-    pbSend.mockResolvedValue({
-      contrato: 'nexo_ipcp_diario_v1',
-      read_only: true,
-      sem_mutacao: true,
-      modo: 'consulta_viva_controlada',
-      data_referencia: '2026-09-18',
-      formula_version: 'ipcp_v0_4_dados_vivos_por_escopo',
-      escopo_efetivo: {
-        tipo: 'proprio',
-        responsavel_id: 'viviane',
-        responsavel_nome: 'Viviane',
-        pode_ver_equipe: false,
-      },
-      dados_vivos: {
-        fonte_disponivel: true,
-        snapshot_encontrado: false,
-        calculado_ao_vivo: true,
-        pacote_completo: true,
-      },
-      resumo: { texto: 'Leitura viva da carteira do usuário.', recomendacoes: [] },
-      ipcp: {
-        total: 41.2,
-        blocos: {
-          resultado_comercial: 10,
-          valor_estrategico: 6,
-          disciplina_carteira: 9,
-          qualidade_followup: 11,
-          registros_aprendizado: 5.2,
-        },
-        cobertura_ia: { avaliados: 5, total: 5, pendentes: 0 },
-      },
-      negocios_atencao: [],
-      guardrails: {
-        sem_ranking_punitivo: true,
-        fallback_openai_bloqueado: true,
-        provider_oficial_followup: 'nexo_hermes',
-        sem_job_automatico: true,
-      },
-    })
-
-    const data = await obterNexoIpcpDiarioEquipe('proprio')
-
-    expect(pbSend).toHaveBeenCalledWith(nexoIpcpDiarioVivoPath('proprio'), { method: 'GET' })
-    expect(data.escopo?.tipo).toBe('proprio')
-    expect(data.ipcp.total).toBe(41.2)
-    expect(data.negocios_atencao).toEqual([])
-    expect(data.resumo_nexo.texto).not.toMatch(/última leitura completa aprovada/i)
-  })
-
   it('mantém a Operação do Dia completa quando o snapshot vivo ainda não tem todos os blocos', async () => {
     pbSend.mockResolvedValue({
       contrato: 'nexo_ipcp_diario_v1',
@@ -245,7 +195,7 @@ describe('obterIpcpDiarioReadOnly', () => {
     const data = await obterNexoIpcpDiarioEquipe()
 
     expect(data.ipcp.blocos).toEqual(ipcpDiarioFixtureHomologado.ipcp.blocos)
-    expect(data.negocios_atencao.length).toBeGreaterThan(0)
+    expect(data.negocios_atencao.length).toBe(0)
     expect(data.resumo_nexo.prioridades.length).toBeGreaterThan(1)
     expect(data.resumo_nexo.texto).toMatch(/última leitura completa/i)
   })

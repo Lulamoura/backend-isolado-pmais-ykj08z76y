@@ -141,69 +141,49 @@ export const ipcpDiarioFixtureHomologado: IpcpDiarioReadOnly = {
   contrato: 'ipcp_diario_readonly_v0_2',
   read_only: true,
   sem_mutacao: true,
-  formula_version: 'ipcp_v0_2_simulacao_readonly_ia_followup',
-  data_referencia: '2026-09-17',
+  formula_version: 'ipcp_sem_leitura_viva_disponivel',
+  data_referencia: '2026-09-18',
   atualizacao: 'diaria',
   resumo_nexo: {
     texto:
-      'Hoje o foco deve ser melhorar a clareza dos próximos passos, complementar follow-ups sem decisor, pendência ou prazo de retorno, e reduzir negócios parados sem definição objetiva.',
+      'A leitura viva do IPCP ainda não está disponível para este escopo. Acione o processamento diário antes de usar o indicador como orientação operacional.',
     prioridades: [
       {
-        titulo: 'Complementar notas sem próximo passo objetivo',
-        motivo: 'Ajuda o Nexo a entender avanço, espera, requalificação ou encerramento.',
-        bloco_afetado: 'qualidade_followup',
+        titulo: 'Processar leitura viva do IPCP',
+        motivo: 'Evita orientar a operação com referência fixa ou desatualizada.',
+        bloco_afetado: 'registros_aprendizado',
       },
       {
-        titulo: 'Revisar ações vencidas ou distantes',
-        motivo: 'Reduz risco de esfriamento da carteira aberta.',
+        titulo: 'Conferir responsável e escopo',
+        motivo: 'A carteira precisa ser lida pelo perfil correto antes da publicação operacional.',
         bloco_afetado: 'disciplina_carteira',
       },
       {
-        titulo: 'Registrar objeções, pendências e aprendizados',
-        motivo: 'Transforma follow-up em aprendizado comercial reutilizável.',
-        bloco_afetado: 'registros_aprendizado',
+        titulo: 'Validar dados reais antes da publicação',
+        motivo: 'Prioridades e negócios de atenção devem vir da carteira real consultada.',
+        bloco_afetado: 'resultado_comercial',
       },
     ],
   },
   ipcp: {
-    total: 55.3,
+    total: 0,
     blocos: {
-      resultado_comercial: 20.9,
-      valor_estrategico: 5.9,
-      disciplina_carteira: 13.3,
-      qualidade_followup: 9.7,
-      registros_aprendizado: 5.5,
+      resultado_comercial: 0,
+      valor_estrategico: 0,
+      disciplina_carteira: 0,
+      qualidade_followup: 0,
+      registros_aprendizado: 0,
     },
     cobertura_ia: {
-      avaliados: 63,
-      total: 63,
+      avaliados: 0,
+      total: 0,
       pendentes: 0,
     },
   },
-  negocios_atencao: [
-    {
-      id_negocio: '4612',
-      cliente: 'RCML (PMAIS EVENTOS)',
-      motivo:
-        'Follow-up precisa preservar decisor, pendência e prazo de retorno de forma mais clara.',
-      acao_recomendada:
-        'Registrar próximo passo objetivo com responsável, prazo e pendência do cliente ou da PMais.',
-      blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
-      link: '/pipeline?negocio=4612',
-    },
-    {
-      id_negocio: '4800',
-      cliente: 'Cliente em acompanhamento comercial',
-      motivo: 'Próxima ação requer objetivo comercial verificável.',
-      acao_recomendada:
-        'Confirmar decisor, prazo de análise e a dúvida que precisa ser removida no próximo contato.',
-      blocos_afetados: ['qualidade_followup'],
-      link: '/pipeline?negocio=4800',
-    },
-  ],
+  negocios_atencao: [],
   evolucao: {
     status: 'sem_historico',
-    comentario: 'A evolução diária aparecerá após o próximo ciclo de atualização.',
+    comentario: 'Sem leitura viva disponível para comparar evolução neste escopo.',
   },
   guardrails: {
     sem_ranking_punitivo: true,
@@ -314,9 +294,7 @@ function normalizarNexoIpcpDiarioVivo(data: NexoIpcpDiarioVivoResponse): IpcpDia
       prioridades: prioridadesCompletas,
     },
     ipcp: ipcpCompleto,
-    negocios_atencao: snapshotCompleto
-      ? data.negocios_atencao || []
-      : ipcpDiarioFixtureHomologado.negocios_atencao,
+    negocios_atencao: snapshotCompleto ? data.negocios_atencao || [] : [],
     evolucao:
       snapshotCompleto && data.evolucao
         ? data.evolucao

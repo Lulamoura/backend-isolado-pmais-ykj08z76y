@@ -72,64 +72,45 @@ routerAdd('GET', '/backend/v1/ipcp/diario', function (e) {
     },
     resumo_nexo: {
       texto:
-        'Hoje o foco deve ser melhorar a clareza dos próximos passos, complementar follow-ups sem decisor, pendência ou prazo de retorno, e reduzir negócios parados sem definição objetiva.',
+        'A leitura viva do IPCP ainda não está disponível para este escopo. Acione o processamento diário antes de usar o indicador como orientação operacional.',
       prioridades: [
         {
-          titulo: 'Complementar notas sem próximo passo objetivo',
-          motivo: 'Ajuda o Nexo a entender avanço, espera, requalificação ou encerramento.',
+          titulo: 'Processar leitura viva do IPCP',
+          motivo: 'Evita orientar a operação com referência fixa ou desatualizada.',
           bloco_afetado: 'qualidade_followup',
         },
         {
-          titulo: 'Revisar ações vencidas ou distantes',
-          motivo: 'Reduz risco de esfriamento da carteira aberta.',
+          titulo: 'Conferir responsável e escopo',
+          motivo:
+            'A carteira precisa ser lida pelo perfil correto antes da publicação operacional.',
           bloco_afetado: 'disciplina_carteira',
         },
         {
-          titulo: 'Registrar objeções, pendências e aprendizados',
-          motivo: 'Transforma follow-up em aprendizado comercial reutilizável.',
+          titulo: 'Validar dados reais antes da publicação',
+          motivo: 'Prioridades e negócios de atenção devem vir da carteira real consultada.',
           bloco_afetado: 'registros_aprendizado',
         },
       ],
     },
     ipcp: {
-      total: 55.3,
+      total: 0,
       carater: 'educativo',
       blocos: {
-        resultado_comercial: 20.9,
-        valor_estrategico: 5.9,
-        disciplina_carteira: 13.3,
-        qualidade_followup: 9.7,
-        registros_aprendizado: 5.5,
+        resultado_comercial: 0,
+        valor_estrategico: 0,
+        disciplina_carteira: 0,
+        qualidade_followup: 0,
+        registros_aprendizado: 0,
       },
       cobertura_ia: {
         provider_oficial: 'nexo_hermes',
         fallback_permitido: false,
-        avaliados: 63,
-        total: 63,
+        avaliados: 0,
+        total: 0,
         pendentes: 0,
       },
     },
-    negocios_atencao: [
-      {
-        id_negocio: '4612',
-        cliente: 'RCML (PMAIS EVENTOS)',
-        motivo:
-          'Follow-up precisa preservar decisor, pendência e prazo de retorno de forma mais clara.',
-        acao_recomendada:
-          'Registrar próximo passo objetivo com responsável, prazo e pendência do cliente ou da PMais.',
-        blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
-        link: '/pipeline?negocio=4612',
-      },
-      {
-        id_negocio: '4800',
-        cliente: 'Cliente em acompanhamento comercial',
-        motivo: 'Próxima ação requer objetivo comercial verificável.',
-        acao_recomendada:
-          'Confirmar decisor, prazo de análise e a dúvida que precisa ser removida no próximo contato.',
-        blocos_afetados: ['qualidade_followup'],
-        link: '/pipeline?negocio=4800',
-      },
-    ],
+    negocios_atencao: [],
     evolucao: {
       status: 'sem_historico',
       comentario: 'A evolução diária aparecerá após o próximo ciclo de atualização.',
@@ -220,64 +201,45 @@ routerAdd('GET', '/backend/v1/ipcp/simulacao', function (e) {
     },
     resumo_nexo: {
       texto:
-        'Hoje o foco deve ser melhorar a clareza dos próximos passos, complementar follow-ups sem decisor, pendência ou prazo de retorno, e reduzir negócios parados sem definição objetiva.',
+        'A leitura viva do IPCP ainda não está disponível para este escopo. Acione o processamento diário antes de usar o indicador como orientação operacional.',
       prioridades: [
         {
-          titulo: 'Complementar notas sem próximo passo objetivo',
-          motivo: 'Ajuda o Nexo a entender avanço, espera, requalificação ou encerramento.',
+          titulo: 'Processar leitura viva do IPCP',
+          motivo: 'Evita orientar a operação com referência fixa ou desatualizada.',
           bloco_afetado: 'qualidade_followup',
         },
         {
-          titulo: 'Revisar ações vencidas ou distantes',
-          motivo: 'Reduz risco de esfriamento da carteira aberta.',
+          titulo: 'Conferir responsável e escopo',
+          motivo:
+            'A carteira precisa ser lida pelo perfil correto antes da publicação operacional.',
           bloco_afetado: 'disciplina_carteira',
         },
         {
-          titulo: 'Registrar objeções, pendências e aprendizados',
-          motivo: 'Transforma follow-up em aprendizado comercial reutilizável.',
+          titulo: 'Validar dados reais antes da publicação',
+          motivo: 'Prioridades e negócios de atenção devem vir da carteira real consultada.',
           bloco_afetado: 'registros_aprendizado',
         },
       ],
     },
     ipcp: {
-      total: 55.3,
+      total: 0,
       carater: 'educativo',
       blocos: {
-        resultado_comercial: 20.9,
-        valor_estrategico: 5.9,
-        disciplina_carteira: 13.3,
-        qualidade_followup: 9.7,
-        registros_aprendizado: 5.5,
+        resultado_comercial: 0,
+        valor_estrategico: 0,
+        disciplina_carteira: 0,
+        qualidade_followup: 0,
+        registros_aprendizado: 0,
       },
       cobertura_ia: {
         provider_oficial: 'nexo_hermes',
         fallback_permitido: false,
-        avaliados: 63,
-        total: 63,
+        avaliados: 0,
+        total: 0,
         pendentes: 0,
       },
     },
-    negocios_atencao: [
-      {
-        id_negocio: '4612',
-        cliente: 'RCML (PMAIS EVENTOS)',
-        motivo:
-          'Follow-up precisa preservar decisor, pendência e prazo de retorno de forma mais clara.',
-        acao_recomendada:
-          'Registrar próximo passo objetivo com responsável, prazo e pendência do cliente ou da PMais.',
-        blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
-        link: '/pipeline?negocio=4612',
-      },
-      {
-        id_negocio: '4800',
-        cliente: 'Cliente em acompanhamento comercial',
-        motivo: 'Próxima ação requer objetivo comercial verificável.',
-        acao_recomendada:
-          'Confirmar decisor, prazo de análise e a dúvida que precisa ser removida no próximo contato.',
-        blocos_afetados: ['qualidade_followup'],
-        link: '/pipeline?negocio=4800',
-      },
-    ],
+    negocios_atencao: [],
     evolucao: {
       status: 'sem_historico',
       comentario: 'A evolução diária aparecerá após o próximo ciclo de atualização.',
@@ -442,17 +404,17 @@ routerAdd('POST', '/backend/v1/ipcp/snapshots/simulado', function (e) {
       total: ipcpTotal,
       carater: 'educativo',
       blocos: {
-        resultado_comercial: 20.9,
-        valor_estrategico: 5.9,
-        disciplina_carteira: 13.3,
-        qualidade_followup: 9.7,
-        registros_aprendizado: 5.5,
+        resultado_comercial: 0,
+        valor_estrategico: 0,
+        disciplina_carteira: 0,
+        qualidade_followup: 0,
+        registros_aprendizado: 0,
       },
       cobertura_ia: {
         provider_oficial: 'nexo_hermes',
         fallback_permitido: false,
-        avaliados: 63,
-        total: 63,
+        avaliados: 0,
+        total: 0,
         pendentes: 0,
       },
     },
@@ -635,14 +597,6 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     if (value < min) return min
     if (value > max) return max
     return value
-  }
-
-  function contar(collection, filtro) {
-    try {
-      return $app.findRecordsByFilter(collection, filtro || "id != ''", '-created', 200, 0).length
-    } catch (_) {
-      return 0
-    }
   }
 
   function esc(value) {
@@ -1067,6 +1021,16 @@ routerAdd(
       return text
     }
 
+    var ator = e.auth
+    if (!ator) return e.unauthorizedError('Autenticacao necessaria')
+    if (ator.getBool && ator.getBool('ativo_comercial') === false) {
+      return e.forbiddenError('Usuario comercial ativo necessario')
+    }
+
+    var query = e.requestInfo().query || {}
+    var data = String(query.data || civilHojeRecife())
+    if (!isCivilDate(data)) return e.json(400, { error: 'DATA_INVALIDA' })
+
     function round1(value) {
       return Math.round(Number(value || 0) * 10) / 10
     }
@@ -1331,16 +1295,6 @@ routerAdd(
       }
     }
 
-    var ator = e.auth
-    if (!ator) return e.unauthorizedError('Autenticacao necessaria')
-    if (ator.getBool && ator.getBool('ativo_comercial') === false) {
-      return e.forbiddenError('Usuario comercial ativo necessario')
-    }
-
-    var query = e.requestInfo().query || {}
-    var data = String(query.data || civilHojeRecife())
-    if (!isCivilDate(data)) return e.json(400, { error: 'DATA_INVALIDA' })
-
     var slug = profileSlug(ator)
     var requestedScope = String(query.escopo || 'proprio')
     var effectiveScope = 'proprio'
@@ -1385,18 +1339,29 @@ routerAdd(
 
     var snapshot = snapshots.length ? snapshots[0] : null
     var payload = snapshot ? leituraPayload(snapshot) : {}
-    var pacoteVivo = calcularPacoteIpcpDiarioVivo(data, effectiveScope, responsavelId, ator)
-    var ipcpPayload = pacoteVivo.ipcp || payload.ipcp || {}
-    var resumoPayload = pacoteVivo.resumo_nexo || payload.resumo_nexo || {}
+    var ipcpPayload = payload.ipcp || {}
+    var resumoPayload = payload.resumo_nexo || {}
     var guardrailsPayload = payload.guardrails || {}
 
-    var ipcpTotal = Number(ipcpPayload.total || 0)
-    var formula = 'ipcp_v0_4_dados_vivos_por_escopo'
-    var dataReferencia = data
+    var ipcpTotal = snapshot ? Number(snapshot.get('ipcp_total') || ipcpPayload.total || 0) : 0
+    var formula = snapshot
+      ? snapshot.getString('formula_version') || String(payload.formula_version || '')
+      : 'ipcp_v0_2_simulacao_readonly_ia_followup'
+    var dataReferencia = snapshot ? snapshot.getString('data_referencia') || data : data
 
-    var resumoTexto = textoCurto(resumoPayload.texto, 700)
+    var resumoTexto = textoCurto(
+      resumoPayload.texto ||
+        'Sem snapshot vivo do IPCP para este escopo na data consultada. O Nexo deve orientar pela regra aprovada e solicitar processamento/homologação antes de tratar como indicador vivo.',
+      700,
+    )
 
-    var prioridades = resumoPayload.prioridades || []
+    var prioridades = resumoPayload.prioridades || [
+      {
+        titulo: 'Validar processamento vivo do IPCP',
+        motivo: 'Evita orientação gerencial baseada em dado desatualizado ou simulado.',
+        bloco_afetado: 'registros_aprendizado',
+      },
+    ]
 
     return e.json(200, {
       ok: true,
@@ -1409,10 +1374,9 @@ routerAdd(
         consultados: true,
         fonte_disponivel: fonteDisponivel,
         snapshot_encontrado: !!snapshot,
-        calculado_ao_vivo: true,
         total_lido: snapshots.length,
         limite_leitura: 5,
-        pacote_completo: true,
+        pacote_completo: !!payload.pacote_completo,
       },
       data_referencia: dataReferencia,
       escopo_efetivo: {
@@ -1439,14 +1403,14 @@ routerAdd(
           pendentes: 0,
         },
       },
-      negocios_atencao: pacoteVivo.negocios_atencao || [],
-      evolucao: pacoteVivo.evolucao || null,
+      negocios_atencao: payload.negocios_atencao || [],
+      evolucao: payload.evolucao || null,
       evidencias: {
-        criterio: pacoteVivo.evidencias
-          ? pacoteVivo.evidencias.criterio
-          : 'leitura_viva_ipcp_dados_reais',
-        fonte: pacoteVivo.evidencias ? pacoteVivo.evidencias.fonte : 'leitura_viva',
-        exemplos: pacoteVivo.evidencias ? pacoteVivo.evidencias.exemplos || [] : [],
+        criterio: payload.evidencias
+          ? payload.evidencias.criterio
+          : 'snapshot_ipcp_resumido_sem_payload_tecnico_bruto',
+        fonte: payload.evidencias ? payload.evidencias.fonte : null,
+        exemplos: payload.evidencias ? payload.evidencias.exemplos || [] : [],
         snapshot_id: snapshot ? snapshot.id : null,
         snapshot_status: snapshot ? snapshot.getString('status') || null : null,
         origem: snapshot ? snapshot.getString('origem') || null : null,
