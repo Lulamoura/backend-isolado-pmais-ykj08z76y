@@ -22,10 +22,29 @@ function formatCursor(value?: string | null) {
   return value
 }
 
+function formatReconciliationError(error: unknown) {
+  const data = (error as { data?: { error?: string; detail?: string }; message?: string })?.data
+  const code = data?.error || (error as { message?: string })?.message || ''
+  if (code === 'FINGERPRINT_OBSOLETO') {
+    return 'Plano vencido ou alterado. Rode Verificar atualizações novamente e confirme o novo plano gerado.'
+  }
+  if (code === 'REVALIDACAO_FALHOU') {
+    return 'O ActiveCampaign não respondeu à checagem final. Rode Verificar atualizações novamente antes de confirmar.'
+  }
+  if (code === 'PLANO_BLOQUEADO') {
+    return 'O plano tem conflito crítico. Abra a lista de pendências, corrija o cadastro indicado e rode nova verificação.'
+  }
+  if (code === 'RECONCILIACAO_EM_ANDAMENTO') {
+    return 'Já existe uma reconciliação em andamento. Aguarde a conclusão e atualize a tela.'
+  }
+  return data?.detail || code || 'A execução foi recusada sem detalhe técnico retornado.'
+}
+
 export function ActiveCampaignReconciliationCard() {
   const [loading, setLoading] = useState<'simulate' | 'execute' | null>(null)
   const [simulation, setSimulation] = useState<ReconciliationSimulation | null>(null)
   const [execution, setExecution] = useState<ReconciliationExecution | null>(null)
+  const [executionError, setExecutionError] = useState<string | null>(null)
   const [status, setStatus] = useState<ActiveCampaignConfigStatus | null>(null)
 
   useEffect(() => {
@@ -41,6 +60,7 @@ export function ActiveCampaignReconciliationCard() {
       setStatus(result)
       setSimulation(null)
       setExecution(null)
+      setExecutionError(null)
       toast.success(
         action === 'open'
           ? 'Reconciliação manual habilitada.'
@@ -57,6 +77,7 @@ export function ActiveCampaignReconciliationCard() {
     setLoading('simulate')
     setSimulation(null)
     setExecution(null)
+    setExecutionError(null)
     try {
       const result = await simulateActiveCampaignReconciliation('incremental')
       setSimulation(result)
@@ -78,6 +99,7 @@ export function ActiveCampaignReconciliationCard() {
         newReconciliationCommandId(),
       )
       setExecution(result)
+      setExecutionError(null)
       setSimulation(null)
       setStatus((current) =>
         current
@@ -88,8 +110,10 @@ export function ActiveCampaignReconciliationCard() {
           : current,
       )
       toast.success('Reconciliação concluída e auditada.', { id: toastId })
-    } catch {
-      toast.error('Execução recusada ou interrompida com segurança.', { id: toastId })
+    } catch (error) {
+      const message = formatReconciliationError(error)
+      setExecutionError(message)
+      toast.error(message, { id: toastId })
     } finally {
       setLoading(null)
     }
@@ -166,13 +190,34 @@ export function ActiveCampaignReconciliationCard() {
                   : ' A confirmação está bloqueada até resolver as pendências.'}
               </div>
               {counts.conflict + counts.error > 0 ? (
-                <div className="mt-2">
-                  <strong>Pendências operacionais:</strong> Você pode confirmar agora os registros
-                  válidos. Depois, corrija cadastro de empresa, contato ou responsável comercial no
-                  ActiveCampaign ou no mapeamento do Aplicativo Comercial e rode nova verificação.
+                <div className="mt-2 space-y-2">
+                  <div>
+                    <strong>Pendências operacionais:</strong> Você pode confirmar agora os registros
+                    válidos. Depois, corrija cadastro de empresa, contato ou responsável comercial
+                    no ActiveCampaign ou no mapeamento do Aplicativo Comercial e rode nova
+                    verificação.
+                  </div>
+                  {simulation.pending_issues?.length ? (
+                    <ul className="list-disc space-y-1 pl-5">
+                      {simulation.pending_issues.map((item) => (
+                        <li key={`${item.id_negocio}-${item.motivo}`}>
+                          <strong>Nº do negócio {item.id_negocio}:</strong>{' '}
+                          {item.titulo || 'Sem título'} — {item.motivo}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </div>
               ) : null}
             </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {executionError ? (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Motivo da recusa</AlertTitle>
+            <AlertDescription>{executionError}</AlertDescription>
           </Alert>
         ) : null}
 

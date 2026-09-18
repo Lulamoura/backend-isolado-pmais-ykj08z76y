@@ -175,6 +175,27 @@ const checks = [
       reconciliationUi.includes('corrija cadastro de empresa, contato ou responsável comercial'),
   ],
   [
+    'interface lista pendências por número do negócio e motivo',
+    reconciliationService.includes('pending_issues') &&
+      reconciliationUi.includes('simulation.pending_issues') &&
+      reconciliationUi.includes('Nº do negócio') &&
+      reconciliationUi.includes('item.motivo'),
+  ],
+  [
+    'interface mostra motivo real de recusa da confirmação',
+    reconciliationUi.includes('formatReconciliationError') &&
+      reconciliationUi.includes('setExecutionError') &&
+      reconciliationUi.includes('Motivo da recusa') &&
+      reconciliationUi.includes('Plano vencido ou alterado'),
+  ],
+  [
+    'backend retorna pendências detalhadas no dry-run e mensagens de recusa',
+    reconciliationHook.includes('pending_issues: pendingIssues') &&
+      reconciliationHook.includes('motivoPendenciaAc') &&
+      reconciliationHook.includes("detail: 'Plano vencido ou alterado") &&
+      reconciliationHook.includes('id_negocio'),
+  ],
+  [
     'incremental limita negócios ao pipeline e ao escopo operacional',
     reconciliationHook.includes('String(candidate.group) !== pipelineId') &&
       reconciliationHook.includes("candidateStatus === '0'") &&
@@ -222,9 +243,7 @@ const checks = [
   ],
   [
     'negócio prospect sem empresa não bloqueia reconciliação',
-    reconciliationHook.includes(
-      'if (!ev.links.contact_id || (!eventIsProspect && !ev.links.owner_code))',
-    ) &&
+    reconciliationHook.includes('if (!ev.links.contact_id)') &&
       reconciliationHook.includes(
         'if (ev.links.company_id && !incomingCompanies[ev.links.company_id])',
       ),

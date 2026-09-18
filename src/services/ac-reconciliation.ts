@@ -9,6 +9,13 @@ export interface ReconciliationCounts {
   error: number
 }
 
+export interface ReconciliationPendingIssue {
+  id_negocio: string
+  titulo: string
+  motivo: string
+  tipo: 'erro' | 'conflito'
+}
+
 export interface ReconciliationSimulation {
   mode: 'incremental' | 'initial_open_negotiation' | 'synthetic'
   dry_run_id: string
@@ -17,6 +24,7 @@ export interface ReconciliationSimulation {
   cursor_to: string | null
   expires_at: string
   counts: ReconciliationCounts
+  pending_issues?: ReconciliationPendingIssue[]
   can_execute: boolean
 }
 

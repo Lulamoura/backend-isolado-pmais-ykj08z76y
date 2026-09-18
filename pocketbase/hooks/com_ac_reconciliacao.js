@@ -418,10 +418,43 @@ routerAdd(
       if (events[incoming].entity_type === 'contact')
         incomingContacts[events[incoming].entity_id] = true
     }
+    function motivoPendenciaAc(action) {
+      var ev = action.event || {}
+      var data = ev.data || {}
+      if (action.pending && action.pending.motivo) return action.pending.motivo
+      if (action.kind === 'conflict')
+        return 'Conflito de versão: o negócio mudou desde o último processamento.'
+      if (data.custom_fields_status)
+        return 'Campos personalizados do ActiveCampaign indisponíveis para este negócio.'
+      return 'Cadastro ou mapeamento incompleto para importar este negócio com segurança.'
+    }
+    function resumoPendenciaAc(action) {
+      var ev = action.event || {}
+      var data = ev.data || {}
+      return {
+        id_negocio: String(ev.entity_id || ''),
+        titulo: String(data.title || data.name || ev.entity_type || '').slice(0, 160),
+        motivo: motivoPendenciaAc(action),
+        tipo: action.kind === 'conflict' ? 'conflito' : 'erro',
+      }
+    }
     var actions = [],
+      pendingIssues = [],
       counts = { create: 0, update: 0, unchanged: 0, stale: 0, conflict: 0, error: 0 }
     for (var i = 0; i < events.length; i++) {
       var ev = events[i]
+      var pendingIssue = null
+      function setPendingIssue(motivo, tipo) {
+        if (pendingIssue) return
+        pendingIssue = {
+          id_negocio: String(ev.entity_id || ''),
+          titulo: String(
+            (ev.data && (ev.data.title || ev.data.name)) || ev.entity_type || '',
+          ).slice(0, 160),
+          motivo: motivo,
+          tipo: tipo || 'erro',
+        }
+      }
       var key = $security.sha256('activecampaign|' + ev.event_id)
       var existing = null
       try {
@@ -465,52 +498,98 @@ routerAdd(
               String(ev.source_version) === String(previous.source_version || '') &&
               incomingHash !== previous.event_hash &&
               Number(ev.context_revision || 1) <= Number(previous.context_revision || 1)
-            )
+            ) {
               kind = 'conflict'
+              setPendingIssue(
+                'Conflito de versão: o negócio mudou desde o último processamento.',
+                'conflito',
+              )
+            }
           }
         } catch (_) {
           kind = 'error'
+          setPendingIssue('Não foi possível comparar este negócio com o histórico já processado.')
         }
       }
       if (ev.entity_type === 'business') {
         var eventIsProspect = String(ev.data.stage || '') === 'prospects'
-        if (!ev.links.contact_id || (!eventIsProspect && !ev.links.owner_code)) kind = 'error'
-        try {
-          if (ev.links.company_id && !incomingCompanies[ev.links.company_id])
+        if (ev.data && ev.data.custom_fields_status) {
+          kind = 'error'
+          setPendingIssue(
+            'Campos personalizados do ActiveCampaign indisponíveis para este negócio.',
+          )
+        }
+        if (!ev.links.contact_id) {
+          kind = 'error'
+          setPendingIssue('Negócio sem contato vinculado no ActiveCampaign.')
+        }
+        if (!eventIsProspect && !ev.links.owner_code) {
+          kind = 'error'
+          setPendingIssue('Responsável comercial ausente ou não mapeado no ActiveCampaign.')
+        }
+        if (ev.links.company_id && !incomingCompanies[ev.links.company_id]) {
+          try {
             $app.findFirstRecordByFilter(
               'com_vinculos_externos',
               "sistema_origem='activecampaign' && external_type='company' && external_id='" +
                 ev.links.company_id +
                 "'",
             )
-          if (!incomingContacts[ev.links.contact_id])
+          } catch (_) {
+            kind = 'error'
+            setPendingIssue(
+              'Empresa vinculada ao negócio ainda não está mapeada no Aplicativo Comercial.',
+            )
+          }
+        }
+        if (ev.links.contact_id && !incomingContacts[ev.links.contact_id]) {
+          try {
             $app.findFirstRecordByFilter(
               'com_vinculos_externos',
               "sistema_origem='activecampaign' && external_type='contact' && external_id='" +
                 ev.links.contact_id +
                 "'",
             )
-          // Prospects entram na fila compartilhada e só recebem responsável
-          // quando uma operadora assume a qualificação. O proprietário técnico
-          // do ActiveCampaign não deve bloquear essa entrada.
-          if (ev.links.owner_code && !eventIsProspect)
+          } catch (_) {
+            kind = 'error'
+            setPendingIssue('Contato principal ainda não está mapeado no Aplicativo Comercial.')
+          }
+        }
+        // Prospects entram na fila compartilhada e só recebem responsável
+        // quando uma operadora assume a qualificação. O proprietário técnico
+        // do ActiveCampaign não deve bloquear essa entrada.
+        if (ev.links.owner_code && !eventIsProspect) {
+          try {
             $app.findFirstRecordByFilter(
               'com_vinculos_externos',
               "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
                 ev.links.owner_code +
                 "'",
             )
-          if (String(ev.data.status) === '0')
+          } catch (_) {
+            kind = 'error'
+            setPendingIssue('Responsável comercial não está mapeado no Aplicativo Comercial.')
+          }
+        }
+        if (String(ev.data.status) === '0') {
+          try {
             $app.findFirstRecordByFilter(
               'com_alias_dimensoes',
               "dimensao='etapa' && valor_original='" + ev.data.stage + "'",
             )
-        } catch (_) {
-          kind = 'error'
+          } catch (_) {
+            kind = 'error'
+            setPendingIssue('Etapa do ActiveCampaign não está mapeada para o funil comercial.')
+          }
         }
       }
       counts[kind]++
-      actions.push({ kind: kind, event: ev, idempotency_key: key })
+      var plannedAction = { kind: kind, event: ev, idempotency_key: key }
+      if (pendingIssue && (kind === 'error' || kind === 'conflict'))
+        plannedAction.pending = pendingIssue
+      actions.push(plannedAction)
+      if (pendingIssue && (kind === 'error' || kind === 'conflict') && pendingIssues.length < 20)
+        pendingIssues.push(pendingIssue)
     }
     var planCore = {
       mode: requestedMode,
@@ -567,7 +646,9 @@ routerAdd(
               'Evento bloqueado na simulacao: ' +
                 actions[p].event.entity_type +
                 ':' +
-                actions[p].event.entity_id,
+                actions[p].event.entity_id +
+                ' — ' +
+                motivoPendenciaAc(actions[p]),
             )
             quality.set('resolvida', false)
             tx.save(quality)
@@ -590,6 +671,7 @@ routerAdd(
       counts: counts,
       mode: requestedMode,
       can_execute: !blocked,
+      pending_issues: pendingIssues,
     })
   },
   $apis.requireAuth(),
@@ -694,8 +776,17 @@ routerAdd(
       stored.fingerprint !== body.fingerprint ||
       Date.parse(stored.expires_at || '') < Date.now()
     )
-      return e.json(409, { error: 'FINGERPRINT_OBSOLETO' })
-    if ((stored.counts.conflict || 0) > 0) return e.json(409, { error: 'PLANO_BLOQUEADO' })
+      return e.json(409, {
+        error: 'FINGERPRINT_OBSOLETO',
+        detail:
+          'Plano vencido ou alterado. Rode Verificar atualizações novamente e confirme o novo plano gerado.',
+      })
+    if ((stored.counts.conflict || 0) > 0)
+      return e.json(409, {
+        error: 'PLANO_BLOQUEADO',
+        detail:
+          'O plano tem conflito crítico. Corrija a pendência indicada e rode nova verificação.',
+      })
 
     // Refaz a leitura imediatamente antes da escrita. O segundo dry-run usa a
     // mesma normalização determinística; qualquer mudança no AC ou no estado
@@ -716,11 +807,23 @@ routerAdd(
         timeout: 60,
       })
       if (recheck.statusCode !== 200 || !recheck.json)
-        return e.json(409, { error: 'REVALIDACAO_FALHOU' })
+        return e.json(409, {
+          error: 'REVALIDACAO_FALHOU',
+          detail:
+            'O ActiveCampaign não respondeu à checagem final. Rode Verificar atualizações novamente antes de confirmar.',
+        })
       if (recheck.json.fingerprint !== body.fingerprint)
-        return e.json(409, { error: 'FINGERPRINT_OBSOLETO' })
+        return e.json(409, {
+          error: 'FINGERPRINT_OBSOLETO',
+          detail:
+            'Plano vencido ou alterado. Rode Verificar atualizações novamente e confirme o novo plano gerado.',
+        })
     } catch (_) {
-      return e.json(409, { error: 'REVALIDACAO_FALHOU' })
+      return e.json(409, {
+        error: 'REVALIDACAO_FALHOU',
+        detail:
+          'O ActiveCampaign não respondeu à checagem final. Rode Verificar atualizações novamente antes de confirmar.',
+      })
     }
 
     var running = []
