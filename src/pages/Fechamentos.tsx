@@ -149,22 +149,32 @@ export default function Fechamentos() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
-      <div className="flex items-center justify-between gap-3">
+    <div className="space-y-6">
+      <section className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            {somenteRecuperacoes ? 'Operação · Recuperação' : 'Etapa 3 · Decisão'}
+          </p>
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
             {somenteRecuperacoes ? 'Oportunidades para Recuperar' : 'Ganho, perda e reativação'}
-          </h1>
-          <p className="text-sm text-slate-500">
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-sm text-slate-600">
             {somenteRecuperacoes
-              ? 'Perdas com Data de Recuperação Comercial vencida ou prevista para hoje'
-              : 'Decisões terminais e recuperação auditáveis'}
+              ? 'Perdas com Data de Recuperação Comercial vencida ou prevista para hoje.'
+              : 'Decisões terminais e recuperação auditáveis.'}
           </p>
         </div>
-        <Button variant="outline" onClick={() => void carregar()} disabled={loading}>
-          <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
+        <Button
+          variant="outline"
+          onClick={() => void carregar()}
+          disabled={loading}
+          className="gap-2 border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
+        >
+          <RefreshCw className={`h-4 w-4 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
+          Atualizar
         </Button>
-      </div>
+      </section>
+
       <CommercialFilters
         contexts={itens.map((item) => item.contexto)}
         search={busca}
@@ -180,14 +190,24 @@ export default function Fechamentos() {
         onPeriodStart={setPeriodoInicio}
         onPeriodEnd={setPeriodoFim}
       />
+
       {!somenteRecuperacoes && (
-        <div className="max-w-xs space-y-1.5">
-          <Label htmlFor="status-fechamento">Status</Label>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm max-w-xs">
+          <Label
+            htmlFor="status-fechamento"
+            className="text-xs font-semibold uppercase tracking-wider text-slate-500 shrink-0"
+          >
+            Status
+          </Label>
           <Select
             value={statusFechamento}
             onValueChange={(value) => setStatusFechamento(value as StatusFechamento)}
           >
-            <SelectTrigger id="status-fechamento" aria-label="Status do fechamento">
+            <SelectTrigger
+              id="status-fechamento"
+              aria-label="Status do fechamento"
+              className="h-9 border-slate-200 bg-white text-xs"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -199,6 +219,7 @@ export default function Fechamentos() {
           </Select>
         </div>
       )}
+
       <div className="grid gap-4 md:grid-cols-2">
         {itensVisiveis.map((item) => {
           const terminal = Boolean(item.negocio.resultado)
@@ -206,30 +227,60 @@ export default function Fechamentos() {
           const contatoValido =
             !perdeuContato ||
             (item.tentativas_contato >= 5 && item.janela_tentativas_dias_uteis >= 10)
+          const badgeStatus = terminal
+            ? item.negocio.resultado === 'ganho'
+              ? {
+                  label: 'Ganho',
+                  className: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+                }
+              : { label: 'Perdido', className: 'bg-rose-50 text-rose-700 border-rose-200/60' }
+            : item.proposta_aceita
+              ? {
+                  label: 'Apta a fechamento',
+                  className: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+                }
+              : item.proposta_emitida
+                ? {
+                    label: 'Proposta emitida',
+                    className: 'bg-sky-50 text-sky-700 border-sky-200/60',
+                  }
+                : item.proposta_estado
+                  ? {
+                      label: 'Proposta em elaboração',
+                      className: 'bg-amber-50 text-amber-700 border-amber-200/60',
+                    }
+                  : {
+                      label: 'Sem proposta criada',
+                      className: 'bg-slate-50 text-slate-600 border-slate-200/60',
+                    }
+
           return (
             <Card
               key={item.negocio.id}
-              className={
+              className={`border border-slate-200/80 bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300 ${
                 terminal
                   ? commercialOutcomeCardClass(item.negocio.resultado)
                   : commercialActionCardClass(item.contexto.proxima_acao_em)
-              }
+              }`}
             >
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <CardTitle className="text-base">{item.negocio.titulo}</CardTitle>
-                    <CardDescription>{item.negocio.etapa || 'Terminal'}</CardDescription>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Decisão
+                    </p>
+                    <CardTitle className="text-base font-semibold text-slate-900">
+                      {item.negocio.titulo}
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      {item.negocio.etapa || 'Terminal'}
+                    </CardDescription>
                   </div>
-                  <Badge variant={terminal ? 'secondary' : 'outline'}>
-                    {item.negocio.resultado ||
-                      (item.proposta_aceita
-                        ? 'Apta a fechamento'
-                        : item.proposta_emitida
-                          ? 'Proposta emitida'
-                          : item.proposta_estado
-                            ? 'Proposta em elaboração'
-                            : 'Sem proposta criada')}
+                  <Badge
+                    variant="outline"
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeStatus.className}`}
+                  >
+                    {badgeStatus.label}
                   </Badge>
                 </div>
               </CardHeader>
@@ -249,17 +300,20 @@ export default function Fechamentos() {
                 {!terminal ? (
                   <>
                     {!item.elegivel_fechamento && (
-                      <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                      <p className="rounded-lg border border-amber-200/80 bg-amber-50/70 p-3 text-xs font-medium text-amber-800">
                         Visível para acompanhamento gerencial; ainda não elegível como pendência de
                         fechamento.
                       </p>
                     )}
                     {!somenteLeituraPerfil && !item.contexto.somente_leitura && (
-                      <>
+                      <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
                         <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label>Valor efetivo do ganho</Label>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-slate-700">
+                              Valor efetivo do ganho
+                            </Label>
                             <Input
+                              className="border-slate-200 bg-white text-sm"
                               value={valor[item.negocio.id] || ''}
                               onChange={(e) =>
                                 setValor((v) => ({
@@ -269,9 +323,12 @@ export default function Fechamentos() {
                               }
                             />
                           </div>
-                          <div className="space-y-2">
-                            <Label>Evidência formal</Label>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-slate-700">
+                              Evidência formal
+                            </Label>
                             <Input
+                              className="border-slate-200 bg-white text-sm"
                               value={evidencia[item.negocio.id] || ''}
                               onChange={(e) =>
                                 setEvidencia((v) => ({
@@ -283,6 +340,7 @@ export default function Fechamentos() {
                           </div>
                         </div>
                         <Button
+                          className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
                           disabled={
                             !item.proposta_emitida ||
                             !Number(valor[item.negocio.id]) ||
@@ -290,9 +348,12 @@ export default function Fechamentos() {
                           }
                           onClick={() => void ganhar(item)}
                         >
-                          <Trophy className="mr-2 h-4 w-4" /> Registrar ganho
+                          <Trophy className="h-4 w-4" /> Registrar ganho
                         </Button>
-                        <div className="border-t pt-4">
+                        <div className="border-t border-slate-200 pt-3 space-y-2">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                            Ou registrar perda
+                          </p>
                           <div className="grid gap-3 sm:grid-cols-2">
                             <Select
                               value={motivo[item.negocio.id]}
@@ -303,7 +364,7 @@ export default function Fechamentos() {
                                 }))
                               }
                             >
-                              <SelectTrigger>
+                              <SelectTrigger className="border-slate-200 bg-white text-xs">
                                 <SelectValue placeholder="Motivo da perda" />
                               </SelectTrigger>
                               <SelectContent>
@@ -316,6 +377,7 @@ export default function Fechamentos() {
                             </Select>
                             <Input
                               type="date"
+                              className="border-slate-200 bg-white text-xs"
                               value={dataAlvo[item.negocio.id] || ''}
                               onChange={(e) =>
                                 setDataAlvo((v) => ({
@@ -326,27 +388,27 @@ export default function Fechamentos() {
                             />
                           </div>
                           {perdeuContato && (
-                            <p className="mt-2 text-xs text-slate-500">
+                            <p className="mt-1 text-xs text-slate-500">
                               Tentativas: {item.tentativas_contato}/5 · janela:{' '}
                               {item.janela_tentativas_dias_uteis}/10 dias úteis
                             </p>
                           )}
                           <Button
-                            className="mt-3"
+                            className="w-full gap-2 border-rose-200 bg-rose-50/60 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
                             variant="outline"
                             disabled={!motivo[item.negocio.id] || !contatoValido}
                             onClick={() => void perder(item)}
                           >
-                            <XCircle className="mr-2 h-4 w-4" /> Registrar perda
+                            <XCircle className="h-4 w-4" /> Registrar perda
                           </Button>
                         </div>
-                      </>
+                      </div>
                     )}
                   </>
                 ) : item.negocio.resultado === 'perdido' ? (
                   <div className="space-y-3">
-                    <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
-                      <p className="font-medium">
+                    <div className="rounded-lg border border-rose-200/80 bg-rose-50/70 p-3.5 text-sm text-rose-900">
+                      <p className="font-semibold">
                         Proposta perdida — {motivoPerdaLabel(item.negocio.fechamento_motivo)}
                       </p>
                       <p className="mt-1 text-xs text-rose-700">
@@ -365,30 +427,45 @@ export default function Fechamentos() {
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {item.contexto.activecampaign_url ? (
-                        <Button variant="outline" asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          asChild
+                        >
                           <a
                             href={item.contexto.activecampaign_url}
                             target="_blank"
                             rel="noreferrer"
                           >
-                            <ExternalLink className="mr-2 h-4 w-4" /> Recuperar no ActiveCampaign
+                            <ExternalLink className="mr-1.5 h-3.5 w-3.5 text-slate-500" /> Recuperar
+                            no ActiveCampaign
                           </a>
                         </Button>
                       ) : (
-                        <Button variant="outline" disabled>
-                          <ExternalLink className="mr-2 h-4 w-4" /> Negócio sem vínculo no CRM
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-slate-200 bg-white text-slate-400"
+                          disabled
+                        >
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Negócio sem vínculo no CRM
                         </Button>
                       )}
                     </div>
                     {perfilSlug !== 'negociacao-propria' &&
                       !somenteLeituraPerfil &&
                       item.agenda && (
-                        <div className="space-y-2 rounded-md border border-slate-200 p-3">
-                          <Label htmlFor={`descarte-${item.negocio.id}`}>
+                        <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3.5">
+                          <Label
+                            htmlFor={`descarte-${item.negocio.id}`}
+                            className="text-xs font-semibold text-slate-700"
+                          >
                             Justificativa para não recuperar
                           </Label>
                           <Textarea
                             id={`descarte-${item.negocio.id}`}
+                            className="border-slate-200 bg-white text-sm"
                             value={justificativaDescarte[item.negocio.id] || ''}
                             onChange={(event) =>
                               setJustificativaDescarte((current) => ({
@@ -400,18 +477,20 @@ export default function Fechamentos() {
                           />
                           <Button
                             variant="destructive"
+                            size="sm"
+                            className="gap-1.5"
                             disabled={
                               (justificativaDescarte[item.negocio.id] || '').trim().length < 10
                             }
                             onClick={() => void descartar(item)}
                           >
-                            <Ban className="mr-2 h-4 w-4" /> Descartar recuperação
+                            <Ban className="h-3.5 w-3.5" /> Descartar recuperação
                           </Button>
                         </div>
                       )}
                   </div>
                 ) : (
-                  <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                  <p className="rounded-lg border border-emerald-200/80 bg-emerald-50/70 p-3.5 text-xs text-emerald-800 font-medium">
                     Negócio ganho e encaminhado para Ordens de Execução. Acompanhe nessa etapa o
                     número da OE, a data e o responsável pelo envio.
                   </p>

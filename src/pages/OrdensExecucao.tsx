@@ -105,24 +105,47 @@ export default function OrdensExecucao() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
-      <div className="flex items-center justify-between gap-3">
+    <div className="space-y-6">
+      <section className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Ordens de Execução</h1>
-          <p className="text-sm text-slate-500">Referência do ERP após o ganho comercial</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Etapa 4 · Handoff Operacional
+          </p>
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+            Ordens de Execução
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-sm text-slate-600">
+            Conclusão do handoff dos ganhos comerciais e referência da OE no ERP após o fechamento.
+          </p>
         </div>
-        <Button variant="outline" onClick={() => void carregar()} disabled={loading}>
-          <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
+        <Button
+          variant="outline"
+          onClick={() => void carregar()}
+          disabled={loading}
+          className="gap-2 border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
+        >
+          <RefreshCw className={`h-4 w-4 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
+          Atualizar
         </Button>
-      </div>
-      <div className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-3">
-        <div className="space-y-2">
-          <Label htmlFor="filtro-estado-oe">Status</Label>
+      </section>
+
+      <div className="grid gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <Label
+            htmlFor="filtro-estado-oe"
+            className="text-xs font-semibold uppercase tracking-wider text-slate-500"
+          >
+            Status
+          </Label>
           <Select
             value={estado}
             onValueChange={(value) => alterarEstado(value as EstadoOrdemExecucao)}
           >
-            <SelectTrigger id="filtro-estado-oe" aria-label="Status da Ordem de Execução">
+            <SelectTrigger
+              id="filtro-estado-oe"
+              aria-label="Status da Ordem de Execução"
+              className="h-9 border-slate-200 bg-white text-xs"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -132,41 +155,70 @@ export default function OrdensExecucao() {
             </SelectContent>
           </Select>
         </div>
-        <Input
-          type="date"
-          aria-label="Período inicial"
-          value={periodoInicio}
-          max={periodoFim}
-          onChange={(e) => setPeriodoInicio(e.target.value)}
-        />
-        <Input
-          type="date"
-          aria-label="Período final"
-          value={periodoFim}
-          min={periodoInicio}
-          onChange={(e) => setPeriodoFim(e.target.value)}
-        />
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Período inicial
+          </Label>
+          <Input
+            type="date"
+            aria-label="Período inicial"
+            className="h-9 border-slate-200 bg-white text-xs"
+            value={periodoInicio}
+            max={periodoFim}
+            onChange={(e) => setPeriodoInicio(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Período final
+          </Label>
+          <Input
+            type="date"
+            aria-label="Período final"
+            className="h-9 border-slate-200 bg-white text-xs"
+            value={periodoFim}
+            min={periodoInicio}
+            onChange={(e) => setPeriodoFim(e.target.value)}
+          />
+        </div>
       </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         {itensVisiveis.map((item) => {
           const concluida = item.estado_operacional === 'em_processo_de_entrega'
           return (
             <Card
               key={item.negocio.id}
-              className={concluida ? '' : 'border-l-4 border-l-sky-400 bg-sky-50/70'}
+              className={`border border-slate-200/80 bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300 ${
+                concluida ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-sky-500'
+              }`}
             >
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <CardTitle className="text-base">{item.negocio.titulo}</CardTitle>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Handoff
+                    </p>
+                    <CardTitle className="text-base font-semibold text-slate-900">
+                      {item.negocio.titulo}
+                    </CardTitle>
                     {item.negocio.external_id && (
-                      <p className="mt-1 text-xs font-medium text-muted-foreground">
+                      <p className="mt-1 text-xs font-medium text-slate-500">
                         Negócio AC #{item.negocio.external_id}
                       </p>
                     )}
-                    <CardDescription>Negócio ganho</CardDescription>
+                    <CardDescription className="text-xs text-slate-500">
+                      Negócio ganho
+                    </CardDescription>
                   </div>
-                  <Badge variant={concluida ? 'default' : 'secondary'}>
+                  <Badge
+                    variant="outline"
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                      concluida
+                        ? 'border-emerald-200/60 bg-emerald-50 text-emerald-700'
+                        : 'border-sky-200/60 bg-sky-50 text-sky-700'
+                    }`}
+                  >
                     {concluida ? 'Em processo de entrega' : 'Aguardando OE'}
                   </Badge>
                 </div>
@@ -184,42 +236,53 @@ export default function OrdensExecucao() {
                   businessTitle={item.negocio.titulo}
                   allowNexoHelp={false}
                 />
-                <div className="rounded-md border bg-slate-50 p-3 text-sm">
-                  <p className="font-medium text-slate-900">
+                <div className="rounded-lg border border-slate-200/80 bg-slate-50/70 p-3.5 text-xs">
+                  <p className="font-semibold text-slate-900">
                     Decisão registrada no CRM em{' '}
                     {formatDate(item.negocio.fechamento_data || item.contexto.crm_updated_at)}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-slate-500">
                     {concluida
                       ? 'OE registrada; acompanhe abaixo o envio para execução.'
                       : 'Próxima providência: registrar a referência da OE, a data e o responsável pelo envio.'}
                   </p>
                 </div>
                 {concluida && item.oe ? (
-                  <dl className="grid gap-2 text-sm text-slate-600">
+                  <dl className="grid gap-2 rounded-lg border border-slate-200/80 bg-slate-50/50 p-3.5 text-xs text-slate-600 sm:grid-cols-3">
                     <div>
-                      <dt className="font-medium text-slate-900">Número da OE</dt>
-                      <dd>{item.oe.numero}</dd>
+                      <dt className="font-semibold uppercase tracking-wider text-slate-500 text-[10px]">
+                        Número da OE
+                      </dt>
+                      <dd className="mt-1 font-bold text-slate-900 text-sm">{item.oe.numero}</dd>
                     </div>
                     <div>
-                      <dt className="font-medium text-slate-900">Data de envio</dt>
-                      <dd>{item.oe.data_envio}</dd>
+                      <dt className="font-semibold uppercase tracking-wider text-slate-500 text-[10px]">
+                        Data de envio
+                      </dt>
+                      <dd className="mt-1 font-medium text-slate-800 text-sm">
+                        {item.oe.data_envio}
+                      </dd>
                     </div>
                     <div>
-                      <dt className="font-medium text-slate-900">Responsável pelo envio</dt>
-                      <dd>{item.oe.responsavel_envio?.name || 'Não identificado'}</dd>
+                      <dt className="font-semibold uppercase tracking-wider text-slate-500 text-[10px]">
+                        Responsável pelo envio
+                      </dt>
+                      <dd className="mt-1 font-medium text-slate-800 text-sm">
+                        {item.oe.responsavel_envio?.name || 'Não identificado'}
+                      </dd>
                     </div>
                   </dl>
                 ) : somenteLeitura ? (
-                  <p className="rounded-md border border-violet-200 bg-violet-50 p-3 text-sm text-violet-800">
+                  <p className="rounded-lg border border-violet-200/80 bg-violet-50/70 p-3.5 text-xs font-medium text-violet-800">
                     Consulta executiva: registro de OE disponível somente para a equipe operacional.
                   </p>
                 ) : (
-                  <>
+                  <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Número da OE</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-700">Número da OE</Label>
                         <Input
+                          className="border-slate-200 bg-white text-sm"
                           value={numero[item.negocio.id] || ''}
                           onChange={(event) =>
                             setNumero((atual) => ({
@@ -229,10 +292,13 @@ export default function OrdensExecucao() {
                           }
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label>Data de envio</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-700">
+                          Data de envio
+                        </Label>
                         <Input
                           type="date"
+                          className="border-slate-200 bg-white text-sm"
                           value={dataEnvio[item.negocio.id] || ''}
                           onChange={(event) =>
                             setDataEnvio((atual) => ({
@@ -243,8 +309,10 @@ export default function OrdensExecucao() {
                         />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Responsável pelo envio</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-700">
+                        Responsável pelo envio
+                      </Label>
                       <Select
                         value={responsavel[item.negocio.id]}
                         onValueChange={(value) =>
@@ -254,7 +322,7 @@ export default function OrdensExecucao() {
                           }))
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="border-slate-200 bg-white text-sm">
                           <SelectValue placeholder="Selecione o responsável" />
                         </SelectTrigger>
                         <SelectContent>
@@ -267,6 +335,7 @@ export default function OrdensExecucao() {
                       </Select>
                     </div>
                     <Button
+                      className="w-full gap-2 bg-sky-600 hover:bg-sky-700 text-white font-medium shadow-sm"
                       disabled={
                         !numero[item.negocio.id]?.trim() ||
                         !dataEnvio[item.negocio.id] ||
@@ -274,9 +343,9 @@ export default function OrdensExecucao() {
                       }
                       onClick={() => void registrar(item)}
                     >
-                      <ClipboardCheck className="mr-2 h-4 w-4" /> Registrar OE
+                      <ClipboardCheck className="h-4 w-4" /> Registrar OE
                     </Button>
-                  </>
+                  </div>
                 )}
               </CardContent>
             </Card>

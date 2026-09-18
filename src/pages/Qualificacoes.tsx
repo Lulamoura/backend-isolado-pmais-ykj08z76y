@@ -162,21 +162,27 @@ export default function Qualificacoes() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-6">
+      <section className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Qualificação</h1>
-          <p className="text-sm text-muted-foreground">Prospects aguardando decisão explícita</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Etapa 1 · Triagem Comercial
+          </p>
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Qualificação</h2>
+          <p className="mt-1.5 max-w-2xl text-sm text-slate-600">
+            Prospects aguardando decisão explícita sobre avanço para produção da proposta.
+          </p>
         </div>
         <Button
           variant="outline"
           onClick={() => void carregar()}
           disabled={loading}
-          className="gap-2"
+          className="gap-2 border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
         >
-          <RefreshCw className="h-4 w-4" /> Atualizar
+          <RefreshCw className={`h-4 w-4 text-slate-500 ${loading ? 'animate-spin' : ''}`} />{' '}
+          Atualizar
         </Button>
-      </div>
+      </section>
 
       {error && (
         <Alert variant="destructive">
@@ -185,37 +191,63 @@ export default function Qualificacoes() {
         </Alert>
       )}
       {(podeGerir || somenteLeitura) && indicadores.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Acompanhamento por responsável</CardTitle>
-            <CardDescription>
+        <Card className="border border-slate-200/80 bg-white shadow-sm border-l-4 border-l-amber-500">
+          <CardHeader className="pb-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Supervisão gerencial
+            </p>
+            <CardTitle className="text-base font-semibold text-slate-900">
+              Acompanhamento por responsável
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500">
               Decisões autônomas das operadoras, com supervisão e rastreabilidade gerencial.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {indicadores.map((indicador) => (
-              <div key={indicador.usuario_id} className="rounded-md border p-3 text-sm">
-                <p className="font-semibold">{indicador.nome}</p>
-                <p className="mt-1 text-muted-foreground">
-                  {indicador.assumidos} assumidos · {indicador.qualificados} qualificados ·{' '}
-                  {indicador.desqualificados} desqualificados
+              <div
+                key={indicador.usuario_id}
+                className="rounded-lg border border-slate-200 bg-slate-50/60 p-3.5 text-sm"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-slate-900">{indicador.nome}</p>
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-amber-200/60 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700"
+                  >
+                    {indicador.taxa_qualificacao.toLocaleString('pt-BR')}% taxa
+                  </Badge>
+                </div>
+                <p className="mt-2 text-xs text-slate-600">
+                  <span className="font-semibold text-slate-800">{indicador.assumidos}</span>{' '}
+                  assumidos ·{' '}
+                  <span className="font-semibold text-emerald-700">{indicador.qualificados}</span>{' '}
+                  qualificados ·{' '}
+                  <span className="font-semibold text-rose-700">{indicador.desqualificados}</span>{' '}
+                  desqualificados
                 </p>
-                <p className="text-muted-foreground">
-                  Taxa: {indicador.taxa_qualificacao.toLocaleString('pt-BR')}% · Devoluções:{' '}
-                  {indicador.devolvidos}
-                </p>
-                <p className="text-muted-foreground">
-                  Tempo médio para assumir:{' '}
-                  {indicador.tempo_medio_assumir_horas === null
-                    ? '—'
-                    : `${indicador.tempo_medio_assumir_horas.toLocaleString('pt-BR')} h`}
-                </p>
-                <p className="text-muted-foreground">
-                  Tempo médio para decidir:{' '}
-                  {indicador.tempo_medio_decidir_horas === null
-                    ? '—'
-                    : `${indicador.tempo_medio_decidir_horas.toLocaleString('pt-BR')} h`}
-                </p>
+                <div className="mt-2 space-y-0.5 border-t border-slate-200/80 pt-2 text-xs text-slate-500">
+                  <p>
+                    Devoluções:{' '}
+                    <span className="font-medium text-slate-700">{indicador.devolvidos}</span>
+                  </p>
+                  <p>
+                    Tempo médio para assumir:{' '}
+                    <span className="font-medium text-slate-700">
+                      {indicador.tempo_medio_assumir_horas === null
+                        ? '—'
+                        : `${indicador.tempo_medio_assumir_horas.toLocaleString('pt-BR')} h`}
+                    </span>
+                  </p>
+                  <p>
+                    Tempo médio para decidir:{' '}
+                    <span className="font-medium text-slate-700">
+                      {indicador.tempo_medio_decidir_horas === null
+                        ? '—'
+                        : `${indicador.tempo_medio_decidir_horas.toLocaleString('pt-BR')} h`}
+                    </span>
+                  </p>
+                </div>
               </div>
             ))}
           </CardContent>
@@ -224,16 +256,18 @@ export default function Qualificacoes() {
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2">
           {[0, 1, 2, 3].map((n) => (
-            <Skeleton key={n} className="h-48 w-full" />
+            <Skeleton key={n} className="h-48 w-full rounded-xl" />
           ))}
         </div>
       ) : error ? null : itens.length === 0 ? (
-        <Card>
+        <Card className="border border-slate-200/80 bg-white shadow-sm">
           <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
-            <SearchX className="h-9 w-9 text-muted-foreground" />
+            <span className="rounded-full bg-slate-100 p-3 text-slate-500">
+              <SearchX className="h-6 w-6" />
+            </span>
             <div>
-              <p className="font-semibold">Nenhum prospect pendente</p>
-              <p className="text-sm text-muted-foreground">A fila de qualificação está em dia.</p>
+              <p className="text-base font-semibold text-slate-900">Nenhum prospect pendente</p>
+              <p className="text-sm text-slate-500">A fila de qualificação está em dia.</p>
             </div>
           </CardContent>
         </Card>
@@ -243,30 +277,45 @@ export default function Qualificacoes() {
             const assumidaPorMim = item.responsavel_qualificacao?.id === usuarioId
             const podeDecidir = assumidaPorMim || podeGerir
             return (
-              <Card key={item.id} className={commercialActionCardClass(item.proxima_acao_em)}>
+              <Card
+                key={item.id}
+                className={`border border-slate-200/80 bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300 ${commercialActionCardClass(item.proxima_acao_em)}`}
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <CardTitle className="text-base">{item.titulo}</CardTitle>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Triagem
+                      </p>
+                      <CardTitle className="text-base font-semibold text-slate-900">
+                        {item.titulo}
+                      </CardTitle>
                       {item.external_id && (
-                        <p className="mt-1 text-xs font-medium text-muted-foreground">
+                        <p className="mt-1 text-xs font-medium text-slate-500">
                           Negócio AC #{item.external_id}
                         </p>
                       )}
                     </div>
-                    <Badge variant="secondary">Qualificação pendente</Badge>
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-amber-200/60 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700"
+                    >
+                      Qualificação pendente
+                    </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <p className="line-clamp-3 text-sm text-muted-foreground">
+                  <p className="line-clamp-3 text-sm text-slate-600 leading-relaxed">
                     {item.descricao || 'Necessidade ainda sem descrição.'}
                   </p>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-slate-500">
                     <span>Origem: {item.origem_canal || 'não informada'}</span>
-                    <span className="mx-2">•</span>
+                    <span className="mx-2 text-slate-300">•</span>
                     <span>
                       Qualificação:{' '}
-                      {item.responsavel_qualificacao?.nome || 'disponível para assumir'}
+                      <span className="font-medium text-slate-700">
+                        {item.responsavel_qualificacao?.nome || 'disponível para assumir'}
+                      </span>
                     </span>
                   </div>
                   <BusinessContactCard empresa={item.empresa} contato={item.contato} />
@@ -277,12 +326,12 @@ export default function Qualificacoes() {
                   />
                   {!somenteLeitura && !item.responsavel_qualificacao && (
                     <Button
-                      className="w-full gap-2"
-                      variant="secondary"
+                      className="w-full gap-2 border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                      variant="outline"
                       disabled={assumindo === item.id}
                       onClick={() => void assumir(item)}
                     >
-                      <UserCheck className="h-4 w-4" />
+                      <UserCheck className="h-4 w-4 text-slate-600" />
                       {assumindo === item.id ? 'Assumindo…' : 'Assumir qualificação'}
                     </Button>
                   )}
@@ -292,7 +341,10 @@ export default function Qualificacoes() {
                       onValueChange={(value) => void atribuir(item, value)}
                       disabled={assumindo === item.id}
                     >
-                      <SelectTrigger aria-label="Responsável pela qualificação">
+                      <SelectTrigger
+                        aria-label="Responsável pela qualificação"
+                        className="border-slate-200 bg-white text-slate-900"
+                      >
                         <SelectValue placeholder="Atribuir qualificação" />
                       </SelectTrigger>
                       <SelectContent>
@@ -306,13 +358,16 @@ export default function Qualificacoes() {
                   )}
                   {!somenteLeitura && podeDecidir && item.responsavel_qualificacao && (
                     <div className="flex gap-2">
-                      <Button className="flex-1 gap-2" onClick={() => abrir(item, 'qualificada')}>
+                      <Button
+                        className="flex-1 gap-2 bg-emerald-600 text-white hover:bg-emerald-700 font-medium"
+                        onClick={() => abrir(item, 'qualificada')}
+                      >
                         <CheckCircle2 className="h-4 w-4" />
                         Qualificar
                       </Button>
                       <Button
                         variant="outline"
-                        className="flex-1 gap-2 text-rose-700"
+                        className="flex-1 gap-2 border-rose-200 bg-rose-50/60 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
                         onClick={() => abrir(item, 'desqualificada')}
                       >
                         <XCircle className="h-4 w-4" />

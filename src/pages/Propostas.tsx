@@ -433,19 +433,30 @@ export default function Propostas() {
     }
   }
   return (
-    <div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
-      <div className="flex items-center justify-between gap-3">
+    <div className="space-y-6">
+      <section className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold">Ciclo de propostas</h1>
-          <p className="text-sm text-muted-foreground">
-            Preparação, aprovação, emissão, visualização e decisão auditáveis
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Etapa 2 · Negociação
+          </p>
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+            Ciclo de propostas
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-sm text-slate-600">
+            Preparação, aprovação, emissão, visualização e decisão auditáveis.
           </p>
         </div>
-        <Button variant="outline" onClick={() => void carregar()} disabled={loading}>
-          <RefreshCw className="mr-2 h-4 w-4" />
+        <Button
+          variant="outline"
+          onClick={() => void carregar()}
+          disabled={loading}
+          className="gap-2 border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
+        >
+          <RefreshCw className={`h-4 w-4 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
           Atualizar
         </Button>
-      </div>
+      </section>
+
       <CommercialFilters
         contexts={itens.map((item) => item.contexto)}
         search={busca}
@@ -461,25 +472,31 @@ export default function Propostas() {
         onPeriodStart={setPeriodoInicio}
         onPeriodEnd={setPeriodoFim}
       />
+
       {isSuperAdmin && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-card p-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
           <div>
-            <p className="font-medium">Identificação do visitante</p>
-            <p className="text-muted-foreground">
-              Nome antes da abertura: {identificacaoObrigatoria ? 'obrigatório' : 'opcional'}
+            <p className="text-sm font-semibold text-slate-900">Identificação do visitante</p>
+            <p className="text-xs text-slate-500">
+              Nome antes da abertura:{' '}
+              <span className="font-medium text-slate-700">
+                {identificacaoObrigatoria ? 'obrigatório' : 'opcional'}
+              </span>
             </p>
           </div>
           <Button
             size="sm"
             variant="outline"
+            className="border-slate-200 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50"
             disabled={!identificacaoUpdated}
             onClick={() => void alterarIdentificacao()}
           >
-            <Settings2 className="mr-2 h-4 w-4" />
+            <Settings2 className="mr-2 h-3.5 w-3.5 text-slate-500" />
             Tornar {identificacaoObrigatoria ? 'opcional' : 'obrigatório'}
           </Button>
         </div>
       )}
+
       <div className="grid gap-4 md:grid-cols-2">
         {itensVisiveis.map((item) => {
           const p = item.proposta
@@ -535,26 +552,38 @@ export default function Propostas() {
           return (
             <Card
               key={item.negocio.id}
-              className={commercialActionCardClass(item.contexto.proxima_acao_em)}
+              className={`border border-slate-200/80 bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300 ${commercialActionCardClass(item.contexto.proxima_acao_em)}`}
             >
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <CardTitle className="text-base">{item.negocio.titulo}</CardTitle>
-                    <CardDescription>{rotuloEtapaComercial(item.negocio.etapa)}</CardDescription>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Negociação
+                    </p>
+                    <CardTitle className="text-base font-semibold text-slate-900">
+                      {item.negocio.titulo}
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      {rotuloEtapaComercial(item.negocio.etapa)}
+                    </CardDescription>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <Badge variant="secondary">{estadoProposta}</Badge>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-sky-200/60 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700"
+                    >
+                      {estadoProposta}
+                    </Badge>
                     {p && (
                       <Badge
                         variant="outline"
-                        className={
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
                           p.aberta
-                            ? 'border-blue-200 bg-blue-50 text-blue-700'
+                            ? 'border-sky-200/60 bg-sky-50 text-sky-700'
                             : naoAbertaAtrasada
-                              ? 'border-red-200 bg-red-50 text-red-700'
-                              : undefined
-                        }
+                              ? 'border-rose-200/60 bg-rose-50 text-rose-700'
+                              : 'border-slate-200 bg-slate-50 text-slate-600'
+                        }`}
                         title={
                           p.aberta && p.primeiro_acesso_publicacao_em
                             ? `Primeiro acesso: ${new Date(p.primeiro_acesso_publicacao_em).toLocaleString('pt-BR')}`
@@ -562,9 +591,9 @@ export default function Propostas() {
                         }
                       >
                         {p.aberta ? (
-                          <Eye className="mr-1 h-3.5 w-3.5" />
+                          <Eye className="mr-1 h-3 w-3" />
                         ) : (
-                          <EyeOff className="mr-1 h-3.5 w-3.5" />
+                          <EyeOff className="mr-1 h-3 w-3" />
                         )}
                         {p.aberta ? 'Aberta' : 'Não Aberta'}
                       </Badge>
@@ -579,7 +608,7 @@ export default function Propostas() {
                   negocioId={item.negocio.id}
                   showReadOnlyNotice={false}
                 />
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
                   <NexoBusinessActions
                     externalId={item.contexto.external_id}
                     businessTitle={item.negocio.titulo}
@@ -588,8 +617,12 @@ export default function Propostas() {
                   {!somenteNegociacao &&
                     !somenteLeituraPerfil &&
                     !item.contexto.somente_leitura && (
-                      <Button size="sm" onClick={() => abrirModal(item.negocio.id, 'operacao')}>
-                        <FileCheck2 className="mr-2 h-4 w-4" />
+                      <Button
+                        size="sm"
+                        className="bg-violet-600 hover:bg-violet-700 text-white font-medium shadow-sm"
+                        onClick={() => abrirModal(item.negocio.id, 'operacao')}
+                      >
+                        <FileCheck2 className="mr-1.5 h-4 w-4" />
                         Lançar proposta
                       </Button>
                     )}
@@ -597,9 +630,10 @@ export default function Propostas() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                       onClick={() => abrirModal(item.negocio.id, 'historico')}
                     >
-                      <History className="mr-2 h-4 w-4" />
+                      <History className="mr-1.5 h-4 w-4 text-slate-500" />
                       Histórico
                     </Button>
                   )}
