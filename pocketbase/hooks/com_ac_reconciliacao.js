@@ -418,6 +418,9 @@ routerAdd(
       if (events[incoming].entity_type === 'contact')
         incomingContacts[events[incoming].entity_id] = true
     }
+    function acExigeResponsavelComercial(stage) {
+      return stage === 'producao_proposta' || stage === 'negociacao'
+    }
     function motivoPendenciaAc(action) {
       var ev = action.event || {}
       var data = ev.data || {}
@@ -505,7 +508,7 @@ routerAdd(
         }
       }
       if (ev.entity_type === 'business') {
-        var eventIsProspect = String(ev.data.stage || '') === 'prospects'
+        var eventStageForOwner = String(ev.data.stage || '')
         if (ev.data && ev.data.custom_fields_status) {
           kind = 'error'
           setPendingIssue('Campos personalizados do ActiveCampaign indisponíveis para este negócio.')
@@ -514,9 +517,9 @@ routerAdd(
           kind = 'error'
           setPendingIssue('Negócio sem contato vinculado no ActiveCampaign.')
         }
-        if (!eventIsProspect && !ev.links.owner_code) {
+        if (acExigeResponsavelComercial(eventStageForOwner) && !ev.links.owner_code) {
           kind = 'error'
-          setPendingIssue('Responsável comercial ausente ou não mapeado no ActiveCampaign.')
+          setPendingIssue('Responsável comercial obrigatório a partir da fase Fazer Proposta, mas ausente ou não mapeado no ActiveCampaign.')
         }
         if (ev.links.company_id && !incomingCompanies[ev.links.company_id]) {
           try {
@@ -547,7 +550,7 @@ routerAdd(
         // Prospects entram na fila compartilhada e só recebem responsável
         // quando uma operadora assume a qualificação. O proprietário técnico
         // do ActiveCampaign não deve bloquear essa entrada.
-        if (ev.links.owner_code && !eventIsProspect) {
+        if (ev.links.owner_code && acExigeResponsavelComercial(eventStageForOwner)) {
           try {
             $app.findFirstRecordByFilter(
               'com_vinculos_externos',
@@ -711,6 +714,9 @@ routerAdd(
       } catch (_) {
         return false
       }
+    }
+    function acExigeResponsavelComercial(stage) {
+      return stage === 'producao_proposta' || stage === 'negociacao'
     }
     var actor = e.auth
     if (!actor) return e.unauthorizedError('Autenticacao necessaria')
@@ -917,8 +923,8 @@ routerAdd(
                 "'",
             )
             var owner = null
-            var executionIsProspect = String(ev.data.stage || '') === 'prospects'
-            if (ev.links.owner_code && !executionIsProspect)
+            var executionStageForOwner = String(ev.data.stage || '')
+            if (ev.links.owner_code && acExigeResponsavelComercial(executionStageForOwner))
               owner = tx.findFirstRecordByFilter(
                 'com_vinculos_externos',
                 "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +

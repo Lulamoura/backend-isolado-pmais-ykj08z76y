@@ -170,7 +170,8 @@ const checks = [
     'interface orienta pendências não bloqueantes da reconciliação',
     reconciliationUi.includes('Pendências operacionais') &&
       reconciliationUi.includes('Você pode confirmar agora os registros') &&
-      reconciliationUi.includes('corrija cadastro de empresa, contato ou responsável comercial'),
+      reconciliationUi.includes('responsável comercial apenas') &&
+      reconciliationUi.includes('a partir de Fazer Proposta'),
   ],
   [
     'interface lista pendências por número do negócio e motivo',
@@ -308,14 +309,17 @@ const checks = [
       !reconciliationHook.includes("target.set('status', 'aberto')"),
   ],
   [
-    'prospect após o corte aceita ausência de responsável sem importar estoque histórico',
+    'prospect após o corte aceita ausência de responsável até entrar em Fazer Proposta',
     webhook.includes("var isProspect = String(event.data.stage || '') === 'prospects'") &&
       webhook.includes('(!isProspect && !links.owner_code)') &&
       reconciliationHook.includes('2026-08-24T03:00:00.000Z') &&
       reconciliationHook.includes("canonicalStage === 'prospects'") &&
-      reconciliationHook.includes('(!eventIsProspect && !ev.links.owner_code)') &&
-      reconciliationHook.includes('if (ev.links.owner_code && !eventIsProspect)') &&
-      reconciliationHook.includes('if (ev.links.owner_code && !executionIsProspect)'),
+      reconciliationHook.includes('function acExigeResponsavelComercial(stage)') &&
+      reconciliationHook.includes("return stage === 'producao_proposta' || stage === 'negociacao'") &&
+      reconciliationHook.includes('if (acExigeResponsavelComercial(eventStageForOwner) && !ev.links.owner_code)') &&
+      reconciliationHook.includes('if (ev.links.owner_code && acExigeResponsavelComercial(eventStageForOwner))') &&
+      reconciliationHook.includes('if (ev.links.owner_code && acExigeResponsavelComercial(executionStageForOwner))') &&
+      !reconciliationHook.includes('(!eventIsProspect && !ev.links.owner_code)'),
   ],
   [
     'controles possuem materialização runtime idempotente e autenticada',

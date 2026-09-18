@@ -193,8 +193,9 @@ export function ActiveCampaignReconciliationCard() {
                 <div className="mt-2 space-y-2">
                   <div>
                     <strong>Pendências operacionais:</strong> Você pode confirmar agora os registros
-                    válidos. Depois, corrija cadastro de empresa, contato ou responsável comercial no
-                    ActiveCampaign ou no mapeamento do Aplicativo Comercial e rode nova verificação.
+                    válidos. Depois, corrija cadastro de empresa, contato ou responsável comercial apenas
+                    a partir de Fazer Proposta no ActiveCampaign ou no mapeamento do Aplicativo Comercial
+                    e rode nova verificação.
                   </div>
                   {simulation.pending_issues?.length ? (
                     <ul className="list-disc space-y-1 pl-5">
