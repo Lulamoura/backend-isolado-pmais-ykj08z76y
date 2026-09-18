@@ -53,6 +53,21 @@ assert.match(
   /payload|resumo|recomendacoes|evidencias/,
   'deve retornar resumo/evidências para o Nexo sem payload técnico bruto',
 )
+assert.match(
+  routeSource,
+  /payload\.negocios_atencao|negocios_atencao:\s*payload/,
+  'rota do Nexo deve devolver negócios gravados no pacote diário',
+)
+assert.match(
+  routeSource,
+  /payload\.evolucao|evolucao:\s*payload/,
+  'rota do Nexo deve devolver evolução gravada no pacote diário',
+)
+assert.match(
+  routeSource,
+  /pacote_completo/,
+  'rota do Nexo deve sinalizar pacote completo quando disponível',
+)
 assert.doesNotMatch(
   routeSource,
   /\$app\.save|\.save\(|\$app\.delete|\.delete\(|\$http\.send\(/,

@@ -73,7 +73,7 @@ export type IpcpDiarioReadOnly = {
     id: string
     key: string
     modo: 'simulado'
-    status: 'homologacao'
+    status: 'homologacao' | 'producao_assistida'
     data_referencia: string
     escopo: 'proprio' | 'equipe' | 'todos'
   }
@@ -247,7 +247,11 @@ type NexoIpcpDiarioVivoResponse = {
     fonte_disponivel?: boolean
     snapshot_encontrado?: boolean
     total_lido?: number
+    pacote_completo?: boolean
   }
+  negocios_atencao?: IpcpNegocioAtencao[]
+  evolucao?: IpcpDiarioReadOnly['evolucao'] | null
+  evidencias?: IpcpDiarioReadOnly['evidencias']
 }
 
 function normalizarTextoProducaoAssistida(texto: string): string {
@@ -274,7 +278,9 @@ function temBlocosIpcpCompletos(ipcp?: NexoIpcpDiarioVivoResponse['ipcp']): bool
 
 function normalizarNexoIpcpDiarioVivo(data: NexoIpcpDiarioVivoResponse): IpcpDiarioReadOnly {
   const snapshotCompleto =
-    data.dados_vivos?.snapshot_encontrado === true && temBlocosIpcpCompletos(data.ipcp)
+    data.dados_vivos?.snapshot_encontrado === true &&
+    data.dados_vivos?.pacote_completo === true &&
+    temBlocosIpcpCompletos(data.ipcp)
   const prioridades = data.resumo?.recomendacoes?.length
     ? data.resumo.recomendacoes.map((item) => ({
         ...item,
@@ -307,13 +313,18 @@ function normalizarNexoIpcpDiarioVivo(data: NexoIpcpDiarioVivoResponse): IpcpDia
       prioridades: prioridadesCompletas,
     },
     ipcp: ipcpCompleto,
-    negocios_atencao: snapshotCompleto ? [] : ipcpDiarioFixtureHomologado.negocios_atencao,
-    evolucao: {
-      status: 'sem_historico',
-      comentario: snapshotCompleto
-        ? 'Leitura viva da equipe carregada a partir do snapshot diário do IPCP.'
-        : 'Aguardando processamento diário completo; a tela mantém a última leitura aprovada da equipe até a nova carga viva ficar disponível.',
-    },
+    negocios_atencao: snapshotCompleto
+      ? data.negocios_atencao || []
+      : ipcpDiarioFixtureHomologado.negocios_atencao,
+    evolucao:
+      snapshotCompleto && data.evolucao
+        ? data.evolucao
+        : {
+            status: 'sem_historico',
+            comentario:
+              'Aguardando processamento diário completo; a tela mantém a última leitura aprovada da equipe até a nova carga viva ficar disponível.',
+          },
+    evidencias: snapshotCompleto ? data.evidencias : undefined,
     guardrails: {
       sem_ranking_punitivo: true,
       sem_recalculo_tempo_real: true,

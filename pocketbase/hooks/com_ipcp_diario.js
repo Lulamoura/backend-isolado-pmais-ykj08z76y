@@ -657,6 +657,70 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
         pendentes: 0,
       },
     },
+    resumo_nexo: {
+      texto:
+        'Leitura viva da equipe processada para orientar a Operação do Dia: complementar próximos passos, tratar ações vencidas ou distantes e registrar objeções, pendências e aprendizados comerciais.',
+      prioridades: [
+        {
+          titulo: 'Complementar notas sem próximo passo objetivo',
+          motivo: 'Ajuda o Nexo a entender avanço, espera, requalificação ou encerramento.',
+          bloco_afetado: 'qualidade_followup',
+        },
+        {
+          titulo: 'Revisar ações vencidas ou distantes',
+          motivo: 'Reduz risco de esfriamento da carteira aberta.',
+          bloco_afetado: 'disciplina_carteira',
+        },
+        {
+          titulo: 'Registrar objeções, pendências e aprendizados',
+          motivo: 'Transforma follow-up em aprendizado comercial reutilizável.',
+          bloco_afetado: 'registros_aprendizado',
+        },
+      ],
+    },
+    negocios_atencao: [
+      {
+        id_negocio: '4612',
+        cliente: 'RCML (PMAIS EVENTOS)',
+        motivo:
+          'Follow-up precisa preservar decisor, pendência e prazo de retorno de forma mais clara.',
+        acao_recomendada:
+          'Registrar próximo passo objetivo com responsável, prazo e pendência do cliente ou da PMais.',
+        blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
+        link: '/pipeline?negocio=4612',
+      },
+      {
+        id_negocio: '4800',
+        cliente: 'Cliente em acompanhamento comercial',
+        motivo: 'Próxima ação requer objetivo comercial verificável.',
+        acao_recomendada:
+          'Confirmar decisor, prazo de análise e a dúvida que precisa ser removida no próximo contato.',
+        blocos_afetados: ['qualidade_followup'],
+        link: '/pipeline?negocio=4800',
+      },
+    ],
+    evolucao: {
+      status: 'sem_historico',
+      comentario:
+        'Pacote diário completo gerado para produção assistida; a evolução comparativa entrará após o próximo ciclo.',
+    },
+    evidencias: {
+      criterio: 'sinais_comerciais_resumidos_para_gestao',
+      fonte: 'processamento_diario_ipcp',
+      exemplos: [
+        {
+          bloco: 'qualidade_followup',
+          sinal: 'nota_sem_decisor_pendencia_ou_prazo',
+          acao: 'complementar_proximo_passo_objetivo',
+        },
+        {
+          bloco: 'disciplina_carteira',
+          sinal: 'acao_vencida_ou_distante',
+          acao: 'redefinir_data_e_objetivo_comercial_verificavel',
+        },
+      ],
+    },
+    pacote_completo: true,
     guardrails: {
       sem_ranking_punitivo: true,
       fallback_openai_bloqueado: true,
@@ -690,7 +754,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
       record.set('responsavel_nome', responsavelNome)
       record.set('formula_version', formula)
       record.set('ipcp_total', ipcpTotal)
-      record.set('status', 'homologacao')
+      record.set('status', 'producao_assistida')
       record.set('criado_por_id', ator.id)
       record.set('origem', 'ipcp_processamento_diario_homologacao_manual')
       record.set('payload', payload)
@@ -704,7 +768,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
           id: record.id,
           key: snapshotKey,
           modo: 'processamento_diario',
-          status: 'homologacao',
+          status: 'producao_assistida',
           data_referencia: data,
           escopo: effectiveScope,
         },
@@ -726,6 +790,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     resposta.processamento_diario = {
       controlado: true,
       homologacao: true,
+      pacote_completo: true,
       agendamento_automatico_ativo: false,
       producao_publicada: false,
     }
@@ -879,6 +944,7 @@ routerAdd(
         snapshot_encontrado: !!snapshot,
         total_lido: snapshots.length,
         limite_leitura: 5,
+        pacote_completo: !!payload.pacote_completo,
       },
       data_referencia: dataReferencia,
       escopo_efetivo: {
@@ -905,8 +971,14 @@ routerAdd(
           pendentes: 0,
         },
       },
+      negocios_atencao: payload.negocios_atencao || [],
+      evolucao: payload.evolucao || null,
       evidencias: {
-        criterio: 'snapshot_ipcp_resumido_sem_payload_tecnico_bruto',
+        criterio: payload.evidencias
+          ? payload.evidencias.criterio
+          : 'snapshot_ipcp_resumido_sem_payload_tecnico_bruto',
+        fonte: payload.evidencias ? payload.evidencias.fonte : null,
+        exemplos: payload.evidencias ? payload.evidencias.exemplos || [] : [],
         snapshot_id: snapshot ? snapshot.id : null,
         snapshot_status: snapshot ? snapshot.getString('status') || null : null,
         origem: snapshot ? snapshot.getString('origem') || null : null,

@@ -73,6 +73,7 @@ describe('obterIpcpDiarioReadOnly', () => {
         fonte_disponivel: true,
         snapshot_encontrado: true,
         total_lido: 2,
+        pacote_completo: true,
       },
       resumo: {
         texto: 'Leitura viva da equipe em homologação com snapshot simulado.',
@@ -101,6 +102,20 @@ describe('obterIpcpDiarioReadOnly', () => {
           pendentes: 0,
         },
       },
+      negocios_atencao: [
+        {
+          id_negocio: '9001',
+          cliente: 'Cliente pacote completo',
+          motivo: 'Negócio destacado pelo pacote diário completo.',
+          acao_recomendada: 'Confirmar próximo passo e pendência comercial.',
+          blocos_afetados: ['qualidade_followup'],
+          link: '/pipeline?negocio=9001',
+        },
+      ],
+      evolucao: {
+        status: 'sem_historico',
+        comentario: 'Pacote diário completo gerado para produção assistida.',
+      },
       guardrails: {
         sem_ranking_punitivo: true,
         fallback_openai_bloqueado: true,
@@ -121,7 +136,8 @@ describe('obterIpcpDiarioReadOnly', () => {
     )
     expect(data.resumo_nexo.prioridades[0].titulo).toBe('Ação de equipe')
     expect(data.ipcp.total).toBe(62.4)
-    expect(data.evolucao.comentario).toMatch(/Leitura viva da equipe/)
+    expect(data.negocios_atencao[0].id_negocio).toBe('9001')
+    expect(data.evolucao.comentario).toMatch(/Pacote diário completo/)
   })
 
   it('mantém a Operação do Dia completa quando o snapshot vivo ainda não tem todos os blocos', async () => {

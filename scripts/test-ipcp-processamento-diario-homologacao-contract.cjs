@@ -43,6 +43,27 @@ assert(postSource.includes('producao_publicada: false'), 'produção deve contin
 assert(postSource.includes('sem_job_automatico: true'), 'não pode ativar job automático')
 assert(postSource.includes('sem_crm_write: true'), 'não pode escrever no CRM')
 assert(
+  postSource.includes('resumo_nexo'),
+  'processamento diário deve gravar resumo gerencial do Nexo no payload',
+)
+assert(
+  postSource.includes('negocios_atencao'),
+  'processamento diário deve gravar negócios que merecem atenção',
+)
+assert(
+  postSource.includes('evolucao'),
+  'processamento diário deve gravar evolução/comentário do IPCP',
+)
+assert(postSource.includes('evidencias'), 'processamento diário deve gravar evidências resumidas')
+assert(
+  postSource.includes("status', 'producao_assistida'"),
+  'snapshot diário deve sair com status de produção assistida',
+)
+assert(
+  postSource.includes('pacote_completo: true'),
+  'resposta deve indicar pacote completo para Operação do Dia',
+)
+assert(
   !/scheduler|cronAdd|setInterval|setTimeout/.test(postSource),
   'não deve registrar agendamento no hook',
 )
