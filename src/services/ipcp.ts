@@ -252,6 +252,9 @@ type NexoIpcpDiarioVivoResponse = {
 
 function normalizarTextoProducaoAssistida(texto: string): string {
   return texto
+    .replace(/processamento\/homologação/gi, 'processamento diário')
+    .replace(/processamento\/homologacao/gi, 'processamento diário')
+    .replace(/dado desatualizado ou simulado/gi, 'dado desatualizado ou sem processamento')
     .replace(/homologação/gi, 'produção assistida')
     .replace(/homologacao/gi, 'produção assistida')
     .replace(/simulado/gi, 'controlado')
