@@ -270,12 +270,20 @@ routerAdd(
           fieldLabels[String(customMeta[cm].id)] = customMeta[cm].fieldLabel || ''
         var customRows = []
         for (var sdi = 0; sdi < deals.length; sdi++) {
-          var selectedCustomRows = list(
-            '/api/3/dealCustomFieldData',
-            'dealCustomFieldData',
-            false,
-            '&filters[dealId]=' + encodeURIComponent(String(deals[sdi].id)),
-          )
+          var selectedCustomRows = []
+          try {
+            selectedCustomRows = list(
+              '/api/3/dealCustomFieldData',
+              'dealCustomFieldData',
+              false,
+              '&filters[dealId]=' + encodeURIComponent(String(deals[sdi].id)),
+            )
+          } catch (_) {
+            var failedDealId = String(deals[sdi].id)
+            if (!customByDeal[failedDealId]) customByDeal[failedDealId] = {}
+            customByDeal[failedDealId].__custom_fetch_failed = 'CUSTOM_FIELDS_INDISPONIVEIS'
+            continue
+          }
           for (var scr = 0; scr < selectedCustomRows.length; scr++)
             customRows.push(selectedCustomRows[scr])
         }
@@ -371,6 +379,7 @@ routerAdd(
             phase: customFields['Fase'] || '',
             source: customFields['Fonte de Prospecção'] || '',
             loss_reason: customFields['Motivo Perda'] || '',
+            custom_fields_status: customFields.__custom_fetch_failed || '',
             closed_at: terminalAt,
             recovery_at:
               customFields['meta:42'] || customFields['Data de Recuperação Comercial'] || '',
