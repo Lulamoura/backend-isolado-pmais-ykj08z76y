@@ -993,6 +993,136 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     return e.json(200, base)
   }
 
+  function leituraPayloadIpcp(record) {
+    if (!record) return {}
+    try {
+      var raw = record.get('payload')
+      if (!raw) return {}
+      if (typeof raw === 'string') return JSON.parse(raw || '{}')
+      if (raw.raw && typeof raw.raw === 'string') return JSON.parse(raw.raw || '{}')
+      return raw
+    } catch (_) {
+      return {}
+    }
+  }
+
+  function blocoIpcpLista(blocos) {
+    var b = blocos || {}
+    return [
+      {
+        chave: 'resultado_comercial',
+        titulo: 'Resultado comercial',
+        valor: Number(b.resultado_comercial || 0),
+      },
+      {
+        chave: 'valor_estrategico',
+        titulo: 'Valor estratégico',
+        valor: Number(b.valor_estrategico || 0),
+      },
+      {
+        chave: 'disciplina_carteira',
+        titulo: 'Disciplina da carteira',
+        valor: Number(b.disciplina_carteira || 0),
+      },
+      {
+        chave: 'qualidade_followup',
+        titulo: 'Qualidade de follow-up',
+        valor: Number(b.qualidade_followup || 0),
+      },
+      {
+        chave: 'registros_aprendizado',
+        titulo: 'Registros e aprendizados',
+        valor: Number(b.registros_aprendizado || 0),
+      },
+    ]
+  }
+
+  function consultaIpcpGerencial(body) {
+    var data = hojeRecife()
+    var escopoReq = String(body.escopo || 'equipe').trim()
+    var escopo = escopoReq === 'todos' ? 'todos' : 'equipe'
+    var responsavelId = String(body.responsavel_id || '').trim()
+    if (responsavelId) escopo = 'equipe'
+    var filtro = "data_referencia <= '" + esc(data) + "' && escopo = '" + esc(escopo) + "'"
+    if (responsavelId) filtro += " && responsavel_id = '" + esc(responsavelId) + "'"
+    var snapshots = []
+    var fonteDisponivel = true
+    try {
+      snapshots = $app.findRecordsByFilter(
+        'com_ipcp_snapshots',
+        filtro,
+        '-data_referencia,-created',
+        5,
+        0,
+      )
+      if (!snapshots.length && responsavelId) {
+        snapshots = $app.findRecordsByFilter(
+          'com_ipcp_snapshots',
+          "data_referencia <= '" + esc(data) + "' && escopo = '" + esc(escopo) + "'",
+          '-data_referencia,-created',
+          5,
+          0,
+        )
+      }
+    } catch (_) {
+      fonteDisponivel = false
+      snapshots = []
+    }
+    var snapshot = snapshots.length ? snapshots[0] : null
+    var payload = leituraPayloadIpcp(snapshot)
+    var ipcp = payload.ipcp || {}
+    var resumo = payload.resumo_nexo || {}
+    var prioridades = resumo.prioridades || []
+    var negocios = payload.negocios_atencao || []
+    return resposta('ipcp_gerencial', {
+      contrato_ipcp: 'nexo_telegram_ipcp_v1',
+      data_referencia: snapshot ? snapshot.getString('data_referencia') || data : data,
+      escopo_efetivo: {
+        tipo: escopo,
+        responsavel_id: responsavelId || null,
+        responsavel_nome: responsavelId
+          ? nomeUsuario(responsavelId)
+          : escopo === 'todos'
+            ? 'Todos'
+            : 'Equipe',
+      },
+      fonte_dados: 'com_ipcp_snapshots',
+      dados_vivos: {
+        consultados: true,
+        fonte_disponivel: fonteDisponivel,
+        snapshot_encontrado: !!snapshot,
+        total_lido: snapshots.length,
+        limite_leitura: 5,
+      },
+      ipcp: {
+        total: Number(ipcp.total || 0),
+        carater: 'educativo_gerencial',
+        blocos: ipcp.blocos || {},
+        blocos_lista: blocoIpcpLista(ipcp.blocos || {}),
+      },
+      resumo_ipcp: {
+        texto: limparTexto(
+          resumo.texto || 'Leitura IPCP gerencial disponível para consulta do Nexo.',
+          700,
+        ),
+        recomendacoes: prioridades.slice(0, 5),
+      },
+      negocios_atencao: negocios.slice(0, 5),
+      evidencias: payload.evidencias || {},
+      guardrails: {
+        somente_leitura: true,
+        read_only: true,
+        sem_mutacao: true,
+        sem_crm_write: true,
+        sem_app_write: true,
+        sem_envio: true,
+        sem_ranking_punitivo: true,
+        fallback_openai_bloqueado: true,
+        provider_oficial: 'nexo_hermes',
+      },
+    })
+  }
+
   function filtroPeriodo(body) {
     var filtro = 'inativo = false'
     var inicio = String(body.inicio || body.data_inicio || '').slice(0, 10)
@@ -1018,6 +1148,8 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
       pergunta.indexOf('atrasad') >= 0
     )
       return 'followups_vencidos'
+    if (pergunta.indexOf('ipcp') >= 0 || pergunta.indexOf('índice de performance') >= 0)
+      return 'ipcp_gerencial'
     if (
       pergunta.indexOf('aprendizado') >= 0 ||
       pergunta.indexOf('perdid') >= 0 ||
@@ -1052,9 +1184,12 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     propostas_sem_retorno: true,
     followups_vencidos: true,
     aprendizados_comerciais: true,
+    ipcp_gerencial: true,
   }
   if (!permitidas[tipo])
     return e.json(400, { error: 'TIPO_CONSULTA_INVALIDO', permitidas: Object.keys(permitidas) })
+
+  if (tipo === 'ipcp_gerencial') return consultaIpcpGerencial(body)
 
   if (tipo === 'negocio_por_id') {
     var id = String(body.id_negocio || body.external_id || '').trim()

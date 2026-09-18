@@ -31,6 +31,26 @@ assert.match(
   /aprendizados_comerciais/,
   'Rota deve suportar leitura de aprendizados comerciais',
 )
+assert.match(
+  hook,
+  /ipcp_gerencial/,
+  'Rota deve suportar consulta gerencial IPCP para o Nexo Telegram',
+)
+assert.match(
+  hook,
+  /nexo_telegram_ipcp_v1/,
+  'Consulta IPCP do Nexo Telegram deve declarar contrato próprio versionado',
+)
+assert.match(
+  hook,
+  /sem_crm_write[\s\S]{0,300}sem_app_write[\s\S]{0,300}sem_envio|sem_envio[\s\S]{0,300}sem_crm_write[\s\S]{0,300}sem_app_write/,
+  'Consulta IPCP deve repetir guardrails: sem CRM write, sem app write e sem envio',
+)
+assert.match(
+  hook,
+  /fallback_openai_bloqueado/,
+  'Consulta IPCP deve bloquear fallback OpenAI para evidência oficial',
+)
 assert.doesNotMatch(
   hook,
   /consulta-app[\s\S]{0,4000}\.(save|delete|dao\(\)\.save|dao\(\)\.delete)\(/,
