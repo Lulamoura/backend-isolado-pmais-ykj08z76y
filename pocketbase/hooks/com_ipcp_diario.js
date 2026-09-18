@@ -606,9 +606,10 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   function filtroEscopoColecao(collection, scope, responsavelId, actor) {
     var parts = []
     if (collection === 'com_negocios') parts.push('inativo = false')
-    if (scope === 'proprio' && responsavelId)
+    var responsavelSelecionado = !!responsavelId && (scope === 'proprio' || scope === 'equipe')
+    if (responsavelSelecionado) {
       parts.push("responsavel_id = '" + esc(responsavelId) + "'")
-    if (scope === 'equipe') {
+    } else if (scope === 'equipe') {
       var equipeId = actor.getString('equipe_id') || ''
       if (equipeId) parts.push("equipe_id = '" + esc(equipeId) + "'")
     }
@@ -726,10 +727,10 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   function calcularPacoteIpcpDiario(dataRef, scope, responsavelId, actor) {
     var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
     var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
-    var filtroOperacional =
-      scope === 'proprio' && responsavelId
-        ? "responsavel_id = '" + esc(responsavelId) + "'"
-        : "id != ''"
+    var filtroResponsavelSelecionado = !!responsavelId && (scope === 'proprio' || scope === 'equipe')
+    var filtroOperacional = filtroResponsavelSelecionado
+      ? "responsavel_id = '" + esc(responsavelId) + "'"
+      : "id != ''"
     var atividades = listar('com_atividades', filtroOperacional, '-created', 200)
     var slas = listar('com_slas', filtroOperacional, '-created', 200)
     var propostas = listar('com_proposta_envios', filtroOperacional, '-created', 200)
@@ -1138,9 +1139,10 @@ routerAdd(
     function filtroEscopoColecao(collection, scope, responsavelId, actor) {
       var parts = []
       if (collection === 'com_negocios') parts.push('inativo = false')
-      if (scope === 'proprio' && responsavelId)
+      var responsavelSelecionado = !!responsavelId && (scope === 'proprio' || scope === 'equipe')
+      if (responsavelSelecionado) {
         parts.push("responsavel_id = '" + esc(responsavelId) + "'")
-      if (scope === 'equipe') {
+      } else if (scope === 'equipe') {
         var equipeId = actor.getString('equipe_id') || ''
         if (equipeId) parts.push("equipe_id = '" + esc(equipeId) + "'")
       }
@@ -1244,10 +1246,10 @@ routerAdd(
     function calcularPacoteIpcpDiarioVivo(dataRef, scope, responsavelId, actor) {
       var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
       var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
-      var filtroOperacional =
-        scope === 'proprio' && responsavelId
-          ? "responsavel_id = '" + esc(responsavelId) + "'"
-          : "id != ''"
+      var filtroResponsavelSelecionado = !!responsavelId && (scope === 'proprio' || scope === 'equipe')
+      var filtroOperacional = filtroResponsavelSelecionado
+        ? "responsavel_id = '" + esc(responsavelId) + "'"
+        : "id != ''"
       var atividades = listar('com_atividades', filtroOperacional, '-created', 200)
       var slas = listar('com_slas', filtroOperacional, '-created', 200)
       var propostas = listar('com_proposta_envios', filtroOperacional, '-created', 200)
@@ -1534,7 +1536,9 @@ routerAdd(
       escopo_efetivo: {
         tipo: effectiveScope,
         responsavel_id: responsavelId || null,
-        responsavel_nome: ator.getString('name') || ator.getString('email') || ator.id,
+        responsavel_nome: responsavelId
+          ? nomeRelacionado('users', responsavelId, ['name', 'email']) || responsavelId
+          : ator.getString('name') || ator.getString('email') || ator.id,
         pode_ver_equipe: canViewTeam(slug),
         pode_ver_todos: canViewAll(slug),
       },

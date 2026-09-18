@@ -65,10 +65,25 @@ assert.match(
   /obterNexoIpcpDiarioEquipe/,
   'IPCP gerencial assistido deve usar leitura viva Nexo/IPCP em vez de tela vazia/simulação antiga',
 )
+assert.match(
+  ipcpGerencial,
+  /executarIpcpProcessamentoDiarioHomologacao|Recalcular IPCP/,
+  'IPCP gerencial assistido deve manter botão de recálculo manual controlado',
+)
+assert.match(
+  card,
+  /N[ºo]\.? do negócio|numeroNegocioAtencao|id_negocio/,
+  'cards de negócios devem exibir número do negócio para localização operacional',
+)
+const hookIpcp = fs.readFileSync('pocketbase/hooks/com_ipcp_diario.js', 'utf8')
+assert.match(
+  hookIpcp,
+  /responsavelSelecionado|filtroResponsavelSelecionado|responsavelId && scope === 'equipe'/,
+  'rota IPCP viva deve recalcular por responsável selecionado em escopo gerencial',
+)
 
 const fixtureBanida = /RCML|PMAIS EVENTOS|id_negocio:\s*['"]4612['"]|id_negocio:\s*['"]4800['"]|total:\s*55\.3/
 assert.doesNotMatch(service, fixtureBanida, 'serviço de produção assistida não deve manter clientes, negócios ou nota fixa de referência')
-const hookIpcp = fs.readFileSync('pocketbase/hooks/com_ipcp_diario.js', 'utf8')
 assert.doesNotMatch(hookIpcp, fixtureBanida, 'hook IPCP não deve expor clientes, negócios ou nota fixa de referência em rotas de produção assistida')
 
 const frasesBanidas = [
