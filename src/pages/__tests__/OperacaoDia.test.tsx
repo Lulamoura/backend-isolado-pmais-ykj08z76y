@@ -44,22 +44,30 @@ beforeEach(() => {
   })
   listarPropostasSemAbertura.mockResolvedValue({ itens: [], limite_dias_uteis: 2 })
   pbSend.mockResolvedValue({
-    contrato: 'ipcp_diario_readonly_v0_2',
+    contrato: 'nexo_ipcp_diario_v1',
     read_only: true,
     sem_mutacao: true,
+    modo: 'consulta_viva_controlada',
     formula_version: 'ipcp_v0_2_simulacao_readonly_ia_followup',
     data_referencia: '2026-09-17',
-    atualizacao: 'diaria',
-    resumo_nexo: {
-      texto: 'Texto vindo do endpoint read-only do IPCP.',
-      prioridades: [
+    escopo_efetivo: {
+      tipo: 'equipe',
+      responsavel_id: 'lulamoura52022x',
+      responsavel_nome: 'Luiz Antônio Moura',
+      pode_ver_equipe: true,
+      pode_ver_todos: true,
+    },
+    resumo: {
+      texto: 'Texto vindo da leitura viva de equipe do IPCP.',
+      recomendacoes: [
         {
-          titulo: 'Prioridade vinda do endpoint',
-          motivo: 'Mantém a tela alimentada pela rota read-only.',
+          titulo: 'Prioridade vinda da leitura viva',
+          motivo: 'Mantém a tela alimentada pela rota viva de equipe.',
           bloco_afetado: 'qualidade_followup',
         },
       ],
     },
+    dados_vivos: { fonte_disponivel: true, snapshot_encontrado: true, total_lido: 2 },
     ipcp: {
       total: 61.2,
       blocos: {
@@ -71,13 +79,12 @@ beforeEach(() => {
       },
       cobertura_ia: { avaliados: 63, total: 63, pendentes: 0 },
     },
-    negocios_atencao: [],
-    evolucao: { status: 'sem_historico', comentario: 'Sem histórico.' },
     guardrails: {
       sem_ranking_punitivo: true,
       sem_recalculo_tempo_real: true,
       fallback_openai_bloqueado: true,
       provider_oficial_followup: 'nexo_hermes',
+      sem_job_automatico: true,
     },
   })
   useDashboardResumo.mockReturnValue({
@@ -183,19 +190,21 @@ describe('Operação do Dia', () => {
     })
   })
 
-  it('mostra o IPCP educativo diário antes da nota e sem linguagem de ranking', async () => {
+  it('mostra o IPCP vivo da equipe antes da nota e sem linguagem de ranking', async () => {
     render(
       <MemoryRouter>
         <OperacaoDia />
       </MemoryRouter>,
     )
 
-    expect(await screen.findByText('Texto vindo do endpoint read-only do IPCP.')).toBeInTheDocument()
-    expect(pbSend).toHaveBeenCalledWith('/backend/v1/ipcp/diario', { method: 'GET' })
+    expect(await screen.findByText('Texto vindo da leitura viva de equipe do IPCP.')).toBeInTheDocument()
+    expect(pbSend).toHaveBeenCalledWith('/backend/v1/nexo/ipcp/diario?escopo=equipe', {
+      method: 'GET',
+    })
     expect(screen.getByText('Prioridades do dia')).toBeInTheDocument()
     expect(screen.getByText('Negócios que merecem atenção')).toBeInTheDocument()
     expect(screen.getByText('IPCP do dia')).toBeInTheDocument()
-    expect(screen.getByText('Índice de Performance Comercial PMais — leitura educativa da rotina comercial.')).toBeInTheDocument()
+    expect(screen.getByText('Índice de Performance Comercial PMais — leitura assistida da rotina comercial.')).toBeInTheDocument()
     expect(screen.getByText('Atualização diária')).toBeInTheDocument()
     const resultadoButton = screen.getByRole('button', { name: /Explicar Resultado comercial/i })
     expect(resultadoButton).not.toHaveAttribute('title')

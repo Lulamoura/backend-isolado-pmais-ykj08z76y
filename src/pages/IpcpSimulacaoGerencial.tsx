@@ -37,9 +37,9 @@ function SimulacaoGuardrails({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Guardrails da simulação</CardTitle>
+        <CardTitle>Guardrails do IPCP</CardTitle>
         <CardDescription>
-          Leitura piloto para gestão, com snapshot simulado autorizado e rotina automática restrita à homologação.
+          Leitura assistida para gestão, com snapshot controlado e rotina diária supervisionada.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-4">
@@ -53,7 +53,7 @@ function SimulacaoGuardrails({
           Coleção: {simulacao?.colecao_snapshot_criada ? 'criada' : 'não criada'}
         </Badge>
         <Badge variant="outline" className="justify-center py-2">
-          Job: {jobAtivoHomologacao ? 'ativo em homologação' : 'inativo'}
+          Job: {jobAtivoHomologacao ? 'ativo em produção assistida' : 'inativo'}
         </Badge>
       </CardContent>
     </Card>
@@ -115,20 +115,20 @@ function JobDiarioStatus({ status }: { status: IpcpJobDiarioHomologacaoStatus | 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Rotina diária em homologação</CardTitle>
+        <CardTitle>Rotina diária em produção assistida</CardTitle>
         <CardDescription>
-          Execução automática ativa apenas no Preview de homologação. Produção continua bloqueada.
+          Execução diária supervisionada, sem alteração automática de negócios ou CRM.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-4">
         <Badge className="justify-center bg-emerald-700 py-2 text-white hover:bg-emerald-700">
-          Ativa em homologação
+          Ativa em produção assistida
         </Badge>
         <Badge variant="outline" className="justify-center py-2">
           Horário: {status.job.horario_recife}
         </Badge>
         <Badge variant="outline" className="justify-center py-2">
-          Produção: bloqueada
+          Produção assistida
         </Badge>
         <Badge variant="outline" className="justify-center py-2">
           CRM: sem alteração
@@ -162,7 +162,7 @@ export default function IpcpSimulacaoGerencial() {
       setErro(
         error instanceof Error
           ? error.message
-          : 'Não foi possível carregar a simulação read-only do IPCP.',
+          : 'Não foi possível carregar a leitura do IPCP.',
       )
     } finally {
       setLoading(false)
@@ -179,7 +179,7 @@ export default function IpcpSimulacaoGerencial() {
       setErro(
         error instanceof Error
           ? error.message
-          : 'Não foi possível gravar o snapshot simulado do IPCP.',
+          : 'Não foi possível gravar o snapshot controlado do IPCP.',
       )
     } finally {
       setSaving(false)
@@ -213,19 +213,19 @@ export default function IpcpSimulacaoGerencial() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-emerald-200">
-              IPCP — piloto gerencial
+              IPCP — produção assistida
             </p>
             <h1 className="mt-1 text-3xl font-extrabold tracking-tight">
-              Simulação do Índice de Performance Comercial PMais
+              Índice de Performance Comercial PMais
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-100/90">
-              Leitura da simulação para homologar fórmula, escopo, apresentação e snapshot controlado antes
-              de qualquer rotina automática.
+              Leitura viva da equipe para acompanhamento gerencial, com snapshot controlado e guardrails
+              de integridade.
             </p>
           </div>
           <Badge className="border-emerald-300/50 bg-white/10 text-emerald-50 hover:bg-white/10">
             <ShieldCheck aria-hidden="true" className="mr-1 h-3.5 w-3.5" />{' '}
-            {snapshot ? 'Snapshot simulado' : 'Sem gravação'}
+            {snapshot ? 'Snapshot controlado' : 'Somente leitura'}
           </Badge>
         </div>
       </section>
@@ -243,11 +243,11 @@ export default function IpcpSimulacaoGerencial() {
             ) : (
               <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
             )}
-            Atualizar simulação
+            Atualizar leitura
           </Button>
           <Button onClick={() => void gravarSnapshotSimulado()} disabled={!data || loading || saving || processing}>
             {saving ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Gravar snapshot simulado
+            Gravar snapshot controlado
           </Button>
           <Button
             onClick={() => void executarProcessamentoDiario()}
@@ -255,14 +255,14 @@ export default function IpcpSimulacaoGerencial() {
             variant="secondary"
           >
             {processing ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Processar dia em homologação
+            Processar dia
           </Button>
         </div>
       </div>
 
       {erro ? (
         <Alert variant="destructive">
-          <AlertTitle>Simulação indisponível</AlertTitle>
+          <AlertTitle>IPCP indisponível</AlertTitle>
           <AlertDescription>{erro}</AlertDescription>
         </Alert>
       ) : null}
@@ -272,8 +272,8 @@ export default function IpcpSimulacaoGerencial() {
           <ShieldCheck aria-hidden="true" className="h-4 w-4" />
           <AlertTitle>
             {processamentoExecutado
-              ? 'Processamento diário executado em homologação'
-              : 'Snapshot simulado gravado para homologação'}
+              ? 'Processamento diário executado'
+              : 'Snapshot controlado gravado'}
           </AlertTitle>
           <AlertDescription>
             Registro {snapshot.snapshot.id} · {snapshot.snapshot.data_referencia} ·{' '}
@@ -285,8 +285,8 @@ export default function IpcpSimulacaoGerencial() {
       {loading && !data ? (
         <Card>
           <CardContent className="flex items-center gap-3 p-6 text-sm text-slate-600">
-            <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> Carregando simulação
-            read-only do IPCP.
+            <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> Carregando leitura do
+            IPCP.
           </CardContent>
         </Card>
       ) : null}

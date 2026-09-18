@@ -20,9 +20,9 @@ assert(serviceSource.includes("horario_recife: '19:00'"), 'status da rotina deve
 assert(serviceSource.includes('agendamento_automatico_ativo: true'), 'status deve indicar automação de homologação ativa')
 assert(serviceSource.includes('producao_publicada: false'), 'status deve manter Produção bloqueada')
 assert(serviceSource.includes('sem_crm_write: true'), 'status deve manter CRM sem alteração')
-assert(pageSource.includes('Rotina diária em homologação'), 'tela deve exibir status da rotina diária')
-assert(pageSource.includes('Ativa em homologação'), 'tela deve informar que está ativa em homologação')
-assert(pageSource.includes('Produção: bloqueada'), 'tela deve deixar claro que Produção segue bloqueada')
+assert(pageSource.includes('Rotina diária em produção assistida'), 'tela deve exibir status da rotina diária')
+assert(pageSource.includes('Ativa em produção assistida'), 'tela deve informar que está ativa em produção assistida')
+assert(pageSource.includes('Produção assistida'), 'tela deve usar linguagem de produção assistida')
 assert(pageSource.includes('CRM: sem alteração'), 'tela deve deixar claro que CRM não é alterado')
 
 console.log('OK: contrato IPCP job diario homologacao protegido')

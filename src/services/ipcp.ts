@@ -26,7 +26,7 @@ export type IpcpDiarioReadOnly = {
   contrato: 'ipcp_diario_readonly_v0_2' | 'nexo_ipcp_diario_v1'
   read_only: true
   sem_mutacao: true
-  modo?: 'diario' | 'simulacao'
+  modo?: 'diario' | 'simulacao' | 'consulta_viva_controlada'
   formula_version: string
   data_referencia: string
   atualizacao: 'diaria'
@@ -89,6 +89,7 @@ export type IpcpDiarioReadOnly = {
 }
 
 export const IPCP_DIARIO_READONLY_PATH = '/backend/v1/ipcp/diario'
+export const NEXO_IPCP_DIARIO_VIVO_PATH = '/backend/v1/nexo/ipcp/diario?escopo=equipe'
 export const IPCP_SIMULACAO_READONLY_PATH = '/backend/v1/ipcp/simulacao'
 export const IPCP_SNAPSHOT_SIMULADO_PATH = '/backend/v1/ipcp/snapshots/simulado'
 export const IPCP_PROCESSAMENTO_DIARIO_HOMOLOGACAO_PATH =
@@ -219,6 +220,95 @@ export async function obterIpcpDiarioReadOnly(): Promise<IpcpDiarioReadOnly> {
     // Mantém a tela educativa funcional se o Preview ainda não tiver materializado o hook.
   }
   return ipcpDiarioFixtureHomologado
+}
+
+type NexoIpcpDiarioVivoResponse = {
+  contrato: 'nexo_ipcp_diario_v1'
+  read_only: true
+  sem_mutacao: true
+  modo: 'consulta_viva_controlada'
+  data_referencia: string
+  formula_version: string
+  escopo_efetivo?: IpcpDiarioReadOnly['escopo']
+  resumo?: {
+    texto?: string
+    recomendacoes?: IpcpPrioridadeDia[]
+  }
+  ipcp?: IpcpDiarioReadOnly['ipcp'] & {
+    carater?: string
+  }
+  guardrails?: Partial<IpcpDiarioReadOnly['guardrails']> & {
+    sem_app_write?: true
+    sem_crm_write?: true
+    sem_envio?: true
+    somente_leitura_snapshot?: true
+  }
+  dados_vivos?: {
+    fonte_disponivel?: boolean
+    snapshot_encontrado?: boolean
+    total_lido?: number
+  }
+}
+
+function normalizarTextoProducaoAssistida(texto: string): string {
+  return texto
+    .replace(/processamento\/homologação/gi, 'processamento diário')
+    .replace(/processamento\/homologacao/gi, 'processamento diário')
+    .replace(/dado desatualizado ou simulado/gi, 'dado desatualizado ou sem processamento')
+    .replace(/homologação/gi, 'produção assistida')
+    .replace(/homologacao/gi, 'produção assistida')
+    .replace(/simulado/gi, 'controlado')
+    .replace(/simulação/gi, 'leitura')
+}
+
+function normalizarNexoIpcpDiarioVivo(data: NexoIpcpDiarioVivoResponse): IpcpDiarioReadOnly {
+  return {
+    contrato: data.contrato,
+    read_only: true,
+    sem_mutacao: true,
+    modo: data.modo,
+    formula_version: data.formula_version,
+    data_referencia: data.data_referencia,
+    atualizacao: 'diaria',
+    escopo: data.escopo_efetivo,
+    resumo_nexo: {
+      texto: normalizarTextoProducaoAssistida(
+        data.resumo?.texto || 'Leitura viva do IPCP da equipe disponível para orientação assistida.',
+      ),
+      prioridades: data.resumo?.recomendacoes?.length
+        ? data.resumo.recomendacoes.map((item) => ({
+            ...item,
+            titulo: normalizarTextoProducaoAssistida(item.titulo),
+            motivo: normalizarTextoProducaoAssistida(item.motivo),
+          }))
+        : ipcpDiarioFixtureHomologado.resumo_nexo.prioridades,
+    },
+    ipcp: data.ipcp || ipcpDiarioFixtureHomologado.ipcp,
+    negocios_atencao: [],
+    evolucao: {
+      status: 'sem_historico',
+      comentario: data.dados_vivos?.snapshot_encontrado
+        ? 'Leitura viva da equipe carregada a partir do snapshot diário do IPCP.'
+        : 'Sem snapshot diário disponível para este escopo; a orientação usa a regra aprovada até o próximo processamento.',
+    },
+    guardrails: {
+      sem_ranking_punitivo: true,
+      sem_recalculo_tempo_real: true,
+      fallback_openai_bloqueado: true,
+      provider_oficial_followup: 'nexo_hermes',
+      sem_job_automatico: data.guardrails?.sem_job_automatico,
+    },
+  }
+}
+
+export async function obterNexoIpcpDiarioEquipe(): Promise<IpcpDiarioReadOnly> {
+  const data = await pb.send<NexoIpcpDiarioVivoResponse>(NEXO_IPCP_DIARIO_VIVO_PATH, {
+    method: 'GET',
+  })
+  if (data?.contrato === 'nexo_ipcp_diario_v1' && data?.read_only === true && data?.sem_mutacao === true) {
+    return normalizarNexoIpcpDiarioVivo(data)
+  }
+  throw new Error('Resposta viva do IPCP da equipe sem garantias de leitura segura.')
 }
 
 export async function obterIpcpSimulacaoReadOnly(): Promise<IpcpDiarioReadOnly> {
