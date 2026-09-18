@@ -840,6 +840,8 @@ routerAdd(
       try {
         var raw = record.get('payload') || {}
         if (typeof raw === 'string') return JSON.parse(raw || '{}')
+        if (raw && !raw.ipcp && raw.toString && String(raw).charAt(0) === '{')
+          return JSON.parse(String(raw))
         return raw
       } catch (_) {
         return {}
