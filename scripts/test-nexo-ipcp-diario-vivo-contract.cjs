@@ -55,6 +55,11 @@ assert.match(
 )
 assert.match(
   routeSource,
+  /JSON\.parse\(raw/,
+  'rota do Nexo deve decodificar payload JSON salvo no PocketBase',
+)
+assert.match(
+  routeSource,
   /payload\.negocios_atencao|negocios_atencao:\s*payload/,
   'rota do Nexo deve devolver negócios gravados no pacote diário',
 )

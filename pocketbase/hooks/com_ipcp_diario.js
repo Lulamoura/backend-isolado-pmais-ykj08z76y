@@ -838,7 +838,9 @@ routerAdd(
 
     function leituraPayload(record) {
       try {
-        return record.get('payload') || {}
+        var raw = record.get('payload') || {}
+        if (typeof raw === 'string') return JSON.parse(raw || '{}')
+        return raw
       } catch (_) {
         return {}
       }
