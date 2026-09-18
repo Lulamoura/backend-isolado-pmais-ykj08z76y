@@ -16,13 +16,45 @@ function assert(condition, message) {
 }
 
 assert(
-  !/cronAdd\(/.test(hookSource),
-  'app não deve registrar cron interno enquanto Produção estiver bloqueada',
+  /cronAdd\(\s*'ipcp_processamento_diario_homologacao_1900_recife'/.test(hookSource),
+  'backend deve registrar o job diário do IPCP',
+)
+assert(
+  hookSource.includes("IPCP_JOB_DIARIO_HOMOLOGACAO_HORARIO_RECIFE = '19:00'"),
+  'job deve declarar horário de negócio Recife 19:00',
+)
+assert(
+  hookSource.includes("IPCP_JOB_DIARIO_HOMOLOGACAO_CRON_UTC = '0 22 * * *'"),
+  'job deve rodar às 22:00 UTC para corresponder a 19:00 Recife',
+)
+assert(
+  /record\.set\('origem', origem\)/.test(hookSource) &&
+    hookSource.includes('ipcp_processamento_diario_job_1900_recife'),
+  'snapshots do job devem identificar origem automática',
+)
+assert(
+  /agendamento_automatico_ativo:\s*true/.test(hookSource),
+  'payload/status do job deve indicar automação ativa',
+)
+assert(
+  hookSource.includes("'__todos__'") && hookSource.includes("responsavelId !== '__todos__'"),
+  'job deve gravar pacote consolidado Todos separadamente dos pacotes por responsável',
+)
+assert(
+  hookSource.includes('listRule: null') &&
+    hookSource.includes('viewRule: null') &&
+    hookSource.includes('existing.listRule = null') &&
+    hookSource.includes('existing.viewRule = null') &&
+    hookSource.includes('existing.createRule !== null') &&
+    hookSource.includes('existing.updateRule !== null') &&
+    hookSource.includes('existing.deleteRule !== null'),
+  'coleção de snapshots deve ficar fechada para leitura direta; acesso deve passar pela rota governada',
 )
 assert(
   serviceSource.includes("horario_recife: '19:00'"),
   'status da rotina deve mostrar horário Recife',
 )
+assert(serviceSource.includes("cron_utc: '0 22 * * *'"), 'status deve mostrar cron UTC correto')
 assert(
   serviceSource.includes('agendamento_automatico_ativo: true'),
   'status deve indicar automação de homologação ativa',

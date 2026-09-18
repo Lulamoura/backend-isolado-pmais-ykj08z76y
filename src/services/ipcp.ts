@@ -405,7 +405,7 @@ export async function obterStatusIpcpJobDiarioHomologacao(): Promise<IpcpJobDiar
       ativo: true,
       ambiente: 'homologacao_preview',
       horario_recife: '19:00',
-      cron_utc: '0 19 * * *',
+      cron_utc: '0 22 * * *',
       agendamento_automatico_ativo: true,
       producao_publicada: false,
       sem_crm_write: true,

@@ -140,6 +140,11 @@ assert.match(
 )
 assert.match(
   routeSource,
+  /pacoteVivoResponsavelId = responsavelId === '__todos__' \? '' : responsavelId/,
+  'leitura Todos deve usar snapshot __todos__ sem filtrar cálculo vivo por um responsável técnico',
+)
+assert.match(
+  routeSource,
   /com_notas_negocio[\s\S]{0,2500}decisor|decisor[\s\S]{0,2500}com_notas_negocio/,
   'qualidade do registro deve considerar notas comerciais com decisor/contexto, não só próxima ação',
 )
