@@ -53,7 +53,8 @@ assert(
   'bloco Registros e Aprendizados deve calcular qualidade do registro comercial, não só presença de próximo compromisso',
 )
 assert(
-  /com_notas_negocio/.test(postSource) && /decisor|necessidade|obje[cç][aã]o|risco|prazo|pr[oó]ximo passo/i.test(postSource),
+  /com_notas_negocio/.test(postSource) &&
+    /decisor|necessidade|obje[cç][aã]o|risco|prazo|pr[oó]ximo passo/i.test(postSource),
   'qualidade do registro deve usar notas/contexto comercial: decisor, necessidade, objeção/risco, prazo e próximo passo',
 )
 assert(

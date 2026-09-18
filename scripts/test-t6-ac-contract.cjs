@@ -187,18 +187,26 @@ const checks = [
   [
     'reconciliação não usa proprietário técnico do AC como responsável comercial',
     reconciliationHook.includes("owner_code: customFields['Responsável'] || ''") &&
-      !reconciliationHook.includes("owner_code: customFields['Responsável'] || String(deals[d].owner || '')"),
+      !reconciliationHook.includes(
+        "owner_code: customFields['Responsável'] || String(deals[d].owner || '')",
+      ),
   ],
   [
     'pendências de qualidade não bloqueiam atualização manual segura',
     reconciliationHook.includes('var blocked = counts.conflict > 0') &&
       reconciliationHook.includes('if ((stored.counts.conflict || 0) > 0)') &&
-      !reconciliationHook.includes("if ((stored.counts.conflict || 0) > 0 || (stored.counts.error || 0) > 0)"),
+      !reconciliationHook.includes(
+        'if ((stored.counts.conflict || 0) > 0 || (stored.counts.error || 0) > 0)',
+      ),
   ],
   [
     'negócio prospect sem empresa não bloqueia reconciliação',
-    reconciliationHook.includes("if (!ev.links.contact_id || (!eventIsProspect && !ev.links.owner_code))") &&
-      reconciliationHook.includes("if (ev.links.company_id && !incomingCompanies[ev.links.company_id])"),
+    reconciliationHook.includes(
+      'if (!ev.links.contact_id || (!eventIsProspect && !ev.links.owner_code))',
+    ) &&
+      reconciliationHook.includes(
+        'if (ev.links.company_id && !incomingCompanies[ev.links.company_id])',
+      ),
   ],
   [
     'falha pontual de campos personalizados não derruba toda a verificação',

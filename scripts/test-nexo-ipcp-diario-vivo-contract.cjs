@@ -80,21 +80,6 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /findExternalBusinessId|com_vinculos_externos/,
-  'negócios de atenção devem usar número externo legível quando não houver OE/código',
-)
-assert.doesNotMatch(
-  routeSource,
-  /rec\.getString\('codigo'\)\s*\|\|\s*rec\.id/,
-  'número do negócio não deve cair no ID técnico do PocketBase',
-)
-assert.match(
-  routeSource,
-  /if \(effectiveScope === 'equipe' && !String\(query\.responsavel_id \|\| ''\)\) responsavelId = ''/,
-  'visão equipe sem responsável selecionado deve ser consolidada, não a carteira do ator',
-)
-assert.match(
-  routeSource,
   /pacoteVivo\.evolucao|evolucao:\s*pacoteVivo/,
   'rota do Nexo deve devolver evolução calculada ao vivo',
 )

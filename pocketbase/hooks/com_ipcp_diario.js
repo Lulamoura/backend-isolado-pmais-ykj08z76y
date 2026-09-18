@@ -81,7 +81,8 @@ routerAdd('GET', '/backend/v1/ipcp/diario', function (e) {
         },
         {
           titulo: 'Conferir responsável e escopo',
-          motivo: 'A carteira precisa ser lida pelo perfil correto antes da publicação operacional.',
+          motivo:
+            'A carteira precisa ser lida pelo perfil correto antes da publicação operacional.',
           bloco_afetado: 'disciplina_carteira',
         },
         {
@@ -209,7 +210,8 @@ routerAdd('GET', '/backend/v1/ipcp/simulacao', function (e) {
         },
         {
           titulo: 'Conferir responsável e escopo',
-          motivo: 'A carteira precisa ser lida pelo perfil correto antes da publicação operacional.',
+          motivo:
+            'A carteira precisa ser lida pelo perfil correto antes da publicação operacional.',
           bloco_afetado: 'disciplina_carteira',
         },
         {
@@ -606,10 +608,9 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   function filtroEscopoColecao(collection, scope, responsavelId, actor) {
     var parts = []
     if (collection === 'com_negocios') parts.push('inativo = false')
-    var responsavelSelecionado = !!responsavelId && (scope === 'proprio' || scope === 'equipe')
-    if (responsavelSelecionado) {
+    if (scope === 'proprio' && responsavelId)
       parts.push("responsavel_id = '" + esc(responsavelId) + "'")
-    } else if (scope === 'equipe') {
+    if (scope === 'equipe') {
       var equipeId = actor.getString('equipe_id') || ''
       if (equipeId) parts.push("equipe_id = '" + esc(equipeId) + "'")
     }
@@ -638,50 +639,24 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     return 'aberto'
   }
 
-
-  function nomeRelacionado(collection, id, fields) {
-    if (!id) return ''
-    try {
-      var rec = $app.findRecordById(collection, id)
-      for (var ri = 0; ri < fields.length; ri++) {
-        var value = rec.getString(fields[ri])
-        if (value) return value
-      }
-    } catch (_) {}
-    return ''
-  }
-
-  function findExternalBusinessId(negocioId) {
-    try {
-      var vinculos = $app.findRecordsByFilter(
-        'com_vinculos_externos',
-        "collection_name = 'com_negocios' && record_id = '" +
-          esc(negocioId) +
-          "' && sistema_origem = 'activecampaign' && external_type = 'business'",
-        '',
-        1,
-        0,
-      )
-      if (vinculos && vinculos.length > 0) return vinculos[0].getString('external_id') || ''
-    } catch (_) {}
-    return ''
-  }
-
   function nomeNegocio(rec) {
-    var empresaId = rec.getString('empresa_id') || ''
-    var contatoId = rec.getString('contato_principal_id') || ''
-    var empresa = nomeRelacionado('com_empresas', empresaId, ['nome', 'razao_social'])
-    var contato = nomeRelacionado('com_contatos', contatoId, ['nome'])
-    var titulo = rec.getString('titulo') || rec.getString('nome') || ''
-    if (empresa && contato) return empresa + ' — ' + contato
-    if (empresa) return empresa
-    if (contato) return contato
-    if (titulo && titulo !== 'Proposta Qualificada') return titulo
-    return 'Negócio comercial'
+    return (
+      rec.getString('cliente') ||
+      rec.getString('empresa_nome') ||
+      rec.getString('contato_nome') ||
+      rec.getString('titulo') ||
+      rec.getString('nome') ||
+      'Negócio comercial'
+    )
   }
 
   function negocioHumanoId(rec) {
-    return rec.getString('oe_numero') || findExternalBusinessId(rec.id) || rec.getString('external_id') || rec.getString('codigo') || ''
+    return (
+      rec.getString('oe_numero') ||
+      rec.getString('external_id') ||
+      rec.getString('codigo') ||
+      rec.id
+    )
   }
   function textoRegistroComercial(rec) {
     try {
@@ -721,11 +696,47 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
       var pontos = 0
       if (proxima) pontos += 0.15
       if (texto && texto.trim().length >= 40) pontos += 0.15
-      if (contemQualidadeRegistro(texto, [/decisor/, /respons[aá]vel pela decis[aã]o/, /quem decide/, /influenciador/])) pontos += 0.18
-      if (contemQualidadeRegistro(texto, [/necessidade/, /dor/, /demanda/, /objetivo/, /escopo/])) pontos += 0.18
-      if (contemQualidadeRegistro(texto, [/obje[cç][aã]o/, /risco/, /pend[eê]ncia/, /bloqueio/, /restri[cç][aã]o/])) pontos += 0.18
-      if (contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /enviar/, /reuni[aã]o/])) pontos += 0.16
-      if (contemQualidadeRegistro(texto, [/prazo/, /data/, /\d{1,2}\/\d{1,2}/, /\d{4}-\d{2}-\d{2}/])) pontos += 0.15
+      if (
+        contemQualidadeRegistro(texto, [
+          /decisor/,
+          /respons[aá]vel pela decis[aã]o/,
+          /quem decide/,
+          /influenciador/,
+        ])
+      )
+        pontos += 0.18
+      if (contemQualidadeRegistro(texto, [/necessidade/, /dor/, /demanda/, /objetivo/, /escopo/]))
+        pontos += 0.18
+      if (
+        contemQualidadeRegistro(texto, [
+          /obje[cç][aã]o/,
+          /risco/,
+          /pend[eê]ncia/,
+          /bloqueio/,
+          /restri[cç][aã]o/,
+        ])
+      )
+        pontos += 0.18
+      if (
+        contemQualidadeRegistro(texto, [
+          /pr[oó]ximo passo/,
+          /combinado/,
+          /retorno/,
+          /validar/,
+          /enviar/,
+          /reuni[aã]o/,
+        ])
+      )
+        pontos += 0.16
+      if (
+        contemQualidadeRegistro(texto, [
+          /prazo/,
+          /data/,
+          /\d{1,2}\/\d{1,2}/,
+          /\d{4}-\d{2}-\d{2}/,
+        ])
+      )
+        pontos += 0.15
       if (pontos > 1) pontos = 1
       if (pontos < 0.35) fracos++
       if (pontos >= 0.7) bons++
@@ -738,10 +749,10 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
   function calcularPacoteIpcpDiario(dataRef, scope, responsavelId, actor) {
     var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
     var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
-    var filtroResponsavelSelecionado = !!responsavelId && (scope === 'proprio' || scope === 'equipe')
-    var filtroOperacional = filtroResponsavelSelecionado
-      ? "responsavel_id = '" + esc(responsavelId) + "'"
-      : "id != ''"
+    var filtroOperacional =
+      scope === 'proprio' && responsavelId
+        ? "responsavel_id = '" + esc(responsavelId) + "'"
+        : "id != ''"
     var atividades = listar('com_atividades', filtroOperacional, '-created', 200)
     var slas = listar('com_slas', filtroOperacional, '-created', 200)
     var propostas = listar('com_proposta_envios', filtroOperacional, '-created', 200)
@@ -822,7 +833,10 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     var qualidadeRegistro = calcularQualidadeRegistroComercial(negocios)
     var registrosAprendizado = round1(
       clamp(
-        3 + qualidadeRegistro.media * 9 + coberturaModalidade * 1.5 + Math.min(1.5, qualidadeRegistro.bons * 0.3),
+        3 +
+          qualidadeRegistro.media * 9 +
+          coberturaModalidade * 1.5 +
+          Math.min(1.5, qualidadeRegistro.bons * 0.3),
         3,
         15,
       ),
@@ -894,7 +908,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
         motivo: motivos.join('; '),
         acao_recomendada: 'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.',
         blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
-        link: '/pipeline?negocio=' + encodeURIComponent(item.id),
+        link: '/pipeline?negocio=' + encodeURIComponent(negocioHumanoId(item)),
       })
     }
 
@@ -1150,10 +1164,9 @@ routerAdd(
     function filtroEscopoColecao(collection, scope, responsavelId, actor) {
       var parts = []
       if (collection === 'com_negocios') parts.push('inativo = false')
-      var responsavelSelecionado = !!responsavelId && (scope === 'proprio' || scope === 'equipe')
-      if (responsavelSelecionado) {
+      if (scope === 'proprio' && responsavelId)
         parts.push("responsavel_id = '" + esc(responsavelId) + "'")
-      } else if (scope === 'equipe') {
+      if (scope === 'equipe') {
         var equipeId = actor.getString('equipe_id') || ''
         if (equipeId) parts.push("equipe_id = '" + esc(equipeId) + "'")
       }
@@ -1168,50 +1181,24 @@ routerAdd(
       return 'aberto'
     }
 
-
-    function nomeRelacionado(collection, id, fields) {
-      if (!id) return ''
-      try {
-        var rec = $app.findRecordById(collection, id)
-        for (var ri = 0; ri < fields.length; ri++) {
-          var value = rec.getString(fields[ri])
-          if (value) return value
-        }
-      } catch (_) {}
-      return ''
-    }
-
-    function findExternalBusinessId(negocioId) {
-      try {
-        var vinculos = $app.findRecordsByFilter(
-          'com_vinculos_externos',
-          "collection_name = 'com_negocios' && record_id = '" +
-            esc(negocioId) +
-            "' && sistema_origem = 'activecampaign' && external_type = 'business'",
-          '',
-          1,
-          0,
-        )
-        if (vinculos && vinculos.length > 0) return vinculos[0].getString('external_id') || ''
-      } catch (_) {}
-      return ''
-    }
-
     function nomeNegocio(rec) {
-      var empresaId = rec.getString('empresa_id') || ''
-      var contatoId = rec.getString('contato_principal_id') || ''
-      var empresa = nomeRelacionado('com_empresas', empresaId, ['nome', 'razao_social'])
-      var contato = nomeRelacionado('com_contatos', contatoId, ['nome'])
-      var titulo = rec.getString('titulo') || rec.getString('nome') || ''
-      if (empresa && contato) return empresa + ' — ' + contato
-      if (empresa) return empresa
-      if (contato) return contato
-      if (titulo && titulo !== 'Proposta Qualificada') return titulo
-      return 'Negócio comercial'
+      return (
+        rec.getString('cliente') ||
+        rec.getString('empresa_nome') ||
+        rec.getString('contato_nome') ||
+        rec.getString('titulo') ||
+        rec.getString('nome') ||
+        'Negócio comercial'
+      )
     }
 
     function negocioHumanoId(rec) {
-      return rec.getString('oe_numero') || findExternalBusinessId(rec.id) || rec.getString('external_id') || rec.getString('codigo') || ''
+      return (
+        rec.getString('oe_numero') ||
+        rec.getString('external_id') ||
+        rec.getString('codigo') ||
+        rec.id
+      )
     }
     function textoRegistroComercial(rec) {
       try {
@@ -1251,11 +1238,49 @@ routerAdd(
         var pontos = 0
         if (proxima) pontos += 0.15
         if (texto && texto.trim().length >= 40) pontos += 0.15
-        if (contemQualidadeRegistro(texto, [/decisor/, /respons[aá]vel pela decis[aã]o/, /quem decide/, /influenciador/])) pontos += 0.18
-        if (contemQualidadeRegistro(texto, [/necessidade/, /dor/, /demanda/, /objetivo/, /escopo/])) pontos += 0.18
-        if (contemQualidadeRegistro(texto, [/obje[cç][aã]o/, /risco/, /pend[eê]ncia/, /bloqueio/, /restri[cç][aã]o/])) pontos += 0.18
-        if (contemQualidadeRegistro(texto, [/pr[oó]ximo passo/, /combinado/, /retorno/, /validar/, /enviar/, /reuni[aã]o/])) pontos += 0.16
-        if (contemQualidadeRegistro(texto, [/prazo/, /data/, /\d{1,2}\/\d{1,2}/, /\d{4}-\d{2}-\d{2}/])) pontos += 0.15
+        if (
+          contemQualidadeRegistro(texto, [
+            /decisor/,
+            /respons[aá]vel pela decis[aã]o/,
+            /quem decide/,
+            /influenciador/,
+          ])
+        )
+          pontos += 0.18
+        if (
+          contemQualidadeRegistro(texto, [/necessidade/, /dor/, /demanda/, /objetivo/, /escopo/])
+        )
+          pontos += 0.18
+        if (
+          contemQualidadeRegistro(texto, [
+            /obje[cç][aã]o/,
+            /risco/,
+            /pend[eê]ncia/,
+            /bloqueio/,
+            /restri[cç][aã]o/,
+          ])
+        )
+          pontos += 0.18
+        if (
+          contemQualidadeRegistro(texto, [
+            /pr[oó]ximo passo/,
+            /combinado/,
+            /retorno/,
+            /validar/,
+            /enviar/,
+            /reuni[aã]o/,
+          ])
+        )
+          pontos += 0.16
+        if (
+          contemQualidadeRegistro(texto, [
+            /prazo/,
+            /data/,
+            /\d{1,2}\/\d{1,2}/,
+            /\d{4}-\d{2}-\d{2}/,
+          ])
+        )
+          pontos += 0.15
         if (pontos > 1) pontos = 1
         if (pontos < 0.35) fracos++
         if (pontos >= 0.7) bons++
@@ -1268,10 +1293,10 @@ routerAdd(
     function calcularPacoteIpcpDiarioVivo(dataRef, scope, responsavelId, actor) {
       var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
       var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
-      var filtroResponsavelSelecionado = !!responsavelId && (scope === 'proprio' || scope === 'equipe')
-      var filtroOperacional = filtroResponsavelSelecionado
-        ? "responsavel_id = '" + esc(responsavelId) + "'"
-        : "id != ''"
+      var filtroOperacional =
+        scope === 'proprio' && responsavelId
+          ? "responsavel_id = '" + esc(responsavelId) + "'"
+          : "id != ''"
       var atividades = listar('com_atividades', filtroOperacional, '-created', 200)
       var slas = listar('com_slas', filtroOperacional, '-created', 200)
       var propostas = listar('com_proposta_envios', filtroOperacional, '-created', 200)
@@ -1419,7 +1444,7 @@ routerAdd(
           acao_recomendada:
             'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.',
           blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
-          link: '/pipeline?negocio=' + encodeURIComponent(item.id),
+          link: '/pipeline?negocio=' + encodeURIComponent(negocioHumanoId(item)),
         })
       }
       return {
@@ -1487,11 +1512,10 @@ routerAdd(
     if (requestedScope === 'equipe' && canViewTeam(slug)) effectiveScope = 'equipe'
     if (requestedScope === 'todos' && canViewAll(slug)) effectiveScope = 'todos'
 
-    var responsavelId = ''
+    var responsavelId = ator.id
     if (String(query.responsavel_id || '') && canViewTeam(slug)) {
       responsavelId = String(query.responsavel_id || '')
     }
-    if (effectiveScope === 'equipe' && !String(query.responsavel_id || '')) responsavelId = ''
     if (effectiveScope === 'todos') responsavelId = ''
     if (effectiveScope === 'proprio') responsavelId = ator.id
 
@@ -1559,9 +1583,7 @@ routerAdd(
       escopo_efetivo: {
         tipo: effectiveScope,
         responsavel_id: responsavelId || null,
-        responsavel_nome: responsavelId
-          ? nomeRelacionado('users', responsavelId, ['name', 'email']) || responsavelId
-          : ator.getString('name') || ator.getString('email') || ator.id,
+        responsavel_nome: ator.getString('name') || ator.getString('email') || ator.id,
         pode_ver_equipe: canViewTeam(slug),
         pode_ver_todos: canViewAll(slug),
       },
@@ -1588,7 +1610,9 @@ routerAdd(
         criterio: pacoteVivo.evidencias
           ? pacoteVivo.evidencias.criterio
           : 'leitura_viva_ipcp_dados_reais',
-        fonte: pacoteVivo.evidencias ? pacoteVivo.evidencias.fonte : 'leitura_viva_ipcp_dados_reais',
+        fonte: pacoteVivo.evidencias
+          ? pacoteVivo.evidencias.fonte
+          : 'leitura_viva_ipcp_dados_reais',
         exemplos: pacoteVivo.evidencias ? pacoteVivo.evidencias.exemplos || [] : [],
         snapshot_id: snapshot ? snapshot.id : null,
         snapshot_status: snapshot ? snapshot.getString('status') || null : null,
