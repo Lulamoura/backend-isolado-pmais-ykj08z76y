@@ -48,6 +48,18 @@ assert(
   postSource.includes('calcularPacoteIpcpDiario'),
   'processamento diário deve calcular pacote antes de gravar',
 )
+assert(
+  postSource.includes('calcularQualidadeRegistroComercial'),
+  'bloco Registros e Aprendizados deve calcular qualidade do registro comercial, não só presença de próximo compromisso',
+)
+assert(
+  /com_notas_negocio/.test(postSource) && /decisor|necessidade|obje[cç][aã]o|risco|prazo|pr[oó]ximo passo/i.test(postSource),
+  'qualidade do registro deve usar notas/contexto comercial: decisor, necessidade, objeção/risco, prazo e próximo passo',
+)
+assert(
+  !/registrosAprendizado\s*=\s*round1\(\s*clamp\(\s*4\s*\+\s*coberturaResponsavel/.test(postSource),
+  'Registros e Aprendizados não pode ser pontuado principalmente por responsável/modalidade/volume',
+)
 assert(postSource.includes('sem_job_automatico: true'), 'não pode ativar job automático')
 assert(postSource.includes('sem_crm_write: true'), 'não pode escrever no CRM')
 assert(
