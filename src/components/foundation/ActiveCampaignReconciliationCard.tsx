@@ -15,6 +15,13 @@ import {
   type ReconciliationSimulation,
 } from '@/services/ac-reconciliation'
 
+function formatCursor(value?: string | null) {
+  if (!value || value === 'UNINITIALIZED') return 'não consultado'
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (match) return `${match[3]}/${match[2]}/${match[1]} ${match[4]}:${match[5]}`
+  return value
+}
+
 export function ActiveCampaignReconciliationCard() {
   const [loading, setLoading] = useState<'simulate' | 'execute' | null>(null)
   const [simulation, setSimulation] = useState<ReconciliationSimulation | null>(null)
@@ -63,8 +70,7 @@ export function ActiveCampaignReconciliationCard() {
 
   const execute = async () => {
     if (!simulation?.can_execute) return
-    const total = simulation.counts.create + simulation.counts.update
-    if (!window.confirm(`Executar o plano simulado e aplicar ${total} alteração(ões)?`)) return
+    const toastId = toast.loading('Aplicando reconciliação ActiveCampaign...')
     setLoading('execute')
     try {
       const result = await executeActiveCampaignReconciliation(
@@ -73,9 +79,17 @@ export function ActiveCampaignReconciliationCard() {
       )
       setExecution(result)
       setSimulation(null)
-      toast.success('Reconciliação concluída e auditada.')
+      setStatus((current) =>
+        current
+          ? {
+              ...current,
+              cursor: result.cursor_to || current.cursor,
+            }
+          : current,
+      )
+      toast.success('Reconciliação concluída e auditada.', { id: toastId })
     } catch {
-      toast.error('Execução recusada ou interrompida com segurança.')
+      toast.error('Execução recusada ou interrompida com segurança.', { id: toastId })
     } finally {
       setLoading(null)
     }
@@ -96,7 +110,7 @@ export function ActiveCampaignReconciliationCard() {
       <CardContent className="space-y-4">
         <div className="rounded-md border p-3 text-sm text-muted-foreground">
           Estado: {status?.reconciliation_enabled ? 'habilitada para uso manual' : 'desabilitada'} ·
-          cursor: {status?.cursor || 'não consultado'}
+          cursor: {formatCursor(status?.cursor)}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -136,19 +150,28 @@ export function ActiveCampaignReconciliationCard() {
         </div>
 
         {counts ? (
-          <Alert variant={counts.conflict || counts.error ? 'destructive' : 'default'}>
-            {counts.conflict || counts.error ? (
+          <Alert variant={counts.conflict ? 'destructive' : 'default'}>
+            {counts.conflict ? (
               <AlertTriangle className="h-4 w-4" />
             ) : (
               <ShieldCheck className="h-4 w-4" />
             )}
             <AlertTitle>Resultado da verificação</AlertTitle>
             <AlertDescription>
-              Novos: {counts.create}; atualizações: {counts.update}; sem alteração:{' '}
-              {counts.unchanged}; pendências: {counts.conflict + counts.error}.
-              {simulation.can_execute
-                ? ' A reconciliação pode ser confirmada.'
-                : ' A confirmação está bloqueada até resolver as pendências.'}
+              <div>
+                Novos: {counts.create}; atualizações: {counts.update}; sem alteração:{' '}
+                {counts.unchanged}; pendências: {counts.conflict + counts.error}.
+                {simulation.can_execute
+                  ? ' A reconciliação pode ser confirmada.'
+                  : ' A confirmação está bloqueada até resolver as pendências.'}
+              </div>
+              {counts.conflict + counts.error > 0 ? (
+                <div className="mt-2">
+                  <strong>Pendências operacionais:</strong> Você pode confirmar agora os registros
+                  válidos. Depois, corrija cadastro de empresa, contato ou responsável comercial no
+                  ActiveCampaign ou no mapeamento do Aplicativo Comercial e rode nova verificação.
+                </div>
+              ) : null}
             </AlertDescription>
           </Alert>
         ) : null}

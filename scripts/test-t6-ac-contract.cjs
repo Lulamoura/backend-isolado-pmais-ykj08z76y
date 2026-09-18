@@ -154,6 +154,25 @@ const checks = [
       reconciliationUi.includes('!simulation?.can_execute'),
   ],
   [
+    'interface confirma reconciliação sem popup nativo inerte',
+    reconciliationUi.includes('executeActiveCampaignReconciliation(') &&
+      !reconciliationUi.includes('window.confirm') &&
+      reconciliationUi.includes("toast.loading('Aplicando reconciliação ActiveCampaign...'") &&
+      reconciliationUi.includes('setStatus((current) =>'),
+  ],
+  [
+    'interface mostra cursor em formato humano DD/MM/YYYY HH:MM',
+    reconciliationUi.includes('function formatCursor') &&
+      reconciliationUi.includes("return `${match[3]}/${match[2]}/${match[1]} ${match[4]}:${match[5]}`") &&
+      reconciliationUi.includes('cursor: {formatCursor(status?.cursor)}'),
+  ],
+  [
+    'interface orienta pendências não bloqueantes da reconciliação',
+    reconciliationUi.includes('Pendências operacionais') &&
+      reconciliationUi.includes('Você pode confirmar agora os registros') &&
+      reconciliationUi.includes('corrija cadastro de empresa, contato ou responsável comercial'),
+  ],
+  [
     'incremental limita negócios ao pipeline e ao escopo operacional',
     reconciliationHook.includes('String(candidate.group) !== pipelineId') &&
       reconciliationHook.includes("candidateStatus === '0'") &&

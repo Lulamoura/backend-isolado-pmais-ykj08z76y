@@ -32,7 +32,7 @@ assert.match(
 )
 assert.match(
   service,
-  /nexoIpcpDiarioVivoPath\(escopo\)|escopo=\$\{escopo\}/,
+  /nexoIpcpDiarioVivoPath\(escopo(?:,\s*responsavelId)?\)|escopo=\$\{escopo\}/,
   'serviço deve consultar a rota viva com escopo explícito por perfil',
 )
 assert.match(service, /contrato === 'nexo_ipcp_diario_v1'/, 'serviço deve validar contrato vivo')
