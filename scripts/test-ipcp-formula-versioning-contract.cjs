@@ -1,0 +1,84 @@
+const fs = require('node:fs')
+const assert = require('node:assert')
+
+const hook = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
+const ipcpHook = fs.readFileSync('pocketbase/hooks/com_ipcp_diario.js', 'utf8')
+const migration = fs.readFileSync(
+  'pocketbase/migrations/202609191900_ipcp_formula_versoes.js',
+  'utf8',
+)
+const page = fs.readFileSync('src/pages/NexoCuradoria.tsx', 'utf8')
+const service = fs.readFileSync('src/services/nexo-curadoria.ts', 'utf8')
+
+assert.match(
+  migration,
+  /com_ipcp_formula_versoes/,
+  'deve existir coleção de versões governadas da fórmula IPCP',
+)
+assert.match(
+  migration,
+  /origem_decisao_id/,
+  'versão deve apontar para a decisão de curadoria que autorizou a mudança',
+)
+assert.match(
+  migration,
+  /formula_version/,
+  'versão deve registrar identificador da fórmula aplicada',
+)
+assert.match(migration, /regra_aprovada/, 'versão deve preservar a regra aprovada pela direção')
+assert.match(migration, /snapshot_antes_json/, 'versão deve preservar trilha anterior da fórmula')
+assert.match(migration, /snapshot_depois_json/, 'versão deve preservar trilha posterior da fórmula')
+assert.match(migration, /aprovada_por_id/, 'versão deve registrar quem aprovou')
+assert.match(migration, /aplicada_em/, 'versão deve registrar quando foi aplicada')
+assert.match(
+  migration,
+  /CREATE UNIQUE INDEX idx_com_ipcp_formula_versoes_decisao/,
+  'cada decisão deve gerar uma única versão de fórmula',
+)
+
+assert.match(
+  hook,
+  /ensureIpcpFormulaVersionCollection/,
+  'rota deve garantir coleção de versões no runtime',
+)
+assert.match(hook, /aplicarVersaoFormulaIpcp/, 'aprovação deve aplicar versão governada da fórmula')
+assert.match(hook, /ipcp_formula_versao_id/, 'decisão deve receber vínculo da versão de fórmula')
+assert.match(hook, /ipcp_formula_versao/, 'decisão deve receber identificador legível da fórmula')
+assert.match(hook, /ipcp_formula_aplicada_em/, 'decisão deve receber data de aplicação')
+assert.match(hook, /ipcp_formula_audit_json/, 'decisão deve receber auditoria da aplicação')
+assert.match(
+  hook,
+  /status === 'alteracao_formula_aprovada'[\s\S]{0,500}aplicarVersaoFormulaIpcp/,
+  'aprovar alteração deve aplicar a versão, não apenas gravar status',
+)
+assert.match(
+  hook,
+  /status === 'rejeitada'[\s\S]{0,500}retirarVersaoFormulaIpcp/,
+  'rejeição deve retirar a proposta do fluxo de fórmula ativa quando aplicável',
+)
+
+assert.match(
+  ipcpHook,
+  /formulaGovernancaAtivaIpcp/,
+  'processamento IPCP deve ler a versão de fórmula ativa',
+)
+assert.match(ipcpHook, /formula_governanca/, 'payload IPCP deve expor governança da fórmula ativa')
+assert.match(ipcpHook, /formula_base_version/, 'payload IPCP deve preservar versão base técnica')
+assert.match(ipcpHook, /formula_version: formula/, 'snapshot deve gravar fórmula efetiva')
+assert.match(
+  ipcpHook,
+  /com_ipcp_formula_versoes/,
+  'processamento deve consultar versões governadas',
+)
+
+assert.match(service, /ipcp_formula_versao_id/, 'serviço deve tipar vínculo da versão da fórmula')
+assert.match(service, /ipcp_formula_versao/, 'serviço deve tipar versão aplicada')
+assert.match(page, /Fórmula aplicada/, 'UI deve mostrar status claro de fórmula aplicada')
+assert.match(page, /Versão da fórmula/, 'UI deve mostrar a versão aplicada')
+assert.match(
+  page,
+  /Aprovar e aplicar alteração de fórmula/,
+  'botão deve deixar claro que aplica a versão',
+)
+
+console.log('ipcp-formula-versioning contract: PASS')
