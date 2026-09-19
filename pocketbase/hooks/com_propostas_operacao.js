@@ -2458,7 +2458,6 @@
           ok: false,
           code: 'PMAIS_GATEWAY_CURADORIA_ERRO',
           status: response.statusCode,
-          gateway_url: gatewayBase + '/v1/comercial/nexo/curadoria/decisao',
         })
       }
       var collection = $app.findCollectionByNameOrId('com_nexo_curadoria_decisoes')
