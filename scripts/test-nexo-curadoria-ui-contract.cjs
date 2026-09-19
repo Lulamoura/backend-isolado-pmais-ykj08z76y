@@ -294,17 +294,27 @@ assert.match(service, /rejeitada/, 'serviço deve aceitar status de rejeição')
 assert.match(
   page,
   /decisoesRelacionadas/,
-  'Aguardando curadoria deve considerar decisões já respondidas, mesmo fora da fila aberta',
+  'Aguardando curadoria deve considerar decisões ainda em revisão',
 )
 assert.match(
   page,
   /\[\.\.\.decisoesSuperiores, \.\.\.decisoesRelacionadas\]/,
-  'card de curadoria deve usar decisão relacionada para ajuste em vez de resposta do zero',
+  'card de curadoria deve usar decisão relacionada em revisão para ajuste em vez de resposta do zero',
+)
+assert.match(
+  service,
+  /filtrarEventosComDecisaoTerminal/,
+  'serviço deve retirar da fila de curadoria casos com decisão terminal',
+)
+assert.match(
+  service,
+  /aprovada_uso_operacional|rejeitada/,
+  'aprovação ou rejeição deve encerrar a pendência aberta de curadoria',
 )
 assert.doesNotMatch(
   service,
   /status != 'rejeitada'/,
-  'decisão rejeitada também deve bloquear nova resposta do zero para o mesmo caso',
+  'decisão rejeitada não deve reabrir resposta do zero para o mesmo caso',
 )
 assert.match(
   service,

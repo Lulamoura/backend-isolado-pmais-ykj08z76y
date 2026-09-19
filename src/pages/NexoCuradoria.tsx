@@ -308,8 +308,9 @@ export default function NexoCuradoria() {
           .then((decisoes) => {
             if (!ativo) return
             setDecisoesRelacionadas(
-              decisoes.filter((decisao): decisao is NexoCuradoriaDecisaoSuperior =>
-                Boolean(decisao),
+              decisoes.filter(
+                (decisao): decisao is NexoCuradoriaDecisaoSuperior =>
+                  Boolean(decisao) && decisao.status === 'aguardando_revisao',
               ),
             )
           })
