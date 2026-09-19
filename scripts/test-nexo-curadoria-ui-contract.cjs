@@ -21,14 +21,23 @@ assert.match(app, /path="\/nexo\/curadoria"/, 'App deve registrar rota exclusiva
 assert.match(app, /NexoCuradoriaRoute/, 'rota deve ter gate específico para usuários habilitados')
 
 const pagePath = 'src/pages/NexoCuradoria.tsx'
+const servicePath = 'src/services/nexo-curadoria.ts'
+const migrationPath = 'pocketbase/migrations/202609191230_nexo_curadoria_entrevistas.js'
 assert.ok(fs.existsSync(pagePath), 'deve existir página NexoCuradoria')
+assert.ok(fs.existsSync(servicePath), 'deve existir serviço da curadoria Nexo')
+assert.ok(fs.existsSync(migrationPath), 'deve existir migração da coleção de entrevistas de curadoria')
 const page = fs.readFileSync(pagePath, 'utf8')
+const service = fs.readFileSync(servicePath, 'utf8')
+const migration = fs.readFileSync(migrationPath, 'utf8')
 assert.match(page, /Iniciar curadoria/, 'página deve ter botão para iniciar curadoria')
 assert.match(page, /Começar entrevista/, 'página deve ter botão para começar a entrevista')
 assert.match(page, /setEtapaEntrevista\(1\)/, 'botão Começar entrevista deve avançar para a primeira etapa')
 assert.match(page, /Pergunta \{etapaEntrevista\} de \{perguntasEntrevista.length\}/, 'entrevista deve exibir progresso de perguntas')
 assert.match(page, /Próxima pergunta/, 'entrevista deve permitir avançar pergunta a pergunta')
 assert.match(page, /Enviar para revisão/, 'entrevista deve encerrar com envio para revisão')
+assert.match(page, /salvarEntrevistaCuradoriaNexo/, 'envio final deve gravar a entrevista estruturada')
+assert.match(page, /pendenciaSelecionada/, 'entrevista deve estar vinculada a uma pendência da curadoria')
+assert.match(page, /Entrevista enviada para revisão/, 'página deve confirmar envio real para revisão')
 assert.match(page, /entrevista guiada/i, 'página deve explicar que é entrevista guiada')
 assert.match(page, /conhecimento operacional/i, 'página deve usar conhecimento operacional como termo adequado ao time')
 assert.doesNotMatch(page, /segundo cérebro/i, 'página não deve expor o termo segundo cérebro para o time')
@@ -38,6 +47,17 @@ assert.match(page, /Aguardando curadoria/, 'página deve listar pendências de c
 assert.match(page, /empresa_nome/, 'página deve priorizar nome da empresa na citação do negócio')
 assert.match(page, /contato_nome/, 'página deve priorizar contato na citação do negócio')
 assert.doesNotMatch(page, /Digite aqui qualquer coisa para treinar o Nexo/i, 'página não pode incentivar canal livre sem padrão')
+
+assert.match(service, /com_nexo_curadoria_entrevistas/, 'serviço deve gravar em coleção própria de entrevistas')
+assert.match(service, /salvarEntrevistaCuradoriaNexo/, 'serviço deve expor função de salvar entrevista')
+assert.match(service, /evento_id/, 'entrevista deve referenciar o evento de curadoria')
+assert.match(service, /respostas_json/, 'entrevista deve persistir perguntas e respostas estruturadas')
+assert.match(service, /status[\s\S]{0,80}aguardando_revisao/, 'entrevista deve nascer aguardando revisão')
+assert.match(migration, /com_nexo_curadoria_entrevistas/, 'migração deve criar coleção de entrevistas')
+assert.match(migration, /createRule:\s*perfisCuradoria/, 'usuários habilitados devem poder criar entrevistas')
+assert.match(migration, /gestor-comercial/, 'regra de criação deve incluir gestor-comercial')
+assert.match(migration, /updateRule:\s*null/, 'entrevistas não devem aceitar atualização direta pelo cliente')
+assert.match(migration, /deleteRule:\s*null/, 'entrevistas não devem aceitar exclusão direta pelo cliente')
 
 assert.match(packageJson, /test-nexo-curadoria-ui-contract\.cjs/, 'npm test deve encadear contrato da curadoria Nexo')
 
