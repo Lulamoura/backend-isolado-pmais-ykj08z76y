@@ -2418,7 +2418,7 @@
         envValue('PMAIS_AGENT_GATEWAY_URL') ||
         ''
       ).replace(/\/+$/, '')
-      if (/\/v1$/i.test(gatewayBase)) gatewayBase = gatewayBase.replace(/\/v1$/i, '')
+      gatewayBase = gatewayBase.replace(/\/v1.*$/i, '')
       var gatewayKey =
         $secrets.get('PMAIS_AGENT_GATEWAY_API_KEY') || envValue('PMAIS_AGENT_GATEWAY_API_KEY') || ''
       var gatewaySecret =
