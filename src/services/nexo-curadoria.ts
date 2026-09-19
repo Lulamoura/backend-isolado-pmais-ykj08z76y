@@ -67,6 +67,9 @@ export interface NexoCuradoriaDecisaoSuperior {
   origem_respostas_json?: string
   usuario_nome?: string
   decisao_observacao?: string
+  segundo_cerebro_status?: string
+  segundo_cerebro_audit_id?: string
+  segundo_cerebro_atualizado_em?: string
   updated_at?: string
   created_at?: string
   created?: string
@@ -267,4 +270,13 @@ export async function atualizarDecisaoSuperiorCuradoriaNexo({
   if (decisao_observacao !== undefined) payload.decisao_observacao = decisao_observacao.trim()
 
   return pb.collection(DECISOES_COLLECTION).update<NexoCuradoriaDecisaoSuperior>(id, payload)
+}
+
+export async function sincronizarDecisaoSegundoCerebroCuradoriaNexo(id: string) {
+  return pb.send<NexoCuradoriaDecisaoSuperior>(
+    `/backend/v1/nexo/curadoria/decisoes/${id}/segundo-cerebro`,
+    {
+      method: 'POST',
+    },
+  )
 }

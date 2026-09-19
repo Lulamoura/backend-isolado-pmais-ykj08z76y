@@ -30,6 +30,13 @@ migrate(
       new TextField({ name: 'responsavel_validacao', required: false, max: 1000 }),
     )
     collection.fields.add(new TextField({ name: 'decisao_observacao', required: false, max: 2000 }))
+    collection.fields.add(
+      new TextField({ name: 'segundo_cerebro_status', required: false, max: 80 }),
+    )
+    collection.fields.add(
+      new TextField({ name: 'segundo_cerebro_audit_id', required: false, max: 120 }),
+    )
+    collection.fields.add(new DateField({ name: 'segundo_cerebro_atualizado_em', required: false }))
     collection.fields.add(new TextField({ name: 'impacto_json', required: true, max: 4000 }))
     collection.fields.add(
       new TextField({ name: 'origem_respostas_json', required: false, max: 4000 }),

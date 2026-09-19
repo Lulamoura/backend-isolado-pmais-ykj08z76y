@@ -364,6 +364,16 @@ assert.match(
 )
 assert.match(
   service,
+  /sincronizarDecisaoSegundoCerebroCuradoriaNexo/,
+  'serviço deve acionar sincronização governada com o segundo cérebro',
+)
+assert.match(
+  service,
+  /\/backend\/v1\/nexo\/curadoria\/decisoes\/\$\{id\}\/segundo-cerebro/,
+  'serviço deve usar rota backend protegida para segundo cérebro',
+)
+assert.match(
+  service,
   /aprovada_uso_operacional' \|\| status = 'rejeitada/,
   'histórico deve incluir aprovadas e rejeitadas',
 )
@@ -410,7 +420,22 @@ assert.match(
 assert.match(
   decisaoMigration,
   /decisao_observacao/,
-  'coleção deve registrar observação de aprovação, ajuste ou rejeição',
+  'decisão deve armazenar observação da aprovação/rejeição/ajuste',
+)
+assert.match(
+  decisaoMigration,
+  /segundo_cerebro_status/,
+  'decisão deve armazenar status da ligação com o conhecimento operacional',
+)
+assert.match(
+  decisaoMigration,
+  /segundo_cerebro_audit_id/,
+  'decisão deve armazenar auditoria da ligação com o conhecimento operacional',
+)
+assert.match(
+  decisaoMigration,
+  /segundo_cerebro_atualizado_em/,
+  'decisão deve armazenar data da última ligação com o conhecimento operacional',
 )
 assert.match(
   decisaoMigration,
@@ -447,6 +472,24 @@ assert.match(
   packageJson,
   /test-nexo-curadoria-ui-contract\.cjs/,
   'npm test deve encadear contrato da curadoria Nexo',
+)
+
+const hook = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
+
+assert.match(
+  hook,
+  /\/backend\/v1\/nexo\/curadoria\/decisoes\/:id\/segundo-cerebro/,
+  'hook deve expor rota protegida de ligação com segundo cérebro',
+)
+assert.match(
+  hook,
+  /\/v1\/comercial\/nexo\/curadoria\/decisao/,
+  'hook deve chamar endpoint governado do PMais Agent Gateway',
+)
+assert.match(
+  hook,
+  /PMAIS_AGENT_GATEWAY_HMAC_SECRET/,
+  'hook deve assinar chamada ao Gateway sem expor segredo',
 )
 
 console.log('nexo-curadoria-ui contract: PASS')
