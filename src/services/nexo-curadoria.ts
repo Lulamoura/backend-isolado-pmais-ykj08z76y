@@ -4,6 +4,9 @@ export interface NexoCuradoriaEvento {
   id: string
   tipo_evento?: string
   external_id?: string
+  negocio_titulo?: string
+  empresa_nome?: string
+  contato_nome?: string
   acao?: string
   contexto_resumo?: string
   resposta_resumo?: string
