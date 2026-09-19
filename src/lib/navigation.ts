@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Layers,
   ListChecks,
+  MessageSquareText,
   Settings2,
   ShieldCheck,
   Trophy,
@@ -23,6 +24,7 @@ export const MAIN_MODULES: NavigationEntry[] = [
   { label: 'Operação do Dia', path: '/', icon: LayoutDashboard },
   { label: 'Pipeline Comercial', path: '/pipeline', icon: BriefcaseBusiness },
   { label: 'Assistente Nexo', path: '/nexo', icon: Bot },
+  { label: 'Curadoria Nexo', path: '/nexo/curadoria', icon: MessageSquareText },
   { label: 'Análises', path: '/analises', icon: BarChart3 },
   { label: 'Administração', path: '/foundation', icon: Layers },
 ]
@@ -58,6 +60,9 @@ export const ADMIN_TABS: NavigationEntry[] = [
 export function modulePathFor(pathname: string): string {
   if (PIPELINE_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
     return '/pipeline'
+  }
+  if (pathname === '/nexo/curadoria' || pathname.startsWith('/nexo/curadoria/')) {
+    return '/nexo/curadoria'
   }
   if (pathname === '/nexo' || pathname.startsWith('/nexo/')) return '/nexo'
   if (pathname === '/analises' || pathname.startsWith('/analises/')) return '/analises'
