@@ -98,7 +98,7 @@ function pbValor(valor?: string) {
 function filtroDecisaoExistente(evento: NexoCuradoriaEvento) {
   const filtros = [`evento_id = '${pbValor(evento.id)}'`]
   if (evento.external_id) filtros.push(`external_id = '${pbValor(evento.external_id)}'`)
-  return `(${filtros.join(' || ')}) && status != 'rejeitada'`
+  return `(${filtros.join(' || ')})`
 }
 
 export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoriaResumo> {
