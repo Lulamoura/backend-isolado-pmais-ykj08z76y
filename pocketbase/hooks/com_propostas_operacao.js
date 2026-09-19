@@ -2383,14 +2383,11 @@
         return ''
       }
       function ensureDecisionField(collection, name, type) {
-        try {
-          collection.fields.getByName(name)
-          return false
-        } catch (_) {
-          if (type === 'date') collection.fields.add(new DateField({ name: name, required: false }))
-          else collection.fields.add(new TextField({ name: name, required: false, max: 160 }))
-          return true
-        }
+        var existing = collection.fields.getByName(name)
+        if (existing) return false
+        if (type === 'date') collection.fields.add(new DateField({ name: name, required: false }))
+        else collection.fields.add(new TextField({ name: name, required: false, max: 2000 }))
+        return true
       }
       function perfilAtual(user) {
         try {
