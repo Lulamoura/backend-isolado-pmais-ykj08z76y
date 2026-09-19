@@ -51,10 +51,27 @@ assert.match(page, /Iniciar curadoria/, 'página deve ter botão para iniciar cu
 assert.match(page, /entrevista guiada/i, 'página deve explicar que é entrevista guiada')
 assert.match(
   page,
-  /não grava direto no segundo cérebro/i,
-  'página deve deixar claro que não promove direto',
+  /conhecimento operacional/i,
+  'página deve usar conhecimento operacional como termo adequado ao time',
+)
+assert.doesNotMatch(
+  page,
+  /segundo cérebro/i,
+  'página não deve expor o termo segundo cérebro para o time',
+)
+assert.match(
+  page,
+  /Entrevistas para alinhamento de processos comerciais/,
+  'governança deve usar linguagem operacional',
+)
+assert.match(
+  page,
+  /Espaço para ajuda aberta em decisões estratégicas e operacionais/,
+  'canal guiado deve indicar ajuda aberta para decisão',
 )
 assert.match(page, /Aguardando curadoria/, 'página deve listar pendências de curadoria')
+assert.match(page, /empresa_nome/, 'página deve priorizar nome da empresa na citação do negócio')
+assert.match(page, /contato_nome/, 'página deve priorizar contato na citação do negócio')
 assert.doesNotMatch(
   page,
   /Digite aqui qualquer coisa para treinar o Nexo/i,

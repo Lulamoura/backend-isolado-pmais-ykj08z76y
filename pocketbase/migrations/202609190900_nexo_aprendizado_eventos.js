@@ -19,6 +19,9 @@ migrate(
 
     collection.fields.add(new TextField({ name: 'tipo_evento', required: true, max: 80 }))
     collection.fields.add(new TextField({ name: 'external_id', required: true, max: 80 }))
+    collection.fields.add(new TextField({ name: 'negocio_titulo', required: false, max: 240 }))
+    collection.fields.add(new TextField({ name: 'empresa_nome', required: false, max: 240 }))
+    collection.fields.add(new TextField({ name: 'contato_nome', required: false, max: 240 }))
     collection.fields.add(new TextField({ name: 'acao', required: true, max: 80 }))
     collection.fields.add(new TextField({ name: 'usuario_id', required: false, max: 80 }))
     collection.fields.add(new TextField({ name: 'usuario_nome', required: false, max: 160 }))

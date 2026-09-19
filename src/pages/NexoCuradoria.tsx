@@ -25,8 +25,12 @@ function dataCurta(value?: string) {
 
 function resumoEvento(evento: NexoCuradoriaEvento) {
   const acao = evento.acao?.replace(/_/g, ' ') || 'consulta do Nexo'
-  const negocio = evento.external_id ? `Negócio ${evento.external_id}` : 'Negócio não identificado'
-  return `${negocio} · ${acao}`
+  const partes = [
+    evento.empresa_nome || evento.negocio_titulo || 'Empresa não informada',
+    evento.contato_nome || 'Contato não informado',
+    evento.external_id ? `Negócio ${evento.external_id}` : 'Negócio não identificado',
+  ]
+  return `${partes.join(' · ')} · ${acao}`
 }
 
 export default function NexoCuradoria() {
@@ -62,7 +66,7 @@ export default function NexoCuradoria() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl space-y-3">
             <Badge className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100">
-              Curadoria do segundo cérebro
+              Curadoria do conhecimento operacional
             </Badge>
             <div className="space-y-2">
               <h2 className="text-2xl font-bold tracking-tight text-slate-950">Curadoria Nexo</h2>
@@ -70,10 +74,6 @@ export default function NexoCuradoria() {
                 Canal exclusivo para o Nexo conduzir entrevista guiada com usuários habilitados
                 quando houver decisões ou padrões que precisam ser curados antes de virar
                 conhecimento operacional.
-              </p>
-              <p className="text-sm font-medium text-slate-700">
-                Este canal não grava direto no segundo cérebro. Ele organiza evidências, respostas
-                curtas e propostas para revisão governada.
               </p>
             </div>
           </div>
@@ -110,9 +110,11 @@ export default function NexoCuradoria() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm font-semibold text-slate-800">Sem promoção automática</p>
+            <p className="text-sm font-semibold text-slate-800">
+              Entrevistas para alinhamento de processos comerciais
+            </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              O Nexo entrevista, consolida e propõe. A promoção segue revisão e versionamento.
+              O Nexo organiza perguntas e respostas para apoiar decisões comerciais.
             </p>
           </CardContent>
         </Card>
@@ -124,9 +126,11 @@ export default function NexoCuradoria() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm font-semibold text-slate-800">Perguntas curtas e objetivas</p>
+            <p className="text-sm font-semibold text-slate-800">
+              Espaço para ajuda aberta em decisões estratégicas e operacionais
+            </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Evita canal esquecido e evita conversa livre sem padrão de decisão.
+              O Nexo conduz o diálogo e registra os pontos necessários para a próxima decisão.
             </p>
           </CardContent>
         </Card>

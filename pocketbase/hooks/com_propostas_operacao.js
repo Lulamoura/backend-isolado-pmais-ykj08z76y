@@ -1913,6 +1913,17 @@
             existente.viewRule = regraCuradoria
             ajustada = true
           }
+          var textosHumanos = ['negocio_titulo', 'empresa_nome', 'contato_nome']
+          for (var th = 0; th < textosHumanos.length; th++) {
+            try {
+              existente.fields.getByName(textosHumanos[th])
+            } catch (_) {
+              existente.fields.add(
+                new TextField({ name: textosHumanos[th], required: false, max: 240 }),
+              )
+              ajustada = true
+            }
+          }
           var bools = ['human_review_required', 'automatic_send_allowed', 'crm_write_allowed']
           for (var b = 0; b < bools.length; b++) {
             var campoBool = existente.fields.getByName(bools[b])
@@ -1937,6 +1948,9 @@
         })
         collection.fields.add(new TextField({ name: 'tipo_evento', required: true, max: 80 }))
         collection.fields.add(new TextField({ name: 'external_id', required: true, max: 80 }))
+        collection.fields.add(new TextField({ name: 'negocio_titulo', required: false, max: 240 }))
+        collection.fields.add(new TextField({ name: 'empresa_nome', required: false, max: 240 }))
+        collection.fields.add(new TextField({ name: 'contato_nome', required: false, max: 240 }))
         collection.fields.add(new TextField({ name: 'acao', required: true, max: 80 }))
         collection.fields.add(new TextField({ name: 'usuario_id', required: false, max: 80 }))
         collection.fields.add(new TextField({ name: 'usuario_nome', required: false, max: 160 }))
@@ -1977,17 +1991,20 @@
           }
           var collection = nexoGarantirColecaoAprendizadoApp()
           var evento = new Record(collection)
+          var negocioSeguro = contextoSeguro.negocio || {}
+          var empresaSegura = contextoSeguro.empresa || {}
+          var contatoSeguro = contextoSeguro.contato || {}
           evento.set('tipo_evento', 'nexo_consulta_suporte_app')
           evento.set('external_id', externalId)
+          evento.set('negocio_titulo', nexoResumoSeguroAprendizado(negocioSeguro.titulo || '', 240))
+          evento.set('empresa_nome', nexoResumoSeguroAprendizado(empresaSegura.nome || '', 240))
+          evento.set('contato_nome', nexoResumoSeguroAprendizado(contatoSeguro.nome || '', 240))
           evento.set('acao', acao)
           evento.set('usuario_id', ator.id || '')
           evento.set('usuario_nome', ator.getString('name') || ator.getString('email') || '')
           evento.set(
             'fase_negocio',
-            nexoResumoSeguroAprendizado(
-              (contextoSeguro.negocio || {}).fase || (contextoSeguro.negocio || {}).etapa || '',
-              160,
-            ),
+            nexoResumoSeguroAprendizado(negocioSeguro.fase || negocioSeguro.etapa || '', 160),
           )
           evento.set(
             'tipo_servico',
