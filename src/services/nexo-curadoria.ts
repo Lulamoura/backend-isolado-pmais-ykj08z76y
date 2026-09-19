@@ -75,6 +75,16 @@ const ENTREVISTAS_COLLECTION = 'com_nexo_curadoria_entrevistas'
 const DECISOES_COLLECTION = 'com_nexo_curadoria_decisoes'
 const PENDING_FILTER = 'human_review_required = true'
 
+function pbValor(valor?: string) {
+  return String(valor || '').replace(/'/g, "\\'")
+}
+
+function filtroDecisaoExistente(evento: NexoCuradoriaEvento) {
+  const filtros = [`evento_id = '${pbValor(evento.id)}'`]
+  if (evento.external_id) filtros.push(`external_id = '${pbValor(evento.external_id)}'`)
+  return `(${filtros.join(' || ')}) && status != 'rejeitada'`
+}
+
 export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoriaResumo> {
   const response = await pb.collection(COLLECTION).getList<NexoCuradoriaEvento>(1, limit, {
     filter: PENDING_FILTER,
@@ -88,12 +98,29 @@ export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoria
 }
 
 export async function obterDecisoesSuperioresCuradoriaNexo(limit = 10) {
-  const response = await pb.collection(DECISOES_COLLECTION).getList<NexoCuradoriaDecisaoSuperior>(1, limit, {
-    filter: "status = 'aguardando_revisao'",
-    sort: '-created_at',
-  })
+  try {
+    const response = await pb.collection(DECISOES_COLLECTION).getList<NexoCuradoriaDecisaoSuperior>(1, limit, {
+      filter: "status = 'aguardando_revisao'",
+      sort: '-created_at',
+    })
 
-  return response.items
+    return response.items
+  } catch (error: any) {
+    if (error?.status === 403) return []
+    throw error
+  }
+}
+
+export async function buscarDecisaoSuperiorExistenteCuradoriaNexo(evento: NexoCuradoriaEvento) {
+  try {
+    return await pb.collection(DECISOES_COLLECTION).getFirstListItem<NexoCuradoriaDecisaoSuperior>(
+      filtroDecisaoExistente(evento),
+      { sort: '-created_at' },
+    )
+  } catch (error: any) {
+    if (error?.status === 404 || error?.status === 403) return null
+    throw error
+  }
 }
 
 export async function salvarEntrevistaCuradoriaNexo({
@@ -141,6 +168,8 @@ export async function salvarDecisaoSuperiorCuradoriaNexo({
 }: SalvarDecisaoSuperiorCuradoriaInput) {
   const usuario = pb.authStore.model
   const escalarDirecao = decisaoExigeDirecao(impacto)
+  const decisaoExistente = await buscarDecisaoSuperiorExistenteCuradoriaNexo(evento)
+  if (decisaoExistente) throw new Error('DECISAO_SUPERIOR_DUPLICADA')
 
   return pb.collection(DECISOES_COLLECTION).create({
     evento_id: evento.id,

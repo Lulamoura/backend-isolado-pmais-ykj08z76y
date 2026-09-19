@@ -41,7 +41,6 @@ const SUBSTITUICOES_ALLOWLIST = new Set([
 
 export const CURADORIA_NEXO_ALLOWLIST = new Set([
   'superadministrador',
-  'gestor',
   'gestor-comercial',
   'leitura-executiva',
 ])
