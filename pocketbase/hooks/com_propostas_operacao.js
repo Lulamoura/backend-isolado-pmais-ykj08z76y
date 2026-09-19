@@ -2505,6 +2505,146 @@
         else collection.fields.add(new TextField({ name: name, required: false, max: 2000 }))
         return true
       }
+      function ensureIpcpFormulaVersionCollection(app) {
+        var collection = null
+        try {
+          collection = app.findCollectionByNameOrId('com_ipcp_formula_versoes')
+        } catch (_) {
+          collection = new Collection({
+            name: 'com_ipcp_formula_versoes',
+            type: 'base',
+            listRule: null,
+            viewRule: null,
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+          })
+        }
+        function addText(name, required, max) {
+          if (!collection.fields.getByName(name)) {
+            collection.fields.add(new TextField({ name: name, required: Boolean(required), max: max || 2000 }))
+            return true
+          }
+          return false
+        }
+        function addDate(name, required) {
+          if (!collection.fields.getByName(name)) {
+            collection.fields.add(new DateField({ name: name, required: Boolean(required) }))
+            return true
+          }
+          return false
+        }
+        var changed = false
+        changed = addText('formula_version', true, 120) || changed
+        changed = addText('formula_base_version', true, 120) || changed
+        changed = addText('status', true, 80) || changed
+        changed = addText('origem_decisao_id', true, 80) || changed
+        changed = addText('regra_aprovada', true, 4000) || changed
+        changed = addText('blocos_afetados', false, 1000) || changed
+        changed = addText('snapshot_antes_json', false, 4000) || changed
+        changed = addText('snapshot_depois_json', false, 4000) || changed
+        changed = addText('aprovada_por_id', true, 80) || changed
+        changed = addText('aprovada_por_nome', false, 160) || changed
+        changed = addText('auditoria_json', false, 4000) || changed
+        changed = addDate('aplicada_em', true) || changed
+        changed = addDate('created_at', true) || changed
+        changed = addDate('updated_at', false) || changed
+        if (!collection.id || changed) app.save(collection)
+        return app.findCollectionByNameOrId('com_ipcp_formula_versoes')
+      }
+      function dataVersaoFormula(date) {
+        var d = date || new Date()
+        return d.toISOString().slice(0, 10).replace(/-/g, '')
+      }
+      function atorNomeFormula(ator) {
+        try {
+          return ator.getString('name') || ator.getString('email') || ator.id
+        } catch (_) {
+          return ''
+        }
+      }
+      function aplicarVersaoFormulaIpcp(app, decisao, ator, motivo) {
+        var collection = ensureIpcpFormulaVersionCollection(app)
+        var now = new Date()
+        var base = 'ipcp_v0_5_formula_gerencial'
+        var versao = 'ipcp_v0_5_curadoria_' + dataVersaoFormula(now) + '_' + decisao.id.slice(0, 6)
+        var record = null
+        var existente = false
+        try {
+          record = app.findFirstRecordByData('com_ipcp_formula_versoes', 'origem_decisao_id', decisao.id)
+          existente = true
+        } catch (_) {
+          record = new Record(collection)
+        }
+        try {
+          var ativas = app.findRecordsByFilter('com_ipcp_formula_versoes', "status = 'ativa'", '-aplicada_em,-created', 20, 0)
+          for (var ai = 0; ai < ativas.length; ai++) {
+            if (ativas[ai].id === record.id) continue
+            ativas[ai].set('status', 'substituida')
+            ativas[ai].set('updated_at', now)
+            app.save(ativas[ai])
+          }
+        } catch (_) {}
+        var antes = {
+          formula_base_version: base,
+          politica: 'fórmula determinística atual antes da autorização governada',
+        }
+        var depois = {
+          formula_version: versao,
+          regra_aprovada: decisao.getString('regra_proposta') || '',
+          blocos_afetados: decisao.getString('ipcp_revisao_blocos') || 'IPCP geral',
+          aplicacao: 'regra governada ativa para orientar a próxima versão do cálculo IPCP',
+        }
+        var auditoria = {
+          tipo: 'ipcp_formula_alteracao_governada',
+          origem_decisao_id: decisao.id,
+          aprovada_por_id: ator.id,
+          aprovada_por_nome: atorNomeFormula(ator),
+          aplicada_em: now.toISOString(),
+          status_anterior: decisao.getString('ipcp_revisao_status') || 'pendente',
+          motivo: safeText(motivo || '', 1000),
+          idempotente: existente,
+        }
+        record.set('formula_version', versao)
+        record.set('formula_base_version', base)
+        record.set('status', 'ativa')
+        record.set('origem_decisao_id', decisao.id)
+        record.set('regra_aprovada', safeText(decisao.getString('regra_proposta') || '', 4000))
+        record.set('blocos_afetados', safeText(decisao.getString('ipcp_revisao_blocos') || 'IPCP geral', 1000))
+        record.set('snapshot_antes_json', JSON.stringify(antes))
+        record.set('snapshot_depois_json', JSON.stringify(depois))
+        record.set('aprovada_por_id', ator.id)
+        record.set('aprovada_por_nome', safeText(atorNomeFormula(ator), 160))
+        record.set('auditoria_json', JSON.stringify(auditoria))
+        record.set('aplicada_em', now)
+        record.set('created_at', existente ? record.get('created_at') || now : now)
+        record.set('updated_at', now)
+        app.save(record)
+        decisao.set('ipcp_formula_versao_id', record.id)
+        decisao.set('ipcp_formula_versao', versao)
+        decisao.set('ipcp_formula_aplicada_em', now)
+        decisao.set('ipcp_formula_audit_json', JSON.stringify(auditoria))
+        return record
+      }
+      function retirarVersaoFormulaIpcp(app, decisao, motivo) {
+        try {
+          var versaoId = decisao.getString('ipcp_formula_versao_id') || ''
+          var record = versaoId
+            ? app.findRecordById('com_ipcp_formula_versoes', versaoId)
+            : app.findFirstRecordByData('com_ipcp_formula_versoes', 'origem_decisao_id', decisao.id)
+          record.set('status', 'retirada')
+          record.set('updated_at', new Date())
+          var auditoria = {
+            tipo: 'ipcp_formula_retirada_governada',
+            origem_decisao_id: decisao.id,
+            retirada_em: new Date().toISOString(),
+            motivo: safeText(motivo || '', 1000),
+          }
+          record.set('auditoria_json', JSON.stringify(auditoria))
+          app.save(record)
+          decisao.set('ipcp_formula_audit_json', JSON.stringify(auditoria))
+        } catch (_) {}
+      }
       function perfilAtual(user) {
         try {
           return $app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
@@ -2534,9 +2674,19 @@
       changed = ensureDecisionField(collection, 'ipcp_revisao_blocos', 'text') || changed
       changed = ensureDecisionField(collection, 'ipcp_revisao_motivo', 'text') || changed
       changed = ensureDecisionField(collection, 'ipcp_revisao_notificado_em', 'date') || changed
+      changed = ensureDecisionField(collection, 'ipcp_formula_versao_id', 'text') || changed
+      changed = ensureDecisionField(collection, 'ipcp_formula_versao', 'text') || changed
+      changed = ensureDecisionField(collection, 'ipcp_formula_aplicada_em', 'date') || changed
+      changed = ensureDecisionField(collection, 'ipcp_formula_audit_json', 'text') || changed
       if (changed) $app.save(collection)
       decisao.set('ipcp_revisao_status', status)
       decisao.set('ipcp_revisao_motivo', safeText(body.motivo, 2000))
+      if (status === 'alteracao_formula_aprovada') {
+        aplicarVersaoFormulaIpcp($app, decisao, ator, body.motivo)
+      }
+      if (status === 'rejeitada') {
+        retirarVersaoFormulaIpcp($app, decisao, body.motivo || 'alteração da fórmula rejeitada')
+      }
       decisao.set('updated_at', new Date())
       $app.save(decisao)
       return e.json(200, decisao)

@@ -75,8 +75,8 @@ function estiloStatusDecisao(status?: string) {
 }
 
 function rotuloStatusRevisaoIpcp(status?: string) {
-  if (status === 'alteracao_formula_aprovada') return 'Alteração de fórmula aprovada'
-  if (status === 'estudo_autorizado') return 'Alteração de fórmula aprovada'
+  if (status === 'alteracao_formula_aprovada') return 'Fórmula aplicada'
+  if (status === 'estudo_autorizado') return 'Fórmula aplicada'
   if (status === 'ajuste_solicitado') return 'Ajuste solicitado'
   if (status === 'rejeitada') return 'Alteração rejeitada'
   return 'Pendente de decisão'
@@ -369,7 +369,7 @@ export default function NexoCuradoria() {
     try {
       const mensagem =
         status === 'alteracao_formula_aprovada'
-          ? 'Alteração de fórmula IPCP autorizada pela direção. A fórmula ainda não é recalculada automaticamente por este botão; a proposta permanece registrada para aplicação técnica, versionamento e auditoria.'
+          ? 'Alteração de fórmula IPCP aprovada e aplicada como versão governada. A mudança fica registrada com versão, origem, responsável e auditoria.'
           : status === 'ajuste_solicitado'
             ? 'Ajuste solicitado nas condições da regra antes de alterar a fórmula IPCP. A proposta permanece visível em acompanhamento.'
             : 'Alteração da fórmula IPCP rejeitada para esta decisão. A regra permanece apenas como orientação operacional.'
@@ -730,8 +730,14 @@ export default function NexoCuradoria() {
                         decisão aprovada envolve indicador, política comercial, follow-up, conversão, valor estratégico, risco, perda ou registro comercial.
                       </p>
                       <p className="text-xs text-slate-600">
-                        Ajuste as condições se a regra precisar de refinamento. Ao clicar em Aprovar alteração de fórmula, a mudança fica autorizada e registrada, mas a fórmula ainda não é recalculada automaticamente nesta etapa.
+                        Ajuste as condições se a regra precisar de refinamento. Ao aprovar, a mudança passa a ser aplicada como versão governada da fórmula IPCP, com origem, responsável e auditoria.
                       </p>
+                      {decisao.ipcp_formula_versao && (
+                        <p className="text-xs text-emerald-700">
+                          <span className="font-semibold">Versão da fórmula:</span>{' '}
+                          {decisao.ipcp_formula_versao}
+                        </p>
+                      )}
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => abrirAjusteRevisaoIpcp(decisao)} disabled={salvandoAcaoDecisao}>
@@ -741,7 +747,7 @@ export default function NexoCuradoria() {
                         Rejeitar alteração da fórmula
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => atualizarRevisaoIpcp(decisao, 'alteracao_formula_aprovada')} disabled={salvandoAcaoDecisao}>
-                        Aprovar alteração de fórmula
+                        Aprovar e aplicar alteração de fórmula
                       </Button>
                     </div>
                   </div>

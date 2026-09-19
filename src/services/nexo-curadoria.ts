@@ -74,6 +74,10 @@ export interface NexoCuradoriaDecisaoSuperior {
   ipcp_revisao_blocos?: string
   ipcp_revisao_motivo?: string
   ipcp_revisao_notificado_em?: string
+  ipcp_formula_versao_id?: string
+  ipcp_formula_versao?: string
+  ipcp_formula_aplicada_em?: string
+  ipcp_formula_audit_json?: string
   updated_at?: string
   created_at?: string
   created?: string

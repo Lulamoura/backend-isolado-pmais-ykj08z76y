@@ -902,6 +902,48 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     )
   }
 
+  function formulaGovernancaAtivaIpcp() {
+    var base = 'ipcp_v0_5_formula_gerencial'
+    try {
+      var rows = $app.findRecordsByFilter(
+        'com_ipcp_formula_versoes',
+        "status = 'ativa'",
+        '-aplicada_em,-created',
+        1,
+        0,
+      )
+      if (!rows.length) {
+        return {
+          ativa: false,
+          formula_base_version: base,
+          formula_version: base,
+          regra_aprovada: '',
+          blocos_afetados: '',
+        }
+      }
+      var r = rows[0]
+      return {
+        ativa: true,
+        id: r.id,
+        formula_base_version: r.getString('formula_base_version') || base,
+        formula_version: r.getString('formula_version') || base,
+        origem_decisao_id: r.getString('origem_decisao_id') || '',
+        regra_aprovada: r.getString('regra_aprovada') || '',
+        blocos_afetados: r.getString('blocos_afetados') || '',
+        aplicada_em: r.getString('aplicada_em') || '',
+        status: r.getString('status') || 'ativa',
+      }
+    } catch (_) {
+      return {
+        ativa: false,
+        formula_base_version: base,
+        formula_version: base,
+        regra_aprovada: '',
+        blocos_afetados: '',
+      }
+    }
+  }
+
   function calcularPacoteIpcpDiario(dataRef, scope, responsavelId, actor) {
     var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
     var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
@@ -1140,7 +1182,8 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     }
   }
 
-  var formula = 'ipcp_v0_5_formula_gerencial'
+  var formulaGovernanca = formulaGovernancaAtivaIpcp()
+  var formula = formulaGovernanca.formula_version || 'ipcp_v0_5_formula_gerencial'
   var pacote = calcularPacoteIpcpDiario(data, effectiveScope, responsavelId, ator)
   var ipcpTotal = pacote.ipcp.total
   var snapshotKey = [data, effectiveScope, responsavelId, formula, 'processamento_diario'].join('|')
@@ -1155,6 +1198,8 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
       responsavel_nome: responsavelNome,
     },
     formula_version: formula,
+    formula_base_version: formulaGovernanca.formula_base_version,
+    formula_governanca: formulaGovernanca,
     ipcp: pacote.ipcp,
     resumo_nexo: pacote.resumo_nexo,
     negocios_atencao: pacote.negocios_atencao,
@@ -1613,7 +1658,49 @@ cronAdd(
       )
     }
 
-    function calcularPacoteIpcpDiario(dataRef, scope, responsavelId, actor) {
+    function formulaGovernancaAtivaIpcp() {
+    var base = 'ipcp_v0_5_formula_gerencial'
+    try {
+      var rows = $app.findRecordsByFilter(
+        'com_ipcp_formula_versoes',
+        "status = 'ativa'",
+        '-aplicada_em,-created',
+        1,
+        0,
+      )
+      if (!rows.length) {
+        return {
+          ativa: false,
+          formula_base_version: base,
+          formula_version: base,
+          regra_aprovada: '',
+          blocos_afetados: '',
+        }
+      }
+      var r = rows[0]
+      return {
+        ativa: true,
+        id: r.id,
+        formula_base_version: r.getString('formula_base_version') || base,
+        formula_version: r.getString('formula_version') || base,
+        origem_decisao_id: r.getString('origem_decisao_id') || '',
+        regra_aprovada: r.getString('regra_aprovada') || '',
+        blocos_afetados: r.getString('blocos_afetados') || '',
+        aplicada_em: r.getString('aplicada_em') || '',
+        status: r.getString('status') || 'ativa',
+      }
+    } catch (_) {
+      return {
+        ativa: false,
+        formula_base_version: base,
+        formula_version: base,
+        regra_aprovada: '',
+        blocos_afetados: '',
+      }
+    }
+  }
+
+  function calcularPacoteIpcpDiario(dataRef, scope, responsavelId, actor) {
       var filtroNegocios = filtroEscopoColecao('com_negocios', scope, responsavelId, actor)
       var negocios = listar('com_negocios', filtroNegocios, '-updated,-created', 200)
       var negociosComputaveis = negociosComputaveisIpcp(negocios)
@@ -1875,7 +1962,8 @@ cronAdd(
       ator,
       origem,
     ) {
-      var formula = 'ipcp_v0_5_formula_gerencial'
+      var formulaGovernanca = formulaGovernancaAtivaIpcp()
+      var formula = formulaGovernanca.formula_version || 'ipcp_v0_5_formula_gerencial'
       var pacote = calcularPacoteIpcpDiario(data, effectiveScope, responsavelId, ator)
       var ipcpTotal = pacote.ipcp.total
       var snapshotKey = [
@@ -1895,6 +1983,8 @@ cronAdd(
           responsavel_nome: responsavelNome,
         },
         formula_version: formula,
+        formula_base_version: formulaGovernanca.formula_base_version,
+        formula_governanca: formulaGovernanca,
         ipcp: pacote.ipcp,
         resumo_nexo: pacote.resumo_nexo,
         negocios_atencao: pacote.negocios_atencao,
