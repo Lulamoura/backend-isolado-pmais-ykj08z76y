@@ -88,6 +88,9 @@ export default function NexoCuradoria() {
   const podeVerDecisaoSuperior = DECISAO_SUPERIOR_ALLOWLIST.has(perfilSlug ?? '')
   const [resumo, setResumo] = useState<NexoCuradoriaResumo>({ pendencias: 0, itens: [] })
   const [decisoesSuperiores, setDecisoesSuperiores] = useState<NexoCuradoriaDecisaoSuperior[]>([])
+  const [decisoesRelacionadas, setDecisoesRelacionadas] = useState<NexoCuradoriaDecisaoSuperior[]>(
+    [],
+  )
   const [loading, setLoading] = useState(true)
   const [loadingDecisoesSuperiores, setLoadingDecisoesSuperiores] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
@@ -232,6 +235,9 @@ export default function NexoCuradoria() {
       setDecisoesSuperiores((atuais) =>
         atuais.map((decisao) => (decisao.id === atualizada.id ? atualizada : decisao)),
       )
+      setDecisoesRelacionadas((atuais) =>
+        atuais.map((decisao) => (decisao.id === atualizada.id ? atualizada : decisao)),
+      )
       setDecisaoEmAjuste(null)
       setMensagemDecisaoSuperior(
         'Ajuste da decisão superior salvo. A pendência continua aguardando validação superior.',
@@ -247,12 +253,15 @@ export default function NexoCuradoria() {
   async function aprovarDecisaoSuperior(decisao: NexoCuradoriaDecisaoSuperior) {
     setSalvandoAcaoDecisao(true)
     try {
-      await atualizarDecisaoSuperiorCuradoriaNexo({
+      const atualizada = await atualizarDecisaoSuperiorCuradoriaNexo({
         id: decisao.id,
         status: 'aprovada_uso_operacional',
         decisao_observacao: 'Decisão aprovada para uso operacional.',
       })
       setDecisoesSuperiores((atuais) => atuais.filter((item) => item.id !== decisao.id))
+      setDecisoesRelacionadas((atuais) =>
+        atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
+      )
       setMensagemDecisaoSuperior(
         'Decisão aprovada para uso operacional. Ela saiu da fila de validação superior.',
       )
@@ -267,12 +276,15 @@ export default function NexoCuradoria() {
   async function rejeitarDecisaoSuperior(decisao: NexoCuradoriaDecisaoSuperior) {
     setSalvandoAcaoDecisao(true)
     try {
-      await atualizarDecisaoSuperiorCuradoriaNexo({
+      const atualizada = await atualizarDecisaoSuperiorCuradoriaNexo({
         id: decisao.id,
         status: 'rejeitada',
         decisao_observacao: 'Decisão rejeitada pelo decisor superior.',
       })
       setDecisoesSuperiores((atuais) => atuais.filter((item) => item.id !== decisao.id))
+      setDecisoesRelacionadas((atuais) =>
+        atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
+      )
       setMensagemDecisaoSuperior(
         'Decisão rejeitada. Ela saiu da fila aberta e permanece registrada no histórico.',
       )
@@ -292,6 +304,18 @@ export default function NexoCuradoria() {
       .then((data) => {
         if (!ativo) return
         setResumo(data)
+        Promise.all(data.itens.map((item) => buscarDecisaoSuperiorExistenteCuradoriaNexo(item)))
+          .then((decisoes) => {
+            if (!ativo) return
+            setDecisoesRelacionadas(
+              decisoes.filter((decisao): decisao is NexoCuradoriaDecisaoSuperior =>
+                Boolean(decisao),
+              ),
+            )
+          })
+          .catch(() => {
+            if (ativo) setDecisoesRelacionadas([])
+          })
         setErro(null)
       })
       .catch(() => {
@@ -631,7 +655,7 @@ export default function NexoCuradoria() {
           ) : (
             <div className="space-y-3">
               {resumo.itens.map((item) => {
-                const decisaoDoItem = decisoesSuperiores.find(
+                const decisaoDoItem = [...decisoesSuperiores, ...decisoesRelacionadas].find(
                   (decisao) =>
                     decisao.evento_id === item.id ||
                     (!!item.external_id && decisao.external_id === item.external_id),

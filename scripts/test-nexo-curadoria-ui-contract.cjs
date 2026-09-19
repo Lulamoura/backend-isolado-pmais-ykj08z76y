@@ -292,6 +292,21 @@ assert.match(
 )
 assert.match(service, /rejeitada/, 'serviço deve aceitar status de rejeição')
 assert.match(
+  page,
+  /decisoesRelacionadas/,
+  'Aguardando curadoria deve considerar decisões já respondidas, mesmo fora da fila aberta',
+)
+assert.match(
+  page,
+  /\[\.\.\.decisoesSuperiores, \.\.\.decisoesRelacionadas\]/,
+  'card de curadoria deve usar decisão relacionada para ajuste em vez de resposta do zero',
+)
+assert.doesNotMatch(
+  service,
+  /status != 'rejeitada'/,
+  'decisão rejeitada também deve bloquear nova resposta do zero para o mesmo caso',
+)
+assert.match(
   service,
   /buscarDecisaoSuperiorExistenteCuradoriaNexo/,
   'serviço deve buscar decisão existente antes de gravar nova',
