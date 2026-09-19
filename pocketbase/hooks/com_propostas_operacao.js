@@ -2521,7 +2521,7 @@
       if (!/^[a-z0-9]{15}$/.test(id)) return e.badRequestError('ID da decisão inválido')
       var body = e.requestInfo().body || {}
       var status = safeText(body.status, 80)
-      if (status !== 'estudo_autorizado' && status !== 'rejeitada' && status !== 'ajuste_solicitado') {
+      if (status !== 'alteracao_formula_aprovada' && status !== 'estudo_autorizado' && status !== 'rejeitada' && status !== 'ajuste_solicitado') {
         return e.badRequestError('Status de revisão IPCP inválido')
       }
       var decisao = $app.findRecordById('com_nexo_curadoria_decisoes', id)

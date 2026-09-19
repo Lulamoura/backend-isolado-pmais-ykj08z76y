@@ -1433,7 +1433,7 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
       } catch (_) {
         revisaoStatus = ''
       }
-      if (revisaoStatus && revisaoStatus !== 'pendente' && revisaoStatus !== 'ajuste_solicitado' && revisaoStatus !== 'estudo_autorizado') continue
+      if (revisaoStatus && revisaoStatus !== 'pendente' && revisaoStatus !== 'ajuste_solicitado' && revisaoStatus !== 'alteracao_formula_aprovada' && revisaoStatus !== 'estudo_autorizado') continue
       if (!impactaIpcp(d)) continue
       itens.push({
         id: d.id,
