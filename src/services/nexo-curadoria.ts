@@ -66,8 +66,24 @@ export interface NexoCuradoriaDecisaoSuperior {
   impacto_json?: string
   origem_respostas_json?: string
   usuario_nome?: string
+  decisao_observacao?: string
+  updated_at?: string
   created_at?: string
   created?: string
+}
+
+export type StatusDecisaoSuperiorCuradoria =
+  | 'aguardando_revisao'
+  | 'aprovada_uso_operacional'
+  | 'rejeitada'
+
+export interface AtualizarDecisaoSuperiorCuradoriaInput {
+  id: string
+  status?: StatusDecisaoSuperiorCuradoria
+  regra_proposta?: string
+  excecao_condicao?: string
+  responsavel_validacao?: string
+  decisao_observacao?: string
 }
 
 const COLLECTION = 'com_nexo_aprendizado_eventos'
@@ -193,4 +209,28 @@ export async function salvarDecisaoSuperiorCuradoriaNexo({
     usuario_nome: usuario?.name || usuario?.email || '',
     created_at: new Date().toISOString(),
   })
+}
+
+export async function atualizarDecisaoSuperiorCuradoriaNexo({
+  id,
+  status,
+  regra_proposta,
+  excecao_condicao,
+  responsavel_validacao,
+  decisao_observacao,
+}: AtualizarDecisaoSuperiorCuradoriaInput) {
+  const usuario = pb.authStore.model
+  const payload: Record<string, string> = {
+    updated_at: new Date().toISOString(),
+    usuario_nome: usuario?.name || usuario?.email || '',
+  }
+
+  if (status) payload.status = status
+  if (regra_proposta !== undefined) payload.regra_proposta = regra_proposta.trim()
+  if (excecao_condicao !== undefined) payload.excecao_condicao = excecao_condicao.trim()
+  if (responsavel_validacao !== undefined)
+    payload.responsavel_validacao = responsavel_validacao.trim()
+  if (decisao_observacao !== undefined) payload.decisao_observacao = decisao_observacao.trim()
+
+  return pb.collection(DECISOES_COLLECTION).update<NexoCuradoriaDecisaoSuperior>(id, payload)
 }

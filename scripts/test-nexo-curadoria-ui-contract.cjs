@@ -205,6 +205,33 @@ assert.match(page, /Motivo da escalada/, 'card de decisão deve explicar motivo 
 assert.match(page, /Aprovar/, 'decisor deve ver ação de aprovar')
 assert.match(page, /Ajustar/, 'decisor deve ver ação de ajustar')
 assert.match(page, /Rejeitar/, 'decisor deve ver ação de rejeitar')
+assert.match(
+  page,
+  /aprovarDecisaoSuperior/,
+  'botão Aprovar deve executar atualização real da decisão',
+)
+assert.match(page, /ajustarDecisaoSuperior/, 'botão Ajustar deve abrir ajuste real da decisão')
+assert.match(
+  page,
+  /rejeitarDecisaoSuperior/,
+  'botão Rejeitar deve executar atualização real da decisão',
+)
+assert.match(
+  page,
+  /salvarAjusteDecisaoSuperior/,
+  'ajuste de decisão existente deve ser salvo sem criar nova resposta do zero',
+)
+assert.match(
+  page,
+  /Ajuste da decisão superior/,
+  'página deve ter formulário de ajuste da decisão existente',
+)
+assert.match(page, /Decisão rejeitada/, 'página deve explicar resultado do botão Rejeitar')
+assert.match(
+  page,
+  /Decisão aprovada para uso operacional/,
+  'página deve explicar resultado do botão Aprovar',
+)
 assert.match(page, /decisoesSuperiores/, 'página deve manter estado da fila superior')
 assert.match(
   page,
@@ -253,6 +280,17 @@ assert.match(
   /salvarDecisaoSuperiorCuradoriaNexo/,
   'serviço deve expor função de salvar decisão superior',
 )
+assert.match(
+  service,
+  /atualizarDecisaoSuperiorCuradoriaNexo/,
+  'serviço deve expor função de atualizar aprovação, ajuste ou rejeição',
+)
+assert.match(
+  service,
+  /aprovada_uso_operacional/,
+  'serviço deve aceitar status de aprovação operacional',
+)
+assert.match(service, /rejeitada/, 'serviço deve aceitar status de rejeição')
 assert.match(
   service,
   /buscarDecisaoSuperiorExistenteCuradoriaNexo/,
@@ -307,6 +345,11 @@ assert.match(
   decisaoMigration,
   /escalar_direcao/,
   'coleção deve permitir marcação de escalonamento para direção',
+)
+assert.match(
+  decisaoMigration,
+  /decisao_observacao/,
+  'coleção deve registrar observação de aprovação, ajuste ou rejeição',
 )
 assert.match(
   decisaoMigration,

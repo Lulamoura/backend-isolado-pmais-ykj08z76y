@@ -29,6 +29,7 @@ migrate(
     collection.fields.add(
       new TextField({ name: 'responsavel_validacao', required: false, max: 1000 }),
     )
+    collection.fields.add(new TextField({ name: 'decisao_observacao', required: false, max: 2000 }))
     collection.fields.add(new TextField({ name: 'impacto_json', required: true, max: 4000 }))
     collection.fields.add(
       new TextField({ name: 'origem_respostas_json', required: false, max: 4000 }),
