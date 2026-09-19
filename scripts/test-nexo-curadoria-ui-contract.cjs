@@ -203,25 +203,44 @@ assert.match(
 )
 assert.match(
   page,
-  /Revisões IPCP pendentes/,
-  'página deve ter seção específica de revisões IPCP pendentes',
+  /Proposta de alteração da fórmula IPCP/,
+  'página deve ter painel específico de proposta de alteração da fórmula IPCP',
 )
 assert.match(
   page,
-  /Aprovar estudo/,
-  'revisão IPCP deve permitir autorizar estudo sem alterar fórmula',
+  /Pendente de decisão/,
+  'proposta de alteração IPCP deve usar status pendente de decisão',
+)
+assert.doesNotMatch(
+  page,
+  /Pendente para Lula\/direção/,
+  'UI não deve exibir Pendente para Lula/direção',
 )
 assert.match(
   page,
-  /Estudo autorizado/,
-  'revisão IPCP autorizada deve continuar visível como estudo autorizado',
+  /Aprovar alteração de fórmula/,
+  'revisão IPCP deve permitir aprovação explícita da alteração de fórmula',
+)
+assert.match(
+  page,
+  /Alteração de fórmula aprovada/,
+  'revisão IPCP aprovada deve continuar visível como alteração aprovada',
+)
+assert.match(
+  page,
+  /alteracao_formula_aprovada/,
+  'aprovação da alteração deve gravar status estruturado',
 )
 assert.match(
   page,
   /setRevisoesIpcpPendentes[\s\S]{0,220}\[atualizada, \.\.\.semAtual\]/,
-  'aprovar estudo IPCP não deve remover imediatamente a pendência da seção',
+  'aprovar alteração de fórmula não deve remover imediatamente a proposta da seção',
 )
-assert.match(page, /Pedir ajuste/, 'revisão IPCP deve permitir solicitar ajuste visível')
+assert.match(
+  page,
+  /Ajuste as condições da regra/,
+  'revisão IPCP deve permitir solicitar ajuste das condições',
+)
 assert.match(
   page,
   /ajuste_solicitado/,
@@ -230,13 +249,13 @@ assert.match(
 assert.match(page, /Ajuste solicitado/, 'Pedir ajuste deve deixar status visível para o decisor')
 assert.match(
   page,
-  /Rejeitar impacto no IPCP/,
-  'revisão IPCP deve permitir rejeitar impacto na fórmula',
+  /Rejeitar alteração da fórmula/,
+  'revisão IPCP deve permitir rejeitar alteração da fórmula',
 )
 assert.match(
   page,
-  /alteração da fórmula do IPCP continua bloqueada até aprovação expressa/,
-  'UI deve deixar claro bloqueio de alteração automática da fórmula',
+  /A alteração da fórmula só fica autorizada ao clicar em Aprovar alteração de fórmula/,
+  'UI deve deixar clara a autorização explícita da alteração',
 )
 assert.match(
   page,
@@ -569,6 +588,11 @@ assert.match(
   hook,
   /\/backend\/v1\/nexo\/curadoria\/decisoes\/\{id\}\/ipcp-revisao/,
   'hook deve expor rota protegida para tratar revisão IPCP',
+)
+assert.match(
+  hook,
+  /alteracao_formula_aprovada/,
+  'hook deve aceitar aprovação explícita de alteração de fórmula IPCP',
 )
 assert.match(
   centralHook,

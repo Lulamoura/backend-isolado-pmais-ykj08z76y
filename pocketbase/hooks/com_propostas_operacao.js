@@ -2597,6 +2597,7 @@
       var body = e.requestInfo().body || {}
       var status = safeText(body.status, 80)
       if (
+        status !== 'alteracao_formula_aprovada' &&
         status !== 'estudo_autorizado' &&
         status !== 'rejeitada' &&
         status !== 'ajuste_solicitado'

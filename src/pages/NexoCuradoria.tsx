@@ -82,14 +82,17 @@ function estiloStatusDecisao(status?: string) {
 }
 
 function rotuloStatusRevisaoIpcp(status?: string) {
-  if (status === 'estudo_autorizado') return 'Estudo autorizado'
+  if (status === 'alteracao_formula_aprovada') return 'Alteração de fórmula aprovada'
+  if (status === 'estudo_autorizado') return 'Alteração de fórmula aprovada'
   if (status === 'ajuste_solicitado') return 'Ajuste solicitado'
-  if (status === 'rejeitada') return 'Impacto rejeitado'
-  return 'Pendente para Lula/direção'
+  if (status === 'rejeitada') return 'Alteração rejeitada'
+  return 'Pendente de decisão'
 }
 
 function estiloStatusRevisaoIpcp(status?: string) {
-  if (status === 'estudo_autorizado') return 'border-blue-200 bg-blue-50 text-blue-700'
+  if (status === 'alteracao_formula_aprovada')
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  if (status === 'estudo_autorizado') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
   if (status === 'ajuste_solicitado') return 'border-violet-200 bg-violet-50 text-violet-700'
   if (status === 'rejeitada') return 'border-slate-300 bg-slate-100 text-slate-700'
   return 'border-amber-300 bg-amber-50 text-amber-700'
@@ -389,11 +392,11 @@ export default function NexoCuradoria() {
     setSalvandoAcaoDecisao(true)
     try {
       const mensagem =
-        status === 'estudo_autorizado'
-          ? 'Estudo de impacto IPCP autorizado. A pendência permanece em acompanhamento e a fórmula segue bloqueada até aprovação expressa.'
+        status === 'alteracao_formula_aprovada'
+          ? 'Alteração de fórmula IPCP aprovada pela direção. A proposta permanece registrada para aplicação e rastreio da mudança.'
           : status === 'ajuste_solicitado'
-            ? 'Ajuste solicitado para esta revisão IPCP. A pendência permanece visível em acompanhamento.'
-            : 'Impacto no IPCP rejeitado para esta decisão. A regra permanece apenas como orientação operacional.'
+            ? 'Ajuste solicitado nas condições da regra antes de alterar a fórmula IPCP. A proposta permanece visível em acompanhamento.'
+            : 'Alteração da fórmula IPCP rejeitada para esta decisão. A regra permanece apenas como orientação operacional.'
       const atualizada = await atualizarRevisaoIpcpCuradoriaNexo(decisao.id, status, mensagem)
       setRevisoesIpcpPendentes((atuais) => {
         if (status === 'rejeitada') return atuais.filter((item) => item.id !== decisao.id)
@@ -705,11 +708,11 @@ export default function NexoCuradoria() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg text-slate-950">
               <BellRing className="h-4 w-4 text-amber-600" aria-hidden="true" />
-              Revisões IPCP pendentes
+              Proposta de alteração da fórmula IPCP
             </CardTitle>
             <CardDescription>
-              Sinalizações de decisões aprovadas que podem exigir revisão da fórmula do IPCP.
-              Nenhuma fórmula, peso ou faixa é alterada automaticamente.
+              Decisões aprovadas que podem alterar bloco, sub-bloco, peso ou critério do IPCP.
+              Ajuste as condições, rejeite a alteração ou aprove a mudança da fórmula.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -717,7 +720,7 @@ export default function NexoCuradoria() {
               <p className="text-sm text-slate-500">Carregando revisões IPCP pendentes...</p>
             ) : revisoesIpcpPendentes.length === 0 ? (
               <p className="rounded-xl border border-dashed border-amber-200 bg-white/70 p-6 text-sm text-slate-600">
-                Não há revisão IPCP pendente neste momento.
+                Não há proposta de alteração da fórmula IPCP neste momento.
               </p>
             ) : (
               <div className="space-y-3">
@@ -747,7 +750,7 @@ export default function NexoCuradoria() {
                       </p>
                       <p>
                         <span className="font-semibold text-slate-900">
-                          Bloco possivelmente afetado:
+                          Bloco ou sub-bloco afetado:
                         </span>{' '}
                         {decisao.ipcp_revisao_blocos || 'IPCP geral'}
                       </p>
@@ -757,18 +760,18 @@ export default function NexoCuradoria() {
                         estratégico, risco, perda ou registro comercial.
                       </p>
                       <p className="text-xs text-slate-600">
-                        A sinalização pode autorizar apenas estudo de impacto. A alteração da
-                        fórmula do IPCP continua bloqueada até aprovação expressa.
+                        Ajuste as condições se a regra precisar de refinamento. A alteração da
+                        fórmula só fica autorizada ao clicar em Aprovar alteração de fórmula.
                       </p>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => atualizarRevisaoIpcp(decisao, 'estudo_autorizado')}
+                        onClick={() => atualizarRevisaoIpcp(decisao, 'ajuste_solicitado')}
                         disabled={salvandoAcaoDecisao}
                       >
-                        Aprovar estudo
+                        Ajuste as condições da regra
                       </Button>
                       <Button
                         variant="outline"
@@ -776,15 +779,15 @@ export default function NexoCuradoria() {
                         onClick={() => atualizarRevisaoIpcp(decisao, 'rejeitada')}
                         disabled={salvandoAcaoDecisao}
                       >
-                        Rejeitar impacto no IPCP
+                        Rejeitar alteração da fórmula
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => atualizarRevisaoIpcp(decisao, 'ajuste_solicitado')}
+                        onClick={() => atualizarRevisaoIpcp(decisao, 'alteracao_formula_aprovada')}
                         disabled={salvandoAcaoDecisao}
                       >
-                        Pedir ajuste
+                        Aprovar alteração de fórmula
                       </Button>
                     </div>
                   </div>

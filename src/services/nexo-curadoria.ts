@@ -185,7 +185,10 @@ export async function obterRevisoesIpcpPendentesCuradoriaNexo(limit = 10) {
       .filter((decisao) => {
         const status = decisao.ipcp_revisao_status || 'pendente'
         return (
-          status === 'pendente' || status === 'ajuste_solicitado' || status === 'estudo_autorizado'
+          status === 'pendente' ||
+          status === 'ajuste_solicitado' ||
+          status === 'alteracao_formula_aprovada' ||
+          status === 'estudo_autorizado'
         )
       })
       .filter(decisaoPodeImpactarIpcp)

@@ -1451,6 +1451,7 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
         revisaoStatus &&
         revisaoStatus !== 'pendente' &&
         revisaoStatus !== 'ajuste_solicitado' &&
+        revisaoStatus !== 'alteracao_formula_aprovada' &&
         revisaoStatus !== 'estudo_autorizado'
       )
         continue
