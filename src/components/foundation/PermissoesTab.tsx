@@ -83,12 +83,21 @@ export function PermissoesTab() {
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold">Permissões</h2>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">Permissões de Sistema</h2>
+          <p className="text-xs text-slate-500">
+            Controles de acesso granulares por recurso e ação
+          </p>
+        </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openNew} size="sm">
+            <Button
+              onClick={openNew}
+              size="sm"
+              className="bg-slate-900 text-white hover:bg-slate-800 shadow-sm"
+            >
               <Plus className="h-4 w-4 mr-1" />
               Adicionar
             </Button>
@@ -147,35 +156,60 @@ export function PermissoesTab() {
           </DialogContent>
         </Dialog>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead>Recurso</TableHead>
-            <TableHead>Ação</TableHead>
-            <TableHead className="text-right">Ações</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {records.map((r) => (
-            <TableRow key={r.id}>
-              <TableCell className="font-medium">{r.nome}</TableCell>
-              <TableCell>
-                <Badge variant="outline">{r.recurso}</Badge>
-              </TableCell>
-              <TableCell className="text-gray-500">{r.acao}</TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => remove(r.id)}>
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
-              </TableCell>
+      <div className="rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader className="bg-slate-50/60">
+            <TableRow className="border-slate-200/80">
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Nome
+              </TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Recurso
+              </TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Ação
+              </TableHead>
+              <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Ações
+              </TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {records.map((r) => (
+              <TableRow key={r.id} className="border-slate-100 hover:bg-slate-50/50">
+                <TableCell className="font-medium text-slate-900">{r.nome}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-blue-200/60 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700"
+                  >
+                    {r.recurso}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-slate-500 font-mono text-xs">{r.acao}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEdit(r)}
+                    className="text-slate-600 hover:text-slate-900"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => remove(r.id)}
+                    className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }
