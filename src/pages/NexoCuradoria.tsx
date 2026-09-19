@@ -162,6 +162,7 @@ export default function NexoCuradoria() {
   const [decisaoEmAjuste, setDecisaoEmAjuste] = useState<NexoCuradoriaDecisaoSuperior | null>(null)
   const [revisaoIpcpEmAjuste, setRevisaoIpcpEmAjuste] =
     useState<NexoCuradoriaDecisaoSuperior | null>(null)
+  const [historicoAberto, setHistoricoAberto] = useState(false)
   const [historicoEmDetalhe, setHistoricoEmDetalhe] = useState<NexoCuradoriaDecisaoSuperior | null>(
     null,
   )
@@ -430,7 +431,7 @@ export default function NexoCuradoria() {
 
   function abrirAjusteRevisaoIpcp(decisao: NexoCuradoriaDecisaoSuperior) {
     setRevisaoIpcpEmAjuste(decisao)
-    setCondicoesAjusteIpcp(decisao.ipcp_revisao_motivo || '')
+    setCondicoesAjusteIpcp(decisao.ipcp_revisao_motivo || decisao.regra_proposta || '')
     setErro(null)
   }
 
@@ -852,81 +853,15 @@ export default function NexoCuradoria() {
       )}
 
       {podeVerDecisaoSuperior && (
-        <Card className="rounded-xl border-slate-200 bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg text-slate-950">
-              Histórico de decisões superiores
-            </CardTitle>
-            <CardDescription>
-              Consulta das regras aprovadas ou rejeitadas. Uma decisão aprovada pode ser revisada ou
-              retirada do uso operacional.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingHistoricoDecisoes ? (
-              <p className="text-sm text-slate-500">Carregando histórico de decisões...</p>
-            ) : decisoesHistorico.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                Ainda não há decisões superiores aprovadas ou rejeitadas.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {decisoesHistorico.map((decisao) => (
-                  <div
-                    key={decisao.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50/80 p-3"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-slate-950">
-                          {resumoDecisaoSuperior(decisao)}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Decidido em{' '}
-                          {dataCurta(decisao.updated_at || decisao.created_at || decisao.created)}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className={`rounded-full ${estiloStatusDecisao(decisao.status)}`}
-                        >
-                          {rotuloStatusDecisao(decisao.status)}
-                        </Badge>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setHistoricoEmDetalhe(decisao)}
-                          disabled={salvandoAcaoDecisao}
-                        >
-                          Ver detalhes
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => ajustarDecisaoSuperior(decisao)}
-                          disabled={salvandoAcaoDecisao}
-                        >
-                          Revisar
-                        </Button>
-                        {decisao.status === 'aprovada_uso_operacional' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => rejeitarDecisaoSuperior(decisao)}
-                            disabled={salvandoAcaoDecisao}
-                          >
-                            Retirar do uso
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            onClick={() => setHistoricoAberto(true)}
+            disabled={loadingHistoricoDecisoes}
+          >
+            Histórico de decisões
+          </Button>
+        </div>
       )}
 
       {mensagemDecisaoSuperior && (
@@ -959,7 +894,7 @@ export default function NexoCuradoria() {
                 </p>
               </div>
               <label className="block space-y-2 text-sm font-medium text-slate-700">
-                Condições a ajustar
+                Regra e condições a ajustar
                 <textarea
                   value={condicoesAjusteIpcp}
                   onChange={(event) => setCondicoesAjusteIpcp(event.target.value)}
@@ -983,6 +918,80 @@ export default function NexoCuradoria() {
                   Cancelar
                 </Button>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(historicoAberto)} onOpenChange={setHistoricoAberto}>
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Histórico de decisões</DialogTitle>
+            <DialogDescription>
+              Decisões resumidas com status, data e ações. Use Ver detalhes para abrir o conteúdo
+              completo.
+            </DialogDescription>
+          </DialogHeader>
+          {loadingHistoricoDecisoes ? (
+            <p className="text-sm text-slate-500">Carregando histórico de decisões...</p>
+          ) : decisoesHistorico.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+              Ainda não há decisões superiores aprovadas ou rejeitadas.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {decisoesHistorico.map((decisao) => (
+                <div
+                  key={decisao.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/80 p-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-slate-950">
+                        {resumoDecisaoSuperior(decisao)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Decidido em{' '}
+                        {dataCurta(decisao.updated_at || decisao.created_at || decisao.created)}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className={`rounded-full ${estiloStatusDecisao(decisao.status)}`}
+                      >
+                        {rotuloStatusDecisao(decisao.status)}
+                      </Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setHistoricoEmDetalhe(decisao)}
+                        disabled={salvandoAcaoDecisao}
+                      >
+                        Ver detalhes
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => ajustarDecisaoSuperior(decisao)}
+                        disabled={salvandoAcaoDecisao}
+                      >
+                        Revisar
+                      </Button>
+                      {decisao.status === 'aprovada_uso_operacional' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => rejeitarDecisaoSuperior(decisao)}
+                          disabled={salvandoAcaoDecisao}
+                        >
+                          Retirar do uso
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </DialogContent>

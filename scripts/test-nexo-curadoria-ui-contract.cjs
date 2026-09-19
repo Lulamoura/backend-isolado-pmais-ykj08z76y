@@ -196,11 +196,7 @@ assert.match(
   /Decisões aguardando validação superior/,
   'página deve listar decisões aguardando validação superior',
 )
-assert.match(
-  page,
-  /Histórico de decisões superiores/,
-  'página deve ter seção de histórico de decisões superiores',
-)
+assert.match(page, /Histórico de decisões/, 'página deve ter botão/modal de histórico de decisões')
 assert.match(
   page,
   /Proposta de alteração da fórmula IPCP/,
@@ -244,10 +240,19 @@ assert.match(
 )
 assert.match(
   page,
+  /decisao\.ipcp_revisao_motivo \|\| decisao\.regra_proposta/,
+  'modal de ajuste IPCP deve vir preenchida com a regra quando não houver motivo anterior',
+)
+assert.match(
+  page,
   /Ajustar condições da regra IPCP/,
   'modal de ajuste IPCP deve ficar visível ao decisor',
 )
-assert.match(page, /Condições a ajustar/, 'modal deve permitir registrar as condições a ajustar')
+assert.match(
+  page,
+  /Regra e condições a ajustar/,
+  'modal deve permitir alterar a regra e as condições',
+)
 assert.match(
   page,
   /salvarAjusteRevisaoIpcp/,
@@ -275,6 +280,12 @@ assert.match(
   'página deve carregar histórico de decisões superiores',
 )
 assert.match(page, /decisoesHistorico/, 'página deve manter estado do histórico de decisões')
+assert.match(page, /setHistoricoAberto\(true\)/, 'tela principal deve abrir histórico por botão')
+assert.match(
+  page,
+  /<Dialog open=\{Boolean\(historicoAberto\)\}/,
+  'histórico resumido deve ficar dentro de modal',
+)
 assert.match(page, /Ver detalhes/, 'histórico deve ficar resumido e abrir detalhes sob demanda')
 assert.match(
   page,
