@@ -1871,17 +1871,49 @@
         )
       }
 
+      function nexoRotuloAcaoCuradoria(valor) {
+        var mapa = {
+          proximo_follow_up: 'próximo follow-up',
+          preparar_whatsapp: 'preparar WhatsApp',
+          email_envio_proposta: 'e-mail de envio da proposta',
+          roteiro_ligacao: 'roteiro de ligação',
+          avaliar_risco_perda: 'avaliar risco de perda',
+          melhorar_notas: 'melhorar notas',
+        }
+        return mapa[String(valor || '')] || String(valor || 'consulta do Nexo').replace(/_/g, ' ')
+      }
+
+      function nexoResumoNotasFollowupsCuradoria(notas) {
+        if (!Array.isArray(notas) || notas.length === 0) return 'sem follow-up textual disponível'
+        var partes = []
+        for (var i = 0; i < notas.length && i < 5; i++) {
+          var item = notas[i]
+          var texto = ''
+          if (item && typeof item === 'object') {
+            texto = item.texto || item.conteudo || item.note || item.observacao || ''
+          } else {
+            texto = String(item || '')
+          }
+          texto = nexoLimparTextoAjuda(texto, 240)
+          if (texto && texto !== '[object Object]') partes.push(texto)
+        }
+        return partes.length ? partes.join(' | ') : 'sem follow-up textual disponível'
+      }
+
       function nexoResumoContextoAprendizado() {
         var negocio = contextoSeguro.negocio || {}
         var partes = [
-          'Ação solicitada: ' + acao,
+          'Ação solicitada: ' + nexoRotuloAcaoCuradoria(acao),
           'Fase/etapa: ' + (negocio.fase || negocio.etapa || 'não informada'),
           'Tipo de serviço: ' + (contextoSeguro.tipo_servico || 'não informado'),
           'Descrição: ' + (contextoSeguro.descricao_negocio || 'não informada'),
           'Follow-ups/notas: ' +
-            nexoLimparTextoAjuda((contextoSeguro.notas_followups || []).join(' | '), 900),
+            nexoResumoNotasFollowupsCuradoria(contextoSeguro.notas_followups || []),
         ]
-        return nexoResumoSeguroAprendizado(partes.join('\n'), 4000)
+        return nexoResumoSeguroAprendizado(
+          partes.join('\n').replace(/\[object Object\]/g, 'informação textual indisponível'),
+          4000,
+        )
       }
 
       function nexoResumoRespostaAprendizado(resposta) {
