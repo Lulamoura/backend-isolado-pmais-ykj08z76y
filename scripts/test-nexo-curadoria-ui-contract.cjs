@@ -48,6 +48,19 @@ const pagePath = 'src/pages/NexoCuradoria.tsx'
 assert.ok(fs.existsSync(pagePath), 'deve existir página NexoCuradoria')
 const page = fs.readFileSync(pagePath, 'utf8')
 assert.match(page, /Iniciar curadoria/, 'página deve ter botão para iniciar curadoria')
+assert.match(page, /Começar entrevista/, 'página deve ter botão para começar a entrevista')
+assert.match(
+  page,
+  /setEtapaEntrevista\(1\)/,
+  'botão Começar entrevista deve avançar para a primeira etapa',
+)
+assert.match(
+  page,
+  /Pergunta \{etapaEntrevista\} de \{perguntasEntrevista.length\}/,
+  'entrevista deve exibir progresso de perguntas',
+)
+assert.match(page, /Próxima pergunta/, 'entrevista deve permitir avançar pergunta a pergunta')
+assert.match(page, /Enviar para revisão/, 'entrevista deve encerrar com envio para revisão')
 assert.match(page, /entrevista guiada/i, 'página deve explicar que é entrevista guiada')
 assert.match(
   page,

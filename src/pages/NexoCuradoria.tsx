@@ -33,11 +33,37 @@ function resumoEvento(evento: NexoCuradoriaEvento) {
   return `${partes.join(' · ')} · ${acao}`
 }
 
+const perguntasEntrevista = [
+  'Qual regra comercial precisa ser confirmada neste caso?',
+  'Existe alguma exceção ou condição que o Nexo deve considerar?',
+  'Quem é o responsável pela decisão ou validação final deste alinhamento?',
+]
+
 export default function NexoCuradoria() {
   const [resumo, setResumo] = useState<NexoCuradoriaResumo>({ pendencias: 0, itens: [] })
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [entrevistaAberta, setEntrevistaAberta] = useState(false)
+  const [etapaEntrevista, setEtapaEntrevista] = useState(0)
+  const [respostasEntrevista, setRespostasEntrevista] = useState<string[]>([])
+
+  function fecharEntrevista() {
+    setEntrevistaAberta(false)
+    setEtapaEntrevista(0)
+    setRespostasEntrevista([])
+  }
+
+  function atualizarRespostaEntrevista(valor: string) {
+    setRespostasEntrevista((atuais) => {
+      const proximas = [...atuais]
+      proximas[etapaEntrevista - 1] = valor
+      return proximas
+    })
+  }
+
+  function avancarEntrevista() {
+    setEtapaEntrevista((atual) => Math.min(atual + 1, perguntasEntrevista.length + 1))
+  }
 
   useEffect(() => {
     let ativo = true
@@ -202,21 +228,66 @@ export default function NexoCuradoria() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-sm leading-relaxed text-slate-700">
-              <p className="font-semibold text-slate-900">Nexo</p>
-              <p className="mt-1">
-                Vou conduzir perguntas objetivas sobre um padrão identificado no App Comercial.
-                Responda de forma curta, validando regra, exceção e responsável pela decisão.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button className="bg-violet-600 text-white hover:bg-violet-700">
-                Começar entrevista
-              </Button>
-              <Button variant="outline" onClick={() => setEntrevistaAberta(false)}>
-                Fechar
-              </Button>
-            </div>
+            {etapaEntrevista === 0 ? (
+              <>
+                <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-sm leading-relaxed text-slate-700">
+                  <p className="font-semibold text-slate-900">Nexo</p>
+                  <p className="mt-1">
+                    Vou conduzir perguntas objetivas sobre um padrão identificado no App Comercial.
+                    Responda de forma curta, validando regra, exceção e responsável pela decisão.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => setEtapaEntrevista(1)}
+                    className="bg-violet-600 text-white hover:bg-violet-700"
+                  >
+                    Começar entrevista
+                  </Button>
+                  <Button variant="outline" onClick={fecharEntrevista}>
+                    Fechar
+                  </Button>
+                </div>
+              </>
+            ) : etapaEntrevista <= perguntasEntrevista.length ? (
+              <>
+                <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-sm leading-relaxed text-slate-700">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Pergunta {etapaEntrevista} de {perguntasEntrevista.length}
+                  </p>
+                  <p className="mt-2 font-semibold text-slate-900">
+                    {perguntasEntrevista[etapaEntrevista - 1]}
+                  </p>
+                </div>
+                <label className="block space-y-2 text-sm font-medium text-slate-700">
+                  Resposta curta para curadoria
+                  <textarea
+                    value={respostasEntrevista[etapaEntrevista - 1] || ''}
+                    onChange={(event) => atualizarRespostaEntrevista(event.target.value)}
+                    className="min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-violet-200 focus:ring-2"
+                    placeholder="Digite a orientação, regra ou observação validada."
+                  />
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={avancarEntrevista}
+                    className="bg-violet-600 text-white hover:bg-violet-700"
+                  >
+                    {etapaEntrevista === perguntasEntrevista.length
+                      ? 'Enviar para revisão'
+                      : 'Próxima pergunta'}
+                  </Button>
+                  <Button variant="outline" onClick={fecharEntrevista}>
+                    Fechar
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-relaxed text-emerald-900">
+                Entrevista registrada para revisão. As respostas serão tratadas antes de virar regra
+                ou playbook comercial.
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
