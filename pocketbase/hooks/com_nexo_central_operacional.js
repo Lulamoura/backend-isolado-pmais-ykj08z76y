@@ -1366,6 +1366,104 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     })
   }
 
+  function consultaRevisoesIpcpPendentes() {
+    var rows = []
+    try {
+      rows = $app.findRecordsByFilter(
+        'com_nexo_curadoria_decisoes',
+        "status = 'aprovada_uso_operacional'",
+        '-updated_at,-created_at',
+        40,
+        0,
+      )
+    } catch (_) {
+      rows = []
+    }
+
+    function parseImpacto(raw) {
+      try {
+        return JSON.parse(String(raw || '{}'))
+      } catch (_) {
+        return {}
+      }
+    }
+    function textoDecisao(decisao) {
+      return [
+        decisao.getString('regra_proposta'),
+        decisao.getString('excecao_condicao'),
+        decisao.getString('decisao_observacao'),
+        decisao.getString('responsavel_validacao'),
+      ]
+        .join(' ')
+        .toLowerCase()
+    }
+    function impactaIpcp(decisao) {
+      var impacto = parseImpacto(decisao.getString('impacto_json'))
+      var texto = textoDecisao(decisao)
+      return Boolean(
+        impacto.altera_indicador ||
+          impacto.altera_politica_comercial ||
+          impacto.altera_funil ||
+          impacto.altera_risco ||
+          impacto.altera_perda ||
+          /ipcp|indicador|política comercial|politica comercial|fórmula|formula|peso|pontuação|pontuacao|follow[- ]?up|valor estratégico|valor estrategico|conversão|conversao|perda|ganho|proposta enviada|recorrência|recorrencia|alto valor|qualidade do registro|maturidade comercial/.test(texto),
+      )
+    }
+    function blocos(decisao) {
+      var texto = textoDecisao(decisao)
+      var lista = []
+      function add(item) {
+        if (lista.indexOf(item) < 0) lista.push(item)
+      }
+      if (/ipcp|indicador|fórmula|formula|peso|pontuação|pontuacao/.test(texto)) add('IPCP geral')
+      if (/follow[- ]?up|próximo passo|proximo passo|retorno|prazo/.test(texto)) add('Qualidade do follow-up')
+      if (/registro|aprendizado|decisor|necessidade|objeção|objecao|risco|pendência|pendencia/.test(texto)) add('Registros e aprendizado')
+      if (/proposta enviada|valor estratégico|valor estrategico|recorrência|recorrencia|alto valor|maturidade comercial/.test(texto)) add('Valor estratégico')
+      if (/ganho|perda|conversão|conversao/.test(texto)) add('Resultado comercial')
+      if (/funil|etapa|fase|carteira|sla|cadência|cadencia/.test(texto)) add('Disciplina da carteira')
+      return lista.length ? lista : ['IPCP geral']
+    }
+
+    var itens = []
+    for (var i = 0; i < rows.length && itens.length < 10; i++) {
+      var d = rows[i]
+      var revisaoStatus = ''
+      try {
+        revisaoStatus = d.getString('ipcp_revisao_status')
+      } catch (_) {
+        revisaoStatus = ''
+      }
+      if (revisaoStatus && revisaoStatus !== 'pendente' && revisaoStatus !== 'ajuste_solicitado' && revisaoStatus !== 'estudo_autorizado') continue
+      if (!impactaIpcp(d)) continue
+      itens.push({
+        id: d.id,
+        external_id: d.getString('external_id') || null,
+        empresa_nome: d.getString('empresa_nome') || null,
+        contato_nome: d.getString('contato_nome') || null,
+        negocio_titulo: d.getString('negocio_titulo') || null,
+        regra_proposta: limparTexto(d.getString('regra_proposta'), 800),
+        status_revisao_ipcp: revisaoStatus || 'pendente',
+        blocos_ipcp: blocos(d),
+        gatilho:
+          'Decisão aprovada pode impactar indicador, política comercial, follow-up, conversão, valor estratégico, risco, perda ou registro comercial.',
+        atualizado_em: d.getString('updated_at') || d.getString('created_at') || d.getString('created'),
+      })
+    }
+
+    return resposta('ipcp_revisoes_pendentes', {
+      contrato_ipcp_revisao: 'nexo_ipcp_revisoes_pendentes_v1',
+      total: itens.length,
+      itens: itens,
+      aviso_telegram_recomendado: itens.length > 0,
+      guardrails: {
+        somente_leitura: true,
+        sem_mutacao: true,
+        nao_altera_formula: true,
+        formula_ipcp_exige_aprovacao_lula_direcao: true,
+      },
+    })
+  }
+
   function filtroPeriodo(body) {
     var filtro = 'inativo = false'
     var inicio = String(body.inicio || body.data_inicio || '').slice(0, 10)
@@ -1380,6 +1478,7 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     var tipo = String(body.tipo_consulta || '').trim()
     var pergunta = String(body.pergunta || '').toLowerCase()
     if (tipo) return tipo
+    if (pergunta.indexOf('revis') >= 0 && pergunta.indexOf('ipcp') >= 0) return 'ipcp_revisoes_pendentes'
     if (
       pergunta.indexOf('proposta') >= 0 &&
       (pergunta.indexOf('retorno') >= 0 || pergunta.indexOf('abertura') >= 0)
@@ -1428,11 +1527,13 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     followups_vencidos: true,
     aprendizados_comerciais: true,
     ipcp_gerencial: true,
+    ipcp_revisoes_pendentes: true,
   }
   if (!permitidas[tipo])
     return e.json(400, { error: 'TIPO_CONSULTA_INVALIDO', permitidas: Object.keys(permitidas) })
 
   if (tipo === 'ipcp_gerencial') return consultaIpcpGerencial(body)
+  if (tipo === 'ipcp_revisoes_pendentes') return consultaRevisoesIpcpPendentes()
 
   if (tipo === 'negocio_por_id') {
     var id = String(body.id_negocio || body.external_id || '').trim()
