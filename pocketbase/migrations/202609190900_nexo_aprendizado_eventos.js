@@ -36,9 +36,9 @@ migrate(
     collection.fields.add(new TextField({ name: 'provider', required: false, max: 120 }))
     collection.fields.add(new TextField({ name: 'modelo', required: false, max: 160 }))
     collection.fields.add(new BoolField({ name: 'fallback', required: false }))
-    collection.fields.add(new BoolField({ name: 'human_review_required', required: true }))
-    collection.fields.add(new BoolField({ name: 'automatic_send_allowed', required: true }))
-    collection.fields.add(new BoolField({ name: 'crm_write_allowed', required: true }))
+    collection.fields.add(new BoolField({ name: 'human_review_required', required: false }))
+    collection.fields.add(new BoolField({ name: 'automatic_send_allowed', required: false }))
+    collection.fields.add(new BoolField({ name: 'crm_write_allowed', required: false }))
     collection.fields.add(new TextField({ name: 'audit_id', required: true, max: 160 }))
     collection.fields.add(new DateField({ name: 'created_at', required: true }))
 
