@@ -1901,7 +1901,18 @@
 
       function nexoGarantirColecaoAprendizadoApp() {
         try {
-          return $app.findCollectionByNameOrId('com_nexo_aprendizado_eventos')
+          var existente = $app.findCollectionByNameOrId('com_nexo_aprendizado_eventos')
+          var ajustada = false
+          var bools = ['human_review_required', 'automatic_send_allowed', 'crm_write_allowed']
+          for (var b = 0; b < bools.length; b++) {
+            var campoBool = existente.fields.getByName(bools[b])
+            if (campoBool && campoBool.required) {
+              campoBool.required = false
+              ajustada = true
+            }
+          }
+          if (ajustada) $app.save(existente)
+          return existente
         } catch (_) {}
         var collection = new Collection({
           type: 'base',
