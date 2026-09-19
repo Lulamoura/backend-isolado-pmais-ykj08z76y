@@ -236,10 +236,22 @@ assert.match(
   /setRevisoesIpcpPendentes[\s\S]{0,220}\[atualizada, \.\.\.semAtual\]/,
   'aprovar alteração de fórmula não deve remover imediatamente a proposta da seção',
 )
+assert.match(page, /Ajuste as condições da regra/, 'revisão IPCP deve abrir ajuste das condições')
 assert.match(
   page,
-  /Ajuste as condições da regra/,
-  'revisão IPCP deve permitir solicitar ajuste das condições',
+  /abrirAjusteRevisaoIpcp/,
+  'botão de ajuste IPCP deve abrir modal visível de ajuste',
+)
+assert.match(
+  page,
+  /Ajustar condições da regra IPCP/,
+  'modal de ajuste IPCP deve ficar visível ao decisor',
+)
+assert.match(page, /Condições a ajustar/, 'modal deve permitir registrar as condições a ajustar')
+assert.match(
+  page,
+  /salvarAjusteRevisaoIpcp/,
+  'ajuste IPCP deve salvar motivo/condições antes de atualizar status',
 )
 assert.match(
   page,
@@ -263,6 +275,12 @@ assert.match(
   'página deve carregar histórico de decisões superiores',
 )
 assert.match(page, /decisoesHistorico/, 'página deve manter estado do histórico de decisões')
+assert.match(page, /Ver detalhes/, 'histórico deve ficar resumido e abrir detalhes sob demanda')
+assert.match(
+  page,
+  /Detalhe da decisão superior/,
+  'histórico completo deve ficar em modal de detalhe',
+)
 assert.match(
   page,
   /Retirar do uso operacional/,
