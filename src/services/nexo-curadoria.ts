@@ -101,15 +101,31 @@ function filtroDecisaoExistente(evento: NexoCuradoriaEvento) {
   return `(${filtros.join(' || ')})`
 }
 
+function decisaoTerminal(decisao: NexoCuradoriaDecisaoSuperior | null) {
+  return decisao?.status === 'aprovada_uso_operacional' || decisao?.status === 'rejeitada'
+}
+
+async function filtrarEventosComDecisaoTerminal(eventos: NexoCuradoriaEvento[]) {
+  const pares = await Promise.all(
+    eventos.map(async (evento) => ({
+      evento,
+      decisao: await buscarDecisaoSuperiorExistenteCuradoriaNexo(evento),
+    })),
+  )
+
+  return pares.filter(({ decisao }) => !decisaoTerminal(decisao)).map(({ evento }) => evento)
+}
+
 export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoriaResumo> {
-  const response = await pb.collection(COLLECTION).getList<NexoCuradoriaEvento>(1, limit, {
+  const response = await pb.collection(COLLECTION).getList<NexoCuradoriaEvento>(1, Math.max(limit * 3, limit), {
     filter: PENDING_FILTER,
     sort: '-created_at',
   })
+  const itensAbertos = (await filtrarEventosComDecisaoTerminal(response.items)).slice(0, limit)
 
   return {
-    pendencias: response.totalItems,
-    itens: response.items,
+    pendencias: itensAbertos.length,
+    itens: itensAbertos,
   }
 }
 
