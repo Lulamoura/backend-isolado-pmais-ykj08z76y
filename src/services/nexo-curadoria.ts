@@ -70,6 +70,10 @@ export interface NexoCuradoriaDecisaoSuperior {
   segundo_cerebro_status?: string
   segundo_cerebro_audit_id?: string
   segundo_cerebro_atualizado_em?: string
+  ipcp_revisao_status?: string
+  ipcp_revisao_blocos?: string
+  ipcp_revisao_motivo?: string
+  ipcp_revisao_notificado_em?: string
   updated_at?: string
   created_at?: string
   created?: string
@@ -87,6 +91,8 @@ export interface AtualizarDecisaoSuperiorCuradoriaInput {
   excecao_condicao?: string
   responsavel_validacao?: string
   decisao_observacao?: string
+  ipcp_revisao_status?: string
+  ipcp_revisao_motivo?: string
 }
 
 const COLLECTION = 'com_nexo_aprendizado_eventos'
@@ -164,6 +170,69 @@ export async function obterHistoricoDecisoesSuperioresCuradoriaNexo(limit = 20) 
     if (error?.status === 403) return []
     throw error
   }
+}
+
+export async function obterRevisoesIpcpPendentesCuradoriaNexo(limit = 10) {
+  try {
+    const response = await pb
+      .collection(DECISOES_COLLECTION)
+      .getList<NexoCuradoriaDecisaoSuperior>(1, Math.max(limit * 3, limit), {
+        filter: "status = 'aprovada_uso_operacional'",
+        sort: '-updated_at,-created_at',
+      })
+
+    return response.items
+      .filter((decisao) => {
+        const status = decisao.ipcp_revisao_status || 'pendente'
+        return (
+          status === 'pendente' || status === 'ajuste_solicitado' || status === 'estudo_autorizado'
+        )
+      })
+      .filter(decisaoPodeImpactarIpcp)
+      .slice(0, limit)
+  } catch (error: any) {
+    if (error?.status === 403 || error?.status === 404) return []
+    throw error
+  }
+}
+
+export function impactoDecisaoSuperior(
+  decisao: NexoCuradoriaDecisaoSuperior,
+): ImpactoDecisaoCuradoria {
+  try {
+    return JSON.parse(decisao.impacto_json || '{}')
+  } catch (_) {
+    return {
+      altera_funil: false,
+      altera_risco: false,
+      altera_perda: false,
+      altera_indicador: false,
+      altera_politica_comercial: false,
+    }
+  }
+}
+
+export function decisaoPodeImpactarIpcp(decisao: NexoCuradoriaDecisaoSuperior) {
+  const impacto = impactoDecisaoSuperior(decisao)
+  const texto = [
+    decisao.regra_proposta,
+    decisao.excecao_condicao,
+    decisao.decisao_observacao,
+    decisao.responsavel_validacao,
+  ]
+    .join(' ')
+    .toLowerCase()
+
+  return Boolean(
+    impacto.altera_indicador ||
+    impacto.altera_politica_comercial ||
+    impacto.altera_funil ||
+    impacto.altera_risco ||
+    impacto.altera_perda ||
+    /ipcp|indicador|política comercial|politica comercial|fórmula|formula|peso|pontuação|pontuacao|follow[- ]?up|valor estratégico|valor estrategico|conversão|conversao|perda|ganho|proposta enviada|recorrência|recorrencia|alto valor|qualidade do registro|maturidade comercial/.test(
+      texto,
+    ),
+  )
 }
 
 export async function buscarDecisaoSuperiorExistenteCuradoriaNexo(evento: NexoCuradoriaEvento) {
@@ -255,6 +324,8 @@ export async function atualizarDecisaoSuperiorCuradoriaNexo({
   excecao_condicao,
   responsavel_validacao,
   decisao_observacao,
+  ipcp_revisao_status,
+  ipcp_revisao_motivo,
 }: AtualizarDecisaoSuperiorCuradoriaInput) {
   const usuario = pb.authStore.model
   const payload: Record<string, string> = {
@@ -268,6 +339,8 @@ export async function atualizarDecisaoSuperiorCuradoriaNexo({
   if (responsavel_validacao !== undefined)
     payload.responsavel_validacao = responsavel_validacao.trim()
   if (decisao_observacao !== undefined) payload.decisao_observacao = decisao_observacao.trim()
+  if (ipcp_revisao_status !== undefined) payload.ipcp_revisao_status = ipcp_revisao_status.trim()
+  if (ipcp_revisao_motivo !== undefined) payload.ipcp_revisao_motivo = ipcp_revisao_motivo.trim()
 
   return pb.collection(DECISOES_COLLECTION).update<NexoCuradoriaDecisaoSuperior>(id, payload)
 }
@@ -277,6 +350,23 @@ export async function sincronizarDecisaoSegundoCerebroCuradoriaNexo(id: string) 
     `/backend/v1/nexo/curadoria/decisoes/${id}/segundo-cerebro`,
     {
       method: 'POST',
+    },
+  )
+}
+
+export async function atualizarRevisaoIpcpCuradoriaNexo(
+  id: string,
+  status: string,
+  motivo: string,
+) {
+  return pb.send<NexoCuradoriaDecisaoSuperior>(
+    `/backend/v1/nexo/curadoria/decisoes/${id}/ipcp-revisao`,
+    {
+      method: 'POST',
+      body: {
+        status,
+        motivo,
+      },
     },
   )
 }

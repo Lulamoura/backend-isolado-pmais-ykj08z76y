@@ -2389,6 +2389,73 @@
         else collection.fields.add(new TextField({ name: name, required: false, max: 2000 }))
         return true
       }
+      function parseJsonSafe(texto) {
+        try {
+          return JSON.parse(String(texto || '{}'))
+        } catch (_) {
+          return {}
+        }
+      }
+      function decisaoImpactaIpcp(decisao) {
+        var impacto = parseJsonSafe(decisao.getString('impacto_json'))
+        var texto = [
+          decisao.getString('regra_proposta'),
+          decisao.getString('excecao_condicao'),
+          decisao.getString('decisao_observacao'),
+          decisao.getString('responsavel_validacao'),
+        ]
+          .join(' ')
+          .toLowerCase()
+        return Boolean(
+          impacto.altera_indicador ||
+          impacto.altera_politica_comercial ||
+          impacto.altera_funil ||
+          impacto.altera_risco ||
+          impacto.altera_perda ||
+          /ipcp|indicador|política comercial|politica comercial|fórmula|formula|peso|pontuação|pontuacao|follow[- ]?up|valor estratégico|valor estrategico|conversão|conversao|perda|ganho|proposta enviada|recorrência|recorrencia|alto valor|qualidade do registro|maturidade comercial/.test(
+            texto,
+          ),
+        )
+      }
+      function blocosIpcpImpactados(decisao) {
+        var impacto = parseJsonSafe(decisao.getString('impacto_json'))
+        var texto = [decisao.getString('regra_proposta'), decisao.getString('excecao_condicao')]
+          .join(' ')
+          .toLowerCase()
+        var blocos = []
+        function add(bloco) {
+          if (blocos.indexOf(bloco) < 0) blocos.push(bloco)
+        }
+        if (
+          impacto.altera_indicador ||
+          /ipcp|indicador|fórmula|formula|peso|pontuação|pontuacao/.test(texto)
+        )
+          add('IPCP geral')
+        if (/follow[- ]?up|próximo passo|proximo passo|retorno|prazo/.test(texto))
+          add('Qualidade do follow-up')
+        if (
+          /registro|aprendizado|decisor|necessidade|objeção|objecao|risco|pendência|pendencia/.test(
+            texto,
+          )
+        )
+          add('Registros e aprendizado')
+        if (
+          /proposta enviada|valor estratégico|valor estrategico|recorrência|recorrencia|alto valor|maturidade comercial/.test(
+            texto,
+          )
+        )
+          add('Valor estratégico')
+        if (/ganho|perda|conversão|conversao/.test(texto)) add('Resultado comercial')
+        if (/funil|etapa|fase|carteira|sla|cadência|cadencia/.test(texto))
+          add('Disciplina da carteira')
+        return blocos.length ? blocos.join(', ') : 'IPCP geral'
+      }
+      function motivoIpcp(decisao) {
+        return safeText(
+          'Decisão aprovada na Curadoria Nexo pode alterar leitura de política comercial, indicador ou interpretação de follow-up/registros. A fórmula não muda sem aprovação do Lula/direção.',
+          2000,
+        )
+      }
       function perfilAtual(user) {
         try {
           return $app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
@@ -2465,6 +2532,10 @@
       changed = ensureDecisionField(collection, 'segundo_cerebro_status', 'text') || changed
       changed = ensureDecisionField(collection, 'segundo_cerebro_audit_id', 'text') || changed
       changed = ensureDecisionField(collection, 'segundo_cerebro_atualizado_em', 'date') || changed
+      changed = ensureDecisionField(collection, 'ipcp_revisao_status', 'text') || changed
+      changed = ensureDecisionField(collection, 'ipcp_revisao_blocos', 'text') || changed
+      changed = ensureDecisionField(collection, 'ipcp_revisao_motivo', 'text') || changed
+      changed = ensureDecisionField(collection, 'ipcp_revisao_notificado_em', 'date') || changed
       if (changed) $app.save(collection)
       decisao.set(
         'segundo_cerebro_status',
@@ -2472,6 +2543,81 @@
       )
       decisao.set('segundo_cerebro_audit_id', safeText((response.json || {}).audit_id, 120))
       decisao.set('segundo_cerebro_atualizado_em', new Date())
+      if (status === 'aprovada_uso_operacional' && decisaoImpactaIpcp(decisao)) {
+        if (!decisao.getString('ipcp_revisao_status'))
+          decisao.set('ipcp_revisao_status', 'pendente')
+        decisao.set('ipcp_revisao_blocos', blocosIpcpImpactados(decisao))
+        decisao.set('ipcp_revisao_motivo', motivoIpcp(decisao))
+      }
+      if (status === 'rejeitada' && decisao.getString('ipcp_revisao_status') === 'pendente') {
+        decisao.set('ipcp_revisao_status', 'rejeitada')
+      }
+      decisao.set('updated_at', new Date())
+      $app.save(decisao)
+      return e.json(200, decisao)
+    },
+    $apis.requireAuth('users'),
+  )
+
+  routerAdd(
+    'POST',
+    '/backend/v1/nexo/curadoria/decisoes/{id}/ipcp-revisao',
+    (e) => {
+      function safeText(valor, limite) {
+        var texto = String(valor || '')
+          .replace(/<br\s*\/?\s*>/gi, '\n')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\r\n/g, '\n')
+          .replace(/[ \t]+/g, ' ')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim()
+        return texto.slice(0, limite || 1000)
+      }
+      function ensureDecisionField(collection, name, type) {
+        var existing = collection.fields.getByName(name)
+        if (existing) return false
+        if (type === 'date') collection.fields.add(new DateField({ name: name, required: false }))
+        else collection.fields.add(new TextField({ name: name, required: false, max: 2000 }))
+        return true
+      }
+      function perfilAtual(user) {
+        try {
+          return $app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
+        } catch (_) {
+          return ''
+        }
+      }
+      var ator = e.auth
+      var perfil = perfilAtual(ator)
+      if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva') {
+        return e.forbiddenError('Decisão superior necessária')
+      }
+      var id = String(e.request.pathValue('id') || '').trim()
+      if (!/^[a-z0-9]{15}$/.test(id)) return e.badRequestError('ID da decisão inválido')
+      var body = e.requestInfo().body || {}
+      var status = safeText(body.status, 80)
+      if (
+        status !== 'estudo_autorizado' &&
+        status !== 'rejeitada' &&
+        status !== 'ajuste_solicitado'
+      ) {
+        return e.badRequestError('Status de revisão IPCP inválido')
+      }
+      var decisao = $app.findRecordById('com_nexo_curadoria_decisoes', id)
+      if (decisao.getString('status') !== 'aprovada_uso_operacional') {
+        return e.badRequestError(
+          'Somente decisão aprovada para uso operacional pode gerar revisão IPCP',
+        )
+      }
+      var collection = $app.findCollectionByNameOrId('com_nexo_curadoria_decisoes')
+      var changed = false
+      changed = ensureDecisionField(collection, 'ipcp_revisao_status', 'text') || changed
+      changed = ensureDecisionField(collection, 'ipcp_revisao_blocos', 'text') || changed
+      changed = ensureDecisionField(collection, 'ipcp_revisao_motivo', 'text') || changed
+      changed = ensureDecisionField(collection, 'ipcp_revisao_notificado_em', 'date') || changed
+      if (changed) $app.save(collection)
+      decisao.set('ipcp_revisao_status', status)
+      decisao.set('ipcp_revisao_motivo', safeText(body.motivo, 2000))
       decisao.set('updated_at', new Date())
       $app.save(decisao)
       return e.json(200, decisao)

@@ -37,6 +37,14 @@ migrate(
       new TextField({ name: 'segundo_cerebro_audit_id', required: false, max: 120 }),
     )
     collection.fields.add(new DateField({ name: 'segundo_cerebro_atualizado_em', required: false }))
+    collection.fields.add(new TextField({ name: 'ipcp_revisao_status', required: false, max: 80 }))
+    collection.fields.add(
+      new TextField({ name: 'ipcp_revisao_blocos', required: false, max: 1000 }),
+    )
+    collection.fields.add(
+      new TextField({ name: 'ipcp_revisao_motivo', required: false, max: 2000 }),
+    )
+    collection.fields.add(new DateField({ name: 'ipcp_revisao_notificado_em', required: false }))
     collection.fields.add(new TextField({ name: 'impacto_json', required: true, max: 4000 }))
     collection.fields.add(
       new TextField({ name: 'origem_respostas_json', required: false, max: 4000 }),

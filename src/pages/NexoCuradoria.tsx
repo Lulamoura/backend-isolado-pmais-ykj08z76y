@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, Bot, CheckCircle2, MessageSquareText, ShieldCheck } from 'lucide-react'
+import {
+  AlertCircle,
+  BellRing,
+  Bot,
+  CheckCircle2,
+  MessageSquareText,
+  ShieldCheck,
+} from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +17,7 @@ import {
   obterDecisoesSuperioresCuradoriaNexo,
   obterHistoricoDecisoesSuperioresCuradoriaNexo,
   obterResumoCuradoriaNexo,
+  obterRevisoesIpcpPendentesCuradoriaNexo,
   salvarDecisaoSuperiorCuradoriaNexo,
   salvarEntrevistaCuradoriaNexo,
   sincronizarDecisaoSegundoCerebroCuradoriaNexo,
@@ -18,6 +26,7 @@ import {
   type NexoCuradoriaDecisaoSuperior,
   type NexoCuradoriaEvento,
   type NexoCuradoriaResumo,
+  atualizarRevisaoIpcpCuradoriaNexo,
 } from '@/services/nexo-curadoria'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 
@@ -104,12 +113,16 @@ export default function NexoCuradoria() {
   const [resumo, setResumo] = useState<NexoCuradoriaResumo>({ pendencias: 0, itens: [] })
   const [decisoesSuperiores, setDecisoesSuperiores] = useState<NexoCuradoriaDecisaoSuperior[]>([])
   const [decisoesHistorico, setDecisoesHistorico] = useState<NexoCuradoriaDecisaoSuperior[]>([])
+  const [revisoesIpcpPendentes, setRevisoesIpcpPendentes] = useState<
+    NexoCuradoriaDecisaoSuperior[]
+  >([])
   const [decisoesRelacionadas, setDecisoesRelacionadas] = useState<NexoCuradoriaDecisaoSuperior[]>(
     [],
   )
   const [loading, setLoading] = useState(true)
   const [loadingDecisoesSuperiores, setLoadingDecisoesSuperiores] = useState(true)
   const [loadingHistoricoDecisoes, setLoadingHistoricoDecisoes] = useState(true)
+  const [loadingRevisoesIpcp, setLoadingRevisoesIpcp] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [entrevistaAberta, setEntrevistaAberta] = useState(false)
   const [etapaEntrevista, setEtapaEntrevista] = useState(0)
@@ -198,13 +211,15 @@ export default function NexoCuradoria() {
   }
 
   async function recarregarDecisoes() {
-    const [abertas, historico] = await Promise.all([
+    const [abertas, historico, revisoesIpcp] = await Promise.all([
       obterDecisoesSuperioresCuradoriaNexo(10),
       obterHistoricoDecisoesSuperioresCuradoriaNexo(20),
+      obterRevisoesIpcpPendentesCuradoriaNexo(10),
     ])
     setDecisoesSuperiores(abertas)
     setDecisoesHistorico(historico)
-    return { abertas, historico }
+    setRevisoesIpcpPendentes(revisoesIpcp)
+    return { abertas, historico, revisoesIpcp }
   }
 
   async function encaminharDecisaoSuperior() {
@@ -339,6 +354,7 @@ export default function NexoCuradoria() {
         sincronizada,
         ...atuais.filter((item) => item.id !== sincronizada.id),
       ])
+      setRevisoesIpcpPendentes((atuais) => atuais.filter((item) => item.id !== decisao.id))
       setDecisoesRelacionadas((atuais) =>
         atuais.map((item) => (item.id === sincronizada.id ? sincronizada : item)),
       )
@@ -355,11 +371,33 @@ export default function NexoCuradoria() {
     }
   }
 
+  async function atualizarRevisaoIpcp(decisao: NexoCuradoriaDecisaoSuperior, status: string) {
+    setSalvandoAcaoDecisao(true)
+    try {
+      const mensagem =
+        status === 'estudo_autorizado'
+          ? 'Estudo de impacto IPCP autorizado. A fórmula segue bloqueada até aprovação expressa.'
+          : 'Impacto no IPCP rejeitado para esta decisão. A regra permanece apenas como orientação operacional.'
+      const atualizada = await atualizarRevisaoIpcpCuradoriaNexo(decisao.id, status, mensagem)
+      setRevisoesIpcpPendentes((atuais) => atuais.filter((item) => item.id !== decisao.id))
+      setDecisoesHistorico((atuais) =>
+        atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
+      )
+      setMensagemDecisaoSuperior(mensagem)
+      setErro(null)
+    } catch (_) {
+      setErro('Não foi possível atualizar a revisão IPCP agora.')
+    } finally {
+      setSalvandoAcaoDecisao(false)
+    }
+  }
+
   useEffect(() => {
     let ativo = true
     setLoading(true)
     setLoadingDecisoesSuperiores(true)
     setLoadingHistoricoDecisoes(true)
+    setLoadingRevisoesIpcp(true)
     obterResumoCuradoriaNexo(8)
       .then((data) => {
         if (!ativo) return
@@ -411,11 +449,25 @@ export default function NexoCuradoria() {
         .finally(() => {
           if (ativo) setLoadingHistoricoDecisoes(false)
         })
+      obterRevisoesIpcpPendentesCuradoriaNexo(10)
+        .then((data) => {
+          if (!ativo) return
+          setRevisoesIpcpPendentes(data)
+        })
+        .catch(() => {
+          if (!ativo) return
+          setErro('Não foi possível carregar as revisões IPCP pendentes agora.')
+        })
+        .finally(() => {
+          if (ativo) setLoadingRevisoesIpcp(false)
+        })
     } else {
       setDecisoesSuperiores([])
       setDecisoesHistorico([])
+      setRevisoesIpcpPendentes([])
       setLoadingDecisoesSuperiores(false)
       setLoadingHistoricoDecisoes(false)
+      setLoadingRevisoesIpcp(false)
     }
     return () => {
       ativo = false
@@ -618,6 +670,101 @@ export default function NexoCuradoria() {
                         disabled={salvandoAcaoDecisao}
                       >
                         Rejeitar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {podeVerDecisaoSuperior && (
+        <Card className="rounded-xl border-amber-200 bg-amber-50/70 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg text-slate-950">
+              <BellRing className="h-4 w-4 text-amber-600" aria-hidden="true" />
+              Revisões IPCP pendentes
+            </CardTitle>
+            <CardDescription>
+              Sinalizações de decisões aprovadas que podem exigir revisão da fórmula do IPCP.
+              Nenhuma fórmula, peso ou faixa é alterada automaticamente.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingRevisoesIpcp ? (
+              <p className="text-sm text-slate-500">Carregando revisões IPCP pendentes...</p>
+            ) : revisoesIpcpPendentes.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-amber-200 bg-white/70 p-6 text-sm text-slate-600">
+                Não há revisão IPCP pendente neste momento.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {revisoesIpcpPendentes.map((decisao) => (
+                  <div key={decisao.id} className="rounded-xl border border-amber-200 bg-white p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-slate-950">
+                          {resumoDecisaoSuperior(decisao)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Sinalizado em{' '}
+                          {dataCurta(decisao.updated_at || decisao.created_at || decisao.created)}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-amber-300 bg-amber-50 text-amber-700"
+                      >
+                        Requer análise Lula/direção
+                      </Badge>
+                    </div>
+                    <div className="mt-3 space-y-2 text-sm text-slate-700">
+                      <p>
+                        <span className="font-semibold text-slate-900">Regra aprovada:</span>{' '}
+                        {decisao.regra_proposta || 'Regra não informada'}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-900">
+                          Bloco possivelmente afetado:
+                        </span>{' '}
+                        {decisao.ipcp_revisao_blocos || 'IPCP geral'}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-900">Gatilho:</span> decisão
+                        aprovada envolve indicador, política comercial, follow-up, conversão, valor
+                        estratégico, risco, perda ou registro comercial.
+                      </p>
+                      <p className="text-xs text-slate-600">
+                        A sinalização pode autorizar apenas estudo de impacto. A alteração da
+                        fórmula do IPCP continua bloqueada até aprovação expressa.
+                      </p>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => atualizarRevisaoIpcp(decisao, 'estudo_autorizado')}
+                        disabled={salvandoAcaoDecisao}
+                      >
+                        Aprovar estudo
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => atualizarRevisaoIpcp(decisao, 'rejeitada')}
+                        disabled={salvandoAcaoDecisao}
+                      >
+                        Rejeitar impacto no IPCP
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => ajustarDecisaoSuperior(decisao)}
+                        disabled={salvandoAcaoDecisao}
+                      >
+                        Pedir ajuste
                       </Button>
                     </div>
                   </div>

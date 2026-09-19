@@ -203,6 +203,26 @@ assert.match(
 )
 assert.match(
   page,
+  /Revisões IPCP pendentes/,
+  'página deve ter seção específica de revisões IPCP pendentes',
+)
+assert.match(
+  page,
+  /Aprovar estudo/,
+  'revisão IPCP deve permitir autorizar estudo sem alterar fórmula',
+)
+assert.match(
+  page,
+  /Rejeitar impacto no IPCP/,
+  'revisão IPCP deve permitir rejeitar impacto na fórmula',
+)
+assert.match(
+  page,
+  /alteração da fórmula do IPCP continua bloqueada até aprovação expressa/,
+  'UI deve deixar claro bloqueio de alteração automática da fórmula',
+)
+assert.match(
+  page,
   /obterHistoricoDecisoesSuperioresCuradoriaNexo/,
   'página deve carregar histórico de decisões superiores',
 )
@@ -369,6 +389,22 @@ assert.match(
 )
 assert.match(
   service,
+  /obterRevisoesIpcpPendentesCuradoriaNexo/,
+  'serviço deve listar revisões IPCP pendentes para decisores',
+)
+assert.match(
+  service,
+  /atualizarRevisaoIpcpCuradoriaNexo/,
+  'serviço deve atualizar revisão IPCP por rota backend protegida',
+)
+assert.match(
+  service,
+  /decisaoPodeImpactarIpcp/,
+  'serviço deve identificar decisões com possível impacto no IPCP',
+)
+assert.match(service, /ipcp_revisao_status/, 'decisão deve registrar status da revisão IPCP')
+assert.match(
+  service,
   /\/backend\/v1\/nexo\/curadoria\/decisoes\/\$\{id\}\/segundo-cerebro/,
   'serviço deve usar rota backend protegida para segundo cérebro',
 )
@@ -439,6 +475,21 @@ assert.match(
 )
 assert.match(
   decisaoMigration,
+  /ipcp_revisao_status/,
+  'decisão deve armazenar status da revisão IPCP',
+)
+assert.match(
+  decisaoMigration,
+  /ipcp_revisao_blocos/,
+  'decisão deve armazenar blocos IPCP possivelmente afetados',
+)
+assert.match(
+  decisaoMigration,
+  /ipcp_revisao_notificado_em/,
+  'decisão deve armazenar data de notificação IPCP',
+)
+assert.match(
+  decisaoMigration,
   /listRule:\s*perfisDecisaoSuperior/,
   'somente decisão superior deve listar decisões superiores',
 )
@@ -475,6 +526,7 @@ assert.match(
 )
 
 const hook = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
+const centralHook = fs.readFileSync('pocketbase/hooks/com_nexo_central_operacional.js', 'utf8')
 
 assert.match(
   hook,
@@ -490,6 +542,31 @@ assert.match(
   hook,
   /PMAIS_AGENT_GATEWAY_HMAC_SECRET/,
   'hook deve assinar chamada ao Gateway sem expor segredo',
+)
+assert.match(
+  hook,
+  /ipcp_revisao_status/,
+  'sincronização deve marcar revisão IPCP pendente quando houver impacto',
+)
+assert.match(
+  hook,
+  /\/backend\/v1\/nexo\/curadoria\/decisoes\/\{id\}\/ipcp-revisao/,
+  'hook deve expor rota protegida para tratar revisão IPCP',
+)
+assert.match(
+  centralHook,
+  /ipcp_revisoes_pendentes/,
+  'consulta técnica Nexo deve expor revisões IPCP pendentes',
+)
+assert.match(
+  centralHook,
+  /nexo_ipcp_revisoes_pendentes_v1/,
+  'consulta técnica deve ter contrato específico de revisão IPCP',
+)
+assert.match(
+  centralHook,
+  /formula_ipcp_exige_aprovacao_lula_direcao/,
+  'consulta técnica deve preservar governança de aprovação Lula/direção',
 )
 
 console.log('nexo-curadoria-ui contract: PASS')
