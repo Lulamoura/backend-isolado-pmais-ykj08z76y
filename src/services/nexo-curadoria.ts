@@ -143,6 +143,20 @@ export async function obterDecisoesSuperioresCuradoriaNexo(limit = 10) {
   }
 }
 
+export async function obterHistoricoDecisoesSuperioresCuradoriaNexo(limit = 20) {
+  try {
+    const response = await pb.collection(DECISOES_COLLECTION).getList<NexoCuradoriaDecisaoSuperior>(1, limit, {
+      filter: "status = 'aprovada_uso_operacional' || status = 'rejeitada'",
+      sort: '-updated_at,-created_at',
+    })
+
+    return response.items
+  } catch (error: any) {
+    if (error?.status === 403) return []
+    throw error
+  }
+}
+
 export async function buscarDecisaoSuperiorExistenteCuradoriaNexo(evento: NexoCuradoriaEvento) {
   try {
     return await pb.collection(DECISOES_COLLECTION).getFirstListItem<NexoCuradoriaDecisaoSuperior>(

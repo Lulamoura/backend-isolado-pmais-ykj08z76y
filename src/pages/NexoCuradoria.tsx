@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import {
   buscarDecisaoSuperiorExistenteCuradoriaNexo,
   obterDecisoesSuperioresCuradoriaNexo,
+  obterHistoricoDecisoesSuperioresCuradoriaNexo,
   obterResumoCuradoriaNexo,
   salvarDecisaoSuperiorCuradoriaNexo,
   salvarEntrevistaCuradoriaNexo,
@@ -57,6 +58,18 @@ function motivoEscalada(decisao: NexoCuradoriaDecisaoSuperior) {
   return 'Validação operacional pelo gestor comercial.'
 }
 
+function rotuloStatusDecisao(status?: string) {
+  if (status === 'aprovada_uso_operacional') return 'Aprovada para uso operacional'
+  if (status === 'rejeitada') return 'Rejeitada'
+  return 'Aguardando revisão'
+}
+
+function estiloStatusDecisao(status?: string) {
+  if (status === 'aprovada_uso_operacional') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  if (status === 'rejeitada') return 'border-slate-300 bg-slate-100 text-slate-700'
+  return 'border-blue-200 bg-blue-50 text-blue-700'
+}
+
 const perguntasEntrevista = [
   'Qual regra comercial precisa ser confirmada neste caso?',
   'Existe alguma exceção ou condição que o Nexo deve considerar?',
@@ -85,9 +98,11 @@ export default function NexoCuradoria() {
   const podeVerDecisaoSuperior = DECISAO_SUPERIOR_ALLOWLIST.has(perfilSlug ?? '')
   const [resumo, setResumo] = useState<NexoCuradoriaResumo>({ pendencias: 0, itens: [] })
   const [decisoesSuperiores, setDecisoesSuperiores] = useState<NexoCuradoriaDecisaoSuperior[]>([])
+  const [decisoesHistorico, setDecisoesHistorico] = useState<NexoCuradoriaDecisaoSuperior[]>([])
   const [decisoesRelacionadas, setDecisoesRelacionadas] = useState<NexoCuradoriaDecisaoSuperior[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingDecisoesSuperiores, setLoadingDecisoesSuperiores] = useState(true)
+  const [loadingHistoricoDecisoes, setLoadingHistoricoDecisoes] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [entrevistaAberta, setEntrevistaAberta] = useState(false)
   const [etapaEntrevista, setEtapaEntrevista] = useState(0)
@@ -174,6 +189,16 @@ export default function NexoCuradoria() {
     setEtapaEntrevista((atual) => Math.min(atual + 1, perguntasEntrevista.length + 1))
   }
 
+  async function recarregarDecisoes() {
+    const [abertas, historico] = await Promise.all([
+      obterDecisoesSuperioresCuradoriaNexo(10),
+      obterHistoricoDecisoesSuperioresCuradoriaNexo(20),
+    ])
+    setDecisoesSuperiores(abertas)
+    setDecisoesHistorico(historico)
+    return { abertas, historico }
+  }
+
   async function encaminharDecisaoSuperior() {
     if (!pendenciaSelecionada) {
       setErro('Selecione uma pendência antes de encaminhar para decisão superior.')
@@ -191,8 +216,7 @@ export default function NexoCuradoria() {
         respostas: respostasEntrevista,
         impacto: classificarImpactoDecisaoNexo(respostasEntrevista),
       })
-      const decisoes = await obterDecisoesSuperioresCuradoriaNexo(10)
-      setDecisoesSuperiores(decisoes)
+      await recarregarDecisoes()
       setDecisaoSuperiorSalva(true)
       setErro(null)
     } catch (_) {
@@ -224,9 +248,11 @@ export default function NexoCuradoria() {
         responsavel_validacao: responsavelAjuste,
         decisao_observacao: observacaoAjuste,
       })
-      setDecisoesSuperiores((atuais) =>
-        atuais.map((decisao) => (decisao.id === atualizada.id ? atualizada : decisao)),
-      )
+      setDecisoesSuperiores((atuais) => {
+        const semAtual = atuais.filter((decisao) => decisao.id !== atualizada.id)
+        return atualizada.status === 'aguardando_revisao' ? [atualizada, ...semAtual] : semAtual
+      })
+      setDecisoesHistorico((atuais) => atuais.filter((decisao) => decisao.id !== atualizada.id))
       setDecisoesRelacionadas((atuais) =>
         atuais.map((decisao) => (decisao.id === atualizada.id ? atualizada : decisao)),
       )
@@ -249,6 +275,7 @@ export default function NexoCuradoria() {
         decisao_observacao: 'Decisão aprovada para uso operacional.',
       })
       setDecisoesSuperiores((atuais) => atuais.filter((item) => item.id !== decisao.id))
+      setDecisoesHistorico((atuais) => [atualizada, ...atuais.filter((item) => item.id !== atualizada.id)])
       setDecisoesRelacionadas((atuais) =>
         atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
       )
@@ -267,13 +294,21 @@ export default function NexoCuradoria() {
       const atualizada = await atualizarDecisaoSuperiorCuradoriaNexo({
         id: decisao.id,
         status: 'rejeitada',
-        decisao_observacao: 'Decisão rejeitada pelo decisor superior.',
+        decisao_observacao:
+          decisao.status === 'aprovada_uso_operacional'
+            ? 'Decisão rejeitada após aprovação anterior; sai do uso operacional.'
+            : 'Decisão rejeitada pelo decisor superior.',
       })
       setDecisoesSuperiores((atuais) => atuais.filter((item) => item.id !== decisao.id))
+      setDecisoesHistorico((atuais) => [atualizada, ...atuais.filter((item) => item.id !== atualizada.id)])
       setDecisoesRelacionadas((atuais) =>
         atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
       )
-      setMensagemDecisaoSuperior('Decisão rejeitada. Ela saiu da fila aberta e permanece registrada no histórico.')
+      setMensagemDecisaoSuperior(
+        decisao.status === 'aprovada_uso_operacional'
+          ? 'Decisão rejeitada. Ela sai do uso operacional e permanece registrada no histórico.'
+          : 'Decisão rejeitada. Ela saiu da fila aberta e permanece registrada no histórico.',
+      )
       setErro(null)
     } catch (_) {
       setErro('Não foi possível rejeitar a decisão superior agora.')
@@ -286,6 +321,7 @@ export default function NexoCuradoria() {
     let ativo = true
     setLoading(true)
     setLoadingDecisoesSuperiores(true)
+    setLoadingHistoricoDecisoes(true)
     obterResumoCuradoriaNexo(8)
       .then((data) => {
         if (!ativo) return
@@ -325,9 +361,23 @@ export default function NexoCuradoria() {
         .finally(() => {
           if (ativo) setLoadingDecisoesSuperiores(false)
         })
+      obterHistoricoDecisoesSuperioresCuradoriaNexo(20)
+        .then((data) => {
+          if (!ativo) return
+          setDecisoesHistorico(data)
+        })
+        .catch(() => {
+          if (!ativo) return
+          setErro('Não foi possível carregar o histórico de decisões superiores agora.')
+        })
+        .finally(() => {
+          if (ativo) setLoadingHistoricoDecisoes(false)
+        })
     } else {
       setDecisoesSuperiores([])
+      setDecisoesHistorico([])
       setLoadingDecisoesSuperiores(false)
+      setLoadingHistoricoDecisoes(false)
     }
     return () => {
       ativo = false
@@ -507,6 +557,71 @@ export default function NexoCuradoria() {
         </Card>
       )}
 
+      {podeVerDecisaoSuperior && (
+        <Card className="rounded-xl border-slate-200 bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg text-slate-950">Histórico de decisões superiores</CardTitle>
+            <CardDescription>
+              Consulta das regras aprovadas ou rejeitadas. Uma decisão aprovada pode ser revisada ou retirada do uso operacional.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingHistoricoDecisoes ? (
+              <p className="text-sm text-slate-500">Carregando histórico de decisões...</p>
+            ) : decisoesHistorico.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                Ainda não há decisões superiores aprovadas ou rejeitadas.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {decisoesHistorico.map((decisao) => (
+                  <div key={decisao.id} className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-slate-950">
+                          {resumoDecisaoSuperior(decisao)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Decidido em {dataCurta(decisao.updated_at || decisao.created_at || decisao.created)}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={`rounded-full ${estiloStatusDecisao(decisao.status)}`}>
+                        {rotuloStatusDecisao(decisao.status)}
+                      </Badge>
+                    </div>
+                    <div className="mt-3 space-y-2 text-sm text-slate-700">
+                      <p>
+                        <span className="font-semibold text-slate-900">Regra proposta:</span>{' '}
+                        {decisao.regra_proposta || 'Regra não informada'}
+                      </p>
+                      {decisao.decisao_observacao && (
+                        <p>
+                          <span className="font-semibold text-slate-900">Observação da decisão:</span>{' '}
+                          {decisao.decisao_observacao}
+                        </p>
+                      )}
+                      <p className="text-xs text-slate-500">
+                        Se uma regra aprovada for rejeitada posteriormente, ela sai do uso operacional e fica preservada no histórico.
+                      </p>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button variant="outline" size="sm" onClick={() => ajustarDecisaoSuperior(decisao)} disabled={salvandoAcaoDecisao}>
+                        Revisar decisão
+                      </Button>
+                      {decisao.status === 'aprovada_uso_operacional' && (
+                        <Button variant="outline" size="sm" onClick={() => rejeitarDecisaoSuperior(decisao)} disabled={salvandoAcaoDecisao}>
+                          Retirar do uso operacional
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {mensagemDecisaoSuperior && (
         <Alert>
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
@@ -526,7 +641,11 @@ export default function NexoCuradoria() {
           <CardContent className="space-y-4">
             <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
               <p className="font-semibold">{resumoDecisaoSuperior(decisaoEmAjuste)}</p>
-              <p className="mt-1 text-xs">A decisão continua aguardando validação superior após o ajuste.</p>
+              <p className="mt-1 text-xs">
+                {decisaoEmAjuste.status === 'aguardando_revisao'
+                  ? 'A decisão continua aguardando validação superior após o ajuste.'
+                  : 'Ao salvar, a decisão volta para aguardando validação superior antes de qualquer novo uso operacional.'}
+              </p>
             </div>
             <label className="block space-y-2 text-sm font-medium text-slate-700">
               Regra proposta
