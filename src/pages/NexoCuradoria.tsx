@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   obterResumoCuradoriaNexo,
+  salvarDecisaoSuperiorCuradoriaNexo,
   salvarEntrevistaCuradoriaNexo,
+  type ImpactoDecisaoCuradoria,
   type NexoCuradoriaEvento,
   type NexoCuradoriaResumo,
 } from '@/services/nexo-curadoria'
@@ -40,6 +42,21 @@ const perguntasEntrevista = [
   'Quem é o responsável pela decisão ou validação final deste alinhamento?',
 ]
 
+function classificarImpactoDecisaoNexo(respostas: string[]): ImpactoDecisaoCuradoria {
+  const texto = respostas.join(' ').toLowerCase()
+  return {
+    altera_funil: /funil|etapa|fase/.test(texto),
+    altera_risco: /risco|prioridade|probabilidade/.test(texto),
+    altera_perda: /perda|perdido|desinteresse/.test(texto),
+    altera_indicador: /indicador|ipcp|meta|conversão|conversao/.test(texto),
+    altera_politica_comercial: /política comercial|politica comercial|procedimento|norma|regra padrão|regra padrao/.test(texto),
+  }
+}
+
+function precisaDirecao(impacto: ImpactoDecisaoCuradoria) {
+  return Object.values(impacto).some(Boolean)
+}
+
 export default function NexoCuradoria() {
   const [resumo, setResumo] = useState<NexoCuradoriaResumo>({ pendencias: 0, itens: [] })
   const [loading, setLoading] = useState(true)
@@ -50,6 +67,9 @@ export default function NexoCuradoria() {
   const [pendenciaSelecionada, setPendenciaSelecionada] = useState<NexoCuradoriaEvento | null>(null)
   const [salvandoEntrevista, setSalvandoEntrevista] = useState(false)
   const [entrevistaSalva, setEntrevistaSalva] = useState(false)
+  const [entrevistaSalvaId, setEntrevistaSalvaId] = useState<string | undefined>()
+  const [salvandoDecisaoSuperior, setSalvandoDecisaoSuperior] = useState(false)
+  const [decisaoSuperiorSalva, setDecisaoSuperiorSalva] = useState(false)
 
   function iniciarCuradoria(item?: NexoCuradoriaEvento) {
     setPendenciaSelecionada(item || resumo.itens[0] || null)
@@ -57,6 +77,8 @@ export default function NexoCuradoria() {
     setEtapaEntrevista(0)
     setRespostasEntrevista([])
     setEntrevistaSalva(false)
+    setEntrevistaSalvaId(undefined)
+    setDecisaoSuperiorSalva(false)
     setErro(null)
   }
 
@@ -66,6 +88,8 @@ export default function NexoCuradoria() {
     setRespostasEntrevista([])
     setPendenciaSelecionada(null)
     setEntrevistaSalva(false)
+    setEntrevistaSalvaId(undefined)
+    setDecisaoSuperiorSalva(false)
   }
 
   function atualizarRespostaEntrevista(valor: string) {
@@ -84,11 +108,12 @@ export default function NexoCuradoria() {
       }
       setSalvandoEntrevista(true)
       try {
-        await salvarEntrevistaCuradoriaNexo({
+        const entrevista = await salvarEntrevistaCuradoriaNexo({
           evento: pendenciaSelecionada,
           perguntas: perguntasEntrevista,
           respostas: respostasEntrevista,
         })
+        setEntrevistaSalvaId(entrevista?.id)
         setEntrevistaSalva(true)
         setEtapaEntrevista(perguntasEntrevista.length + 1)
         setErro(null)
@@ -100,6 +125,28 @@ export default function NexoCuradoria() {
       return
     }
     setEtapaEntrevista((atual) => Math.min(atual + 1, perguntasEntrevista.length + 1))
+  }
+
+  async function encaminharDecisaoSuperior() {
+    if (!pendenciaSelecionada) {
+      setErro('Selecione uma pendência antes de encaminhar para decisão superior.')
+      return
+    }
+    setSalvandoDecisaoSuperior(true)
+    try {
+      await salvarDecisaoSuperiorCuradoriaNexo({
+        evento: pendenciaSelecionada,
+        entrevistaId: entrevistaSalvaId,
+        respostas: respostasEntrevista,
+        impacto: classificarImpactoDecisaoNexo(respostasEntrevista),
+      })
+      setDecisaoSuperiorSalva(true)
+      setErro(null)
+    } catch (_) {
+      setErro('Não foi possível encaminhar a regra para decisão superior agora.')
+    } finally {
+      setSalvandoDecisaoSuperior(false)
+    }
   }
 
   useEffect(() => {
@@ -198,6 +245,32 @@ export default function NexoCuradoria() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="rounded-xl border-blue-200 bg-blue-50/60 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg text-slate-950">Canal de decisão superior</CardTitle>
+          <CardDescription>
+            Regras propostas para validação sobem para gestão ou direção quando afetarem funil,
+            risco, perda, indicador ou política comercial.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-blue-100 bg-white p-3">
+              <p className="text-sm font-semibold text-slate-900">Aguardando revisão</p>
+              <p className="mt-1 text-xs text-slate-500">Regra candidata recebida após entrevista guiada.</p>
+            </div>
+            <div className="rounded-xl border border-emerald-100 bg-white p-3">
+              <p className="text-sm font-semibold text-slate-900">Aprovada para uso operacional</p>
+              <p className="mt-1 text-xs text-slate-500">Orientação validada para uso pelo Comercial.</p>
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-white p-3">
+              <p className="text-sm font-semibold text-slate-900">Escalar para direção</p>
+              <p className="mt-1 text-xs text-slate-500">Decisão exige diretoria quando altera critério sensível.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {erro && (
         <Alert variant="destructive">
@@ -334,9 +407,40 @@ export default function NexoCuradoria() {
                 </div>
               </>
             ) : (
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-relaxed text-emerald-900">
-                {entrevistaSalva ? 'Entrevista enviada para revisão.' : 'Entrevista registrada para revisão.'} As respostas serão tratadas antes de virar regra
-                ou playbook comercial.
+              <div className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-relaxed text-emerald-900">
+                <p>
+                  {entrevistaSalva ? 'Entrevista enviada para revisão.' : 'Entrevista registrada para revisão.'} As respostas serão tratadas antes de virar regra
+                  ou playbook comercial.
+                </p>
+                <div className="rounded-lg border border-emerald-100 bg-white/80 p-3 text-slate-700">
+                  <p className="font-semibold text-slate-900">Regra candidata para decisão</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                    O Nexo classifica se a proposta fica com o gestor comercial ou se deve escalar
+                    para direção quando envolver funil, risco, perda, indicador ou política comercial.
+                  </p>
+                  <p className="mt-2 text-xs font-semibold text-slate-700">
+                    Nível sugerido:{' '}
+                    {precisaDirecao(classificarImpactoDecisaoNexo(respostasEntrevista))
+                      ? 'Escalar para direção'
+                      : 'Gestor comercial'}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={encaminharDecisaoSuperior}
+                    disabled={salvandoDecisaoSuperior || decisaoSuperiorSalva}
+                    className="bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    {decisaoSuperiorSalva
+                      ? 'Encaminhada para decisão superior'
+                      : salvandoDecisaoSuperior
+                        ? 'Encaminhando...'
+                        : 'Encaminhar para decisão superior'}
+                  </Button>
+                  <Button variant="outline" onClick={fecharEntrevista}>
+                    Fechar
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

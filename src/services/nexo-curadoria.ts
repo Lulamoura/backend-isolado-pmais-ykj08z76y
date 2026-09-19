@@ -34,8 +34,24 @@ export interface SalvarEntrevistaCuradoriaInput {
   respostas: string[]
 }
 
+export interface ImpactoDecisaoCuradoria {
+  altera_funil: boolean
+  altera_risco: boolean
+  altera_perda: boolean
+  altera_indicador: boolean
+  altera_politica_comercial: boolean
+}
+
+export interface SalvarDecisaoSuperiorCuradoriaInput {
+  evento: NexoCuradoriaEvento
+  entrevistaId?: string
+  respostas: string[]
+  impacto: ImpactoDecisaoCuradoria
+}
+
 const COLLECTION = 'com_nexo_aprendizado_eventos'
 const ENTREVISTAS_COLLECTION = 'com_nexo_curadoria_entrevistas'
+const DECISOES_COLLECTION = 'com_nexo_curadoria_decisoes'
 const PENDING_FILTER = 'human_review_required = true'
 
 export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoriaResumo> {
@@ -71,6 +87,46 @@ export async function salvarEntrevistaCuradoriaNexo({
     perguntas_json: JSON.stringify(perguntas),
     respostas_json: JSON.stringify(respostasEstruturadas),
     resumo_contexto: evento.contexto_resumo || '',
+    usuario_id: usuario?.id || '',
+    usuario_nome: usuario?.name || usuario?.email || '',
+    created_at: new Date().toISOString(),
+  })
+}
+
+export function decisaoExigeDirecao(impacto: ImpactoDecisaoCuradoria) {
+  return Boolean(
+    impacto.altera_funil ||
+      impacto.altera_risco ||
+      impacto.altera_perda ||
+      impacto.altera_indicador ||
+      impacto.altera_politica_comercial,
+  )
+}
+
+export async function salvarDecisaoSuperiorCuradoriaNexo({
+  evento,
+  entrevistaId,
+  respostas,
+  impacto,
+}: SalvarDecisaoSuperiorCuradoriaInput) {
+  const usuario = pb.authStore.model
+  const escalarDirecao = decisaoExigeDirecao(impacto)
+
+  return pb.collection(DECISOES_COLLECTION).create({
+    evento_id: evento.id,
+    entrevista_id: entrevistaId || '',
+    external_id: evento.external_id || '',
+    empresa_nome: evento.empresa_nome || '',
+    contato_nome: evento.contato_nome || '',
+    negocio_titulo: evento.negocio_titulo || '',
+    status: 'aguardando_revisao',
+    nivel_decisao: escalarDirecao ? 'direcao_comercial' : 'gestor_comercial',
+    escalar_direcao: escalarDirecao,
+    regra_proposta: respostas[0]?.trim() || '',
+    excecao_condicao: respostas[1]?.trim() || '',
+    responsavel_validacao: respostas[2]?.trim() || '',
+    impacto_json: JSON.stringify(impacto),
+    origem_respostas_json: JSON.stringify(respostas),
     usuario_id: usuario?.id || '',
     usuario_nome: usuario?.name || usuario?.email || '',
     created_at: new Date().toISOString(),
