@@ -369,7 +369,7 @@ export default function NexoCuradoria() {
     try {
       const mensagem =
         status === 'alteracao_formula_aprovada'
-          ? 'Alteração de fórmula IPCP aprovada pela direção. A proposta permanece registrada para aplicação e rastreio da mudança.'
+          ? 'Alteração de fórmula IPCP autorizada pela direção. A fórmula ainda não é recalculada automaticamente por este botão; a proposta permanece registrada para aplicação técnica, versionamento e auditoria.'
           : status === 'ajuste_solicitado'
             ? 'Ajuste solicitado nas condições da regra antes de alterar a fórmula IPCP. A proposta permanece visível em acompanhamento.'
             : 'Alteração da fórmula IPCP rejeitada para esta decisão. A regra permanece apenas como orientação operacional.'
@@ -393,7 +393,7 @@ export default function NexoCuradoria() {
 
   function abrirAjusteRevisaoIpcp(decisao: NexoCuradoriaDecisaoSuperior) {
     setRevisaoIpcpEmAjuste(decisao)
-    setCondicoesAjusteIpcp(decisao.ipcp_revisao_motivo || decisao.regra_proposta || '')
+    setCondicoesAjusteIpcp(decisao.regra_proposta || decisao.ipcp_revisao_motivo || '')
     setErro(null)
   }
 
@@ -730,7 +730,7 @@ export default function NexoCuradoria() {
                         decisão aprovada envolve indicador, política comercial, follow-up, conversão, valor estratégico, risco, perda ou registro comercial.
                       </p>
                       <p className="text-xs text-slate-600">
-                        Ajuste as condições se a regra precisar de refinamento. A alteração da fórmula só fica autorizada ao clicar em Aprovar alteração de fórmula.
+                        Ajuste as condições se a regra precisar de refinamento. Ao clicar em Aprovar alteração de fórmula, a mudança fica autorizada e registrada, mas a fórmula ainda não é recalculada automaticamente nesta etapa.
                       </p>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
