@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronRight, KeyRound, LogOut } from 'lucide-react'
 import logoPmais from '@/assets/logo-fundo-branco-22f07.png'
@@ -29,6 +29,7 @@ import { MUTATIONS_ENABLED } from '@/lib/feature-flags'
 import { cn } from '@/lib/utils'
 import { MAIN_MODULES, modulePathFor } from '@/lib/navigation'
 import AccessDenied from '@/pages/AccessDenied'
+import { obterResumoCuradoriaNexo } from '@/services/nexo-curadoria'
 
 const SUBSTITUICOES_ALLOWLIST = new Set([
   'superadministrador',
@@ -36,6 +37,13 @@ const SUBSTITUICOES_ALLOWLIST = new Set([
   'gestor-comercial',
   'operador-comercial',
   'prospeccao',
+])
+
+export const CURADORIA_NEXO_ALLOWLIST = new Set([
+  'superadministrador',
+  'gestor',
+  'gestor-comercial',
+  'leitura-executiva',
 ])
 
 export function getSubstituicoesPageTitle(pathname: string, mutationsEnabled = true) {
@@ -58,6 +66,7 @@ function LayoutContent() {
   const location = useLocation()
   const navigate = useNavigate()
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const [curadoriaNexoPendencias, setCuradoriaNexoPendencias] = useState(0)
 
   const podeVerSubstituicoes =
     !perfilLoading &&
@@ -76,8 +85,34 @@ function LayoutContent() {
       'parametros.gerenciar',
     ].some(hasPermission)
 
+  const podeVerCuradoriaNexo =
+    !perfilLoading &&
+    user?.ativo_comercial === true &&
+    CURADORIA_NEXO_ALLOWLIST.has(perfilSlug ?? '')
+
+  useEffect(() => {
+    if (!podeVerCuradoriaNexo) {
+      setCuradoriaNexoPendencias(0)
+      return
+    }
+
+    let ativo = true
+    obterResumoCuradoriaNexo(1)
+      .then((resumo) => {
+        if (ativo) setCuradoriaNexoPendencias(resumo.pendencias)
+      })
+      .catch(() => {
+        if (ativo) setCuradoriaNexoPendencias(0)
+      })
+
+    return () => {
+      ativo = false
+    }
+  }, [podeVerCuradoriaNexo])
+
   const navigation = MAIN_MODULES.filter((item) => {
     if (user?.ativo_comercial !== true) return false
+    if (item.path === '/nexo/curadoria') return podeVerCuradoriaNexo
     if (item.path === '/foundation') return podeAdministrar
     return true
   })
@@ -170,6 +205,14 @@ function LayoutContent() {
                           )}
                         />
                         <span>{item.label}</span>
+                        {item.path === '/nexo/curadoria' && curadoriaNexoPendencias > 0 && (
+                          <span
+                            aria-label={`Curadoria Nexo: ${curadoriaNexoPendencias} pendência(s) para tratar`}
+                            className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-bold leading-5 text-slate-950 group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-1 group-data-[collapsible=icon]:top-1"
+                          >
+                            {curadoriaNexoPendencias > 9 ? '9+' : curadoriaNexoPendencias}
+                          </span>
+                        )}
                         {active && (
                           <ChevronRight
                             aria-hidden="true"

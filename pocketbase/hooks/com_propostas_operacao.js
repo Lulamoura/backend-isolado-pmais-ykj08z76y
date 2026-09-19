@@ -1896,9 +1896,18 @@
       }
 
       function nexoGarantirColecaoAprendizadoApp() {
+        var regraCuradoria = "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva')"
         try {
           var existente = $app.findCollectionByNameOrId('com_nexo_aprendizado_eventos')
           var ajustada = false
+          if (existente.listRule !== regraCuradoria) {
+            existente.listRule = regraCuradoria
+            ajustada = true
+          }
+          if (existente.viewRule !== regraCuradoria) {
+            existente.viewRule = regraCuradoria
+            ajustada = true
+          }
           var bools = ['human_review_required', 'automatic_send_allowed', 'crm_write_allowed']
           for (var b = 0; b < bools.length; b++) {
             var campoBool = existente.fields.getByName(bools[b])
@@ -1917,9 +1926,9 @@
           updateRule: null,
           deleteRule: null,
           listRule:
-            "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+            "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva')",
           viewRule:
-            "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+            "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva')",
         })
         collection.fields.add(new TextField({ name: 'tipo_evento', required: true, max: 80 }))
         collection.fields.add(new TextField({ name: 'external_id', required: true, max: 80 }))

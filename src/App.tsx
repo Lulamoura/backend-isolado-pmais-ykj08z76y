@@ -19,15 +19,17 @@ import Fechamentos from './pages/Fechamentos'
 import OrdensExecucao from './pages/OrdensExecucao'
 import PropostaPublica from './pages/PropostaPublica'
 import NexoAssistente from './pages/NexoAssistente'
+import NexoCuradoria from './pages/NexoCuradoria'
 import NexoRelatorioEquipeComercial from './pages/NexoRelatorioEquipeComercial'
 import IpcpSimulacaoGerencial from './pages/IpcpSimulacaoGerencial'
 
 import NotFound from './pages/NotFound'
 import AccessDenied from './pages/AccessDenied'
-import Layout from './components/Layout'
+import Layout, { CURADORIA_NEXO_ALLOWLIST } from './components/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './hooks/use-auth'
 import { PermissionsProvider } from './hooks/use-permissions'
+import { useAuth } from './hooks/use-auth'
 import { usePermissions } from './hooks/use-permissions'
 import { useIsSuperAdmin } from './hooks/use-is-superadmin'
 import { MUTATIONS_ENABLED } from './lib/feature-flags'
@@ -52,6 +54,18 @@ function RestrictedProfileRoute({ children }: { children: React.ReactNode }) {
   if (loading) return null
   if (!perfilSlug) return <AccessDenied profileUnavailable />
   return perfilSlug === 'negociacao-propria' ? <AccessDenied /> : children
+}
+
+function NexoCuradoriaRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth()
+  const { perfilSlug, loading } = useIsSuperAdmin()
+  if (loading) return null
+  if (!perfilSlug) return <AccessDenied profileUnavailable />
+  return user?.ativo_comercial === true && CURADORIA_NEXO_ALLOWLIST.has(perfilSlug) ? (
+    children
+  ) : (
+    <AccessDenied />
+  )
 }
 
 const App = () => (
@@ -94,6 +108,16 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <NexoAssistente />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/nexo/curadoria"
+                element={
+                  <ProtectedRoute>
+                    <NexoCuradoriaRoute>
+                      <NexoCuradoria />
+                    </NexoCuradoriaRoute>
                   </ProtectedRoute>
                 }
               />
