@@ -214,13 +214,13 @@ assert.doesNotMatch(
 )
 assert.match(
   page,
-  /Aprovar alteração de fórmula/,
-  'revisão IPCP deve permitir aprovação explícita da alteração de fórmula',
+  /Aprovar e aplicar alteração de fórmula/,
+  'revisão IPCP deve permitir aprovação explícita e aplicação governada da alteração de fórmula',
 )
 assert.match(
   page,
-  /Alteração de fórmula aprovada/,
-  'revisão IPCP aprovada deve continuar visível como alteração aprovada',
+  /Fórmula aplicada/,
+  'revisão IPCP aprovada deve continuar visível como fórmula aplicada',
 )
 assert.match(
   page,
@@ -269,10 +269,11 @@ assert.match(
   /setCondicoesAjusteIpcp\(decisao\.regra_proposta \|\| decisao\.ipcp_revisao_motivo \|\| ''\)/,
   'modal de ajuste IPCP deve vir preenchida primeiro com a regra aprovada',
 )
+assert.match(page, /Versão da fórmula/, 'UI deve mostrar versão da fórmula aplicada quando existir')
 assert.match(
   page,
-  /a fórmula ainda não é recalculada automaticamente nesta etapa/,
-  'UI deve deixar claro que aprovar registra autorização, mas não recalcula a fórmula automaticamente',
+  /versão governada da fórmula IPCP/,
+  'UI deve deixar claro que aprovar aplica versão governada da fórmula',
 )
 assert.match(
   page,
