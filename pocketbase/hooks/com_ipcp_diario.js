@@ -2811,8 +2811,11 @@ routerAdd(
       if (!anteriorPayload || !anteriorPayload.ipcp) {
         return {
           status: 'sem_historico',
+          cenario: 'sem_historico',
           comentario:
             'Esta é a primeira leitura comparável deste escopo. A evolução diária aparecerá após o próximo processamento.',
+          acao_recomendada:
+            'Aguardar o próximo ciclo diário para formar comparação e, até lá, usar os blocos atuais como orientação operacional.',
           total_atual: roundEvolucao(ipcpAtual.total || 0),
           total_anterior: null,
           variacao_total: null,
