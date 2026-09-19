@@ -478,7 +478,7 @@ const hook = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8
 
 assert.match(
   hook,
-  /\/backend\/v1\/nexo\/curadoria\/decisoes\/:id\/segundo-cerebro/,
+  /\/backend\/v1\/nexo\/curadoria\/decisoes\/\{id\}\/segundo-cerebro/,
   'hook deve expor rota protegida de ligação com segundo cérebro',
 )
 assert.match(

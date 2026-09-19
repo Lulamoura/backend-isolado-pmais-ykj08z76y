@@ -2364,7 +2364,7 @@
   )
   routerAdd(
     'POST',
-    '/backend/v1/nexo/curadoria/decisoes/:id/segundo-cerebro',
+    '/backend/v1/nexo/curadoria/decisoes/{id}/segundo-cerebro',
     function (e) {
       function safeText(valor, limite) {
         var texto = String(valor || '')
