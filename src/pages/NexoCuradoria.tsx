@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   buscarDecisaoSuperiorExistenteCuradoriaNexo,
   obterDecisoesSuperioresCuradoriaNexo,
@@ -136,10 +137,13 @@ export default function NexoCuradoria() {
   const [decisaoSuperiorSalva, setDecisaoSuperiorSalva] = useState(false)
   const [decisaoExistenteParaPendencia, setDecisaoExistenteParaPendencia] = useState<NexoCuradoriaDecisaoSuperior | null>(null)
   const [decisaoEmAjuste, setDecisaoEmAjuste] = useState<NexoCuradoriaDecisaoSuperior | null>(null)
+  const [revisaoIpcpEmAjuste, setRevisaoIpcpEmAjuste] = useState<NexoCuradoriaDecisaoSuperior | null>(null)
+  const [historicoEmDetalhe, setHistoricoEmDetalhe] = useState<NexoCuradoriaDecisaoSuperior | null>(null)
   const [regraAjuste, setRegraAjuste] = useState('')
   const [excecaoAjuste, setExcecaoAjuste] = useState('')
   const [responsavelAjuste, setResponsavelAjuste] = useState('')
   const [observacaoAjuste, setObservacaoAjuste] = useState('')
+  const [condicoesAjusteIpcp, setCondicoesAjusteIpcp] = useState('')
   const [salvandoAcaoDecisao, setSalvandoAcaoDecisao] = useState(false)
   const [mensagemDecisaoSuperior, setMensagemDecisaoSuperior] = useState<string | null>(null)
 
@@ -381,6 +385,41 @@ export default function NexoCuradoria() {
       setErro(null)
     } catch (_) {
       setErro('Não foi possível atualizar a revisão IPCP agora.')
+    } finally {
+      setSalvandoAcaoDecisao(false)
+    }
+  }
+
+  function abrirAjusteRevisaoIpcp(decisao: NexoCuradoriaDecisaoSuperior) {
+    setRevisaoIpcpEmAjuste(decisao)
+    setCondicoesAjusteIpcp(decisao.ipcp_revisao_motivo || '')
+    setErro(null)
+  }
+
+  async function salvarAjusteRevisaoIpcp() {
+    if (!revisaoIpcpEmAjuste) return
+    const texto = condicoesAjusteIpcp.trim()
+    if (!texto) {
+      setErro('Informe quais condições da regra precisam ser ajustadas antes de salvar.')
+      return
+    }
+    setSalvandoAcaoDecisao(true)
+    try {
+      const atualizada = await atualizarRevisaoIpcpCuradoriaNexo(
+        revisaoIpcpEmAjuste.id,
+        'ajuste_solicitado',
+        texto,
+      )
+      setRevisoesIpcpPendentes((atuais) => [atualizada, ...atuais.filter((item) => item.id !== atualizada.id)])
+      setDecisoesHistorico((atuais) =>
+        atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
+      )
+      setMensagemDecisaoSuperior('Ajuste solicitado nas condições da regra. A proposta permanece visível para acompanhamento.')
+      setRevisaoIpcpEmAjuste(null)
+      setCondicoesAjusteIpcp('')
+      setErro(null)
+    } catch (_) {
+      setErro('Não foi possível salvar o ajuste da revisão IPCP agora.')
     } finally {
       setSalvandoAcaoDecisao(false)
     }
@@ -694,7 +733,7 @@ export default function NexoCuradoria() {
                       </p>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm" onClick={() => atualizarRevisaoIpcp(decisao, 'ajuste_solicitado')} disabled={salvandoAcaoDecisao}>
+                      <Button variant="outline" size="sm" onClick={() => abrirAjusteRevisaoIpcp(decisao)} disabled={salvandoAcaoDecisao}>
                         Ajuste as condições da regra
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => atualizarRevisaoIpcp(decisao, 'rejeitada')} disabled={salvandoAcaoDecisao}>
@@ -728,10 +767,10 @@ export default function NexoCuradoria() {
                 Ainda não há decisões superiores aprovadas ou rejeitadas.
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {decisoesHistorico.map((decisao) => (
-                  <div key={decisao.id} className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div key={decisao.id} className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="space-y-1">
                         <p className="text-sm font-semibold text-slate-950">
                           {resumoDecisaoSuperior(decisao)}
@@ -740,34 +779,22 @@ export default function NexoCuradoria() {
                           Decidido em {dataCurta(decisao.updated_at || decisao.created_at || decisao.created)}
                         </p>
                       </div>
-                      <Badge variant="outline" className={`rounded-full ${estiloStatusDecisao(decisao.status)}`}>
-                        {rotuloStatusDecisao(decisao.status)}
-                      </Badge>
-                    </div>
-                    <div className="mt-3 space-y-2 text-sm text-slate-700">
-                      <p>
-                        <span className="font-semibold text-slate-900">Regra proposta:</span>{' '}
-                        {decisao.regra_proposta || 'Regra não informada'}
-                      </p>
-                      {decisao.decisao_observacao && (
-                        <p>
-                          <span className="font-semibold text-slate-900">Observação da decisão:</span>{' '}
-                          {decisao.decisao_observacao}
-                        </p>
-                      )}
-                      <p className="text-xs text-slate-500">
-                        Se uma regra aprovada for rejeitada posteriormente, ela sai do uso operacional e fica preservada no histórico.
-                      </p>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm" onClick={() => ajustarDecisaoSuperior(decisao)} disabled={salvandoAcaoDecisao}>
-                        Revisar decisão
-                      </Button>
-                      {decisao.status === 'aprovada_uso_operacional' && (
-                        <Button variant="outline" size="sm" onClick={() => rejeitarDecisaoSuperior(decisao)} disabled={salvandoAcaoDecisao}>
-                          Retirar do uso operacional
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className={`rounded-full ${estiloStatusDecisao(decisao.status)}`}>
+                          {rotuloStatusDecisao(decisao.status)}
+                        </Badge>
+                        <Button variant="outline" size="sm" onClick={() => setHistoricoEmDetalhe(decisao)} disabled={salvandoAcaoDecisao}>
+                          Ver detalhes
                         </Button>
-                      )}
+                        <Button variant="outline" size="sm" onClick={() => ajustarDecisaoSuperior(decisao)} disabled={salvandoAcaoDecisao}>
+                          Revisar
+                        </Button>
+                        {decisao.status === 'aprovada_uso_operacional' && (
+                          <Button variant="outline" size="sm" onClick={() => rejeitarDecisaoSuperior(decisao)} disabled={salvandoAcaoDecisao}>
+                            Retirar do uso
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -784,6 +811,79 @@ export default function NexoCuradoria() {
           <AlertDescription>{mensagemDecisaoSuperior}</AlertDescription>
         </Alert>
       )}
+
+      <Dialog open={Boolean(revisaoIpcpEmAjuste)} onOpenChange={(open) => {
+        if (!open) setRevisaoIpcpEmAjuste(null)
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Ajustar condições da regra IPCP</DialogTitle>
+            <DialogDescription>
+              Registre quais condições precisam ser alteradas antes de aprovar a mudança da fórmula.
+            </DialogDescription>
+          </DialogHeader>
+          {revisaoIpcpEmAjuste && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-semibold">{resumoDecisaoSuperior(revisaoIpcpEmAjuste)}</p>
+                <p className="mt-1 text-xs">Bloco ou sub-bloco: {revisaoIpcpEmAjuste.ipcp_revisao_blocos || 'IPCP geral'}</p>
+              </div>
+              <label className="block space-y-2 text-sm font-medium text-slate-700">
+                Condições a ajustar
+                <textarea
+                  value={condicoesAjusteIpcp}
+                  onChange={(event) => setCondicoesAjusteIpcp(event.target.value)}
+                  className="min-h-32 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-blue-200 focus:ring-2"
+                  placeholder="Ex.: exigir nome do decisor, limitar validade a 15 dias, ajustar peso sugerido ou transformar parte da regra em orientação operacional."
+                />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={salvarAjusteRevisaoIpcp} disabled={salvandoAcaoDecisao} className="bg-blue-600 text-white hover:bg-blue-700">
+                  {salvandoAcaoDecisao ? 'Salvando ajuste...' : 'Salvar ajuste'}
+                </Button>
+                <Button variant="outline" onClick={() => setRevisaoIpcpEmAjuste(null)} disabled={salvandoAcaoDecisao}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(historicoEmDetalhe)} onOpenChange={(open) => {
+        if (!open) setHistoricoEmDetalhe(null)
+      }}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhe da decisão superior</DialogTitle>
+            <DialogDescription>Histórico completo preservado para auditoria da decisão.</DialogDescription>
+          </DialogHeader>
+          {historicoEmDetalhe && (
+            <div className="space-y-3 text-sm text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="font-semibold text-slate-950">{resumoDecisaoSuperior(historicoEmDetalhe)}</p>
+                <Badge variant="outline" className={`rounded-full ${estiloStatusDecisao(historicoEmDetalhe.status)}`}>
+                  {rotuloStatusDecisao(historicoEmDetalhe.status)}
+                </Badge>
+              </div>
+              <p><span className="font-semibold text-slate-900">Data:</span> {dataCurta(historicoEmDetalhe.updated_at || historicoEmDetalhe.created_at || historicoEmDetalhe.created)}</p>
+              <p><span className="font-semibold text-slate-900">Regra proposta:</span> {historicoEmDetalhe.regra_proposta || 'Regra não informada'}</p>
+              {historicoEmDetalhe.excecao_condicao && <p><span className="font-semibold text-slate-900">Condição:</span> {historicoEmDetalhe.excecao_condicao}</p>}
+              {historicoEmDetalhe.decisao_observacao && <p><span className="font-semibold text-slate-900">Observação:</span> {historicoEmDetalhe.decisao_observacao}</p>}
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={() => ajustarDecisaoSuperior(historicoEmDetalhe)} disabled={salvandoAcaoDecisao}>
+                  Revisar decisão
+                </Button>
+                {historicoEmDetalhe.status === 'aprovada_uso_operacional' && (
+                  <Button variant="outline" size="sm" onClick={() => rejeitarDecisaoSuperior(historicoEmDetalhe)} disabled={salvandoAcaoDecisao}>
+                    Retirar do uso operacional
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {decisaoEmAjuste && (
         <Card className="rounded-xl border-blue-200 bg-white shadow-sm">
