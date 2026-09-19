@@ -213,6 +213,23 @@ assert.match(
 )
 assert.match(
   page,
+  /Estudo autorizado/,
+  'revisão IPCP autorizada deve continuar visível como estudo autorizado',
+)
+assert.match(
+  page,
+  /setRevisoesIpcpPendentes[\s\S]{0,220}\[atualizada, \.\.\.semAtual\]/,
+  'aprovar estudo IPCP não deve remover imediatamente a pendência da seção',
+)
+assert.match(page, /Pedir ajuste/, 'revisão IPCP deve permitir solicitar ajuste visível')
+assert.match(
+  page,
+  /ajuste_solicitado/,
+  'Pedir ajuste deve registrar status estruturado de ajuste solicitado',
+)
+assert.match(page, /Ajuste solicitado/, 'Pedir ajuste deve deixar status visível para o decisor')
+assert.match(
+  page,
   /Rejeitar impacto no IPCP/,
   'revisão IPCP deve permitir rejeitar impacto na fórmula',
 )

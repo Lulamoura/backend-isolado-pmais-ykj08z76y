@@ -81,6 +81,20 @@ function estiloStatusDecisao(status?: string) {
   return 'border-blue-200 bg-blue-50 text-blue-700'
 }
 
+function rotuloStatusRevisaoIpcp(status?: string) {
+  if (status === 'estudo_autorizado') return 'Estudo autorizado'
+  if (status === 'ajuste_solicitado') return 'Ajuste solicitado'
+  if (status === 'rejeitada') return 'Impacto rejeitado'
+  return 'Pendente para Lula/direção'
+}
+
+function estiloStatusRevisaoIpcp(status?: string) {
+  if (status === 'estudo_autorizado') return 'border-blue-200 bg-blue-50 text-blue-700'
+  if (status === 'ajuste_solicitado') return 'border-violet-200 bg-violet-50 text-violet-700'
+  if (status === 'rejeitada') return 'border-slate-300 bg-slate-100 text-slate-700'
+  return 'border-amber-300 bg-amber-50 text-amber-700'
+}
+
 const perguntasEntrevista = [
   'Qual regra comercial precisa ser confirmada neste caso?',
   'Existe alguma exceção ou condição que o Nexo deve considerar?',
@@ -376,10 +390,16 @@ export default function NexoCuradoria() {
     try {
       const mensagem =
         status === 'estudo_autorizado'
-          ? 'Estudo de impacto IPCP autorizado. A fórmula segue bloqueada até aprovação expressa.'
-          : 'Impacto no IPCP rejeitado para esta decisão. A regra permanece apenas como orientação operacional.'
+          ? 'Estudo de impacto IPCP autorizado. A pendência permanece em acompanhamento e a fórmula segue bloqueada até aprovação expressa.'
+          : status === 'ajuste_solicitado'
+            ? 'Ajuste solicitado para esta revisão IPCP. A pendência permanece visível em acompanhamento.'
+            : 'Impacto no IPCP rejeitado para esta decisão. A regra permanece apenas como orientação operacional.'
       const atualizada = await atualizarRevisaoIpcpCuradoriaNexo(decisao.id, status, mensagem)
-      setRevisoesIpcpPendentes((atuais) => atuais.filter((item) => item.id !== decisao.id))
+      setRevisoesIpcpPendentes((atuais) => {
+        if (status === 'rejeitada') return atuais.filter((item) => item.id !== decisao.id)
+        const semAtual = atuais.filter((item) => item.id !== decisao.id)
+        return [atualizada, ...semAtual]
+      })
       setDecisoesHistorico((atuais) =>
         atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
       )
@@ -715,9 +735,9 @@ export default function NexoCuradoria() {
                       </div>
                       <Badge
                         variant="outline"
-                        className="rounded-full border-amber-300 bg-amber-50 text-amber-700"
+                        className={`rounded-full ${estiloStatusRevisaoIpcp(decisao.ipcp_revisao_status)}`}
                       >
-                        Requer análise Lula/direção
+                        {rotuloStatusRevisaoIpcp(decisao.ipcp_revisao_status)}
                       </Badge>
                     </div>
                     <div className="mt-3 space-y-2 text-sm text-slate-700">
@@ -761,7 +781,7 @@ export default function NexoCuradoria() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => ajustarDecisaoSuperior(decisao)}
+                        onClick={() => atualizarRevisaoIpcp(decisao, 'ajuste_solicitado')}
                         disabled={salvandoAcaoDecisao}
                       >
                         Pedir ajuste
