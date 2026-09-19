@@ -38,6 +38,8 @@ migrate(
       'CREATE INDEX idx_com_nexo_curadoria_decisoes_status ON com_nexo_curadoria_decisoes (status, created_at)',
       'CREATE INDEX idx_com_nexo_curadoria_decisoes_nivel ON com_nexo_curadoria_decisoes (nivel_decisao, created_at)',
       'CREATE INDEX idx_com_nexo_curadoria_decisoes_external ON com_nexo_curadoria_decisoes (external_id, created_at)',
+      "CREATE UNIQUE INDEX idx_com_nexo_curadoria_decisoes_unico_evento_aberto ON com_nexo_curadoria_decisoes (evento_id) WHERE status != 'rejeitada'",
+      "CREATE UNIQUE INDEX idx_com_nexo_curadoria_decisoes_unico_external_aberto ON com_nexo_curadoria_decisoes (external_id) WHERE status != 'rejeitada' AND external_id != ''",
     ]
 
     app.save(collection)

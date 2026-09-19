@@ -105,6 +105,8 @@ assert.match(decisaoMigration, /escalar_direcao/, 'coleção deve permitir marca
 assert.match(decisaoMigration, /listRule:\s*perfisDecisaoSuperior/, 'somente decisão superior deve listar decisões superiores')
 assert.match(decisaoMigration, /viewRule:\s*perfisDecisaoSuperior/, 'somente decisão superior deve visualizar decisões superiores')
 assert.match(decisaoMigration, /updateRule:\s*perfisDecisaoSuperior/, 'somente decisão superior deve atualizar decisão')
+assert.match(decisaoMigration, /CREATE UNIQUE INDEX idx_com_nexo_curadoria_decisoes_unico_evento_aberto/, 'schema deve bloquear mais de uma decisão aberta por evento')
+assert.match(decisaoMigration, /CREATE UNIQUE INDEX idx_com_nexo_curadoria_decisoes_unico_external_aberto/, 'schema deve bloquear mais de uma decisão aberta por negócio')
 assert.match(decisaoMigration, /deleteRule:\s*null/, 'decisões superiores não devem aceitar exclusão direta pelo cliente')
 
 assert.match(packageJson, /test-nexo-curadoria-ui-contract\.cjs/, 'npm test deve encadear contrato da curadoria Nexo')
