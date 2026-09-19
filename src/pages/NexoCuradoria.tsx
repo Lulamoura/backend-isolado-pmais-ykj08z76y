@@ -6,10 +6,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
+  obterDecisoesSuperioresCuradoriaNexo,
   obterResumoCuradoriaNexo,
   salvarDecisaoSuperiorCuradoriaNexo,
   salvarEntrevistaCuradoriaNexo,
   type ImpactoDecisaoCuradoria,
+  type NexoCuradoriaDecisaoSuperior,
   type NexoCuradoriaEvento,
   type NexoCuradoriaResumo,
 } from '@/services/nexo-curadoria'
@@ -34,6 +36,22 @@ function resumoEvento(evento: NexoCuradoriaEvento) {
     evento.external_id ? `Negócio ${evento.external_id}` : 'Negócio não identificado',
   ]
   return `${partes.join(' · ')} · ${acao}`
+}
+
+function resumoDecisaoSuperior(decisao: NexoCuradoriaDecisaoSuperior) {
+  const partes = [
+    decisao.empresa_nome || decisao.negocio_titulo || 'Empresa não informada',
+    decisao.contato_nome || 'Contato não informado',
+    decisao.external_id ? `Negócio ${decisao.external_id}` : 'Negócio não identificado',
+  ]
+  return partes.join(' · ')
+}
+
+function motivoEscalada(decisao: NexoCuradoriaDecisaoSuperior) {
+  if (decisao.escalar_direcao) {
+    return 'Impacto potencial em funil, risco, perda, indicador ou política comercial.'
+  }
+  return 'Validação operacional pelo gestor comercial.'
 }
 
 const perguntasEntrevista = [
@@ -62,7 +80,9 @@ function precisaDirecao(impacto: ImpactoDecisaoCuradoria) {
 
 export default function NexoCuradoria() {
   const [resumo, setResumo] = useState<NexoCuradoriaResumo>({ pendencias: 0, itens: [] })
+  const [decisoesSuperiores, setDecisoesSuperiores] = useState<NexoCuradoriaDecisaoSuperior[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingDecisoesSuperiores, setLoadingDecisoesSuperiores] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [entrevistaAberta, setEntrevistaAberta] = useState(false)
   const [etapaEntrevista, setEtapaEntrevista] = useState(0)
@@ -143,6 +163,8 @@ export default function NexoCuradoria() {
         respostas: respostasEntrevista,
         impacto: classificarImpactoDecisaoNexo(respostasEntrevista),
       })
+      const decisoes = await obterDecisoesSuperioresCuradoriaNexo(10)
+      setDecisoesSuperiores(decisoes)
       setDecisaoSuperiorSalva(true)
       setErro(null)
     } catch (_) {
@@ -155,6 +177,7 @@ export default function NexoCuradoria() {
   useEffect(() => {
     let ativo = true
     setLoading(true)
+    setLoadingDecisoesSuperiores(true)
     obterResumoCuradoriaNexo(8)
       .then((data) => {
         if (!ativo) return
@@ -167,6 +190,18 @@ export default function NexoCuradoria() {
       })
       .finally(() => {
         if (ativo) setLoading(false)
+      })
+    obterDecisoesSuperioresCuradoriaNexo(10)
+      .then((data) => {
+        if (!ativo) return
+        setDecisoesSuperiores(data)
+      })
+      .catch(() => {
+        if (!ativo) return
+        setErro('Não foi possível carregar as decisões superiores agora.')
+      })
+      .finally(() => {
+        if (ativo) setLoadingDecisoesSuperiores(false)
       })
     return () => {
       ativo = false
@@ -278,6 +313,85 @@ export default function NexoCuradoria() {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-xl border-blue-200 bg-white shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg text-slate-950">
+            Decisões aguardando validação superior
+          </CardTitle>
+          <CardDescription>
+            Fila para superadmin, gestor ou leitor executivo tomar ciência e tratar regras
+            comerciais escaladas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingDecisoesSuperiores ? (
+            <p className="text-sm text-slate-500">Carregando decisões superiores...</p>
+          ) : decisoesSuperiores.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+              Não há decisões superiores aguardando validação neste momento.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {decisoesSuperiores.map((decisao) => (
+                <div
+                  key={decisao.id}
+                  className="rounded-xl border border-blue-100 bg-blue-50/60 p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-slate-950">
+                        {resumoDecisaoSuperior(decisao)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Recebido em {dataCurta(decisao.created_at || decisao.created)}
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-blue-200 bg-white text-blue-700"
+                    >
+                      {decisao.escalar_direcao ? 'Escalar para direção' : 'Gestor comercial'}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 space-y-2 text-sm text-slate-700">
+                    <p>
+                      <span className="font-semibold text-slate-900">Regra proposta:</span>{' '}
+                      {decisao.regra_proposta || 'Regra não informada'}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-slate-900">Motivo da escalada:</span>{' '}
+                      {motivoEscalada(decisao)}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-slate-900">Ação necessária:</span>{' '}
+                      Aprovar, ajustar ou rejeitar a regra candidata antes de virar orientação
+                      operacional.
+                    </p>
+                    {decisao.responsavel_validacao && (
+                      <p>
+                        <span className="font-semibold text-slate-900">Responsável indicado:</span>{' '}
+                        {decisao.responsavel_validacao}
+                      </p>
+                    )}
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm">
+                      Aprovar
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      Ajustar
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      Rejeitar
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

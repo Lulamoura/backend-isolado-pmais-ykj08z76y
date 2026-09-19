@@ -49,6 +49,27 @@ export interface SalvarDecisaoSuperiorCuradoriaInput {
   impacto: ImpactoDecisaoCuradoria
 }
 
+export interface NexoCuradoriaDecisaoSuperior {
+  id: string
+  evento_id?: string
+  entrevista_id?: string
+  external_id?: string
+  empresa_nome?: string
+  contato_nome?: string
+  negocio_titulo?: string
+  status?: string
+  nivel_decisao?: string
+  escalar_direcao?: boolean
+  regra_proposta?: string
+  excecao_condicao?: string
+  responsavel_validacao?: string
+  impacto_json?: string
+  origem_respostas_json?: string
+  usuario_nome?: string
+  created_at?: string
+  created?: string
+}
+
 const COLLECTION = 'com_nexo_aprendizado_eventos'
 const ENTREVISTAS_COLLECTION = 'com_nexo_curadoria_entrevistas'
 const DECISOES_COLLECTION = 'com_nexo_curadoria_decisoes'
@@ -64,6 +85,17 @@ export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoria
     pendencias: response.totalItems,
     itens: response.items,
   }
+}
+
+export async function obterDecisoesSuperioresCuradoriaNexo(limit = 10) {
+  const response = await pb
+    .collection(DECISOES_COLLECTION)
+    .getList<NexoCuradoriaDecisaoSuperior>(1, limit, {
+      filter: "status = 'aguardando_revisao'",
+      sort: '-created_at',
+    })
+
+  return response.items
 }
 
 export async function salvarEntrevistaCuradoriaNexo({

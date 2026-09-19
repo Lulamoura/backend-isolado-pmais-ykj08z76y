@@ -183,6 +183,27 @@ assert.match(
 )
 assert.match(
   page,
+  /Decisões aguardando validação superior/,
+  'página deve listar decisões aguardando validação superior',
+)
+assert.match(
+  page,
+  /Ação necessária/,
+  'card de decisão deve deixar clara a ação necessária ao decisor',
+)
+assert.match(page, /Motivo da escalada/, 'card de decisão deve explicar motivo da escalada')
+assert.match(page, /Aprovar/, 'decisor deve ver ação de aprovar')
+assert.match(page, /Ajustar/, 'decisor deve ver ação de ajustar')
+assert.match(page, /Rejeitar/, 'decisor deve ver ação de rejeitar')
+assert.match(page, /decisoesSuperiores/, 'página deve manter estado da fila superior')
+assert.match(
+  page,
+  /obterDecisoesSuperioresCuradoriaNexo/,
+  'página deve carregar decisões superiores do serviço',
+)
+assert.match(page, /resumoDecisaoSuperior/, 'página deve montar citação humana da decisão superior')
+assert.match(
+  page,
   /Encaminhar para decisão superior/,
   'entrevista deve permitir encaminhar regra candidata para decisão superior',
 )
@@ -201,6 +222,16 @@ assert.match(
   service,
   /salvarDecisaoSuperiorCuradoriaNexo/,
   'serviço deve expor função de salvar decisão superior',
+)
+assert.match(
+  service,
+  /obterDecisoesSuperioresCuradoriaNexo/,
+  'serviço deve listar decisões superiores para o decisor',
+)
+assert.match(
+  service,
+  /status = 'aguardando_revisao'/,
+  'listagem deve buscar decisões aguardando revisão',
 )
 assert.match(service, /nivel_decisao/, 'decisão deve registrar nível gestor ou direção')
 assert.match(service, /regra_proposta/, 'decisão deve registrar regra proposta')
