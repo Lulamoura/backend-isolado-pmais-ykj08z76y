@@ -325,6 +325,16 @@ assert.match(
 )
 assert.match(
   decisaoMigration,
+  /CREATE UNIQUE INDEX idx_com_nexo_curadoria_decisoes_unico_evento_aberto/,
+  'schema deve bloquear mais de uma decisão aberta por evento',
+)
+assert.match(
+  decisaoMigration,
+  /CREATE UNIQUE INDEX idx_com_nexo_curadoria_decisoes_unico_external_aberto/,
+  'schema deve bloquear mais de uma decisão aberta por negócio',
+)
+assert.match(
+  decisaoMigration,
   /deleteRule:\s*null/,
   'decisões superiores não devem aceitar exclusão direta pelo cliente',
 )
