@@ -2326,4 +2326,100 @@
     },
     $apis.requireAuth('users'),
   )
+  routerAdd(
+    'POST',
+    '/backend/v1/nexo/curadoria/decisoes/{id}/segundo-cerebro',
+    function (e) {
+      function safeText(valor, limite) {
+        var texto = String(valor || '').replace(/\r/g, ' ').trim()
+        texto = texto.replace(
+          /(token|password|senha|secret|api[_-]?key|authorization|bearer)\s*[:=]\s*\S+/gi,
+          '$1=[REDACTED]',
+        )
+        return texto.slice(0, limite || 1000)
+      }
+      function envValue(nome) {
+        try {
+          if (typeof $os !== 'undefined' && $os.getenv) return $os.getenv(nome) || ''
+        } catch (_) {}
+        return ''
+      }
+      function ensureDecisionField(collection, name, type) {
+        var existing = collection.fields.getByName(name)
+        if (existing) return false
+        if (type === 'date') collection.fields.add(new DateField({ name: name, required: false }))
+        else collection.fields.add(new TextField({ name: name, required: false, max: 2000 }))
+        return true
+      }
+      function perfilAtual(user) {
+        try {
+          return $app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
+        } catch (_) {
+          return ''
+        }
+      }
+      var ator = e.auth
+      var perfil = perfilAtual(ator)
+      if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva') {
+        return e.forbiddenError('Decisão superior necessária')
+      }
+      var id = String(e.request.pathValue('id') || '').trim()
+      if (!/^[a-z0-9]{15}$/.test(id)) return e.badRequestError('ID da decisão inválido')
+      var decisao = $app.findRecordById('com_nexo_curadoria_decisoes', id)
+      var status = decisao.getString('status')
+      if (status !== 'aprovada_uso_operacional' && status !== 'rejeitada') {
+        return e.badRequestError('Somente decisão aprovada ou rejeitada pode sincronizar conhecimento operacional')
+      }
+      var gatewayBase = ($secrets.get('PMAIS_AGENT_GATEWAY_URL') || envValue('PMAIS_AGENT_GATEWAY_URL') || '').replace(/\/+$/, '')
+      var gatewayOriginMatch = gatewayBase.match(/^https?:\/\/[^/]+/i)
+      gatewayBase = gatewayOriginMatch ? gatewayOriginMatch[0] : gatewayBase.replace(/\/v1.*$/i, '')
+      var gatewayKey = $secrets.get('PMAIS_AGENT_GATEWAY_API_KEY') || envValue('PMAIS_AGENT_GATEWAY_API_KEY') || ''
+      var gatewaySecret = $secrets.get('PMAIS_AGENT_GATEWAY_HMAC_SECRET') || envValue('PMAIS_AGENT_GATEWAY_HMAC_SECRET') || ''
+      if (!gatewayBase || !gatewayKey || !gatewaySecret) return e.json(502, { ok: false, code: 'PMAIS_GATEWAY_NOT_CONFIGURED' })
+      var body = JSON.stringify({
+        decision_id: decisao.id,
+        status: status,
+        external_id: safeText(decisao.getString('external_id'), 80),
+        empresa_nome: safeText(decisao.getString('empresa_nome'), 240),
+        contato_nome: safeText(decisao.getString('contato_nome'), 240),
+        negocio_titulo: safeText(decisao.getString('negocio_titulo'), 240),
+        regra_proposta: safeText(decisao.getString('regra_proposta'), 4000),
+        excecao_condicao: safeText(decisao.getString('excecao_condicao'), 4000),
+        responsavel_validacao: safeText(decisao.getString('responsavel_validacao'), 1000),
+        decisao_observacao: safeText(decisao.getString('decisao_observacao'), 2000),
+        decisor_nome: safeText(ator.getString('name') || ator.getString('email'), 160),
+      })
+      var timestamp = String(Math.floor(Date.now() / 1000))
+      var signature = $security.hs256(timestamp + '.' + body, gatewaySecret)
+      var response = $http.send({
+        url: gatewayBase + '/v1/comercial/nexo/curadoria/decisao',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'x-pmais-api-key': gatewayKey,
+          'x-pmais-timestamp': timestamp,
+          'x-pmais-signature': signature,
+        },
+        body: body,
+        timeout: 30,
+      })
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return e.json(502, { ok: false, code: 'PMAIS_GATEWAY_CURADORIA_ERRO', status: response.statusCode })
+      }
+      var collection = $app.findCollectionByNameOrId('com_nexo_curadoria_decisoes')
+      var changed = false
+      changed = ensureDecisionField(collection, 'segundo_cerebro_status', 'text') || changed
+      changed = ensureDecisionField(collection, 'segundo_cerebro_audit_id', 'text') || changed
+      changed = ensureDecisionField(collection, 'segundo_cerebro_atualizado_em', 'date') || changed
+      if (changed) $app.save(collection)
+      decisao.set('segundo_cerebro_status', status === 'aprovada_uso_operacional' ? 'ativo' : 'retirado')
+      decisao.set('segundo_cerebro_audit_id', safeText((response.json || {}).audit_id, 120))
+      decisao.set('segundo_cerebro_atualizado_em', new Date())
+      decisao.set('updated_at', new Date())
+      $app.save(decisao)
+      return e.json(200, decisao)
+    },
+    $apis.requireAuth('users'),
+  )
 })()

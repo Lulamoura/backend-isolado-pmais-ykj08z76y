@@ -12,6 +12,7 @@ import {
   obterResumoCuradoriaNexo,
   salvarDecisaoSuperiorCuradoriaNexo,
   salvarEntrevistaCuradoriaNexo,
+  sincronizarDecisaoSegundoCerebroCuradoriaNexo,
   atualizarDecisaoSuperiorCuradoriaNexo,
   type ImpactoDecisaoCuradoria,
   type NexoCuradoriaDecisaoSuperior,
@@ -242,22 +243,38 @@ export default function NexoCuradoria() {
     try {
       const atualizada = await atualizarDecisaoSuperiorCuradoriaNexo({
         id: decisaoEmAjuste.id,
-        status: 'aguardando_revisao',
+        status:
+          decisaoEmAjuste.status === 'aprovada_uso_operacional' || decisaoEmAjuste.status === 'rejeitada'
+            ? decisaoEmAjuste.status
+            : 'aguardando_revisao',
         regra_proposta: regraAjuste,
         excecao_condicao: excecaoAjuste,
         responsavel_validacao: responsavelAjuste,
         decisao_observacao: observacaoAjuste,
       })
+      const sincronizada =
+        atualizada.status === 'aprovada_uso_operacional' || atualizada.status === 'rejeitada'
+          ? await sincronizarDecisaoSegundoCerebroCuradoriaNexo(atualizada.id)
+          : atualizada
       setDecisoesSuperiores((atuais) => {
-        const semAtual = atuais.filter((decisao) => decisao.id !== atualizada.id)
-        return atualizada.status === 'aguardando_revisao' ? [atualizada, ...semAtual] : semAtual
+        const semAtual = atuais.filter((decisao) => decisao.id !== sincronizada.id)
+        return sincronizada.status === 'aguardando_revisao' ? [sincronizada, ...semAtual] : semAtual
       })
-      setDecisoesHistorico((atuais) => atuais.filter((decisao) => decisao.id !== atualizada.id))
+      setDecisoesHistorico((atuais) => {
+        const semAtual = atuais.filter((decisao) => decisao.id !== sincronizada.id)
+        return sincronizada.status === 'aprovada_uso_operacional' || sincronizada.status === 'rejeitada'
+          ? [sincronizada, ...semAtual]
+          : semAtual
+      })
       setDecisoesRelacionadas((atuais) =>
-        atuais.map((decisao) => (decisao.id === atualizada.id ? atualizada : decisao)),
+        atuais.map((decisao) => (decisao.id === sincronizada.id ? sincronizada : decisao)),
       )
       setDecisaoEmAjuste(null)
-      setMensagemDecisaoSuperior('Ajuste da decisão superior salvo. A pendência continua aguardando validação superior.')
+      setMensagemDecisaoSuperior(
+        sincronizada.status === 'aguardando_revisao'
+          ? 'Ajuste da decisão superior salvo. A pendência continua aguardando validação superior.'
+          : 'Ajuste da decisão superior salvo e sincronizado com o conhecimento operacional.',
+      )
       setErro(null)
     } catch (_) {
       setErro('Não foi possível salvar o ajuste da decisão superior agora.')
@@ -274,12 +291,13 @@ export default function NexoCuradoria() {
         status: 'aprovada_uso_operacional',
         decisao_observacao: 'Decisão aprovada para uso operacional.',
       })
+      const sincronizada = await sincronizarDecisaoSegundoCerebroCuradoriaNexo(atualizada.id)
       setDecisoesSuperiores((atuais) => atuais.filter((item) => item.id !== decisao.id))
-      setDecisoesHistorico((atuais) => [atualizada, ...atuais.filter((item) => item.id !== atualizada.id)])
+      setDecisoesHistorico((atuais) => [sincronizada, ...atuais.filter((item) => item.id !== sincronizada.id)])
       setDecisoesRelacionadas((atuais) =>
-        atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
+        atuais.map((item) => (item.id === sincronizada.id ? sincronizada : item)),
       )
-      setMensagemDecisaoSuperior('Decisão aprovada para uso operacional. Ela saiu da fila de validação superior.')
+      setMensagemDecisaoSuperior('Decisão aprovada para uso operacional e sincronizada com o conhecimento operacional.')
       setErro(null)
     } catch (_) {
       setErro('Não foi possível aprovar a decisão superior agora.')
@@ -299,10 +317,11 @@ export default function NexoCuradoria() {
             ? 'Decisão rejeitada após aprovação anterior; sai do uso operacional.'
             : 'Decisão rejeitada pelo decisor superior.',
       })
+      const sincronizada = await sincronizarDecisaoSegundoCerebroCuradoriaNexo(atualizada.id)
       setDecisoesSuperiores((atuais) => atuais.filter((item) => item.id !== decisao.id))
-      setDecisoesHistorico((atuais) => [atualizada, ...atuais.filter((item) => item.id !== atualizada.id)])
+      setDecisoesHistorico((atuais) => [sincronizada, ...atuais.filter((item) => item.id !== sincronizada.id)])
       setDecisoesRelacionadas((atuais) =>
-        atuais.map((item) => (item.id === atualizada.id ? atualizada : item)),
+        atuais.map((item) => (item.id === sincronizada.id ? sincronizada : item)),
       )
       setMensagemDecisaoSuperior(
         decisao.status === 'aprovada_uso_operacional'
