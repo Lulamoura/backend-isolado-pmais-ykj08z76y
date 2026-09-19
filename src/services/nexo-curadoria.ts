@@ -118,6 +118,14 @@ function decisaoTerminal(decisao: NexoCuradoriaDecisaoSuperior | null) {
   return decisao?.status === 'aprovada_uso_operacional' || decisao?.status === 'rejeitada'
 }
 
+function decisaoHomologacao(decisao: NexoCuradoriaDecisaoSuperior) {
+  const texto = [decisao.external_id, decisao.evento_id, decisao.negocio_titulo]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+  return texto.includes('homologacao-') || texto.includes('homologação')
+}
+
 async function filtrarEventosComDecisaoTerminal(eventos: NexoCuradoriaEvento[]) {
   const pares = await Promise.all(
     eventos.map(async (evento) => ({
@@ -153,7 +161,7 @@ export async function obterDecisoesSuperioresCuradoriaNexo(limit = 10) {
         sort: '-created_at',
       })
 
-    return response.items
+    return response.items.filter((decisao) => !decisaoHomologacao(decisao))
   } catch (error: any) {
     if (error?.status === 403) return []
     throw error
@@ -169,7 +177,7 @@ export async function obterHistoricoDecisoesSuperioresCuradoriaNexo(limit = 20) 
         sort: '-updated_at,-created_at',
       })
 
-    return response.items
+    return response.items.filter((decisao) => !decisaoHomologacao(decisao))
   } catch (error: any) {
     if (error?.status === 403) return []
     throw error
@@ -186,6 +194,7 @@ export async function obterRevisoesIpcpPendentesCuradoriaNexo(limit = 10) {
       })
 
     return response.items
+      .filter((decisao) => !decisaoHomologacao(decisao))
       .filter((decisao) => {
         const status = decisao.ipcp_revisao_status || 'pendente'
         return (

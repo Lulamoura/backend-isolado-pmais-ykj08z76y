@@ -448,6 +448,12 @@ assert.match(
   /obterHistoricoDecisoesSuperioresCuradoriaNexo/,
   'serviço deve listar histórico de decisões superiores',
 )
+assert.match(service, /decisaoHomologacao/, 'serviço deve reconhecer registros de homologação')
+assert.match(
+  service,
+  /!decisaoHomologacao/,
+  'listas visíveis devem ocultar registros de homologação do histórico e filas',
+)
 assert.match(
   service,
   /sincronizarDecisaoSegundoCerebroCuradoriaNexo/,
