@@ -134,6 +134,8 @@ assert.match(service, /buscarDecisaoSuperiorExistenteCuradoriaNexo/, 'serviço d
 assert.match(service, /throw new Error\('DECISAO_SUPERIOR_DUPLICADA'\)/, 'serviço deve bloquear duplicidade decisória')
 assert.match(service, /obterDecisoesSuperioresCuradoriaNexo/, 'serviço deve listar decisões superiores para o decisor')
 assert.match(service, /obterHistoricoDecisoesSuperioresCuradoriaNexo/, 'serviço deve listar histórico de decisões superiores')
+assert.match(service, /decisaoHomologacao/, 'serviço deve reconhecer registros de homologação')
+assert.match(service, /!decisaoHomologacao/, 'listas visíveis devem ocultar registros de homologação do histórico e filas')
 assert.match(service, /sincronizarDecisaoSegundoCerebroCuradoriaNexo/, 'serviço deve acionar sincronização governada com o segundo cérebro')
 assert.match(service, /obterRevisoesIpcpPendentesCuradoriaNexo/, 'serviço deve listar revisões IPCP pendentes para decisores')
 assert.match(service, /atualizarRevisaoIpcpCuradoriaNexo/, 'serviço deve atualizar revisão IPCP por rota backend protegida')
