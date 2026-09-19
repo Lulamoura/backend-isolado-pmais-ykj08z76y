@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   obterResumoCuradoriaNexo,
+  salvarEntrevistaCuradoriaNexo,
   type NexoCuradoriaEvento,
   type NexoCuradoriaResumo,
 } from '@/services/nexo-curadoria'
@@ -46,11 +47,25 @@ export default function NexoCuradoria() {
   const [entrevistaAberta, setEntrevistaAberta] = useState(false)
   const [etapaEntrevista, setEtapaEntrevista] = useState(0)
   const [respostasEntrevista, setRespostasEntrevista] = useState<string[]>([])
+  const [pendenciaSelecionada, setPendenciaSelecionada] = useState<NexoCuradoriaEvento | null>(null)
+  const [salvandoEntrevista, setSalvandoEntrevista] = useState(false)
+  const [entrevistaSalva, setEntrevistaSalva] = useState(false)
+
+  function iniciarCuradoria(item?: NexoCuradoriaEvento) {
+    setPendenciaSelecionada(item || resumo.itens[0] || null)
+    setEntrevistaAberta(true)
+    setEtapaEntrevista(0)
+    setRespostasEntrevista([])
+    setEntrevistaSalva(false)
+    setErro(null)
+  }
 
   function fecharEntrevista() {
     setEntrevistaAberta(false)
     setEtapaEntrevista(0)
     setRespostasEntrevista([])
+    setPendenciaSelecionada(null)
+    setEntrevistaSalva(false)
   }
 
   function atualizarRespostaEntrevista(valor: string) {
@@ -61,7 +76,29 @@ export default function NexoCuradoria() {
     })
   }
 
-  function avancarEntrevista() {
+  async function avancarEntrevista() {
+    if (etapaEntrevista === perguntasEntrevista.length) {
+      if (!pendenciaSelecionada) {
+        setErro('Selecione uma pendência antes de enviar a entrevista para revisão.')
+        return
+      }
+      setSalvandoEntrevista(true)
+      try {
+        await salvarEntrevistaCuradoriaNexo({
+          evento: pendenciaSelecionada,
+          perguntas: perguntasEntrevista,
+          respostas: respostasEntrevista,
+        })
+        setEntrevistaSalva(true)
+        setEtapaEntrevista(perguntasEntrevista.length + 1)
+        setErro(null)
+      } catch (_) {
+        setErro('Não foi possível enviar a entrevista para revisão agora.')
+      } finally {
+        setSalvandoEntrevista(false)
+      }
+      return
+    }
     setEtapaEntrevista((atual) => Math.min(atual + 1, perguntasEntrevista.length + 1))
   }
 
@@ -104,7 +141,7 @@ export default function NexoCuradoria() {
             </div>
           </div>
           <Button
-            onClick={() => setEntrevistaAberta(true)}
+            onClick={() => iniciarCuradoria()}
             className="shrink-0 bg-violet-600 text-white hover:bg-violet-700"
           >
             <MessageSquareText className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -211,6 +248,11 @@ export default function NexoCuradoria() {
                       {item.contexto_resumo}
                     </p>
                   )}
+                  <div className="mt-3">
+                    <Button variant="outline" size="sm" onClick={() => iniciarCuradoria(item)}>
+                      Entrevistar sobre esta pendência
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -228,6 +270,16 @@ export default function NexoCuradoria() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {pendenciaSelecionada && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Pendência selecionada
+                </p>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {resumoEvento(pendenciaSelecionada)}
+                </p>
+              </div>
+            )}
             {etapaEntrevista === 0 ? (
               <>
                 <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-sm leading-relaxed text-slate-700">
@@ -240,6 +292,7 @@ export default function NexoCuradoria() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={() => setEtapaEntrevista(1)}
+                    disabled={!pendenciaSelecionada}
                     className="bg-violet-600 text-white hover:bg-violet-700"
                   >
                     Começar entrevista
@@ -271,11 +324,14 @@ export default function NexoCuradoria() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={avancarEntrevista}
+                    disabled={salvandoEntrevista}
                     className="bg-violet-600 text-white hover:bg-violet-700"
                   >
-                    {etapaEntrevista === perguntasEntrevista.length
-                      ? 'Enviar para revisão'
-                      : 'Próxima pergunta'}
+                    {salvandoEntrevista
+                      ? 'Enviando...'
+                      : etapaEntrevista === perguntasEntrevista.length
+                        ? 'Enviar para revisão'
+                        : 'Próxima pergunta'}
                   </Button>
                   <Button variant="outline" onClick={fecharEntrevista}>
                     Fechar
@@ -284,8 +340,10 @@ export default function NexoCuradoria() {
               </>
             ) : (
               <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-relaxed text-emerald-900">
-                Entrevista registrada para revisão. As respostas serão tratadas antes de virar regra
-                ou playbook comercial.
+                {entrevistaSalva
+                  ? 'Entrevista enviada para revisão.'
+                  : 'Entrevista registrada para revisão.'}{' '}
+                As respostas serão tratadas antes de virar regra ou playbook comercial.
               </div>
             )}
           </CardContent>
