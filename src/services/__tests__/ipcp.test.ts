@@ -114,7 +114,9 @@ describe('obterIpcpDiarioReadOnly', () => {
       ],
       evolucao: {
         status: 'melhorou',
-        comentario: 'IPCP melhorou em relação à leitura anterior (+4,2 ponto(s)).',
+        cenario: 'resultado_comercial_em_alta',
+        comentario: 'O IPCP avançou puxado principalmente por resultado comercial. Variação total: +4,2 ponto(s). Próxima orientação: registrar aprendizados.',
+        acao_recomendada: 'Registrar quais oportunidades avançaram ou fecharam para transformar o ganho em aprendizado replicável.',
         total_atual: 62.4,
         total_anterior: 58.2,
         variacao_total: 4.2,
@@ -151,7 +153,9 @@ describe('obterIpcpDiarioReadOnly', () => {
     expect(data.resumo_nexo.prioridades[0].titulo).toBe('Ação de equipe')
     expect(data.ipcp.total).toBe(62.4)
     expect(data.negocios_atencao[0].id_negocio).toBe('9001')
-    expect(data.evolucao.comentario).toMatch(/melhorou/)
+    expect(data.evolucao.comentario).toMatch(/resultado comercial/)
+    expect(data.evolucao.cenario).toBe('resultado_comercial_em_alta')
+    expect(data.evolucao.acao_recomendada).toMatch(/aprendizado replicável/)
     expect(data.evolucao.variacao_total).toBe(4.2)
     expect(data.evolucao.blocos?.[0].id).toBe('resultado_comercial')
   })
