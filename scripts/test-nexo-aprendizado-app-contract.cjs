@@ -29,6 +29,8 @@ assert.match(migration, /audit_id/, 'evento deve guardar audit_id correlacionáv
 assert.match(migration, /created_at/, 'evento deve guardar timestamp de captura')
 
 assert.match(hook, /nexo_consulta_suporte_app/, 'hook deve declarar o tipo de evento nexo_consulta_suporte_app')
+assert.match(hook, /function\s+nexoGarantirColecaoAprendizadoApp/, 'hook deve garantir coleção de aprendizado quando a migração ainda não estiver materializada')
+assert.match(hook, /nexoGarantirColecaoAprendizadoApp\(\)/, 'captura deve usar a coleção garantida de aprendizado')
 assert.match(hook, /function\s+nexoCapturarAprendizadoApp/, 'hook deve ter função dedicada de captura de aprendizado')
 assert.match(hook, /com_nexo_aprendizado_eventos/, 'hook deve persistir na coleção de eventos de aprendizado')
 assert.match(hook, /contexto_resumo/, 'hook deve persistir resumo sanitizado do contexto')
