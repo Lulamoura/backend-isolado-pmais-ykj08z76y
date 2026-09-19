@@ -2392,8 +2392,15 @@
           return true
         }
       }
+      function perfilAtual(user) {
+        try {
+          return $app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
+        } catch (_) {
+          return ''
+        }
+      }
       var ator = e.auth
-      var perfil = propostaPerfil($app, ator)
+      var perfil = perfilAtual(ator)
       if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva') {
         return e.forbiddenError('Decisão superior necessária')
       }
