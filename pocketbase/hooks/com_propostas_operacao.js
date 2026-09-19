@@ -1840,6 +1840,99 @@
         }
       }
 
+      function nexoResumoSeguroAprendizado(valor, limite) {
+        var texto = nexoLimparTextoAjuda(valor, limite || 1200)
+        return texto
+          .replace(/(token|password|senha|secret|api[_-]?key|authorization|bearer)\s*[:=][^\s,;]+/gi, '$1=[REDACTED]')
+          .slice(0, limite || 1200)
+      }
+
+      function nexoFontesSegundoCerebro(secondBrain) {
+        var fontes = (secondBrain || {}).sources || []
+        if (!Array.isArray(fontes)) fontes = []
+        var seguras = []
+        for (var i = 0; i < fontes.length && i < 20; i++) {
+          var fonte = nexoResumoSeguroAprendizado(String(fontes[i] || ''), 240)
+          if (fonte) seguras.push(fonte)
+        }
+        return JSON.stringify(seguras)
+      }
+
+      function nexoVersaoSegundoCerebro(secondBrain) {
+        return nexoResumoSeguroAprendizado(
+          (secondBrain || {}).version ||
+            (secondBrain || {}).release_sha256 ||
+            (secondBrain || {}).hash ||
+            '',
+          160,
+        )
+      }
+
+      function nexoResumoContextoAprendizado() {
+        var negocio = contextoSeguro.negocio || {}
+        var partes = [
+          'Ação solicitada: ' + acao,
+          'Fase/etapa: ' + (negocio.fase || negocio.etapa || 'não informada'),
+          'Tipo de serviço: ' + (contextoSeguro.tipo_servico || 'não informado'),
+          'Descrição: ' + (contextoSeguro.descricao_negocio || 'não informada'),
+          'Follow-ups/notas: ' + nexoLimparTextoAjuda((contextoSeguro.notas_followups || []).join(' | '), 900),
+        ]
+        return nexoResumoSeguroAprendizado(partes.join('\n'), 4000)
+      }
+
+      function nexoResumoRespostaAprendizado(resposta) {
+        var partes = [
+          resposta.resposta_curta || '',
+          resposta.diagnostico ? 'Diagnóstico: ' + resposta.diagnostico : '',
+          (resposta.proximos_passos || []).length
+            ? 'Próximos passos: ' + resposta.proximos_passos.join(' | ')
+            : '',
+          resposta.mensagem_sugerida ? 'Mensagem sugerida: ' + resposta.mensagem_sugerida : '',
+          (resposta.dicas_para_melhorar_notas || []).length
+            ? 'Dicas para notas: ' + resposta.dicas_para_melhorar_notas.join(' | ')
+            : '',
+        ]
+        return nexoResumoSeguroAprendizado(partes.filter(Boolean).join('\n'), 4000)
+      }
+
+      function nexoCapturarAprendizadoApp(resposta) {
+        try {
+          var auditoria = resposta.auditoria_geracao || {}
+          var secondBrain = resposta.second_brain || {
+            used: auditoria.segundo_cerebro_usado,
+            sources: auditoria.segundo_cerebro_fontes,
+          }
+          var collection = $app.findCollectionByNameOrId('com_nexo_aprendizado_eventos')
+          var evento = new Record(collection)
+          evento.set('tipo_evento', 'nexo_consulta_suporte_app')
+          evento.set('external_id', externalId)
+          evento.set('acao', acao)
+          evento.set('usuario_id', ator.id || '')
+          evento.set('usuario_nome', ator.getString('name') || ator.getString('email') || '')
+          evento.set('fase_negocio', nexoResumoSeguroAprendizado((contextoSeguro.negocio || {}).fase || (contextoSeguro.negocio || {}).etapa || '', 160))
+          evento.set('tipo_servico', nexoResumoSeguroAprendizado(contextoSeguro.tipo_servico || '', 240))
+          evento.set('contexto_resumo', nexoResumoContextoAprendizado())
+          evento.set('resposta_resumo', nexoResumoRespostaAprendizado(resposta))
+          evento.set('segundo_cerebro_usado', Boolean(secondBrain.used))
+          evento.set('segundo_cerebro_fontes', nexoFontesSegundoCerebro(secondBrain))
+          evento.set('segundo_cerebro_versao', nexoVersaoSegundoCerebro(secondBrain))
+          evento.set('provider', nexoResumoSeguroAprendizado(auditoria.provider || resposta.provider || '', 120))
+          evento.set('modelo', nexoResumoSeguroAprendizado(auditoria.modelo || resposta.modelo || '', 160))
+          evento.set('fallback', Boolean(auditoria.fallback || resposta.fallback))
+          evento.set('human_review_required', true)
+          evento.set('automatic_send_allowed', false)
+          evento.set('crm_write_allowed', false)
+          evento.set('audit_id', nexoResumoSeguroAprendizado(auditoria.audit_id || 'nexo-' + externalId + '-' + Date.now(), 160))
+          evento.set('created_at', new Date())
+          $app.save(evento)
+        } catch (err) {
+          console.error(
+            'NEXO_APRENDIZADO_EVENTO_ERRO',
+            JSON.stringify({ external_id: externalId, acao: acao, erro: String(err).slice(0, 120) }),
+          )
+        }
+      }
+
       function nexoChamarPMaisAgentGateway() {
         var url = nexoPMaisAgentGatewayUrl(pmaisGatewayUrlBase)
         if (!url || !pmaisGatewayApiKey || !pmaisGatewayHmacSecret) return null
@@ -1890,7 +1983,9 @@
       var pmaisGatewayResponse = nexoChamarPMaisAgentGateway() || nexoChamarPMaisSkipBridge()
       if (pmaisGatewayResponse) {
         if (pmaisGatewayResponse.statusCode >= 200 && pmaisGatewayResponse.statusCode < 300) {
-          return e.json(200, nexoRespostaGatewayParaContrato(pmaisGatewayResponse.json || {}))
+          var respostaGateway = nexoRespostaGatewayParaContrato(pmaisGatewayResponse.json || {})
+          nexoCapturarAprendizadoApp(respostaGateway)
+          return e.json(200, respostaGateway)
         }
         console.error(
           'NEXO_PMAIS_GATEWAY_ERRO',
@@ -1923,11 +2018,16 @@
           nexoEnv('SKIP_AI_GATEWAY_MODEL') ||
           'gpt-4o-mini',
       )
-      if (!apiKey || !aiUrl)
-        return e.json(
-          200,
-          nexoRespostaFallback(externalId, acao, 'CONFIGURACAO_IA_AUSENTE', contextoSeguro),
+      if (!apiKey || !aiUrl) {
+        var respostaConfiguracaoAusente = nexoRespostaFallback(
+          externalId,
+          acao,
+          'CONFIGURACAO_IA_AUSENTE',
+          contextoSeguro,
         )
+        nexoCapturarAprendizadoApp(respostaConfiguracaoAusente)
+        return e.json(200, respostaConfiguracaoAusente)
+      }
 
       var instrucaoOperador = nexoLimparTextoAjuda(body.instrucao_operador, 1200)
       var systemPrompt = [
@@ -2051,21 +2151,20 @@
             message: erroIa,
           }),
         )
-        return e.json(
-          502,
-          nexoRespostaFallback(
-            externalId,
-            acao,
-            'IA_HTTP_' + response.statusCode + (erroIa ? ': ' + erroIa : ''),
-            contextoSeguro,
-          ),
+        var respostaErroIa = nexoRespostaFallback(
+          externalId,
+          acao,
+          'IA_HTTP_' + response.statusCode + (erroIa ? ': ' + erroIa : ''),
+          contextoSeguro,
         )
+        nexoCapturarAprendizadoApp(respostaErroIa)
+        return e.json(502, respostaErroIa)
       }
 
       try {
         var content = (((response.json || {}).choices || [])[0] || {}).message || {}
         var parsed = nexoJsonSeguro(content.content || '')
-        return e.json(200, {
+        var respostaIa = {
           contrato: 'nexo_ajuda_comercial_v1',
           external_id: externalId,
           acao: acao,
@@ -2100,12 +2199,18 @@
             segundo_cerebro_fontes: [],
             audit_id: 'nexo-' + externalId + '-' + Date.now(),
           },
-        })
+        }
+        nexoCapturarAprendizadoApp(respostaIa)
+        return e.json(200, respostaIa)
       } catch (err) {
-        return e.json(
-          502,
-          nexoRespostaFallback(externalId, acao, String(err).slice(0, 80), contextoSeguro),
+        var respostaErroContrato = nexoRespostaFallback(
+          externalId,
+          acao,
+          String(err).slice(0, 80),
+          contextoSeguro,
         )
+        nexoCapturarAprendizadoApp(respostaErroContrato)
+        return e.json(502, respostaErroContrato)
       }
     },
     $apis.requireAuth('users'),
