@@ -240,11 +240,6 @@ assert.match(
 )
 assert.match(
   page,
-  /decisao\.ipcp_revisao_motivo \|\| decisao\.regra_proposta/,
-  'modal de ajuste IPCP deve vir preenchida com a regra quando não houver motivo anterior',
-)
-assert.match(
-  page,
   /Ajustar condições da regra IPCP/,
   'modal de ajuste IPCP deve ficar visível ao decisor',
 )
@@ -271,8 +266,13 @@ assert.match(
 )
 assert.match(
   page,
-  /A alteração da fórmula só fica autorizada ao clicar em Aprovar alteração de fórmula/,
-  'UI deve deixar clara a autorização explícita da alteração',
+  /setCondicoesAjusteIpcp\(decisao\.regra_proposta \|\| decisao\.ipcp_revisao_motivo \|\| ''\)/,
+  'modal de ajuste IPCP deve vir preenchida primeiro com a regra aprovada',
+)
+assert.match(
+  page,
+  /a fórmula ainda não é recalculada automaticamente nesta etapa/,
+  'UI deve deixar claro que aprovar registra autorização, mas não recalcula a fórmula automaticamente',
 )
 assert.match(
   page,
