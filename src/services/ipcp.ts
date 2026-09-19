@@ -57,6 +57,18 @@ export type IpcpDiarioReadOnly = {
   evolucao: {
     status: 'sem_historico' | 'melhorou' | 'manteve' | 'piorou'
     comentario: string
+    total_atual?: number | null
+    total_anterior?: number | null
+    variacao_total?: number | null
+    data_anterior?: string | null
+    blocos?: Array<{
+      id: IpcpBlocoId
+      label: string
+      atual: number
+      anterior: number
+      variacao: number
+      status: 'sem_historico' | 'melhorou' | 'manteve' | 'piorou'
+    }>
   }
   guardrails: {
     sem_ranking_punitivo: true
@@ -192,6 +204,10 @@ export const ipcpDiarioFixtureHomologado: IpcpDiarioReadOnly = {
   evolucao: {
     status: 'sem_historico',
     comentario: 'Sem leitura viva disponível para comparar evolução neste escopo.',
+    total_atual: 0,
+    total_anterior: null,
+    variacao_total: null,
+    blocos: [],
   },
   guardrails: {
     sem_ranking_punitivo: true,
