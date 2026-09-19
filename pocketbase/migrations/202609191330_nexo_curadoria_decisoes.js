@@ -27,6 +27,7 @@ migrate(
     collection.fields.add(new TextField({ name: 'regra_proposta', required: true, max: 4000 }))
     collection.fields.add(new TextField({ name: 'excecao_condicao', required: false, max: 4000 }))
     collection.fields.add(new TextField({ name: 'responsavel_validacao', required: false, max: 1000 }))
+    collection.fields.add(new TextField({ name: 'decisao_observacao', required: false, max: 2000 }))
     collection.fields.add(new TextField({ name: 'impacto_json', required: true, max: 4000 }))
     collection.fields.add(new TextField({ name: 'origem_respostas_json', required: false, max: 4000 }))
     collection.fields.add(new TextField({ name: 'usuario_id', required: false, max: 80 }))

@@ -11,6 +11,7 @@ import {
   obterResumoCuradoriaNexo,
   salvarDecisaoSuperiorCuradoriaNexo,
   salvarEntrevistaCuradoriaNexo,
+  atualizarDecisaoSuperiorCuradoriaNexo,
   type ImpactoDecisaoCuradoria,
   type NexoCuradoriaDecisaoSuperior,
   type NexoCuradoriaEvento,
@@ -97,6 +98,13 @@ export default function NexoCuradoria() {
   const [salvandoDecisaoSuperior, setSalvandoDecisaoSuperior] = useState(false)
   const [decisaoSuperiorSalva, setDecisaoSuperiorSalva] = useState(false)
   const [decisaoExistenteParaPendencia, setDecisaoExistenteParaPendencia] = useState<NexoCuradoriaDecisaoSuperior | null>(null)
+  const [decisaoEmAjuste, setDecisaoEmAjuste] = useState<NexoCuradoriaDecisaoSuperior | null>(null)
+  const [regraAjuste, setRegraAjuste] = useState('')
+  const [excecaoAjuste, setExcecaoAjuste] = useState('')
+  const [responsavelAjuste, setResponsavelAjuste] = useState('')
+  const [observacaoAjuste, setObservacaoAjuste] = useState('')
+  const [salvandoAcaoDecisao, setSalvandoAcaoDecisao] = useState(false)
+  const [mensagemDecisaoSuperior, setMensagemDecisaoSuperior] = useState<string | null>(null)
 
   async function iniciarCuradoria(item?: NexoCuradoriaEvento) {
     const selecionada = item || resumo.itens[0] || null
@@ -190,6 +198,77 @@ export default function NexoCuradoria() {
       setErro('Não foi possível encaminhar a regra para decisão superior agora.')
     } finally {
       setSalvandoDecisaoSuperior(false)
+    }
+  }
+
+  function ajustarDecisaoSuperior(decisao: NexoCuradoriaDecisaoSuperior) {
+    setDecisaoEmAjuste(decisao)
+    setRegraAjuste(decisao.regra_proposta || '')
+    setExcecaoAjuste(decisao.excecao_condicao || '')
+    setResponsavelAjuste(decisao.responsavel_validacao || '')
+    setObservacaoAjuste(decisao.decisao_observacao || '')
+    setMensagemDecisaoSuperior(null)
+    setErro(null)
+  }
+
+  async function salvarAjusteDecisaoSuperior() {
+    if (!decisaoEmAjuste) return
+    setSalvandoAcaoDecisao(true)
+    try {
+      const atualizada = await atualizarDecisaoSuperiorCuradoriaNexo({
+        id: decisaoEmAjuste.id,
+        status: 'aguardando_revisao',
+        regra_proposta: regraAjuste,
+        excecao_condicao: excecaoAjuste,
+        responsavel_validacao: responsavelAjuste,
+        decisao_observacao: observacaoAjuste,
+      })
+      setDecisoesSuperiores((atuais) =>
+        atuais.map((decisao) => (decisao.id === atualizada.id ? atualizada : decisao)),
+      )
+      setDecisaoEmAjuste(null)
+      setMensagemDecisaoSuperior('Ajuste da decisão superior salvo. A pendência continua aguardando validação superior.')
+      setErro(null)
+    } catch (_) {
+      setErro('Não foi possível salvar o ajuste da decisão superior agora.')
+    } finally {
+      setSalvandoAcaoDecisao(false)
+    }
+  }
+
+  async function aprovarDecisaoSuperior(decisao: NexoCuradoriaDecisaoSuperior) {
+    setSalvandoAcaoDecisao(true)
+    try {
+      await atualizarDecisaoSuperiorCuradoriaNexo({
+        id: decisao.id,
+        status: 'aprovada_uso_operacional',
+        decisao_observacao: 'Decisão aprovada para uso operacional.',
+      })
+      setDecisoesSuperiores((atuais) => atuais.filter((item) => item.id !== decisao.id))
+      setMensagemDecisaoSuperior('Decisão aprovada para uso operacional. Ela saiu da fila de validação superior.')
+      setErro(null)
+    } catch (_) {
+      setErro('Não foi possível aprovar a decisão superior agora.')
+    } finally {
+      setSalvandoAcaoDecisao(false)
+    }
+  }
+
+  async function rejeitarDecisaoSuperior(decisao: NexoCuradoriaDecisaoSuperior) {
+    setSalvandoAcaoDecisao(true)
+    try {
+      await atualizarDecisaoSuperiorCuradoriaNexo({
+        id: decisao.id,
+        status: 'rejeitada',
+        decisao_observacao: 'Decisão rejeitada pelo decisor superior.',
+      })
+      setDecisoesSuperiores((atuais) => atuais.filter((item) => item.id !== decisao.id))
+      setMensagemDecisaoSuperior('Decisão rejeitada. Ela saiu da fila aberta e permanece registrada no histórico.')
+      setErro(null)
+    } catch (_) {
+      setErro('Não foi possível rejeitar a decisão superior agora.')
+    } finally {
+      setSalvandoAcaoDecisao(false)
     }
   }
 
@@ -387,14 +466,86 @@ export default function NexoCuradoria() {
                       )}
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm">Aprovar</Button>
-                      <Button variant="outline" size="sm">Ajustar</Button>
-                      <Button variant="outline" size="sm">Rejeitar</Button>
+                      <Button variant="outline" size="sm" onClick={() => aprovarDecisaoSuperior(decisao)} disabled={salvandoAcaoDecisao}>
+                        Aprovar
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => ajustarDecisaoSuperior(decisao)} disabled={salvandoAcaoDecisao}>
+                        Ajustar
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => rejeitarDecisaoSuperior(decisao)} disabled={salvandoAcaoDecisao}>
+                        Rejeitar
+                      </Button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {mensagemDecisaoSuperior && (
+        <Alert>
+          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+          <AlertTitle>Decisão superior atualizada</AlertTitle>
+          <AlertDescription>{mensagemDecisaoSuperior}</AlertDescription>
+        </Alert>
+      )}
+
+      {decisaoEmAjuste && (
+        <Card className="rounded-xl border-blue-200 bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg text-slate-950">Ajuste da decisão superior</CardTitle>
+            <CardDescription>
+              Ajuste a regra existente sem abrir uma nova resposta do zero para o mesmo caso.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
+              <p className="font-semibold">{resumoDecisaoSuperior(decisaoEmAjuste)}</p>
+              <p className="mt-1 text-xs">A decisão continua aguardando validação superior após o ajuste.</p>
+            </div>
+            <label className="block space-y-2 text-sm font-medium text-slate-700">
+              Regra proposta
+              <textarea
+                value={regraAjuste}
+                onChange={(event) => setRegraAjuste(event.target.value)}
+                className="min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-blue-200 focus:ring-2"
+              />
+            </label>
+            <label className="block space-y-2 text-sm font-medium text-slate-700">
+              Exceção ou condição
+              <textarea
+                value={excecaoAjuste}
+                onChange={(event) => setExcecaoAjuste(event.target.value)}
+                className="min-h-20 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-blue-200 focus:ring-2"
+              />
+            </label>
+            <label className="block space-y-2 text-sm font-medium text-slate-700">
+              Responsável pela validação
+              <textarea
+                value={responsavelAjuste}
+                onChange={(event) => setResponsavelAjuste(event.target.value)}
+                className="min-h-16 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-blue-200 focus:ring-2"
+              />
+            </label>
+            <label className="block space-y-2 text-sm font-medium text-slate-700">
+              Observação da decisão
+              <textarea
+                value={observacaoAjuste}
+                onChange={(event) => setObservacaoAjuste(event.target.value)}
+                className="min-h-16 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-blue-200 focus:ring-2"
+                placeholder="Opcional: registre o motivo do ajuste."
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={salvarAjusteDecisaoSuperior} disabled={salvandoAcaoDecisao} className="bg-blue-600 text-white hover:bg-blue-700">
+                {salvandoAcaoDecisao ? 'Salvando ajuste...' : 'Salvar ajuste'}
+              </Button>
+              <Button variant="outline" onClick={() => setDecisaoEmAjuste(null)} disabled={salvandoAcaoDecisao}>
+                Cancelar ajuste
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -453,7 +604,7 @@ export default function NexoCuradoria() {
                         <Badge variant="outline" className="rounded-full border-blue-200 bg-blue-50 text-blue-700">
                           Já existe decisão superior para este caso
                         </Badge>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => ajustarDecisaoSuperior(decisaoDoItem)}>
                           Ajustar decisão existente
                         </Button>
                       </>
