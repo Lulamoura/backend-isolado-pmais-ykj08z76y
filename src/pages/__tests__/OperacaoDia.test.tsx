@@ -84,6 +84,25 @@ beforeEach(() => {
       },
       cobertura_ia: { avaliados: 63, total: 63, pendentes: 0 },
     },
+    evolucao: {
+      status: 'melhorou',
+      comentario:
+        'IPCP melhorou em relação à leitura anterior (+3,4 ponto(s)). Principal avanço: Resultado comercial (+2,9).',
+      total_atual: 61.2,
+      total_anterior: 57.8,
+      variacao_total: 3.4,
+      data_anterior: '2026-09-16',
+      blocos: [
+        {
+          id: 'resultado_comercial',
+          label: 'Resultado comercial',
+          atual: 20.9,
+          anterior: 18,
+          variacao: 2.9,
+          status: 'melhorou',
+        },
+      ],
+    },
     guardrails: {
       sem_ranking_punitivo: true,
       sem_recalculo_tempo_real: true,
@@ -217,6 +236,10 @@ describe('Operação do Dia', () => {
         'Índice de Performance Comercial PMais — leitura assistida da rotina comercial.',
       ),
     ).toBeInTheDocument()
+    expect(screen.getByText('Relatório evolutivo do IPCP')).toBeInTheDocument()
+    expect(screen.getByText('Melhorou')).toBeInTheDocument()
+    expect(screen.getByText('57,8')).toBeInTheDocument()
+    expect(screen.getByText('+3,4')).toBeInTheDocument()
     expect(screen.queryByText('Atualização diária')).not.toBeInTheDocument()
     expect(screen.queryByText(/^Base /)).not.toBeInTheDocument()
     expect(screen.queryByText('Produção assistida')).not.toBeInTheDocument()

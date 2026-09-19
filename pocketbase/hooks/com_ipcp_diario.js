@@ -2689,12 +2689,125 @@ routerAdd(
     var formula = 'ipcp_v0_5_formula_gerencial'
     var dataReferencia = data
 
+    function blocoLabel(bloco) {
+      if (bloco === 'resultado_comercial') return 'Resultado comercial'
+      if (bloco === 'valor_estrategico') return 'Valor estratégico'
+      if (bloco === 'disciplina_carteira') return 'Disciplina da carteira'
+      if (bloco === 'qualidade_followup') return 'Follow-up'
+      if (bloco === 'registros_aprendizado') return 'Registros/aprendizado'
+      return bloco
+    }
+
+    function roundEvolucao(value) {
+      return Math.round(Number(value || 0) * 10) / 10
+    }
+
+    function statusEvolucao(delta) {
+      if (delta >= 0.5) return 'melhorou'
+      if (delta <= -0.5) return 'piorou'
+      return 'manteve'
+    }
+
+    function payloadSnapshotAnterior(snapshotAtual, rows) {
+      if (!rows || rows.length < 2) return null
+      for (var ai = 0; ai < rows.length; ai++) {
+        if (!snapshotAtual || rows[ai].id !== snapshotAtual.id) return leituraPayload(rows[ai])
+      }
+      return null
+    }
+
+    function montarEvolucaoIpcp(ipcpAtual, anteriorPayload) {
+      if (!anteriorPayload || !anteriorPayload.ipcp) {
+        return {
+          status: 'sem_historico',
+          comentario:
+            'Esta é a primeira leitura comparável deste escopo. A evolução diária aparecerá após o próximo processamento.',
+          total_atual: roundEvolucao(ipcpAtual.total || 0),
+          total_anterior: null,
+          variacao_total: null,
+          blocos: [],
+        }
+      }
+      var ipcpAnterior = anteriorPayload.ipcp || {}
+      var totalAtual = roundEvolucao(ipcpAtual.total || 0)
+      var totalAnterior = roundEvolucao(ipcpAnterior.total || 0)
+      var deltaTotal = roundEvolucao(totalAtual - totalAnterior)
+      var status = statusEvolucao(deltaTotal)
+      var blocosAtual = ipcpAtual.blocos || {}
+      var blocosAnterior = ipcpAnterior.blocos || {}
+      var blocoIds = [
+        'resultado_comercial',
+        'valor_estrategico',
+        'disciplina_carteira',
+        'qualidade_followup',
+        'registros_aprendizado',
+      ]
+      var blocos = []
+      var melhorBloco = null
+      var piorBloco = null
+      for (var bi = 0; bi < blocoIds.length; bi++) {
+        var id = blocoIds[bi]
+        var atual = roundEvolucao(blocosAtual[id] || 0)
+        var anterior = roundEvolucao(blocosAnterior[id] || 0)
+        var variacao = roundEvolucao(atual - anterior)
+        var row = {
+          id: id,
+          label: blocoLabel(id),
+          atual: atual,
+          anterior: anterior,
+          variacao: variacao,
+          status: statusEvolucao(variacao),
+        }
+        blocos.push(row)
+        if (!melhorBloco || variacao > melhorBloco.variacao) melhorBloco = row
+        if (!piorBloco || variacao < piorBloco.variacao) piorBloco = row
+      }
+      var verbo = status === 'melhorou' ? 'melhorou' : status === 'piorou' ? 'recuou' : 'se manteve estável'
+      var comentario =
+        'IPCP ' +
+        verbo +
+        ' em relação à leitura anterior (' +
+        (deltaTotal > 0 ? '+' : '') +
+        String(deltaTotal).replace('.', ',') +
+        ' ponto(s)).'
+      if (melhorBloco && melhorBloco.variacao > 0) {
+        comentario +=
+          ' Principal avanço: ' +
+          melhorBloco.label +
+          ' (' +
+          (melhorBloco.variacao > 0 ? '+' : '') +
+          String(melhorBloco.variacao).replace('.', ',') +
+          ').'
+      }
+      if (piorBloco && piorBloco.variacao < 0) {
+        comentario +=
+          ' Ponto de atenção: ' +
+          piorBloco.label +
+          ' (' +
+          String(piorBloco.variacao).replace('.', ',') +
+          ').'
+      }
+      return {
+        status: status,
+        comentario: comentario,
+        total_atual: totalAtual,
+        total_anterior: totalAnterior,
+        variacao_total: deltaTotal,
+        data_anterior: anteriorPayload.data_referencia || null,
+        blocos: blocos,
+      }
+    }
+
     var resumoTexto = textoCurto(resumoPayload.texto, 700)
 
     var prioridades = resumoPayload.prioridades || []
     var calculadoEm = snapshot
       ? snapshot.getString('updated') || snapshot.getString('created') || null
       : new Date().toISOString()
+    pacoteVivo.evolucao = montarEvolucaoIpcp(
+      ipcpPayload,
+      payloadSnapshotAnterior(snapshot, snapshots),
+    )
 
     return e.json(200, {
       ok: true,
@@ -2742,7 +2855,7 @@ routerAdd(
         },
       },
       negocios_atencao: pacoteVivo.negocios_atencao || [],
-      evolucao: pacoteVivo.evolucao || null,
+      evolucao: pacoteVivo.evolucao,
       evidencias: {
         criterio: pacoteVivo.evidencias
           ? pacoteVivo.evidencias.criterio

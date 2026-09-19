@@ -5,7 +5,10 @@ import {
   CheckCircle2,
   HelpCircle,
   Lightbulb,
+  Minus,
   Sparkles,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -65,6 +68,113 @@ function formatScore(score: number): string {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(score)
+}
+
+function formatVariacao(value?: number | null): string {
+  if (value === null || value === undefined) return '—'
+  const formatted = formatScore(Math.abs(value))
+  if (value > 0) return `+${formatted}`
+  if (value < 0) return `-${formatted}`
+  return '0,0'
+}
+
+function evolucaoStatusLabel(status: IpcpDiarioReadOnly['evolucao']['status']): string {
+  if (status === 'melhorou') return 'Melhorou'
+  if (status === 'piorou') return 'Recuou'
+  if (status === 'manteve') return 'Estável'
+  return 'Sem histórico'
+}
+
+function EvolucaoIcon({ status }: { status: IpcpDiarioReadOnly['evolucao']['status'] }) {
+  if (status === 'melhorou') return <TrendingUp aria-hidden="true" className="h-4 w-4" />
+  if (status === 'piorou') return <TrendingDown aria-hidden="true" className="h-4 w-4" />
+  return <Minus aria-hidden="true" className="h-4 w-4" />
+}
+
+function evolucaoClassName(status: IpcpDiarioReadOnly['evolucao']['status']): string {
+  if (status === 'melhorou') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  if (status === 'piorou') return 'border-rose-200 bg-rose-50 text-rose-700'
+  return 'border-slate-200 bg-slate-50 text-slate-600'
+}
+
+function IpcpEvolucaoRelatorio({ data }: { data: IpcpDiarioReadOnly }) {
+  const evolucao = data.evolucao
+  const blocos = evolucao.blocos ?? []
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+            <EvolucaoIcon status={evolucao.status} /> Relatório evolutivo do IPCP
+          </h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Comparação educativa com a leitura diária anterior do mesmo escopo.
+          </p>
+        </div>
+        <Badge className={evolucaoClassName(evolucao.status)} variant="outline">
+          {evolucaoStatusLabel(evolucao.status)}
+        </Badge>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-lg border bg-slate-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Atual</p>
+          <p className="mt-1 text-lg font-bold text-slate-950">
+            {evolucao.total_atual !== null && evolucao.total_atual !== undefined
+              ? formatScore(evolucao.total_atual)
+              : formatScore(data.ipcp.total)}
+          </p>
+        </div>
+        <div className="rounded-lg border bg-slate-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Anterior</p>
+          <p className="mt-1 text-lg font-bold text-slate-950">
+            {evolucao.total_anterior !== null && evolucao.total_anterior !== undefined
+              ? formatScore(evolucao.total_anterior)
+              : '—'}
+          </p>
+        </div>
+        <div className="rounded-lg border bg-slate-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Variação</p>
+          <p
+            className={`mt-1 text-lg font-bold ${
+              (evolucao.variacao_total ?? 0) > 0
+                ? 'text-emerald-700'
+                : (evolucao.variacao_total ?? 0) < 0
+                  ? 'text-rose-700'
+                  : 'text-slate-950'
+            }`}
+          >
+            {formatVariacao(evolucao.variacao_total)}
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+        {evolucao.comentario}
+      </p>
+
+      {blocos.length ? (
+        <div className="mt-3 space-y-2">
+          {blocos.slice(0, 5).map((bloco) => (
+            <div key={bloco.id} className="flex items-center justify-between gap-3 rounded-lg border p-2">
+              <span className="text-xs text-slate-600">{bloco.label}</span>
+              <span
+                className={`text-xs font-semibold ${
+                  bloco.variacao > 0
+                    ? 'text-emerald-700'
+                    : bloco.variacao < 0
+                      ? 'text-rose-700'
+                      : 'text-slate-600'
+                }`}
+              >
+                {formatVariacao(bloco.variacao)}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function isIdTecnico(value: string): boolean {
@@ -336,6 +446,7 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
               <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3 text-xs leading-relaxed text-slate-600">
                 {data.evolucao.comentario}
               </div>
+              <IpcpEvolucaoRelatorio data={data} />
             </CardContent>
           </Card>
         </div>

@@ -8,7 +8,6 @@ vi.mock('@/lib/pocketbase/client', () => ({
 
 import {
   IPCP_DIARIO_READONLY_PATH,
-  NEXO_IPCP_DIARIO_VIVO_PATH,
   nexoIpcpDiarioVivoPath,
   IPCP_JOB_DIARIO_HOMOLOGACAO_STATUS_PATH,
   IPCP_PROCESSAMENTO_DIARIO_HOMOLOGACAO_PATH,
@@ -114,8 +113,22 @@ describe('obterIpcpDiarioReadOnly', () => {
         },
       ],
       evolucao: {
-        status: 'sem_historico',
-        comentario: 'Pacote diário completo gerado para produção assistida.',
+        status: 'melhorou',
+        comentario: 'IPCP melhorou em relação à leitura anterior (+4,2 ponto(s)).',
+        total_atual: 62.4,
+        total_anterior: 58.2,
+        variacao_total: 4.2,
+        data_anterior: '2026-09-16',
+        blocos: [
+          {
+            id: 'resultado_comercial',
+            label: 'Resultado comercial',
+            atual: 21,
+            anterior: 18,
+            variacao: 3,
+            status: 'melhorou',
+          },
+        ],
       },
       guardrails: {
         sem_ranking_punitivo: true,
@@ -138,7 +151,9 @@ describe('obterIpcpDiarioReadOnly', () => {
     expect(data.resumo_nexo.prioridades[0].titulo).toBe('Ação de equipe')
     expect(data.ipcp.total).toBe(62.4)
     expect(data.negocios_atencao[0].id_negocio).toBe('9001')
-    expect(data.evolucao.comentario).toMatch(/Pacote diário completo/)
+    expect(data.evolucao.comentario).toMatch(/melhorou/)
+    expect(data.evolucao.variacao_total).toBe(4.2)
+    expect(data.evolucao.blocos?.[0].id).toBe('resultado_comercial')
   })
 
   it('mantém a Operação do Dia completa quando o snapshot vivo ainda não tem todos os blocos', async () => {

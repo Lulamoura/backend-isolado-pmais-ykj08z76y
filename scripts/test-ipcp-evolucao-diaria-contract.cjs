@@ -1,0 +1,27 @@
+#!/usr/bin/env node
+'use strict'
+const fs = require('node:fs')
+const hook = fs.readFileSync('pocketbase/hooks/com_ipcp_diario.js', 'utf8')
+const ui = fs.readFileSync('src/components/ipcp/IpcpEducativoDiarioCard.tsx', 'utf8')
+const service = fs.readFileSync('src/services/ipcp.ts', 'utf8')
+function assert(cond, msg) {
+  if (!cond) {
+    console.error('FAIL:', msg)
+    process.exit(1)
+  }
+}
+assert(hook.includes('montarEvolucaoIpcp'), 'backend deve montar evolução comparativa do IPCP')
+assert(hook.includes('payloadSnapshotAnterior(snapshot, snapshots)'), 'backend deve comparar com snapshot anterior do mesmo escopo')
+assert(hook.includes('variacao_total'), 'backend deve retornar variação total')
+assert(hook.includes('data_anterior'), 'backend deve retornar data anterior comparada')
+assert(hook.includes('blocos: blocos'), 'backend deve retornar variação por bloco')
+assert(hook.includes("if (delta >= 0.5) return 'melhorou'"), 'backend deve classificar melhora')
+assert(hook.includes("if (delta <= -0.5) return 'piorou'"), 'backend deve classificar piora')
+assert(hook.includes("return 'manteve'"), 'backend deve classificar estabilidade')
+assert(ui.includes('Relatório evolutivo do IPCP'), 'UI deve exibir relatório evolutivo abaixo de Blocos IPCP')
+assert(ui.includes('Comparação educativa com a leitura diária anterior'), 'UI deve explicar o caráter educativo da comparação')
+assert(ui.includes('formatVariacao'), 'UI deve formatar variação com sinal')
+assert(service.includes('variacao_total?: number | null'), 'serviço deve tipar variação total')
+assert(service.includes('data_anterior?: string | null'), 'serviço deve tipar data anterior')
+assert(service.includes('blocos?: Array'), 'serviço deve tipar evolução por bloco')
+console.log('OK: contrato IPCP evolução diária protegido')
