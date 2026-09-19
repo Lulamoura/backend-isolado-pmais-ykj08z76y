@@ -21,6 +21,16 @@ assert.match(
 )
 assert.match(
   layout,
+  /'superadministrador'[\s\S]{0,120}'gestor-comercial'[\s\S]{0,120}'leitura-executiva'/,
+  'Curadoria Nexo deve ficar para SuperAdmin, Gestor Comercial e Leitura Executiva',
+)
+assert.doesNotMatch(
+  layout,
+  /CURADORIA_NEXO_ALLOWLIST[\s\S]{0,140}'gestor'[,\n\r]/,
+  'Curadoria Nexo não deve liberar o perfil genérico gestor',
+)
+assert.match(
+  layout,
   /podeVerCuradoriaNexo/,
   'Layout deve calcular visibilidade do canal de curadoria',
 )
@@ -207,6 +217,26 @@ assert.match(
   /Encaminhar para decisão superior/,
   'entrevista deve permitir encaminhar regra candidata para decisão superior',
 )
+assert.match(
+  page,
+  /Já existe decisão superior para este caso/,
+  'página deve avisar quando já existe decisão para o caso',
+)
+assert.match(
+  page,
+  /Ajustar decisão existente/,
+  'caso já respondido deve permitir ajuste, não nova resposta do zero',
+)
+assert.match(
+  page,
+  /decisaoExistenteParaPendencia/,
+  'página deve detectar decisão existente para a pendência',
+)
+assert.match(
+  page,
+  /disabled=\{salvandoDecisaoSuperior \|\| decisaoSuperiorSalva \|\| Boolean\(decisaoExistenteParaPendencia\)\}/,
+  'botão de encaminhamento deve bloquear duplicidade',
+)
 assert.match(page, /classificarImpactoDecisaoNexo/, 'página deve classificar impacto da decisão')
 assert.match(
   page,
@@ -222,6 +252,16 @@ assert.match(
   service,
   /salvarDecisaoSuperiorCuradoriaNexo/,
   'serviço deve expor função de salvar decisão superior',
+)
+assert.match(
+  service,
+  /buscarDecisaoSuperiorExistenteCuradoriaNexo/,
+  'serviço deve buscar decisão existente antes de gravar nova',
+)
+assert.match(
+  service,
+  /throw new Error\('DECISAO_SUPERIOR_DUPLICADA'\)/,
+  'serviço deve bloquear duplicidade decisória',
 )
 assert.match(
   service,
@@ -246,6 +286,22 @@ assert.match(
   /com_nexo_curadoria_decisoes/,
   'migração deve criar coleção de decisões superiores',
 )
+assert.match(
+  decisaoMigration,
+  /perfisDecisaoSuperior/,
+  'decisão superior deve ter regra própria de perfil',
+)
+assert.match(decisaoMigration, /superadministrador/, 'decisão superior deve incluir SuperAdmin')
+assert.match(
+  decisaoMigration,
+  /leitura-executiva/,
+  'decisão superior deve incluir Leitura Executiva',
+)
+assert.doesNotMatch(
+  decisaoMigration,
+  /perfisDecisaoSuperior[\s\S]{0,220}gestor-comercial/,
+  'decisão superior não deve incluir Gestor Comercial',
+)
 assert.match(decisaoMigration, /nivel_decisao/, 'coleção deve ter nível de decisão')
 assert.match(
   decisaoMigration,
@@ -254,8 +310,18 @@ assert.match(
 )
 assert.match(
   decisaoMigration,
-  /updateRule:\s*perfisDirecao/,
-  'direção/gestão deve poder atualizar decisão',
+  /listRule:\s*perfisDecisaoSuperior/,
+  'somente decisão superior deve listar decisões superiores',
+)
+assert.match(
+  decisaoMigration,
+  /viewRule:\s*perfisDecisaoSuperior/,
+  'somente decisão superior deve visualizar decisões superiores',
+)
+assert.match(
+  decisaoMigration,
+  /updateRule:\s*perfisDecisaoSuperior/,
+  'somente decisão superior deve atualizar decisão',
 )
 assert.match(
   decisaoMigration,

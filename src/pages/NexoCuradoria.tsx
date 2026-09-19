@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
+  buscarDecisaoSuperiorExistenteCuradoriaNexo,
   obterDecisoesSuperioresCuradoriaNexo,
   obterResumoCuradoriaNexo,
   salvarDecisaoSuperiorCuradoriaNexo,
@@ -15,6 +16,7 @@ import {
   type NexoCuradoriaEvento,
   type NexoCuradoriaResumo,
 } from '@/services/nexo-curadoria'
+import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 
 function dataCurta(value?: string) {
   if (!value) return 'sem data'
@@ -60,6 +62,8 @@ const perguntasEntrevista = [
   'Quem é o responsável pela decisão ou validação final deste alinhamento?',
 ]
 
+const DECISAO_SUPERIOR_ALLOWLIST = new Set(['superadministrador', 'leitura-executiva'])
+
 function classificarImpactoDecisaoNexo(respostas: string[]): ImpactoDecisaoCuradoria {
   const texto = respostas.join(' ').toLowerCase()
   return {
@@ -79,6 +83,8 @@ function precisaDirecao(impacto: ImpactoDecisaoCuradoria) {
 }
 
 export default function NexoCuradoria() {
+  const { perfilSlug } = useIsSuperAdmin()
+  const podeVerDecisaoSuperior = DECISAO_SUPERIOR_ALLOWLIST.has(perfilSlug ?? '')
   const [resumo, setResumo] = useState<NexoCuradoriaResumo>({ pendencias: 0, itens: [] })
   const [decisoesSuperiores, setDecisoesSuperiores] = useState<NexoCuradoriaDecisaoSuperior[]>([])
   const [loading, setLoading] = useState(true)
@@ -93,16 +99,28 @@ export default function NexoCuradoria() {
   const [entrevistaSalvaId, setEntrevistaSalvaId] = useState<string | undefined>()
   const [salvandoDecisaoSuperior, setSalvandoDecisaoSuperior] = useState(false)
   const [decisaoSuperiorSalva, setDecisaoSuperiorSalva] = useState(false)
+  const [decisaoExistenteParaPendencia, setDecisaoExistenteParaPendencia] =
+    useState<NexoCuradoriaDecisaoSuperior | null>(null)
 
-  function iniciarCuradoria(item?: NexoCuradoriaEvento) {
-    setPendenciaSelecionada(item || resumo.itens[0] || null)
+  async function iniciarCuradoria(item?: NexoCuradoriaEvento) {
+    const selecionada = item || resumo.itens[0] || null
+    setPendenciaSelecionada(selecionada)
     setEntrevistaAberta(true)
     setEtapaEntrevista(0)
     setRespostasEntrevista([])
     setEntrevistaSalva(false)
     setEntrevistaSalvaId(undefined)
     setDecisaoSuperiorSalva(false)
+    setDecisaoExistenteParaPendencia(null)
     setErro(null)
+    if (selecionada) {
+      try {
+        const existente = await buscarDecisaoSuperiorExistenteCuradoriaNexo(selecionada)
+        setDecisaoExistenteParaPendencia(existente)
+      } catch (_) {
+        setDecisaoExistenteParaPendencia(null)
+      }
+    }
   }
 
   function fecharEntrevista() {
@@ -113,6 +131,7 @@ export default function NexoCuradoria() {
     setEntrevistaSalva(false)
     setEntrevistaSalvaId(undefined)
     setDecisaoSuperiorSalva(false)
+    setDecisaoExistenteParaPendencia(null)
   }
 
   function atualizarRespostaEntrevista(valor: string) {
@@ -155,6 +174,12 @@ export default function NexoCuradoria() {
       setErro('Selecione uma pendência antes de encaminhar para decisão superior.')
       return
     }
+    if (decisaoExistenteParaPendencia) {
+      setErro(
+        'Já existe decisão superior para este caso. Use Ajustar decisão existente para evitar conflito decisório.',
+      )
+      return
+    }
     setSalvandoDecisaoSuperior(true)
     try {
       await salvarDecisaoSuperiorCuradoriaNexo({
@@ -191,22 +216,27 @@ export default function NexoCuradoria() {
       .finally(() => {
         if (ativo) setLoading(false)
       })
-    obterDecisoesSuperioresCuradoriaNexo(10)
-      .then((data) => {
-        if (!ativo) return
-        setDecisoesSuperiores(data)
-      })
-      .catch(() => {
-        if (!ativo) return
-        setErro('Não foi possível carregar as decisões superiores agora.')
-      })
-      .finally(() => {
-        if (ativo) setLoadingDecisoesSuperiores(false)
-      })
+    if (podeVerDecisaoSuperior) {
+      obterDecisoesSuperioresCuradoriaNexo(10)
+        .then((data) => {
+          if (!ativo) return
+          setDecisoesSuperiores(data)
+        })
+        .catch(() => {
+          if (!ativo) return
+          setErro('Não foi possível carregar as decisões superiores agora.')
+        })
+        .finally(() => {
+          if (ativo) setLoadingDecisoesSuperiores(false)
+        })
+    } else {
+      setDecisoesSuperiores([])
+      setLoadingDecisoesSuperiores(false)
+    }
     return () => {
       ativo = false
     }
-  }, [])
+  }, [podeVerDecisaoSuperior])
 
   return (
     <div className="space-y-6">
@@ -316,84 +346,88 @@ export default function NexoCuradoria() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-xl border-blue-200 bg-white shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg text-slate-950">
-            Decisões aguardando validação superior
-          </CardTitle>
-          <CardDescription>
-            Fila para superadmin, gestor ou leitor executivo tomar ciência e tratar regras
-            comerciais escaladas.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loadingDecisoesSuperiores ? (
-            <p className="text-sm text-slate-500">Carregando decisões superiores...</p>
-          ) : decisoesSuperiores.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-              Não há decisões superiores aguardando validação neste momento.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {decisoesSuperiores.map((decisao) => (
-                <div
-                  key={decisao.id}
-                  className="rounded-xl border border-blue-100 bg-blue-50/60 p-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-slate-950">
-                        {resumoDecisaoSuperior(decisao)}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Recebido em {dataCurta(decisao.created_at || decisao.created)}
-                      </p>
+      {podeVerDecisaoSuperior && (
+        <Card className="rounded-xl border-blue-200 bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg text-slate-950">
+              Decisões aguardando validação superior
+            </CardTitle>
+            <CardDescription>
+              Fila para superadmin ou leitor executivo tomar ciência e tratar regras comerciais
+              escaladas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingDecisoesSuperiores ? (
+              <p className="text-sm text-slate-500">Carregando decisões superiores...</p>
+            ) : decisoesSuperiores.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                Não há decisões superiores aguardando validação neste momento.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {decisoesSuperiores.map((decisao) => (
+                  <div
+                    key={decisao.id}
+                    className="rounded-xl border border-blue-100 bg-blue-50/60 p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-slate-950">
+                          {resumoDecisaoSuperior(decisao)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Recebido em {dataCurta(decisao.created_at || decisao.created)}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-blue-200 bg-white text-blue-700"
+                      >
+                        {decisao.escalar_direcao ? 'Escalar para direção' : 'Gestor comercial'}
+                      </Badge>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-blue-200 bg-white text-blue-700"
-                    >
-                      {decisao.escalar_direcao ? 'Escalar para direção' : 'Gestor comercial'}
-                    </Badge>
-                  </div>
-                  <div className="mt-3 space-y-2 text-sm text-slate-700">
-                    <p>
-                      <span className="font-semibold text-slate-900">Regra proposta:</span>{' '}
-                      {decisao.regra_proposta || 'Regra não informada'}
-                    </p>
-                    <p>
-                      <span className="font-semibold text-slate-900">Motivo da escalada:</span>{' '}
-                      {motivoEscalada(decisao)}
-                    </p>
-                    <p>
-                      <span className="font-semibold text-slate-900">Ação necessária:</span>{' '}
-                      Aprovar, ajustar ou rejeitar a regra candidata antes de virar orientação
-                      operacional.
-                    </p>
-                    {decisao.responsavel_validacao && (
+                    <div className="mt-3 space-y-2 text-sm text-slate-700">
                       <p>
-                        <span className="font-semibold text-slate-900">Responsável indicado:</span>{' '}
-                        {decisao.responsavel_validacao}
+                        <span className="font-semibold text-slate-900">Regra proposta:</span>{' '}
+                        {decisao.regra_proposta || 'Regra não informada'}
                       </p>
-                    )}
+                      <p>
+                        <span className="font-semibold text-slate-900">Motivo da escalada:</span>{' '}
+                        {motivoEscalada(decisao)}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-900">Ação necessária:</span>{' '}
+                        Aprovar, ajustar ou rejeitar a regra candidata antes de virar orientação
+                        operacional.
+                      </p>
+                      {decisao.responsavel_validacao && (
+                        <p>
+                          <span className="font-semibold text-slate-900">
+                            Responsável indicado:
+                          </span>{' '}
+                          {decisao.responsavel_validacao}
+                        </p>
+                      )}
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button variant="outline" size="sm">
+                        Aprovar
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        Ajustar
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        Rejeitar
+                      </Button>
+                    </div>
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm">
-                      Aprovar
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Ajustar
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Rejeitar
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {erro && (
         <Alert variant="destructive">
@@ -420,37 +454,58 @@ export default function NexoCuradoria() {
             </p>
           ) : (
             <div className="space-y-3">
-              {resumo.itens.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-xl border border-slate-200 bg-slate-50/80 p-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-slate-900">{resumoEvento(item)}</p>
-                      <p className="text-xs text-slate-500">
-                        Recebido em {dataCurta(item.created_at || item.created)}
-                      </p>
+              {resumo.itens.map((item) => {
+                const decisaoDoItem = decisoesSuperiores.find(
+                  (decisao) =>
+                    decisao.evento_id === item.id ||
+                    (!!item.external_id && decisao.external_id === item.external_id),
+                )
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-slate-200 bg-slate-50/80 p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-slate-900">{resumoEvento(item)}</p>
+                        <p className="text-xs text-slate-500">
+                          Recebido em {dataCurta(item.created_at || item.created)}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-amber-200 bg-amber-50 text-amber-700"
+                      >
+                        Revisão obrigatória
+                      </Badge>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-amber-200 bg-amber-50 text-amber-700"
-                    >
-                      Revisão obrigatória
-                    </Badge>
+                    {item.contexto_resumo && (
+                      <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-slate-600">
+                        {item.contexto_resumo}
+                      </p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {decisaoDoItem ? (
+                        <>
+                          <Badge
+                            variant="outline"
+                            className="rounded-full border-blue-200 bg-blue-50 text-blue-700"
+                          >
+                            Já existe decisão superior para este caso
+                          </Badge>
+                          <Button variant="outline" size="sm">
+                            Ajustar decisão existente
+                          </Button>
+                        </>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={() => iniciarCuradoria(item)}>
+                          Entrevistar sobre esta pendência
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  {item.contexto_resumo && (
-                    <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-slate-600">
-                      {item.contexto_resumo}
-                    </p>
-                  )}
-                  <div className="mt-3">
-                    <Button variant="outline" size="sm" onClick={() => iniciarCuradoria(item)}>
-                      Entrevistar sobre esta pendência
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>
@@ -476,6 +531,15 @@ export default function NexoCuradoria() {
                 </p>
               </div>
             )}
+            {decisaoExistenteParaPendencia && (
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-relaxed text-blue-900">
+                <p className="font-semibold">Já existe decisão superior para este caso.</p>
+                <p className="mt-1">
+                  Para evitar conflito decisório, este caso não deve ser respondido do zero. Use
+                  Ajustar decisão existente para revisar a regra já encaminhada.
+                </p>
+              </div>
+            )}
             {etapaEntrevista === 0 ? (
               <>
                 <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-sm leading-relaxed text-slate-700">
@@ -488,7 +552,7 @@ export default function NexoCuradoria() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={() => setEtapaEntrevista(1)}
-                    disabled={!pendenciaSelecionada}
+                    disabled={!pendenciaSelecionada || Boolean(decisaoExistenteParaPendencia)}
                     className="bg-violet-600 text-white hover:bg-violet-700"
                   >
                     Começar entrevista
@@ -559,7 +623,11 @@ export default function NexoCuradoria() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={encaminharDecisaoSuperior}
-                    disabled={salvandoDecisaoSuperior || decisaoSuperiorSalva}
+                    disabled={
+                      salvandoDecisaoSuperior ||
+                      decisaoSuperiorSalva ||
+                      Boolean(decisaoExistenteParaPendencia)
+                    }
                     className="bg-blue-600 text-white hover:bg-blue-700"
                   >
                     {decisaoSuperiorSalva
