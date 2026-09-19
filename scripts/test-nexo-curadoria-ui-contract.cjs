@@ -198,6 +198,32 @@ assert.match(
 )
 assert.match(
   page,
+  /Histórico de decisões superiores/,
+  'página deve ter seção de histórico de decisões superiores',
+)
+assert.match(
+  page,
+  /obterHistoricoDecisoesSuperioresCuradoriaNexo/,
+  'página deve carregar histórico de decisões superiores',
+)
+assert.match(page, /decisoesHistorico/, 'página deve manter estado do histórico de decisões')
+assert.match(
+  page,
+  /Retirar do uso operacional/,
+  'histórico deve permitir rejeitar decisão já aprovada',
+)
+assert.match(
+  page,
+  /Revisar decisão/,
+  'histórico deve permitir ajustar decisão já aprovada ou rejeitada',
+)
+assert.match(
+  page,
+  /sai do uso operacional/,
+  'UI deve explicar consequência de rejeitar decisão aprovada',
+)
+assert.match(
+  page,
   /Ação necessária/,
   'card de decisão deve deixar clara a ação necessária ao decisor',
 )
@@ -330,6 +356,16 @@ assert.match(
   service,
   /obterDecisoesSuperioresCuradoriaNexo/,
   'serviço deve listar decisões superiores para o decisor',
+)
+assert.match(
+  service,
+  /obterHistoricoDecisoesSuperioresCuradoriaNexo/,
+  'serviço deve listar histórico de decisões superiores',
+)
+assert.match(
+  service,
+  /aprovada_uso_operacional' \|\| status = 'rejeitada/,
+  'histórico deve incluir aprovadas e rejeitadas',
 )
 assert.match(
   service,
