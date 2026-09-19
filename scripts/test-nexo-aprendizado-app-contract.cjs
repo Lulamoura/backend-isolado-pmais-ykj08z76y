@@ -63,6 +63,16 @@ assert.match(
 )
 assert.match(
   hook,
+  /function\s+nexoGarantirColecaoAprendizadoApp/,
+  'hook deve garantir coleção de aprendizado quando a migração ainda não estiver materializada',
+)
+assert.match(
+  hook,
+  /nexoGarantirColecaoAprendizadoApp\(\)/,
+  'captura deve usar a coleção garantida de aprendizado',
+)
+assert.match(
+  hook,
   /function\s+nexoCapturarAprendizadoApp/,
   'hook deve ter função dedicada de captura de aprendizado',
 )
