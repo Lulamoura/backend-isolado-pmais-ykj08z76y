@@ -2716,6 +2716,116 @@ routerAdd(
       return null
     }
 
+    function selecionarMensagemEvolucaoIpcp(
+      status,
+      deltaTotal,
+      totalAtual,
+      melhorBloco,
+      piorBloco,
+      blocos,
+    ) {
+      var positivos = 0
+      var negativos = 0
+      for (var mi = 0; mi < blocos.length; mi++) {
+        if (blocos[mi].variacao >= 0.5) positivos++
+        if (blocos[mi].variacao <= -0.5) negativos++
+      }
+      if (status === 'melhorou' && positivos >= 3) {
+        return {
+          cenario: 'melhora_distribuida',
+          abertura:
+            'O IPCP melhorou com avanço distribuído em vários blocos, sinal de evolução mais consistente da rotina comercial.',
+          acao: 'Preservar a cadência que gerou a melhora e escolher um bloco ainda frágil para reforço no próximo ciclo.',
+        }
+      }
+      if (status === 'melhorou' && melhorBloco && melhorBloco.id === 'resultado_comercial') {
+        return {
+          cenario: 'resultado_comercial_em_alta',
+          abertura:
+            'O IPCP avançou puxado principalmente por resultado comercial, com impacto direto na leitura gerencial do período.',
+          acao: 'Registrar quais oportunidades avançaram ou fecharam para transformar o ganho em aprendizado replicável.',
+        }
+      }
+      if (status === 'melhorou' && melhorBloco && melhorBloco.id === 'qualidade_followup') {
+        return {
+          cenario: 'followup_em_alta',
+          abertura:
+            'A evolução veio do follow-up, indicando melhor cadência de retorno e acompanhamento das oportunidades.',
+          acao: 'Manter próximos passos objetivos e revisar negócios sem retorno combinado antes que voltem a esfriar.',
+        }
+      }
+      if (status === 'melhorou') {
+        return {
+          cenario: 'melhora_concentrada',
+          abertura:
+            'O IPCP melhorou, mas a evolução ficou concentrada em poucos sinais da carteira.',
+          acao: 'Usar o bloco que avançou como referência e atacar o principal bloco de atenção para ampliar a melhora.',
+        }
+      }
+      if (status === 'piorou' && piorBloco && piorBloco.id === 'qualidade_followup') {
+        return {
+          cenario: 'queda_followup',
+          abertura:
+            'O IPCP recuou principalmente por follow-up, indicando perda de cadência ou baixa clareza nos retornos.',
+          acao: 'Revisar oportunidades abertas sem próximo contato claro e registrar prazo, pendência e responsável pelo retorno.',
+        }
+      }
+      if (status === 'piorou' && piorBloco && piorBloco.id === 'valor_estrategico') {
+        return {
+          cenario: 'valor_estrategico_em_queda',
+          abertura:
+            'O recuo está ligado ao Valor Estratégico, sugerindo menor presença de oportunidades recorrentes, qualificadas ou de maior valor.',
+          acao: 'Priorizar negócios recorrentes, de alto valor ou com maturidade comercial real; proposta enviada isolada não resolve este bloco.',
+        }
+      }
+      if (status === 'piorou' && piorBloco && piorBloco.id === 'registros_aprendizado') {
+        return {
+          cenario: 'registros_em_queda',
+          abertura:
+            'O IPCP caiu com perda em registros e aprendizado, reduzindo a capacidade de o Nexo orientar a carteira com precisão.',
+          acao: 'Completar notas com decisor, necessidade, objeção, prazo e próximo passo para transformar histórico em orientação útil.',
+        }
+      }
+      if (status === 'piorou' && negativos >= 3) {
+        return {
+          cenario: 'queda_distribuida',
+          abertura:
+            'A queda apareceu em vários blocos, indicando deterioração ampla da rotina e não apenas uma oscilação pontual.',
+          acao: 'Escolher duas frentes de correção para hoje: uma de disciplina da carteira e outra de qualidade de registro/follow-up.',
+        }
+      }
+      if (status === 'piorou') {
+        return {
+          cenario: 'queda_concentrada',
+          abertura:
+            'O IPCP recuou em um ponto específico da leitura, sem indicar necessariamente perda generalizada da carteira.',
+          acao: 'Corrigir primeiro o bloco que mais caiu antes de ampliar novas ações comerciais.',
+        }
+      }
+      if (status === 'manteve' && totalAtual < 50) {
+        return {
+          cenario: 'estabilidade_baixa',
+          abertura:
+            'O IPCP ficou estável, mas em patamar que ainda pede evolução operacional antes de ser considerado confortável.',
+          acao: 'Escolher um bloco de baixa pontuação e executar uma correção objetiva hoje, em vez de manter a rotina como está.',
+        }
+      }
+      if (status === 'manteve' && totalAtual >= 70) {
+        return {
+          cenario: 'estabilidade_alta',
+          abertura:
+            'O IPCP se manteve estável em patamar saudável, sinal de consistência da rotina comercial.',
+          acao: 'Preservar a disciplina atual e procurar ganho incremental no bloco com menor pontuação.',
+        }
+      }
+      return {
+        cenario: 'estabilidade_media',
+        abertura:
+          'O IPCP se manteve próximo da leitura anterior, sem variação suficiente para indicar avanço ou recuo relevante.',
+        acao: 'Observar o bloco mais frágil e buscar uma melhoria pequena, verificável e registrada no próximo ciclo.',
+      }
+    }
+
     function montarEvolucaoIpcp(ipcpAtual, anteriorPayload) {
       if (!anteriorPayload || !anteriorPayload.ipcp) {
         return {
@@ -2762,15 +2872,20 @@ routerAdd(
         if (!melhorBloco || variacao > melhorBloco.variacao) melhorBloco = row
         if (!piorBloco || variacao < piorBloco.variacao) piorBloco = row
       }
-      var verbo =
-        status === 'melhorou' ? 'melhorou' : status === 'piorou' ? 'recuou' : 'se manteve estável'
+      var mensagem = selecionarMensagemEvolucaoIpcp(
+        status,
+        deltaTotal,
+        totalAtual,
+        melhorBloco,
+        piorBloco,
+        blocos,
+      )
       var comentario =
-        'IPCP ' +
-        verbo +
-        ' em relação à leitura anterior (' +
+        mensagem.abertura +
+        ' Variação total: ' +
         (deltaTotal > 0 ? '+' : '') +
         String(deltaTotal).replace('.', ',') +
-        ' ponto(s)).'
+        ' ponto(s).'
       if (melhorBloco && melhorBloco.variacao > 0) {
         comentario +=
           ' Principal avanço: ' +
@@ -2788,9 +2903,12 @@ routerAdd(
           String(piorBloco.variacao).replace('.', ',') +
           ').'
       }
+      comentario += ' Próxima orientação: ' + mensagem.acao
       return {
         status: status,
+        cenario: mensagem.cenario,
         comentario: comentario,
+        acao_recomendada: mensagem.acao,
         total_atual: totalAtual,
         total_anterior: totalAnterior,
         variacao_total: deltaTotal,
