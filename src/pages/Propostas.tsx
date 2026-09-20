@@ -13,6 +13,7 @@ import {
   Mail,
   MessageCircle,
   RefreshCw,
+  SearchX,
   Settings2,
   UserRound,
 } from 'lucide-react'
@@ -221,6 +222,16 @@ export default function Propostas() {
       ),
     [itens, busca, responsavel, situacaoAcao, ordenacao, periodoInicio, periodoFim],
   )
+
+  const bordaSemanticaProposta = (item: ItemProposta) => {
+    const p = item.proposta
+    if (!p) return 'border-l-4 border-l-slate-300'
+    if (p.estado === 'aceita') return 'border-l-4 border-l-emerald-500'
+    if (p.estado === 'rascunho') return 'border-l-4 border-l-amber-500'
+    if (p.enviada_sistema || p.estado === 'enviada') return 'border-l-4 border-l-sky-500'
+    if (p.estado === 'recusada') return 'border-l-4 border-l-rose-500'
+    return 'border-l-4 border-l-slate-300'
+  }
   const executar = async (item: ItemProposta, tipo: EventoProposta) => {
     const p = item.proposta,
       entrada = valores[item.negocio.id] || ''
@@ -497,388 +508,444 @@ export default function Propostas() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {itensVisiveis.map((item) => {
-          const p = item.proposta
-          const timeline = timelines[item.negocio.id]
-          const acessos = timeline?.eventos_publicos.filter(
-            (evento) => evento.tipo === 'pagina_acessada',
-          )
-          const primeiroAcesso = acessos?.[0]?.ocorrido_em ?? null
-          const ultimoAcesso = acessos?.[acessos.length - 1]?.ocorrido_em ?? null
-          const eventosHistorico = timeline
-            ? [
-                ...timeline.versoes.map((versao) => ({
-                  id: `versao-${versao.id}`,
-                  ocorridoEm: versao.created,
-                  titulo: `Versão ${versao.numero} — ${versao.arquivo_bytes ? 'PDF lançado' : 'PDF pendente'}`,
-                  detalhe: 'Versão registrada na proposta',
-                  tipo: 'versao',
-                })),
-                ...timeline.envios.map((envio) => ({
-                  id: `envio-${envio.id}`,
-                  ocorridoEm: envio.enviado_em || envio.created,
-                  titulo: `${envio.canal === 'email' ? 'E-mail' : 'WhatsApp'} ${envio.estado}`,
-                  detalhe: envio.destinatario || 'Destinatário não informado',
-                  tipo: 'envio',
-                })),
-                ...timeline.eventos_publicos.map((evento) => ({
-                  id: `evento-${evento.id}`,
-                  ocorridoEm: evento.ocorrido_em,
-                  titulo: rotuloEventoPublico[evento.tipo] || 'Ação registrada',
-                  detalhe: evento.visitante_nome || 'Visitante não identificado',
-                  tipo: evento.tipo,
-                })),
-              ].sort((a, b) => new Date(b.ocorridoEm).getTime() - new Date(a.ocorridoEm).getTime())
-            : []
-          const envioSistemaEm = p?.ultimo_envio_sistema_em
-            ? new Date(p.ultimo_envio_sistema_em).getTime()
-            : null
-          const naoAbertaAtrasada = Boolean(
-            p?.enviada_sistema &&
-            !p.aberta &&
-            envioSistemaEm &&
-            Date.now() - envioSistemaEm >= 24 * 60 * 60 * 1000,
-          )
-          const estadoProposta = p
-            ? p.enviada_sistema
-              ? 'Enviada'
-              : p.estado === 'rascunho'
-                ? 'Rascunho'
-                : p.estado.charAt(0).toLocaleUpperCase('pt-BR') + p.estado.slice(1)
-            : item.negocio.etapa === 'negociacao'
-              ? 'Proposta em negociação'
-              : 'Proposta em produção'
-          return (
-            <Card
-              key={item.negocio.id}
-              className={`border border-slate-200/80 bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300 ${commercialActionCardClass(item.contexto.proxima_acao_em)}`}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Negociação
-                    </p>
-                    <CardTitle className="text-base font-semibold text-slate-900">
-                      {item.negocio.titulo}
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500">
-                      {rotuloEtapaComercial(item.negocio.etapa)}
-                    </CardDescription>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <Badge
-                      variant="outline"
-                      className="rounded-full border-sky-200/60 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700"
-                    >
-                      {estadoProposta}
-                    </Badge>
-                    {p && (
+      {itensVisiveis.length === 0 ? (
+        <Card className="rounded-xl border border-slate-200/80 bg-white shadow-sm py-14 text-center">
+          <CardContent className="flex flex-col items-center gap-3">
+            <span className="rounded-full bg-slate-100 p-3 text-slate-500">
+              <SearchX className="h-6 w-6" />
+            </span>
+            <div>
+              <p className="text-base font-semibold text-slate-900">Nenhuma proposta encontrada</p>
+              <p className="text-sm text-slate-500">
+                Não há propostas correspondentes aos filtros selecionados.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {itensVisiveis.map((item) => {
+            const p = item.proposta
+            const timeline = timelines[item.negocio.id]
+            const acessos = timeline?.eventos_publicos.filter(
+              (evento) => evento.tipo === 'pagina_acessada',
+            )
+            const primeiroAcesso = acessos?.[0]?.ocorrido_em ?? null
+            const ultimoAcesso = acessos?.[acessos.length - 1]?.ocorrido_em ?? null
+            const eventosHistorico = timeline
+              ? [
+                  ...timeline.versoes.map((versao) => ({
+                    id: `versao-${versao.id}`,
+                    ocorridoEm: versao.created,
+                    titulo: `Versão ${versao.numero} — ${versao.arquivo_bytes ? 'PDF lançado' : 'PDF pendente'}`,
+                    detalhe: 'Versão registrada na proposta',
+                    tipo: 'versao',
+                  })),
+                  ...timeline.envios.map((envio) => ({
+                    id: `envio-${envio.id}`,
+                    ocorridoEm: envio.enviado_em || envio.created,
+                    titulo: `${envio.canal === 'email' ? 'E-mail' : 'WhatsApp'} ${envio.estado}`,
+                    detalhe: envio.destinatario || 'Destinatário não informado',
+                    tipo: 'envio',
+                  })),
+                  ...timeline.eventos_publicos.map((evento) => ({
+                    id: `evento-${evento.id}`,
+                    ocorridoEm: evento.ocorrido_em,
+                    titulo: rotuloEventoPublico[evento.tipo] || 'Ação registrada',
+                    detalhe: evento.visitante_nome || 'Visitante não identificado',
+                    tipo: evento.tipo,
+                  })),
+                ].sort(
+                  (a, b) => new Date(b.ocorridoEm).getTime() - new Date(a.ocorridoEm).getTime(),
+                )
+              : []
+            const envioSistemaEm = p?.ultimo_envio_sistema_em
+              ? new Date(p.ultimo_envio_sistema_em).getTime()
+              : null
+            const naoAbertaAtrasada = Boolean(
+              p?.enviada_sistema &&
+              !p.aberta &&
+              envioSistemaEm &&
+              Date.now() - envioSistemaEm >= 24 * 60 * 60 * 1000,
+            )
+            const estadoProposta = p
+              ? p.enviada_sistema
+                ? 'Enviada'
+                : p.estado === 'rascunho'
+                  ? 'Rascunho'
+                  : p.estado.charAt(0).toLocaleUpperCase('pt-BR') + p.estado.slice(1)
+              : item.negocio.etapa === 'negociacao'
+                ? 'Proposta em negociação'
+                : 'Proposta em produção'
+            return (
+              <Card
+                key={item.negocio.id}
+                className={`rounded-xl border border-slate-200/80 bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300 ${bordaSemanticaProposta(item)} ${commercialActionCardClass(item.contexto.proxima_acao_em)}`}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        Negociação
+                      </p>
+                      <CardTitle className="text-base font-semibold text-slate-900">
+                        {item.negocio.titulo}
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500">
+                        {rotuloEtapaComercial(item.negocio.etapa)}
+                      </CardDescription>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5">
                       <Badge
                         variant="outline"
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          p.aberta
-                            ? 'border-sky-200/60 bg-sky-50 text-sky-700'
-                            : naoAbertaAtrasada
-                              ? 'border-rose-200/60 bg-rose-50 text-rose-700'
-                              : 'border-slate-200 bg-slate-50 text-slate-600'
-                        }`}
-                        title={
-                          p.aberta && p.primeiro_acesso_publicacao_em
-                            ? `Primeiro acesso: ${new Date(p.primeiro_acesso_publicacao_em).toLocaleString('pt-BR')}`
-                            : 'A publicação vigente ainda não foi aberta'
-                        }
+                        className="rounded-full border-sky-200/60 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700"
                       >
-                        {p.aberta ? (
-                          <Eye className="mr-1 h-3 w-3" />
-                        ) : (
-                          <EyeOff className="mr-1 h-3 w-3" />
-                        )}
-                        {p.aberta ? 'Aberta' : 'Não Aberta'}
+                        {estadoProposta}
                       </Badge>
-                    )}
+                      {p && (
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            p.aberta
+                              ? 'border-sky-200/60 bg-sky-50 text-sky-700'
+                              : naoAbertaAtrasada
+                                ? 'border-rose-200/60 bg-rose-50 text-rose-700'
+                                : 'border-slate-200 bg-slate-50 text-slate-600'
+                          }`}
+                          title={
+                            p.aberta && p.primeiro_acesso_publicacao_em
+                              ? `Primeiro acesso: ${new Date(p.primeiro_acesso_publicacao_em).toLocaleString('pt-BR')}`
+                              : 'A publicação vigente ainda não foi aberta'
+                          }
+                        >
+                          {p.aberta ? (
+                            <Eye className="mr-1 h-3 w-3" />
+                          ) : (
+                            <EyeOff className="mr-1 h-3 w-3" />
+                          )}
+                          {p.aberta ? 'Aberta' : 'Não Aberta'}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <CommercialContextCard
-                  contexto={item.contexto}
-                  etapa={item.negocio.etapa}
-                  negocioId={item.negocio.id}
-                  showReadOnlyNotice={false}
-                />
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                  <NexoBusinessActions
-                    externalId={item.contexto.external_id}
-                    businessTitle={item.negocio.titulo}
-                    allowNexoHelp={true}
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <CommercialContextCard
+                    contexto={item.contexto}
+                    etapa={item.negocio.etapa}
+                    negocioId={item.negocio.id}
+                    showReadOnlyNotice={false}
                   />
-                  {!somenteNegociacao &&
-                    !somenteLeituraPerfil &&
-                    !item.contexto.somente_leitura && (
+                  <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                    <NexoBusinessActions
+                      externalId={item.contexto.external_id}
+                      businessTitle={item.negocio.titulo}
+                      allowNexoHelp={true}
+                    />
+                    {!somenteNegociacao &&
+                      !somenteLeituraPerfil &&
+                      !item.contexto.somente_leitura && (
+                        <Button
+                          size="sm"
+                          className="bg-violet-600 hover:bg-violet-700 text-white font-medium shadow-sm"
+                          onClick={() => abrirModal(item.negocio.id, 'operacao')}
+                        >
+                          <FileCheck2 className="mr-1.5 h-4 w-4" />
+                          Lançar proposta
+                        </Button>
+                      )}
+                    {p && (
                       <Button
                         size="sm"
-                        className="bg-violet-600 hover:bg-violet-700 text-white font-medium shadow-sm"
-                        onClick={() => abrirModal(item.negocio.id, 'operacao')}
+                        variant="outline"
+                        className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-sm"
+                        onClick={() => abrirModal(item.negocio.id, 'historico')}
                       >
-                        <FileCheck2 className="mr-1.5 h-4 w-4" />
-                        Lançar proposta
+                        <History className="mr-1.5 h-4 w-4 text-slate-500" />
+                        Histórico
                       </Button>
                     )}
-                  {p && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      onClick={() => abrirModal(item.negocio.id, 'historico')}
-                    >
-                      <History className="mr-1.5 h-4 w-4 text-slate-500" />
-                      Histórico
-                    </Button>
-                  )}
-                </div>
-                <Dialog
-                  open={modalProposta?.negocioId === item.negocio.id}
-                  onOpenChange={(aberta) => !aberta && setModalProposta(null)}
-                >
-                  <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>
-                        {modalProposta?.modo === 'historico'
-                          ? 'Histórico da proposta'
-                          : 'Lançar proposta'}
-                      </DialogTitle>
-                      <DialogDescription>
-                        {item.contexto.empresa.nome} · negócio {item.contexto.external_id}
-                      </DialogDescription>
-                    </DialogHeader>
-                    {modalProposta?.modo === 'historico' ? (
-                      <div className="space-y-5">
-                        {!timeline ? (
-                          <p className="text-sm text-muted-foreground">Carregando histórico…</p>
-                        ) : (
-                          <>
-                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                              <div className="rounded-lg border bg-card p-4">
-                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                  Estado
-                                </p>
-                                <p className="mt-2 font-semibold">{estadoProposta}</p>
-                              </div>
-                              <div className="rounded-lg border bg-card p-4">
-                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                  Acessos
-                                </p>
-                                <p className="mt-2 text-xl font-semibold">
-                                  {timeline.total_acessos}
-                                </p>
-                              </div>
-                              <div className="rounded-lg border bg-card p-4">
-                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                  Primeiro acesso
-                                </p>
-                                <p className="mt-2 text-sm font-medium">
-                                  {dataHora(primeiroAcesso)}
-                                </p>
-                              </div>
-                              <div className="rounded-lg border bg-card p-4">
-                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                  Último acesso
-                                </p>
-                                <p className="mt-2 text-sm font-medium">{dataHora(ultimoAcesso)}</p>
-                              </div>
-                            </div>
-                            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                              <section className="rounded-lg border p-4 sm:p-5">
-                                <h3 className="font-semibold">Linha do tempo</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                  Lançamento, envio, acesso e ações em ordem cronológica.
-                                </p>
-                                <div className="mt-5 space-y-0">
-                                  {eventosHistorico.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">
-                                      Nenhum evento registrado.
-                                    </p>
-                                  ) : (
-                                    eventosHistorico.map((evento, indice) => (
-                                      <div
-                                        key={evento.id}
-                                        className="relative flex gap-3 pb-5 last:pb-0"
-                                      >
-                                        {indice < eventosHistorico.length - 1 && (
-                                          <span className="absolute left-[15px] top-8 h-[calc(100%-1.5rem)] w-px bg-border" />
-                                        )}
-                                        <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
-                                          {evento.tipo === 'pagina_acessada' ? (
-                                            <Eye className="h-4 w-4" />
-                                          ) : evento.tipo === 'pdf_baixado' ? (
-                                            <Download className="h-4 w-4" />
-                                          ) : evento.tipo === 'envio' ? (
-                                            <Mail className="h-4 w-4" />
-                                          ) : (
-                                            <CheckCircle2 className="h-4 w-4" />
-                                          )}
-                                        </span>
-                                        <div className="min-w-0 pt-0.5 text-sm">
-                                          <p className="font-medium">{evento.titulo}</p>
-                                          <p className="break-words text-muted-foreground">
-                                            {evento.detalhe}
-                                          </p>
-                                          <p className="mt-1 text-xs text-muted-foreground">
-                                            {dataHora(evento.ocorridoEm)}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    ))
-                                  )}
-                                </div>
-                              </section>
-                              <aside className="space-y-4">
-                                <div className="rounded-lg border p-4">
-                                  <h3 className="font-semibold">Situação</h3>
-                                  <div className="mt-3 space-y-3 text-sm">
-                                    <p className="flex items-center gap-2">
-                                      <UserRound className="h-4 w-4 text-muted-foreground" />
-                                      {acessos?.at(-1)?.visitante_nome ||
-                                        'Sem visitante identificado'}
-                                    </p>
-                                    <p className="flex items-center gap-2">
-                                      <Download className="h-4 w-4 text-muted-foreground" />
-                                      {timeline.total_downloads} download(s)
-                                    </p>
-                                    <p className="flex items-center gap-2">
-                                      <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                                      Decisão: {rotuloDecisao[timeline.decisao] || timeline.decisao}
-                                    </p>
-                                  </div>
-                                  {timeline.decisao_motivo && (
-                                    <p className="mt-3 rounded-md bg-muted p-3 text-sm">
-                                      {timeline.decisao_motivo}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="rounded-lg border p-4">
-                                  <h3 className="font-semibold">Ações</h3>
-                                  <p className="mt-2 text-sm text-muted-foreground">
-                                    Para gerar link, enviar ou reenviar a proposta, use Lançar
-                                    proposta.
+                  </div>
+                  <Dialog
+                    open={modalProposta?.negocioId === item.negocio.id}
+                    onOpenChange={(aberta) => !aberta && setModalProposta(null)}
+                  >
+                    <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>
+                          {modalProposta?.modo === 'historico'
+                            ? 'Histórico da proposta'
+                            : 'Lançar proposta'}
+                        </DialogTitle>
+                        <DialogDescription>
+                          {item.contexto.empresa.nome} · negócio {item.contexto.external_id}
+                        </DialogDescription>
+                      </DialogHeader>
+                      {modalProposta?.modo === 'historico' ? (
+                        <div className="space-y-5">
+                          {!timeline ? (
+                            <p className="text-sm text-muted-foreground">Carregando histórico…</p>
+                          ) : (
+                            <>
+                              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <div className="rounded-lg border bg-card p-4">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Estado
                                   </p>
-                                  <Button
-                                    className="mt-3 w-full"
-                                    variant="outline"
-                                    onClick={() =>
-                                      setModalProposta({
-                                        negocioId: item.negocio.id,
-                                        modo: 'operacao',
-                                      })
+                                  <p className="mt-2 font-semibold">{estadoProposta}</p>
+                                </div>
+                                <div className="rounded-lg border bg-card p-4">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Acessos
+                                  </p>
+                                  <p className="mt-2 text-xl font-semibold">
+                                    {timeline.total_acessos}
+                                  </p>
+                                </div>
+                                <div className="rounded-lg border bg-card p-4">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Primeiro acesso
+                                  </p>
+                                  <p className="mt-2 text-sm font-medium">
+                                    {dataHora(primeiroAcesso)}
+                                  </p>
+                                </div>
+                                <div className="rounded-lg border bg-card p-4">
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Último acesso
+                                  </p>
+                                  <p className="mt-2 text-sm font-medium">
+                                    {dataHora(ultimoAcesso)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                                <section className="rounded-lg border p-4 sm:p-5">
+                                  <h3 className="font-semibold">Linha do tempo</h3>
+                                  <p className="mt-1 text-sm text-muted-foreground">
+                                    Lançamento, envio, acesso e ações em ordem cronológica.
+                                  </p>
+                                  <div className="mt-5 space-y-0">
+                                    {eventosHistorico.length === 0 ? (
+                                      <p className="text-sm text-muted-foreground">
+                                        Nenhum evento registrado.
+                                      </p>
+                                    ) : (
+                                      eventosHistorico.map((evento, indice) => (
+                                        <div
+                                          key={evento.id}
+                                          className="relative flex gap-3 pb-5 last:pb-0"
+                                        >
+                                          {indice < eventosHistorico.length - 1 && (
+                                            <span className="absolute left-[15px] top-8 h-[calc(100%-1.5rem)] w-px bg-border" />
+                                          )}
+                                          <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
+                                            {evento.tipo === 'pagina_acessada' ? (
+                                              <Eye className="h-4 w-4" />
+                                            ) : evento.tipo === 'pdf_baixado' ? (
+                                              <Download className="h-4 w-4" />
+                                            ) : evento.tipo === 'envio' ? (
+                                              <Mail className="h-4 w-4" />
+                                            ) : (
+                                              <CheckCircle2 className="h-4 w-4" />
+                                            )}
+                                          </span>
+                                          <div className="min-w-0 pt-0.5 text-sm">
+                                            <p className="font-medium">{evento.titulo}</p>
+                                            <p className="break-words text-muted-foreground">
+                                              {evento.detalhe}
+                                            </p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                              {dataHora(evento.ocorridoEm)}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                </section>
+                                <aside className="space-y-4">
+                                  <div className="rounded-lg border p-4">
+                                    <h3 className="font-semibold">Situação</h3>
+                                    <div className="mt-3 space-y-3 text-sm">
+                                      <p className="flex items-center gap-2">
+                                        <UserRound className="h-4 w-4 text-muted-foreground" />
+                                        {acessos?.at(-1)?.visitante_nome ||
+                                          'Sem visitante identificado'}
+                                      </p>
+                                      <p className="flex items-center gap-2">
+                                        <Download className="h-4 w-4 text-muted-foreground" />
+                                        {timeline.total_downloads} download(s)
+                                      </p>
+                                      <p className="flex items-center gap-2">
+                                        <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                                        Decisão:{' '}
+                                        {rotuloDecisao[timeline.decisao] || timeline.decisao}
+                                      </p>
+                                    </div>
+                                    {timeline.decisao_motivo && (
+                                      <p className="mt-3 rounded-md bg-muted p-3 text-sm">
+                                        {timeline.decisao_motivo}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="rounded-lg border p-4">
+                                    <h3 className="font-semibold">Ações</h3>
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                      Para gerar link, enviar ou reenviar a proposta, use Lançar
+                                      proposta.
+                                    </p>
+                                    <Button
+                                      className="mt-3 w-full"
+                                      variant="outline"
+                                      onClick={() =>
+                                        setModalProposta({
+                                          negocioId: item.negocio.id,
+                                          modo: 'operacao',
+                                        })
+                                      }
+                                    >
+                                      <FileCheck2 className="mr-2 h-4 w-4" />
+                                      Lançar proposta
+                                    </Button>
+                                  </div>
+                                </aside>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-5">
+                          {!p ? (
+                            <div className="space-y-3 rounded-md border p-4">
+                              <p className="text-sm">
+                                Valor da proposta: {reais(item.contexto.valor_centavos)} —
+                                sincronizado do ActiveCampaign
+                              </p>
+                              <Button
+                                disabled={
+                                  item.contexto.valor_centavos <= 0 || !item.contexto.modalidade
+                                }
+                                onClick={() => void executar(item, 'preparar')}
+                              >
+                                Iniciar lançamento
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="rounded-md bg-muted p-3">
+                                <p className="font-medium">
+                                  Versão {p.numero} —{' '}
+                                  {p.pdf_disponivel ? 'PDF lançado' : 'PDF pendente'}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {reais(p.valor_total_centavos)}
+                                </p>
+                              </div>
+                              {p.estado === 'rascunho' && !p.aprovada && aprovacaoObrigatoria && (
+                                <Button onClick={() => void executar(item, 'aprovar')}>
+                                  Aprovar
+                                </Button>
+                              )}
+                              {p.estado === 'rascunho' && p.aprovada && aprovacaoObrigatoria && (
+                                <p className="text-sm text-muted-foreground">
+                                  Aprovação interna concluída.
+                                </p>
+                              )}
+                              {p.estado === 'rascunho' && (
+                                <div className="space-y-3 rounded-md border p-4">
+                                  <p className="text-sm text-muted-foreground">
+                                    Crie a versão privada do PDF, gere o link e escolha o canal de
+                                    envio.
+                                  </p>
+                                  <Label htmlFor={`pdf-${item.negocio.id}`}>Lançar novo PDF</Label>
+                                  <Input
+                                    id={`pdf-${item.negocio.id}`}
+                                    type="file"
+                                    accept="application/pdf,.pdf"
+                                    onChange={(event) =>
+                                      setArquivos((atual) => ({
+                                        ...atual,
+                                        [item.negocio.id]: event.target.files?.[0] ?? null,
+                                      }))
                                     }
+                                  />
+                                  <Button
+                                    disabled={
+                                      !arquivos[item.negocio.id] || enviandoPdf === item.negocio.id
+                                    }
+                                    onClick={() => void enviarPdf(item)}
                                   >
-                                    <FileCheck2 className="mr-2 h-4 w-4" />
-                                    Lançar proposta
+                                    <FileUp className="mr-2 h-4 w-4" />
+                                    Lançar PDF
                                   </Button>
                                 </div>
-                              </aside>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-5">
-                        {!p ? (
-                          <div className="space-y-3 rounded-md border p-4">
-                            <p className="text-sm">
-                              Valor da proposta: {reais(item.contexto.valor_centavos)} —
-                              sincronizado do ActiveCampaign
-                            </p>
-                            <Button
-                              disabled={
-                                item.contexto.valor_centavos <= 0 || !item.contexto.modalidade
-                              }
-                              onClick={() => void executar(item, 'preparar')}
-                            >
-                              Iniciar lançamento
-                            </Button>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="rounded-md bg-muted p-3">
-                              <p className="font-medium">
-                                Versão {p.numero} —{' '}
-                                {p.pdf_disponivel ? 'PDF lançado' : 'PDF pendente'}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {reais(p.valor_total_centavos)}
-                              </p>
-                            </div>
-                            {p.estado === 'rascunho' && !p.aprovada && aprovacaoObrigatoria && (
-                              <Button onClick={() => void executar(item, 'aprovar')}>
-                                Aprovar
-                              </Button>
-                            )}
-                            {p.estado === 'rascunho' && p.aprovada && aprovacaoObrigatoria && (
-                              <p className="text-sm text-muted-foreground">
-                                Aprovação interna concluída.
-                              </p>
-                            )}
-                            {p.estado === 'rascunho' && (
-                              <div className="space-y-3 rounded-md border p-4">
-                                <p className="text-sm text-muted-foreground">
-                                  Crie a versão privada do PDF, gere o link e escolha o canal de
-                                  envio.
-                                </p>
-                                <Label htmlFor={`pdf-${item.negocio.id}`}>Lançar novo PDF</Label>
-                                <Input
-                                  id={`pdf-${item.negocio.id}`}
-                                  type="file"
-                                  accept="application/pdf,.pdf"
-                                  onChange={(event) =>
-                                    setArquivos((atual) => ({
-                                      ...atual,
-                                      [item.negocio.id]: event.target.files?.[0] ?? null,
-                                    }))
-                                  }
-                                />
-                                <Button
-                                  disabled={
-                                    !arquivos[item.negocio.id] || enviandoPdf === item.negocio.id
-                                  }
-                                  onClick={() => void enviarPdf(item)}
-                                >
-                                  <FileUp className="mr-2 h-4 w-4" />
-                                  Lançar PDF
-                                </Button>
-                              </div>
-                            )}
-                            {p.estado === 'rascunho' && (
-                              <div className="space-y-3 rounded-md border p-4">
-                                <div>
-                                  <h3 className="font-semibold">Publicar e enviar</h3>
-                                  <p className="text-sm text-muted-foreground">
-                                    Revise a comunicação. O PDF será acessado pelo link seguro e não
-                                    será anexado.
-                                  </p>
-                                </div>
-                                {linksPublicos[item.negocio.id] && (
-                                  <Input
-                                    readOnly
-                                    value={linksPublicos[item.negocio.id]}
-                                    aria-label="Link seguro da proposta"
-                                  />
-                                )}
-                                <div className="grid gap-4 sm:grid-cols-2">
+                              )}
+                              {p.estado === 'rascunho' && (
+                                <div className="space-y-3 rounded-md border p-4">
+                                  <div>
+                                    <h3 className="font-semibold">Publicar e enviar</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                      Revise a comunicação. O PDF será acessado pelo link seguro e
+                                      não será anexado.
+                                    </p>
+                                  </div>
+                                  {linksPublicos[item.negocio.id] && (
+                                    <Input
+                                      readOnly
+                                      value={linksPublicos[item.negocio.id]}
+                                      aria-label="Link seguro da proposta"
+                                    />
+                                  )}
+                                  <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                      <Label htmlFor={`email-proposta-${item.negocio.id}`}>
+                                        Destinatário principal
+                                      </Label>
+                                      <Input
+                                        id={`email-proposta-${item.negocio.id}`}
+                                        type="email"
+                                        value={
+                                          destinosEmail[item.negocio.id] ?? destinatarioPadrao(item)
+                                        }
+                                        onChange={(event) =>
+                                          setDestinosEmail((atual) => ({
+                                            ...atual,
+                                            [item.negocio.id]: event.target.value,
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor={`cc-proposta-${item.negocio.id}`}>
+                                        Com cópia (Cc)
+                                      </Label>
+                                      <Input
+                                        id={`cc-proposta-${item.negocio.id}`}
+                                        placeholder="Separe vários e-mails por vírgula"
+                                        value={copiasEmail[item.negocio.id] || ''}
+                                        onChange={(event) =>
+                                          setCopiasEmail((atual) => ({
+                                            ...atual,
+                                            [item.negocio.id]: event.target.value,
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                  </div>
                                   <div className="space-y-2">
-                                    <Label htmlFor={`email-proposta-${item.negocio.id}`}>
-                                      Destinatário principal
+                                    <Label htmlFor={`reply-proposta-${item.negocio.id}`}>
+                                      Responder para
                                     </Label>
                                     <Input
-                                      id={`email-proposta-${item.negocio.id}`}
+                                      id={`reply-proposta-${item.negocio.id}`}
                                       type="email"
                                       value={
-                                        destinosEmail[item.negocio.id] ?? destinatarioPadrao(item)
+                                        respostasEmail[item.negocio.id] ||
+                                        String(pb.authStore.record?.email || '')
                                       }
                                       onChange={(event) =>
-                                        setDestinosEmail((atual) => ({
+                                        setRespostasEmail((atual) => ({
                                           ...atual,
                                           [item.negocio.id]: event.target.value,
                                         }))
@@ -886,209 +953,177 @@ export default function Propostas() {
                                     />
                                   </div>
                                   <div className="space-y-2">
-                                    <Label htmlFor={`cc-proposta-${item.negocio.id}`}>
-                                      Com cópia (Cc)
+                                    <Label htmlFor={`assunto-proposta-${item.negocio.id}`}>
+                                      Assunto
                                     </Label>
                                     <Input
-                                      id={`cc-proposta-${item.negocio.id}`}
-                                      placeholder="Separe vários e-mails por vírgula"
-                                      value={copiasEmail[item.negocio.id] || ''}
+                                      id={`assunto-proposta-${item.negocio.id}`}
+                                      value={assuntosEmail[item.negocio.id] || assuntoPadrao(item)}
                                       onChange={(event) =>
-                                        setCopiasEmail((atual) => ({
+                                        setAssuntosEmail((atual) => ({
                                           ...atual,
                                           [item.negocio.id]: event.target.value,
                                         }))
                                       }
                                     />
                                   </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor={`reply-proposta-${item.negocio.id}`}>
-                                    Responder para
-                                  </Label>
-                                  <Input
-                                    id={`reply-proposta-${item.negocio.id}`}
-                                    type="email"
-                                    value={
-                                      respostasEmail[item.negocio.id] ||
-                                      String(pb.authStore.record?.email || '')
-                                    }
-                                    onChange={(event) =>
-                                      setRespostasEmail((atual) => ({
-                                        ...atual,
-                                        [item.negocio.id]: event.target.value,
-                                      }))
-                                    }
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor={`assunto-proposta-${item.negocio.id}`}>
-                                    Assunto
-                                  </Label>
-                                  <Input
-                                    id={`assunto-proposta-${item.negocio.id}`}
-                                    value={assuntosEmail[item.negocio.id] || assuntoPadrao(item)}
-                                    onChange={(event) =>
-                                      setAssuntosEmail((atual) => ({
-                                        ...atual,
-                                        [item.negocio.id]: event.target.value,
-                                      }))
-                                    }
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor={`mensagem-proposta-${item.negocio.id}`}>
-                                    Mensagem
-                                  </Label>
-                                  <Textarea
-                                    id={`mensagem-proposta-${item.negocio.id}`}
-                                    className="min-h-48"
-                                    value={mensagemAtual(item)}
-                                    onChange={(event) => alterarMensagem(item, event.target.value)}
-                                    onBlur={() => void gravarMensagemAgora(item)}
-                                  />
-                                  <p className="text-xs text-muted-foreground">
-                                    Use [LINK_PROPOSTA] para posicionar o botão de acesso.
-                                  </p>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  <Button
-                                    variant="secondary"
-                                    disabled={
-                                      !p.pdf_disponivel || gerandoEmailNexo[item.negocio.id]
-                                    }
-                                    onClick={() => void preencherEmailComNexo(item)}
-                                  >
-                                    {gerandoEmailNexo[item.negocio.id] ? (
-                                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Bot className="mr-2 h-4 w-4" />
-                                    )}
-                                    Preencher e-mail com Nexo
-                                  </Button>
-                                  <Button
-                                    disabled={!p.pdf_disponivel}
-                                    onClick={() => void enviarEmail(item)}
-                                  >
-                                    <Mail className="mr-2 h-4 w-4" /> Publicar e enviar por e-mail
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    disabled={!p.pdf_disponivel}
-                                    onClick={() => void publicar(item)}
-                                  >
-                                    <Link2 className="mr-2 h-4 w-4" /> Somente publicar
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    disabled={!p.pdf_disponivel}
-                                    onClick={() => void copiarMensagemWhatsApp(item)}
-                                  >
-                                    <MessageCircle className="mr-2 h-4 w-4" /> Copiar mensagem para
-                                    WhatsApp
-                                  </Button>
-                                  {linksPublicos[item.negocio.id] && (
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`mensagem-proposta-${item.negocio.id}`}>
+                                      Mensagem
+                                    </Label>
+                                    <Textarea
+                                      id={`mensagem-proposta-${item.negocio.id}`}
+                                      className="min-h-48"
+                                      value={mensagemAtual(item)}
+                                      onChange={(event) =>
+                                        alterarMensagem(item, event.target.value)
+                                      }
+                                      onBlur={() => void gravarMensagemAgora(item)}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Use [LINK_PROPOSTA] para posicionar o botão de acesso.
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
                                     <Button
-                                      variant="destructive"
-                                      onClick={() => void revogar(item)}
+                                      variant="secondary"
+                                      disabled={
+                                        !p.pdf_disponivel || gerandoEmailNexo[item.negocio.id]
+                                      }
+                                      onClick={() => void preencherEmailComNexo(item)}
                                     >
-                                      Revogar link
+                                      {gerandoEmailNexo[item.negocio.id] ? (
+                                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Bot className="mr-2 h-4 w-4" />
+                                      )}
+                                      Preencher e-mail com Nexo
                                     </Button>
-                                  )}
+                                    <Button
+                                      disabled={!p.pdf_disponivel}
+                                      onClick={() => void enviarEmail(item)}
+                                    >
+                                      <Mail className="mr-2 h-4 w-4" /> Publicar e enviar por e-mail
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      disabled={!p.pdf_disponivel}
+                                      onClick={() => void publicar(item)}
+                                    >
+                                      <Link2 className="mr-2 h-4 w-4" /> Somente publicar
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      disabled={!p.pdf_disponivel}
+                                      onClick={() => void copiarMensagemWhatsApp(item)}
+                                    >
+                                      <MessageCircle className="mr-2 h-4 w-4" /> Copiar mensagem
+                                      para WhatsApp
+                                    </Button>
+                                    {linksPublicos[item.negocio.id] && (
+                                      <Button
+                                        variant="destructive"
+                                        onClick={() => void revogar(item)}
+                                      >
+                                        Revogar link
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
-                            {p.estado === 'rascunho' && p.aprovada && aprovacaoObrigatoria && (
-                              <div className="space-y-2 rounded-md border p-4">
-                                <Label htmlFor={`proposta-${item.negocio.id}`}>
-                                  Destinatário para emissão
+                              )}
+                              {p.estado === 'rascunho' && p.aprovada && aprovacaoObrigatoria && (
+                                <div className="space-y-2 rounded-md border p-4">
+                                  <Label htmlFor={`proposta-${item.negocio.id}`}>
+                                    Destinatário para emissão
+                                  </Label>
+                                  <Input
+                                    id={`proposta-${item.negocio.id}`}
+                                    value={valores[item.negocio.id] || ''}
+                                    onChange={(event) =>
+                                      setValores((atual) => ({
+                                        ...atual,
+                                        [item.negocio.id]: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                  <Button
+                                    disabled={!valores[item.negocio.id]?.trim()}
+                                    onClick={() => void executar(item, 'emitir')}
+                                  >
+                                    Emitir
+                                  </Button>
+                                </div>
+                              )}
+                              {p.estado === 'enviada' && (
+                                <div className="space-y-2 rounded-md border p-4">
+                                  <Label htmlFor={`proposta-${item.negocio.id}`}>
+                                    Evidência da decisão
+                                  </Label>
+                                  <Input
+                                    id={`proposta-${item.negocio.id}`}
+                                    value={valores[item.negocio.id] || ''}
+                                    onChange={(event) =>
+                                      setValores((atual) => ({
+                                        ...atual,
+                                        [item.negocio.id]: event.target.value,
+                                      }))
+                                    }
+                                  />
+                                  <div className="flex flex-wrap gap-2">
+                                    {!p.visualizada && (
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => void executar(item, 'visualizar')}
+                                      >
+                                        Registrar visualização
+                                      </Button>
+                                    )}
+                                    <Button
+                                      disabled={!valores[item.negocio.id]?.trim()}
+                                      onClick={() => void executar(item, 'decidir')}
+                                    >
+                                      Registrar aceite
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {podeDevolverQualificacao &&
+                            item.negocio.etapa === 'producao_proposta' && (
+                              <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+                                <Label htmlFor={`devolver-${item.negocio.id}`}>
+                                  Motivo para devolver à Qualificação
                                 </Label>
                                 <Input
-                                  id={`proposta-${item.negocio.id}`}
-                                  value={valores[item.negocio.id] || ''}
+                                  id={`devolver-${item.negocio.id}`}
+                                  value={motivoDevolucao[item.negocio.id] || ''}
                                   onChange={(event) =>
-                                    setValores((atual) => ({
+                                    setMotivoDevolucao((atual) => ({
                                       ...atual,
                                       [item.negocio.id]: event.target.value,
                                     }))
                                   }
                                 />
                                 <Button
-                                  disabled={!valores[item.negocio.id]?.trim()}
-                                  onClick={() => void executar(item, 'emitir')}
+                                  variant="outline"
+                                  disabled={!motivoDevolucao[item.negocio.id]?.trim()}
+                                  onClick={() => void devolver(item)}
                                 >
-                                  Emitir
+                                  Devolver para Qualificação
                                 </Button>
                               </div>
                             )}
-                            {p.estado === 'enviada' && (
-                              <div className="space-y-2 rounded-md border p-4">
-                                <Label htmlFor={`proposta-${item.negocio.id}`}>
-                                  Evidência da decisão
-                                </Label>
-                                <Input
-                                  id={`proposta-${item.negocio.id}`}
-                                  value={valores[item.negocio.id] || ''}
-                                  onChange={(event) =>
-                                    setValores((atual) => ({
-                                      ...atual,
-                                      [item.negocio.id]: event.target.value,
-                                    }))
-                                  }
-                                />
-                                <div className="flex flex-wrap gap-2">
-                                  {!p.visualizada && (
-                                    <Button
-                                      variant="outline"
-                                      onClick={() => void executar(item, 'visualizar')}
-                                    >
-                                      Registrar visualização
-                                    </Button>
-                                  )}
-                                  <Button
-                                    disabled={!valores[item.negocio.id]?.trim()}
-                                    onClick={() => void executar(item, 'decidir')}
-                                  >
-                                    Registrar aceite
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
-                        {podeDevolverQualificacao && item.negocio.etapa === 'producao_proposta' && (
-                          <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-                            <Label htmlFor={`devolver-${item.negocio.id}`}>
-                              Motivo para devolver à Qualificação
-                            </Label>
-                            <Input
-                              id={`devolver-${item.negocio.id}`}
-                              value={motivoDevolucao[item.negocio.id] || ''}
-                              onChange={(event) =>
-                                setMotivoDevolucao((atual) => ({
-                                  ...atual,
-                                  [item.negocio.id]: event.target.value,
-                                }))
-                              }
-                            />
-                            <Button
-                              variant="outline"
-                              disabled={!motivoDevolucao[item.negocio.id]?.trim()}
-                              onClick={() => void devolver(item)}
-                            >
-                              Devolver para Qualificação
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </DialogContent>
-                </Dialog>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+                        </div>
+                      )}
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
