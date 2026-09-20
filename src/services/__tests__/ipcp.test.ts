@@ -349,7 +349,7 @@ describe('obterIpcpDiarioReadOnly', () => {
         ativo: true,
         ambiente: 'homologacao_preview',
         horario_recife: '19:00',
-        cron_utc: '0 22 * * *',
+        cron_utc: '0 22 * * 1-5',
         agendamento_automatico_ativo: true,
         producao_publicada: false,
         sem_crm_write: true,
