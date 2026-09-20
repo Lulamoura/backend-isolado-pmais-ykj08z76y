@@ -306,19 +306,6 @@ export default function OperacaoDia() {
         </Button>
       </section>
 
-      <IpcpEducativoDiarioCard data={ipcpDiario} />
-
-      {partialError && (
-        <Alert>
-          <AlertTriangle aria-hidden="true" className="h-4 w-4" />
-          <AlertTitle>Resumo parcialmente disponível</AlertTitle>
-          <AlertDescription>
-            Uma das filas não respondeu. Os demais números continuam disponíveis e podem ser
-            atualizados.
-          </AlertDescription>
-        </Alert>
-      )}
-
       <section aria-label="Filas prioritárias" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon
@@ -356,6 +343,19 @@ export default function OperacaoDia() {
           )
         })}
       </section>
+
+      <IpcpEducativoDiarioCard data={ipcpDiario} />
+
+      {partialError && (
+        <Alert>
+          <AlertTriangle aria-hidden="true" className="h-4 w-4" />
+          <AlertTitle>Resumo parcialmente disponível</AlertTitle>
+          <AlertDescription>
+            Uma das filas não respondeu. Os demais números continuam disponíveis e podem ser
+            atualizados.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card className="border border-slate-200/80 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
