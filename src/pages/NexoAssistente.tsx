@@ -16,6 +16,7 @@ import {
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ActiveCampaignDealLink } from '@/components/ActiveCampaignDealLink'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
@@ -254,9 +255,12 @@ function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse })
                       <p className="text-sm font-bold text-slate-900">
                         {item.titulo || 'Negócio sem título'}
                       </p>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                        ID do negócio: {idNegocio}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                          ID do negócio: {idNegocio}
+                        </span>
+                        <ActiveCampaignDealLink dealId={idNegocio} compact />
+                      </div>
                     </div>
                     <div className="mt-2.5 grid gap-1.5 text-xs text-slate-600 sm:grid-cols-3">
                       <div>

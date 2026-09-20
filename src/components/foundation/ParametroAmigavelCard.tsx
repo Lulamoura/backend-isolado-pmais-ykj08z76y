@@ -107,6 +107,16 @@ export function ParametroAmigavelCard({
             <span className="text-sm text-muted-foreground">{definicao.unidade}</span>
           </div>
         )}
+        {(definicao.controle === 'texto' || definicao.controle === 'url') && (
+          <Input
+            aria-label={definicao.titulo}
+            type={definicao.controle === 'url' ? 'url' : 'text'}
+            value={valor}
+            disabled={!parametro.ativo}
+            placeholder={definicao.recomendado}
+            onChange={(event) => setValor(event.target.value)}
+          />
+        )}
         {definicao.controle === 'selecao' && (
           <Select value={valor} disabled={!parametro.ativo} onValueChange={setValor}>
             <SelectTrigger aria-label={definicao.titulo}>

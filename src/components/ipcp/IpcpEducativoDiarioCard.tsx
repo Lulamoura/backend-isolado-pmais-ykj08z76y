@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { ActiveCampaignDealLink } from '@/components/ActiveCampaignDealLink'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { IpcpDiarioReadOnly, IpcpBlocoId } from '@/services/ipcp'
@@ -374,14 +375,17 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
                           </p>
                         ) : null}
                       </div>
-                      {item.link ? (
-                        <Link
-                          className="text-xs font-medium text-violet-700 hover:text-violet-800 hover:underline"
-                          to={item.link}
-                        >
-                          Abrir negócio
-                        </Link>
-                      ) : null}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {item.link ? (
+                          <Link
+                            className="text-xs font-medium text-violet-700 hover:text-violet-800 hover:underline"
+                            to={item.link}
+                          >
+                            Abrir no app
+                          </Link>
+                        ) : null}
+                        <ActiveCampaignDealLink dealId={numeroNegocioAtencao(item) || item.id_negocio} compact />
+                      </div>
                     </div>
                     <p className="mt-1.5 text-xs leading-normal text-slate-600">{item.motivo}</p>
                     <p className="mt-1 text-[11px] text-slate-400">

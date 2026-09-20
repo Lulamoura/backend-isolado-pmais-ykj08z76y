@@ -2,6 +2,7 @@ import { AlertTriangle, CalendarClock, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { BusinessNotesDialog } from '@/components/BusinessNotesDialog'
 import { BusinessContactCard } from '@/components/BusinessContactCard'
+import { ActiveCampaignDealLink } from '@/components/ActiveCampaignDealLink'
 import {
   actionStatus,
   ageInDays,
@@ -57,9 +58,12 @@ export function CommercialContextCard({
   return (
     <div className="space-y-3 text-sm">
       {contexto.external_id && (
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Negócio AC #{contexto.external_id}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Negócio AC #{contexto.external_id}
+          </p>
+          <ActiveCampaignDealLink dealId={contexto.external_id} label="Abrir no ActiveCampaign" />
+        </div>
       )}
       <BusinessContactCard empresa={contexto.empresa} contato={contexto.contato} />
       <div className="grid gap-2 sm:grid-cols-2">

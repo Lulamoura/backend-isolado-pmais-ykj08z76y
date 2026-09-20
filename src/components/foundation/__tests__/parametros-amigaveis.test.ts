@@ -4,11 +4,12 @@ import { CHAVES_AMIGAVEIS, GRUPOS_PARAMETROS_AMIGAVEIS } from '../parametros-ami
 const parametros = GRUPOS_PARAMETROS_AMIGAVEIS.flatMap((grupo) => grupo.parametros)
 
 describe('configurações amigáveis do sistema', () => {
-  it('não repete chaves e mantém os quatro grupos operacionais', () => {
+  it('não repete chaves e mantém os grupos operacionais', () => {
     expect(GRUPOS_PARAMETROS_AMIGAVEIS.map((grupo) => grupo.id)).toEqual([
       'propostas',
       'notificacoes',
       'prazos',
+      'integracao-activecampaign',
       'padroes',
     ])
     expect(CHAVES_AMIGAVEIS.size).toBe(parametros.length)
@@ -21,6 +22,10 @@ describe('configurações amigáveis do sistema', () => {
     expect(porChave.get('proposta.sem_abertura_dias_uteis')).toMatchObject({
       controle: 'numero',
       unidade: 'dias úteis',
+    })
+    expect(porChave.get('activecampaign.deal_base_url')).toMatchObject({
+      controle: 'url',
+      recomendado: 'https://pmaisservicos89463.activehosted.com/app/deals/',
     })
     expect(porChave.get('comercial.escopo_padrao')?.opcoes?.map((opcao) => opcao.valor)).toEqual([
       'proprios',
