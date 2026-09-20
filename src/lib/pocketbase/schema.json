@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-19T00:28:56.139Z",
+  "generatedAt": "2026-09-20T13:24:46.891Z",
   "collections": [
     {
       "name": "users",
@@ -3790,6 +3790,550 @@
         "CREATE UNIQUE INDEX idx_com_ipcp_snapshots_snapshot_key ON com_ipcp_snapshots (snapshot_key)",
         "CREATE INDEX idx_com_ipcp_snapshots_data_escopo ON com_ipcp_snapshots (data_referencia, escopo)"
       ]
+    },
+    {
+      "name": "com_nexo_aprendizado_eventos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "tipo_evento",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "external_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "contato_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "empresa_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "negocio_titulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "acao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "usuario_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "usuario_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fase_negocio",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_servico",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contexto_resumo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "resposta_resumo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "segundo_cerebro_usado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "segundo_cerebro_fontes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "segundo_cerebro_versao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "provider",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "modelo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fallback",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "human_review_required",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "automatic_send_allowed",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "crm_write_allowed",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "audit_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_nexo_aprendizado_eventos_created ON com_nexo_aprendizado_eventos (created_at)",
+        "CREATE INDEX idx_com_nexo_aprendizado_eventos_external ON com_nexo_aprendizado_eventos (external_id, created_at)",
+        "CREATE INDEX idx_com_nexo_aprendizado_eventos_audit ON com_nexo_aprendizado_eventos (audit_id)"
+      ]
+    },
+    {
+      "name": "com_nexo_curadoria_entrevistas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "create": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "evento_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "external_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "empresa_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "negocio_titulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "perguntas_json",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "respostas_json",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "resumo_contexto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "usuario_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "usuario_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_nexo_curadoria_entrevistas_evento ON com_nexo_curadoria_entrevistas (evento_id, created_at)",
+        "CREATE INDEX idx_com_nexo_curadoria_entrevistas_status ON com_nexo_curadoria_entrevistas (status, created_at)",
+        "CREATE INDEX idx_com_nexo_curadoria_entrevistas_external ON com_nexo_curadoria_entrevistas (external_id, created_at)"
+      ]
+    },
+    {
+      "name": "com_nexo_curadoria_decisoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "create": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "update": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'leitura-executiva')",
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "evento_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "entrevista_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "external_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "empresa_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "negocio_titulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nivel_decisao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "escalar_direcao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "regra_proposta",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "excecao_condicao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_validacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "impacto_json",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "origem_respostas_json",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "usuario_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "usuario_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "updated_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "decisao_observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "segundo_cerebro_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "segundo_cerebro_audit_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "segundo_cerebro_atualizado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ipcp_revisao_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ipcp_revisao_blocos",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ipcp_revisao_motivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ipcp_revisao_notificado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ipcp_formula_versao_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ipcp_formula_versao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ipcp_formula_aplicada_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ipcp_formula_audit_json",
+          "type": "text",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_nexo_curadoria_decisoes_status ON com_nexo_curadoria_decisoes (status, created_at)",
+        "CREATE INDEX idx_com_nexo_curadoria_decisoes_nivel ON com_nexo_curadoria_decisoes (nivel_decisao, created_at)",
+        "CREATE INDEX idx_com_nexo_curadoria_decisoes_external ON com_nexo_curadoria_decisoes (external_id, created_at)",
+        "CREATE UNIQUE INDEX idx_com_nexo_curadoria_decisoes_unico_evento_aberto ON com_nexo_curadoria_decisoes (evento_id) WHERE status != 'rejeitada'",
+        "CREATE UNIQUE INDEX idx_com_nexo_curadoria_decisoes_unico_external_aberto ON com_nexo_curadoria_decisoes (external_id) WHERE status != 'rejeitada' AND external_id != ''"
+      ]
+    },
+    {
+      "name": "com_ipcp_formula_versoes",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "formula_version",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "formula_base_version",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "origem_decisao_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "regra_aprovada",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "blocos_afetados",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "snapshot_antes_json",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "snapshot_depois_json",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aprovada_por_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "aprovada_por_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "auditoria_json",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aplicada_em",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "updated_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": []
     }
   ]
 }

@@ -46,9 +46,9 @@ assert(
 )
 assert(
   hookSource.includes("'todos'") &&
-    hookSource.includes("ipcp_processamento_diario_job_1900_recife_todos") &&
+    hookSource.includes('ipcp_processamento_diario_job_1900_recife_todos') &&
     hookSource.includes("'__todos__'") &&
-    hookSource.includes("ipcp_processamento_diario_job_1900_recife_responsavel"),
+    hookSource.includes('ipcp_processamento_diario_job_1900_recife_responsavel'),
   'job deve gravar no mesmo ciclo: snapshot Todos explícito, consolidado e pacotes por responsável',
 )
 assert(
@@ -65,7 +65,10 @@ assert(
   serviceSource.includes("horario_recife: '19:00'"),
   'status da rotina deve mostrar horário Recife',
 )
-assert(serviceSource.includes("cron_utc: '0 22 * * 1-5'"), 'status deve mostrar cron UTC de dias úteis')
+assert(
+  serviceSource.includes("cron_utc: '0 22 * * 1-5'"),
+  'status deve mostrar cron UTC de dias úteis',
+)
 assert(
   serviceSource.includes('agendamento_automatico_ativo: true'),
   'status deve indicar automação de homologação ativa',

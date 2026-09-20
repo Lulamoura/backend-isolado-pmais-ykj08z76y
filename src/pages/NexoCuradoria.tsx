@@ -4,6 +4,8 @@ import {
   BellRing,
   Bot,
   CheckCircle2,
+  Clock,
+  History,
   MessageSquareText,
   ShieldCheck,
 } from 'lucide-react'
@@ -83,9 +85,9 @@ function rotuloStatusDecisao(status?: string) {
 
 function estiloStatusDecisao(status?: string) {
   if (status === 'aprovada_uso_operacional')
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  if (status === 'rejeitada') return 'border-slate-300 bg-slate-100 text-slate-700'
-  return 'border-blue-200 bg-blue-50 text-blue-700'
+    return 'border-emerald-200/60 bg-emerald-50 text-emerald-700'
+  if (status === 'rejeitada') return 'border-rose-200/60 bg-rose-50 text-rose-700'
+  return 'border-sky-200/60 bg-sky-50 text-sky-700'
 }
 
 function rotuloStatusRevisaoIpcp(status?: string) {
@@ -98,11 +100,11 @@ function rotuloStatusRevisaoIpcp(status?: string) {
 
 function estiloStatusRevisaoIpcp(status?: string) {
   if (status === 'alteracao_formula_aprovada')
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  if (status === 'estudo_autorizado') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  if (status === 'ajuste_solicitado') return 'border-violet-200 bg-violet-50 text-violet-700'
-  if (status === 'rejeitada') return 'border-slate-300 bg-slate-100 text-slate-700'
-  return 'border-amber-300 bg-amber-50 text-amber-700'
+    return 'border-emerald-200/60 bg-emerald-50 text-emerald-700'
+  if (status === 'estudo_autorizado') return 'border-emerald-200/60 bg-emerald-50 text-emerald-700'
+  if (status === 'ajuste_solicitado') return 'border-violet-200/60 bg-violet-50 text-violet-700'
+  if (status === 'rejeitada') return 'border-rose-200/60 bg-rose-50 text-rose-700'
+  return 'border-amber-200/60 bg-amber-50 text-amber-700'
 }
 
 function revisaoIpcpTerminal(status?: string) {
@@ -576,49 +578,66 @@ export default function NexoCuradoria() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-slate-50 p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl space-y-3">
-            <Badge className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100">
-              Curadoria do conhecimento operacional
-            </Badge>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-950">Curadoria Nexo</h2>
-              <p className="text-sm leading-relaxed text-slate-600">
-                Canal exclusivo para o Nexo conduzir entrevista guiada com usuários habilitados
-                quando houver decisões ou padrões que precisam ser curados antes de virar
-                conhecimento operacional.
-              </p>
-            </div>
-          </div>
+      {/* Cabeçalho neutro limpo padrão institucional */}
+      <section className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
+        <div className="max-w-3xl">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Inteligência Comercial PMais · Governança
+          </p>
+          <h2 className="mt-1 flex items-center gap-2.5 text-2xl font-bold tracking-tight text-slate-900">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-700 shadow-sm">
+              <MessageSquareText aria-hidden="true" className="h-5 w-5" />
+            </span>
+            Curadoria Nexo
+          </h2>
+          <p className="mt-1.5 text-sm text-slate-600">
+            Canal exclusivo para o Nexo conduzir entrevista guiada com usuários habilitados quando
+            houver decisões ou padrões que precisam ser curados antes de virar conhecimento
+            operacional.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            variant="outline"
+            className="rounded-full border-violet-200/80 bg-violet-50 px-2.5 py-1 text-[11px] font-medium text-violet-700"
+          >
+            Curadoria do conhecimento operacional
+          </Badge>
           <Button
             onClick={() => iniciarCuradoria()}
-            className="shrink-0 bg-violet-600 text-white hover:bg-violet-700"
+            className="shrink-0 bg-slate-900 hover:bg-slate-800 text-white shadow-sm h-9 px-4 text-xs font-medium"
           >
-            <MessageSquareText className="mr-2 h-4 w-4" aria-hidden="true" />
+            <MessageSquareText className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
             Iniciar curadoria
           </Button>
         </div>
       </section>
 
+      {/* Cards de Métricas / Contexto Governança */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="rounded-xl border-slate-200 bg-white shadow-sm">
+        <Card className="rounded-xl border border-slate-200/80 border-l-4 border-l-violet-500 bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base text-slate-900">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Fila de Curadoria
+            </p>
+            <CardTitle className="mt-1 flex items-center gap-2 text-base font-bold text-slate-900">
               <Bot className="h-4 w-4 text-violet-600" aria-hidden="true" />
               Pendências do Nexo
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-slate-950">
+            <p className="text-3xl font-bold tracking-tight leading-none text-slate-900">
               {loading ? '...' : resumo.pendencias}
             </p>
-            <p className="mt-1 text-xs text-slate-500">Itens aguardando curadoria humana.</p>
+            <p className="mt-2 text-xs text-slate-500">Itens aguardando curadoria humana.</p>
           </CardContent>
         </Card>
-        <Card className="rounded-xl border-slate-200 bg-white shadow-sm">
+        <Card className="rounded-xl border border-slate-200/80 border-l-4 border-l-emerald-500 bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base text-slate-900">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Diretrizes de Governança
+            </p>
+            <CardTitle className="mt-1 flex items-center gap-2 text-base font-bold text-slate-900">
               <ShieldCheck className="h-4 w-4 text-emerald-600" aria-hidden="true" />
               Governança
             </CardTitle>
@@ -627,15 +646,18 @@ export default function NexoCuradoria() {
             <p className="text-sm font-semibold text-slate-800">
               Entrevistas para alinhamento de processos comerciais
             </p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
               O Nexo organiza perguntas e respostas para apoiar decisões comerciais.
             </p>
           </CardContent>
         </Card>
-        <Card className="rounded-xl border-slate-200 bg-white shadow-sm">
+        <Card className="rounded-xl border border-slate-200/80 border-l-4 border-l-sky-500 bg-white shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base text-slate-900">
-              <CheckCircle2 className="h-4 w-4 text-blue-600" aria-hidden="true" />
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Diálogo Assistido
+            </p>
+            <CardTitle className="mt-1 flex items-center gap-2 text-base font-bold text-slate-900">
+              <CheckCircle2 className="h-4 w-4 text-sky-600" aria-hidden="true" />
               Canal guiado
             </CardTitle>
           </CardHeader>
@@ -643,28 +665,51 @@ export default function NexoCuradoria() {
             <p className="text-sm font-semibold text-slate-800">
               Espaço para ajuda aberta em decisões estratégicas e operacionais
             </p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
               O Nexo conduz o diálogo e registra os pontos necessários para a próxima decisão.
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="rounded-xl border-slate-200 bg-white shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg text-slate-950">Aguardando curadoria</CardTitle>
-          <CardDescription>
-            Sinais gerados pelo uso do Ajuda do Nexo que precisam ser analisados antes de virar
-            regra ou playbook.
-          </CardDescription>
+      {/* Seção 1: Aguardando curadoria */}
+      <Card className="rounded-xl border border-slate-200/80 bg-white shadow-sm">
+        <CardHeader className="border-b border-slate-100 pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Triagem Operacional
+              </p>
+              <CardTitle className="text-lg font-bold text-slate-900">
+                Aguardando curadoria
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-500">
+                Sinais gerados pelo uso do Ajuda do Nexo que precisam ser analisados antes de virar
+                regra ou playbook.
+              </CardDescription>
+            </div>
+            <Badge
+              variant="outline"
+              className="rounded-full border-slate-200/80 bg-slate-50 px-2.5 py-0.5 text-[11px] font-medium text-slate-600"
+            >
+              {loading ? 'Carregando...' : `${resumo.itens.length} pendência(s)`}
+            </Badge>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           {loading ? (
-            <p className="text-sm text-slate-500">Carregando pendências...</p>
+            <p className="text-xs text-slate-500">Carregando pendências...</p>
           ) : resumo.itens.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-              Não há pendências de curadoria neste momento.
-            </p>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-3">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <p className="text-sm font-medium text-slate-700">Tudo em dia com a curadoria</p>
+              <p className="mt-1 text-xs text-slate-500 max-w-sm">
+                Não há pendências de curadoria neste momento. Novos sinais gerados pelo Ajuda do
+                Nexo aparecerão aqui.
+              </p>
+            </div>
           ) : (
             <div className="space-y-3">
               {resumo.itens.map((item) => {
@@ -676,24 +721,25 @@ export default function NexoCuradoria() {
                 return (
                   <div
                     key={item.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50/80 p-4"
+                    className="rounded-xl border border-slate-200/80 border-l-4 border-l-amber-500 bg-white p-4 shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <p className="text-sm font-semibold text-slate-900">{resumoEvento(item)}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-sm font-bold text-slate-900">{resumoEvento(item)}</p>
+                        <p className="flex items-center gap-1 text-xs text-slate-500">
+                          <Clock className="h-3 w-3 text-slate-400" />
                           Recebido em {dataCurta(item.created_at || item.created)}
                         </p>
                       </div>
                       <Badge
                         variant="outline"
-                        className="rounded-full border-amber-200 bg-amber-50 text-amber-700"
+                        className="rounded-full border-amber-200/60 bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-700"
                       >
                         Revisão obrigatória
                       </Badge>
                     </div>
                     {item.contexto_resumo && (
-                      <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-slate-600">
+                      <p className="mt-2.5 line-clamp-2 rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 text-xs leading-relaxed text-slate-700">
                         {item.contexto_resumo}
                       </p>
                     )}
@@ -702,7 +748,7 @@ export default function NexoCuradoria() {
                         <>
                           <Badge
                             variant="outline"
-                            className="rounded-full border-blue-200 bg-blue-50 text-blue-700"
+                            className="rounded-full border-sky-200/60 bg-sky-50 px-2.5 py-0.5 text-[11px] font-medium text-sky-700"
                           >
                             Já existe decisão superior para este caso
                           </Badge>
@@ -710,12 +756,18 @@ export default function NexoCuradoria() {
                             variant="outline"
                             size="sm"
                             onClick={() => ajustarDecisaoSuperior(decisaoDoItem)}
+                            className="border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 h-8"
                           >
                             Ajustar decisão existente
                           </Button>
                         </>
                       ) : (
-                        <Button variant="outline" size="sm" onClick={() => iniciarCuradoria(item)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => iniciarCuradoria(item)}
+                          className="border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 h-8"
+                        >
                           Entrevistar sobre esta pendência
                         </Button>
                       )}
@@ -728,48 +780,71 @@ export default function NexoCuradoria() {
         </CardContent>
       </Card>
 
+      {/* Seção 2: Decisões aguardando validação superior */}
       {podeVerDecisaoSuperior && (
-        <Card className="rounded-xl border-blue-200 bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg text-slate-950">
-              Decisões aguardando validação superior
-            </CardTitle>
-            <CardDescription>
-              Fila para superadmin ou leitor executivo tomar ciência e tratar regras comerciais
-              escaladas.
-            </CardDescription>
+        <Card className="rounded-xl border border-slate-200/80 bg-white shadow-sm">
+          <CardHeader className="border-b border-slate-100 pb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Alçada Executiva
+                </p>
+                <CardTitle className="text-lg font-bold text-slate-900">
+                  Decisões aguardando validação superior
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Fila para superadmin ou leitor executivo tomar ciência e tratar regras comerciais
+                  escaladas.
+                </CardDescription>
+              </div>
+              <Badge
+                variant="outline"
+                className="rounded-full border-sky-200/60 bg-sky-50 px-2.5 py-0.5 text-[11px] font-medium text-sky-700"
+              >
+                {loadingDecisoesSuperiores
+                  ? 'Carregando...'
+                  : `${decisoesSuperiores.length} decisão(ões)`}
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             {loadingDecisoesSuperiores ? (
-              <p className="text-sm text-slate-500">Carregando decisões superiores...</p>
+              <p className="text-xs text-slate-500">Carregando decisões superiores...</p>
             ) : decisoesSuperiores.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                Não há decisões superiores aguardando validação neste momento.
-              </p>
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-3">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-medium text-slate-700">Fila executiva zerada</p>
+                <p className="mt-1 text-xs text-slate-500 max-w-sm">
+                  Não há decisões superiores aguardando validação neste momento.
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {decisoesSuperiores.map((decisao) => (
                   <div
                     key={decisao.id}
-                    className="rounded-xl border border-blue-100 bg-blue-50/60 p-4"
+                    className="rounded-xl border border-slate-200/80 border-l-4 border-l-sky-500 bg-white p-4 shadow-sm transition-all duration-150 hover:shadow-md hover:border-slate-300"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <p className="text-sm font-semibold text-slate-950">
+                        <p className="text-sm font-bold text-slate-900">
                           {resumoDecisaoSuperior(decisao)}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="flex items-center gap-1 text-xs text-slate-500">
+                          <Clock className="h-3 w-3 text-slate-400" />
                           Recebido em {dataCurta(decisao.created_at || decisao.created)}
                         </p>
                       </div>
                       <Badge
                         variant="outline"
-                        className="rounded-full border-blue-200 bg-white text-blue-700"
+                        className="rounded-full border-sky-200/60 bg-sky-50 px-2.5 py-0.5 text-[11px] font-medium text-sky-700"
                       >
                         {decisao.escalar_direcao ? 'Escalar para direção' : 'Gestor comercial'}
                       </Badge>
                     </div>
-                    <div className="mt-3 space-y-2 text-sm text-slate-700">
+                    <div className="mt-3 space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/70 p-3 text-xs leading-relaxed text-slate-700">
                       <p>
                         <span className="font-semibold text-slate-900">Regra proposta:</span>{' '}
                         {decisao.regra_proposta || 'Regra não informada'}
@@ -798,6 +873,7 @@ export default function NexoCuradoria() {
                         size="sm"
                         onClick={() => aprovarDecisaoSuperior(decisao)}
                         disabled={salvandoAcaoDecisao}
+                        className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 text-xs font-medium h-8 shadow-sm"
                       >
                         Aprovar
                       </Button>
@@ -806,6 +882,7 @@ export default function NexoCuradoria() {
                         size="sm"
                         onClick={() => ajustarDecisaoSuperior(decisao)}
                         disabled={salvandoAcaoDecisao}
+                        className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium h-8 shadow-sm"
                       >
                         Ajustar
                       </Button>
@@ -814,6 +891,7 @@ export default function NexoCuradoria() {
                         size="sm"
                         onClick={() => rejeitarDecisaoSuperior(decisao)}
                         disabled={salvandoAcaoDecisao}
+                        className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800 text-xs font-medium h-8 shadow-sm"
                       >
                         Rejeitar
                       </Button>
@@ -826,49 +904,81 @@ export default function NexoCuradoria() {
         </Card>
       )}
 
+      {/* Seção 3: Proposta de alteração da fórmula IPCP */}
       {podeVerDecisaoSuperior && (
-        <Card className="rounded-xl border-amber-200 bg-amber-50/70 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg text-slate-950">
-              <BellRing className="h-4 w-4 text-amber-600" aria-hidden="true" />
-              Proposta de alteração da fórmula IPCP
-            </CardTitle>
-            <CardDescription>
-              Decisões aprovadas que podem alterar bloco, sub-bloco, peso ou critério do IPCP.
-              Ajuste as condições, rejeite a alteração ou aprove a mudança da fórmula.
-            </CardDescription>
+        <Card className="rounded-xl border border-slate-200/80 bg-white shadow-sm">
+          <CardHeader className="border-b border-slate-100 pb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Governança do IPCP
+                </p>
+                <CardTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                    <BellRing className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  Proposta de alteração da fórmula IPCP
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Decisões aprovadas que podem alterar bloco, sub-bloco, peso ou critério do IPCP.
+                  Ajuste as condições, rejeite a alteração ou aprove a mudança da fórmula.
+                </CardDescription>
+              </div>
+              <Badge
+                variant="outline"
+                className="rounded-full border-amber-200/60 bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-700"
+              >
+                {loadingRevisoesIpcp
+                  ? 'Carregando...'
+                  : `${revisoesIpcpPendentes.length} proposta(s)`}
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             {loadingRevisoesIpcp ? (
-              <p className="text-sm text-slate-500">Carregando revisões IPCP pendentes...</p>
+              <p className="text-xs text-slate-500">Carregando revisões IPCP pendentes...</p>
             ) : revisoesIpcpPendentes.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-amber-200 bg-white/70 p-6 text-sm text-slate-600">
-                Não há proposta de alteração da fórmula IPCP neste momento.
-              </p>
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-3">
+                  <BellRing className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-medium text-slate-700">Fórmula governada estável</p>
+                <p className="mt-1 text-xs text-slate-500 max-w-sm">
+                  Não há proposta de alteração da fórmula IPCP neste momento.
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {revisoesIpcpPendentes.map((decisao) => {
                   const revisaoTerminal = revisaoIpcpTerminal(decisao.ipcp_revisao_status)
                   const audit = auditoriaFormulaIpcp(decisao)
                   const formulaAplicadaEm = decisao.ipcp_formula_aplicada_em || audit?.aplicada_em
+                  const borderTone = revisaoTerminal
+                    ? decisao.ipcp_revisao_status === 'rejeitada'
+                      ? 'border-l-4 border-l-rose-500'
+                      : 'border-l-4 border-l-emerald-500'
+                    : 'border-l-4 border-l-amber-500'
                   return (
                     <div
                       key={decisao.id}
-                      className={`rounded-xl border bg-white ${revisaoTerminal ? 'border-emerald-200 p-3' : 'border-amber-200 p-4'}`}
+                      className={`rounded-xl border bg-white shadow-sm transition-all duration-150 hover:shadow-md ${borderTone} ${
+                        revisaoTerminal ? 'border-emerald-200 p-3' : 'border-amber-200 p-4'
+                      }`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-1">
-                          <p className="text-sm font-semibold text-slate-950">
+                          <p className="text-sm font-bold text-slate-900">
                             {resumoDecisaoSuperior(decisao)}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="flex items-center gap-1 text-xs text-slate-500">
+                            <Clock className="h-3 w-3 text-slate-400" />
                             Sinalizado em{' '}
                             {dataCurta(decisao.updated_at || decisao.created_at || decisao.created)}
                           </p>
                         </div>
                         <Badge
                           variant="outline"
-                          className={`rounded-full ${estiloStatusRevisaoIpcp(decisao.ipcp_revisao_status)}`}
+                          className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${estiloStatusRevisaoIpcp(decisao.ipcp_revisao_status)}`}
                         >
                           {rotuloStatusRevisaoIpcp(decisao.ipcp_revisao_status)}
                         </Badge>
@@ -911,7 +1021,7 @@ export default function NexoCuradoria() {
                         </div>
                       ) : (
                         <>
-                          <div className="mt-3 space-y-2 text-sm text-slate-700">
+                          <div className="mt-3 space-y-1.5 rounded-lg border border-amber-100 bg-amber-50/50 p-3 text-xs leading-relaxed text-slate-700">
                             <p>
                               <span className="font-semibold text-slate-900">Regra aprovada:</span>{' '}
                               {decisao.regra_proposta || 'Regra não informada'}
@@ -927,7 +1037,7 @@ export default function NexoCuradoria() {
                               aprovada envolve indicador, política comercial, follow-up, conversão,
                               valor estratégico, risco, perda ou registro comercial.
                             </p>
-                            <p className="text-xs text-slate-600">
+                            <p className="text-slate-500 pt-1">
                               Ajuste as condições se a regra precisar de refinamento. Ao aprovar, a
                               mudança passa a ser aplicada como versão governada da fórmula IPCP,
                               com origem, responsável e auditoria.
@@ -939,6 +1049,7 @@ export default function NexoCuradoria() {
                               size="sm"
                               onClick={() => abrirAjusteRevisaoIpcp(decisao)}
                               disabled={salvandoAcaoDecisao}
+                              className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium h-8 shadow-sm"
                             >
                               Ajuste as condições da regra
                             </Button>
@@ -947,6 +1058,7 @@ export default function NexoCuradoria() {
                               size="sm"
                               onClick={() => atualizarRevisaoIpcp(decisao, 'rejeitada')}
                               disabled={salvandoAcaoDecisao}
+                              className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800 text-xs font-medium h-8 shadow-sm"
                             >
                               Rejeitar alteração da fórmula
                             </Button>
@@ -957,6 +1069,7 @@ export default function NexoCuradoria() {
                                 atualizarRevisaoIpcp(decisao, 'alteracao_formula_aprovada')
                               }
                               disabled={salvandoAcaoDecisao}
+                              className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 text-xs font-medium h-8 shadow-sm"
                             >
                               Aprovar e aplicar alteração de fórmula
                             </Button>
@@ -972,61 +1085,79 @@ export default function NexoCuradoria() {
         </Card>
       )}
 
+      {/* Botão de Histórico de decisões */}
       {podeVerDecisaoSuperior && (
         <div className="flex justify-end">
           <Button
             variant="outline"
             onClick={() => setHistoricoAberto(true)}
             disabled={loadingHistoricoDecisoes}
+            className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium h-9 shadow-sm"
           >
+            <History className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
             Histórico de decisões
           </Button>
         </div>
       )}
 
       {mensagemDecisaoSuperior && (
-        <Alert>
-          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-          <AlertTitle>Decisão superior atualizada</AlertTitle>
-          <AlertDescription>{mensagemDecisaoSuperior}</AlertDescription>
+        <Alert className="rounded-xl border border-emerald-200/80 bg-emerald-50/70 text-emerald-900">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+          <AlertTitle className="text-sm font-semibold text-emerald-950">
+            Decisão superior atualizada
+          </AlertTitle>
+          <AlertDescription className="text-xs text-emerald-800">
+            {mensagemDecisaoSuperior}
+          </AlertDescription>
         </Alert>
       )}
 
+      {/* Modal: Ajustar condições da regra IPCP */}
       <Dialog
         open={Boolean(revisaoIpcpEmAjuste)}
         onOpenChange={(open) => {
           if (!open) setRevisaoIpcpEmAjuste(null)
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl rounded-xl border border-slate-200/80 bg-white shadow-lg">
           <DialogHeader>
-            <DialogTitle>Ajustar condições da regra IPCP</DialogTitle>
-            <DialogDescription>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Governança IPCP
+            </p>
+            <DialogTitle className="text-lg font-bold text-slate-900">
+              Ajustar condições da regra IPCP
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
               Registre quais condições precisam ser alteradas antes de aprovar a mudança da fórmula.
             </DialogDescription>
           </DialogHeader>
           {revisaoIpcpEmAjuste && (
-            <div className="space-y-4">
-              <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-900">
-                <p className="font-semibold">{resumoDecisaoSuperior(revisaoIpcpEmAjuste)}</p>
-                <p className="mt-1 text-xs">
-                  Bloco ou sub-bloco: {revisaoIpcpEmAjuste.ipcp_revisao_blocos || 'IPCP geral'}
+            <div className="space-y-4 pt-2">
+              <div className="rounded-xl border border-slate-200/80 border-l-4 border-l-amber-500 bg-slate-50/70 p-3 text-xs text-slate-800">
+                <p className="font-bold text-slate-900">
+                  {resumoDecisaoSuperior(revisaoIpcpEmAjuste)}
+                </p>
+                <p className="mt-1 text-slate-500">
+                  Bloco ou sub-bloco:{' '}
+                  <span className="font-semibold text-slate-700">
+                    {revisaoIpcpEmAjuste.ipcp_revisao_blocos || 'IPCP geral'}
+                  </span>
                 </p>
               </div>
-              <label className="block space-y-2 text-sm font-medium text-slate-700">
+              <label className="block space-y-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Regra e condições a ajustar
                 <textarea
                   value={condicoesAjusteIpcp}
                   onChange={(event) => setCondicoesAjusteIpcp(event.target.value)}
-                  className="min-h-32 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-blue-200 focus:ring-2"
+                  className="min-h-32 w-full rounded-lg border border-slate-200 bg-white p-3 text-xs font-normal text-slate-800 shadow-sm outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 leading-relaxed"
                   placeholder="Ex.: exigir nome do decisor, limitar validade a 15 dias, ajustar peso sugerido ou transformar parte da regra em orientação operacional."
                 />
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 pt-2">
                 <Button
                   onClick={salvarAjusteRevisaoIpcp}
                   disabled={salvandoAcaoDecisao}
-                  className="bg-blue-600 text-white hover:bg-blue-700"
+                  className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm text-xs font-medium h-9"
                 >
                   {salvandoAcaoDecisao ? 'Salvando ajuste...' : 'Salvar ajuste'}
                 </Button>
@@ -1034,6 +1165,7 @@ export default function NexoCuradoria() {
                   variant="outline"
                   onClick={() => setRevisaoIpcpEmAjuste(null)}
                   disabled={salvandoAcaoDecisao}
+                  className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium h-9 shadow-sm"
                 >
                   Cancelar
                 </Button>
@@ -1043,136 +1175,173 @@ export default function NexoCuradoria() {
         </DialogContent>
       </Dialog>
 
+      {/* Modal: Histórico de decisões */}
       <Dialog open={Boolean(historicoAberto)} onOpenChange={setHistoricoAberto}>
-        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto rounded-xl border border-slate-200/80 bg-white shadow-lg">
           <DialogHeader>
-            <DialogTitle>Histórico de decisões</DialogTitle>
-            <DialogDescription>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Trilha de Auditoria
+            </p>
+            <DialogTitle className="text-lg font-bold text-slate-900">
+              Histórico de decisões
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
               Decisões resumidas com status, data e ações. Use Ver detalhes para abrir o conteúdo
               completo.
             </DialogDescription>
           </DialogHeader>
           {loadingHistoricoDecisoes ? (
-            <p className="text-sm text-slate-500">Carregando histórico de decisões...</p>
+            <p className="text-xs text-slate-500">Carregando histórico de decisões...</p>
           ) : decisoesHistorico.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-              Ainda não há decisões superiores aprovadas ou rejeitadas.
-            </p>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center my-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-3">
+                <History className="h-5 w-5" />
+              </div>
+              <p className="text-sm font-medium text-slate-700">Sem histórico recente</p>
+              <p className="mt-1 text-xs text-slate-500 max-w-sm">
+                Ainda não há decisões superiores aprovadas ou rejeitadas.
+              </p>
+            </div>
           ) : (
-            <div className="space-y-2">
-              {decisoesHistorico.map((decisao) => (
-                <div
-                  key={decisao.id}
-                  className="rounded-xl border border-slate-200 bg-slate-50/80 p-3"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-slate-950">
-                        {resumoDecisaoSuperior(decisao)}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Decidido em{' '}
-                        {dataCurta(decisao.updated_at || decisao.created_at || decisao.created)}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={`rounded-full ${estiloStatusDecisao(decisao.status)}`}
-                      >
-                        {rotuloStatusDecisao(decisao.status)}
-                      </Badge>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setHistoricoEmDetalhe(decisao)}
-                        disabled={salvandoAcaoDecisao}
-                      >
-                        Ver detalhes
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => ajustarDecisaoSuperior(decisao)}
-                        disabled={salvandoAcaoDecisao}
-                      >
-                        Revisar
-                      </Button>
-                      {decisao.status === 'aprovada_uso_operacional' && (
+            <div className="space-y-2.5 pt-2">
+              {decisoesHistorico.map((decisao) => {
+                const borderTone =
+                  decisao.status === 'aprovada_uso_operacional'
+                    ? 'border-l-4 border-l-emerald-500'
+                    : decisao.status === 'rejeitada'
+                      ? 'border-l-4 border-l-rose-500'
+                      : 'border-l-4 border-l-sky-500'
+                return (
+                  <div
+                    key={decisao.id}
+                    className={`rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm transition-all duration-150 hover:shadow-md ${borderTone}`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-slate-900">
+                          {resumoDecisaoSuperior(decisao)}
+                        </p>
+                        <p className="flex items-center gap-1 text-xs text-slate-500">
+                          <Clock className="h-3 w-3 text-slate-400" />
+                          Decidido em{' '}
+                          {dataCurta(decisao.updated_at || decisao.created_at || decisao.created)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${estiloStatusDecisao(decisao.status)}`}
+                        >
+                          {rotuloStatusDecisao(decisao.status)}
+                        </Badge>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => rejeitarDecisaoSuperior(decisao)}
+                          onClick={() => setHistoricoEmDetalhe(decisao)}
                           disabled={salvandoAcaoDecisao}
+                          className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium h-7 shadow-sm"
                         >
-                          Retirar do uso
+                          Ver detalhes
                         </Button>
-                      )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => ajustarDecisaoSuperior(decisao)}
+                          disabled={salvandoAcaoDecisao}
+                          className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium h-7 shadow-sm"
+                        >
+                          Revisar
+                        </Button>
+                        {decisao.status === 'aprovada_uso_operacional' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => rejeitarDecisaoSuperior(decisao)}
+                            disabled={salvandoAcaoDecisao}
+                            className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800 text-xs font-medium h-7 shadow-sm"
+                          >
+                            Retirar do uso
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </DialogContent>
       </Dialog>
 
+      {/* Modal: Detalhe da decisão superior */}
       <Dialog
         open={Boolean(historicoEmDetalhe)}
         onOpenChange={(open) => {
           if (!open) setHistoricoEmDetalhe(null)
         }}
       >
-        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto rounded-xl border border-slate-200/80 bg-white shadow-lg">
           <DialogHeader>
-            <DialogTitle>Detalhe da decisão superior</DialogTitle>
-            <DialogDescription>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Auditoria de Decisão
+            </p>
+            <DialogTitle className="text-lg font-bold text-slate-900">
+              Detalhe da decisão superior
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
               Histórico completo preservado para auditoria da decisão.
             </DialogDescription>
           </DialogHeader>
           {historicoEmDetalhe && (
-            <div className="space-y-3 text-sm text-slate-700">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="font-semibold text-slate-950">
+            <div className="space-y-3 pt-2 text-xs leading-relaxed text-slate-700">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/80 border-l-4 border-l-violet-500 bg-slate-50/70 p-3.5">
+                <p className="font-bold text-slate-900">
                   {resumoDecisaoSuperior(historicoEmDetalhe)}
                 </p>
                 <Badge
                   variant="outline"
-                  className={`rounded-full ${estiloStatusDecisao(historicoEmDetalhe.status)}`}
+                  className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${estiloStatusDecisao(historicoEmDetalhe.status)}`}
                 >
                   {rotuloStatusDecisao(historicoEmDetalhe.status)}
                 </Badge>
               </div>
-              <p>
-                <span className="font-semibold text-slate-900">Data:</span>{' '}
-                {dataCurta(
-                  historicoEmDetalhe.updated_at ||
-                    historicoEmDetalhe.created_at ||
-                    historicoEmDetalhe.created,
+              <div className="rounded-xl border border-slate-200/80 bg-white p-4 space-y-2.5 shadow-sm">
+                <p>
+                  <span className="font-semibold text-slate-900">Data:</span>{' '}
+                  <span className="text-slate-600">
+                    {dataCurta(
+                      historicoEmDetalhe.updated_at ||
+                        historicoEmDetalhe.created_at ||
+                        historicoEmDetalhe.created,
+                    )}
+                  </span>
+                </p>
+                <p>
+                  <span className="font-semibold text-slate-900">Regra proposta:</span>{' '}
+                  <span className="text-slate-800 font-medium">
+                    {historicoEmDetalhe.regra_proposta || 'Regra não informada'}
+                  </span>
+                </p>
+                {historicoEmDetalhe.excecao_condicao && (
+                  <p>
+                    <span className="font-semibold text-slate-900">Condição:</span>{' '}
+                    <span className="text-slate-700">{historicoEmDetalhe.excecao_condicao}</span>
+                  </p>
                 )}
-              </p>
-              <p>
-                <span className="font-semibold text-slate-900">Regra proposta:</span>{' '}
-                {historicoEmDetalhe.regra_proposta || 'Regra não informada'}
-              </p>
-              {historicoEmDetalhe.excecao_condicao && (
-                <p>
-                  <span className="font-semibold text-slate-900">Condição:</span>{' '}
-                  {historicoEmDetalhe.excecao_condicao}
-                </p>
-              )}
-              {historicoEmDetalhe.decisao_observacao && (
-                <p>
-                  <span className="font-semibold text-slate-900">Observação:</span>{' '}
-                  {historicoEmDetalhe.decisao_observacao}
-                </p>
-              )}
+                {historicoEmDetalhe.decisao_observacao && (
+                  <p>
+                    <span className="font-semibold text-slate-900">Observação:</span>{' '}
+                    <span className="text-slate-700">{historicoEmDetalhe.decisao_observacao}</span>
+                  </p>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2 pt-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => ajustarDecisaoSuperior(historicoEmDetalhe)}
                   disabled={salvandoAcaoDecisao}
+                  className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium h-8 shadow-sm"
                 >
                   Revisar decisão
                 </Button>
@@ -1182,6 +1351,7 @@ export default function NexoCuradoria() {
                     size="sm"
                     onClick={() => rejeitarDecisaoSuperior(historicoEmDetalhe)}
                     disabled={salvandoAcaoDecisao}
+                    className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800 text-xs font-medium h-8 shadow-sm"
                   >
                     Retirar do uso operacional
                   </Button>
@@ -1192,61 +1362,67 @@ export default function NexoCuradoria() {
         </DialogContent>
       </Dialog>
 
+      {/* Card de Ajuste de decisão superior */}
       {decisaoEmAjuste && (
-        <Card className="rounded-xl border-blue-200 bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg text-slate-950">Ajuste da decisão superior</CardTitle>
-            <CardDescription>
+        <Card className="rounded-xl border border-slate-200/80 border-l-4 border-l-sky-500 bg-white shadow-sm">
+          <CardHeader className="border-b border-slate-100 pb-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Edição Governada
+            </p>
+            <CardTitle className="text-lg font-bold text-slate-900">
+              Ajuste da decisão superior
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500">
               Ajuste a regra existente sem abrir uma nova resposta do zero para o mesmo caso.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
-              <p className="font-semibold">{resumoDecisaoSuperior(decisaoEmAjuste)}</p>
-              <p className="mt-1 text-xs">
+          <CardContent className="space-y-4 p-6">
+            <div className="rounded-xl border border-sky-100 bg-sky-50/70 p-3.5 text-xs text-sky-900">
+              <p className="font-bold text-slate-900">{resumoDecisaoSuperior(decisaoEmAjuste)}</p>
+              <p className="mt-1 text-slate-600">
                 {decisaoEmAjuste.status === 'aguardando_revisao'
                   ? 'A decisão continua aguardando validação superior após o ajuste.'
                   : 'Ao salvar, a decisão volta para aguardando validação superior antes de qualquer novo uso operacional.'}
               </p>
             </div>
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
+            <label className="block space-y-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
               Regra proposta
               <textarea
                 value={regraAjuste}
                 onChange={(event) => setRegraAjuste(event.target.value)}
-                className="min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-blue-200 focus:ring-2"
+                className="min-h-24 w-full rounded-lg border border-slate-200 bg-white p-3 text-xs font-normal text-slate-800 shadow-sm outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 leading-relaxed"
               />
             </label>
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
+            <label className="block space-y-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
               Exceção ou condição
               <textarea
                 value={excecaoAjuste}
                 onChange={(event) => setExcecaoAjuste(event.target.value)}
-                className="min-h-20 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-blue-200 focus:ring-2"
+                className="min-h-20 w-full rounded-lg border border-slate-200 bg-white p-3 text-xs font-normal text-slate-800 shadow-sm outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 leading-relaxed"
               />
             </label>
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
+            <label className="block space-y-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
               Responsável pela validação
               <textarea
                 value={responsavelAjuste}
                 onChange={(event) => setResponsavelAjuste(event.target.value)}
-                className="min-h-16 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-blue-200 focus:ring-2"
+                className="min-h-16 w-full rounded-lg border border-slate-200 bg-white p-3 text-xs font-normal text-slate-800 shadow-sm outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 leading-relaxed"
               />
             </label>
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
+            <label className="block space-y-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
               Observação da decisão
               <textarea
                 value={observacaoAjuste}
                 onChange={(event) => setObservacaoAjuste(event.target.value)}
-                className="min-h-16 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-blue-200 focus:ring-2"
+                className="min-h-16 w-full rounded-lg border border-slate-200 bg-white p-3 text-xs font-normal text-slate-800 shadow-sm outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 leading-relaxed"
                 placeholder="Opcional: registre o motivo do ajuste."
               />
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pt-2">
               <Button
                 onClick={salvarAjusteDecisaoSuperior}
                 disabled={salvandoAcaoDecisao}
-                className="bg-blue-600 text-white hover:bg-blue-700"
+                className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm text-xs font-medium h-9"
               >
                 {salvandoAcaoDecisao ? 'Salvando ajuste...' : 'Salvar ajuste'}
               </Button>
@@ -1254,6 +1430,7 @@ export default function NexoCuradoria() {
                 variant="outline"
                 onClick={() => setDecisaoEmAjuste(null)}
                 disabled={salvandoAcaoDecisao}
+                className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium h-9 shadow-sm"
               >
                 Cancelar ajuste
               </Button>
@@ -1263,37 +1440,53 @@ export default function NexoCuradoria() {
       )}
 
       {erro && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="rounded-xl">
           <AlertCircle className="h-4 w-4" aria-hidden="true" />
-          <AlertTitle>Curadoria indisponível</AlertTitle>
-          <AlertDescription>{erro}</AlertDescription>
+          <AlertTitle className="text-sm font-semibold">Curadoria indisponível</AlertTitle>
+          <AlertDescription className="text-xs">{erro}</AlertDescription>
         </Alert>
       )}
 
+      {/* Card da Entrevista Guiada do Nexo */}
       {entrevistaAberta && (
-        <Card className="rounded-xl border-violet-200 bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg text-slate-950">Entrevista guiada do Nexo</CardTitle>
-            <CardDescription>
-              Primeira versão do canal. O próximo passo será conectar esta conversa às pendências
-              selecionadas e salvar respostas estruturadas para revisão.
-            </CardDescription>
+        <Card className="rounded-xl border border-slate-200/80 border-l-4 border-l-violet-500 bg-white shadow-sm">
+          <CardHeader className="border-b border-slate-100 pb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Assistente Nexo
+                </p>
+                <CardTitle className="text-lg font-bold text-slate-900">
+                  Entrevista guiada do Nexo
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Primeira versão do canal. O próximo passo será conectar esta conversa às
+                  pendências selecionadas e salvar respostas estruturadas para revisão.
+                </CardDescription>
+              </div>
+              <Badge
+                variant="outline"
+                className="rounded-full border-violet-200/60 bg-violet-50 px-2.5 py-0.5 text-[11px] font-medium text-violet-700"
+              >
+                Conhecimento operacional
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-6">
             {pendenciaSelecionada && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 text-xs text-slate-700">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   Pendência selecionada
                 </p>
-                <p className="mt-1 font-semibold text-slate-900">
+                <p className="mt-1 font-bold text-slate-900">
                   {resumoEvento(pendenciaSelecionada)}
                 </p>
               </div>
             )}
             {decisaoExistenteParaPendencia && (
-              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-relaxed text-blue-900">
-                <p className="font-semibold">Já existe decisão superior para este caso.</p>
-                <p className="mt-1">
+              <div className="rounded-xl border border-sky-100 bg-sky-50/70 p-4 text-xs leading-relaxed text-sky-900">
+                <p className="font-bold">Já existe decisão superior para este caso.</p>
+                <p className="mt-1 text-slate-600">
                   Para evitar conflito decisório, este caso não deve ser respondido do zero. Use
                   Ajustar decisão existente para revisar a regra já encaminhada.
                 </p>
@@ -1301,50 +1494,57 @@ export default function NexoCuradoria() {
             )}
             {etapaEntrevista === 0 ? (
               <>
-                <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-sm leading-relaxed text-slate-700">
-                  <p className="font-semibold text-slate-900">Nexo</p>
-                  <p className="mt-1">
+                <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-4 text-xs leading-relaxed text-slate-700">
+                  <p className="font-bold text-violet-900 flex items-center gap-1.5">
+                    <Bot className="h-4 w-4 text-violet-600" />
+                    Nexo
+                  </p>
+                  <p className="mt-1.5 text-slate-600">
                     Vou conduzir perguntas objetivas sobre um padrão identificado no App Comercial.
                     Responda de forma curta, validando regra, exceção e responsável pela decisão.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 pt-2">
                   <Button
                     onClick={() => setEtapaEntrevista(1)}
                     disabled={!pendenciaSelecionada || Boolean(decisaoExistenteParaPendencia)}
-                    className="bg-violet-600 text-white hover:bg-violet-700"
+                    className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm text-xs font-medium h-9"
                   >
                     Começar entrevista
                   </Button>
-                  <Button variant="outline" onClick={fecharEntrevista}>
+                  <Button
+                    variant="outline"
+                    onClick={fecharEntrevista}
+                    className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium h-9 shadow-sm"
+                  >
                     Fechar
                   </Button>
                 </div>
               </>
             ) : etapaEntrevista <= perguntasEntrevista.length ? (
               <>
-                <div className="rounded-xl border border-violet-100 bg-violet-50 p-4 text-sm leading-relaxed text-slate-700">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">
+                <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-4 text-xs leading-relaxed text-slate-700">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-700">
                     Pergunta {etapaEntrevista} de {perguntasEntrevista.length}
                   </p>
-                  <p className="mt-2 font-semibold text-slate-900">
+                  <p className="mt-2 text-sm font-bold text-slate-900">
                     {perguntasEntrevista[etapaEntrevista - 1]}
                   </p>
                 </div>
-                <label className="block space-y-2 text-sm font-medium text-slate-700">
+                <label className="block space-y-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Resposta curta para curadoria
                   <textarea
                     value={respostasEntrevista[etapaEntrevista - 1] || ''}
                     onChange={(event) => atualizarRespostaEntrevista(event.target.value)}
-                    className="min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800 outline-none ring-violet-200 focus:ring-2"
+                    className="min-h-24 w-full rounded-lg border border-slate-200 bg-white p-3 text-xs font-normal text-slate-800 shadow-sm outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 leading-relaxed"
                     placeholder="Digite a orientação, regra ou observação validada."
                   />
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 pt-2">
                   <Button
                     onClick={avancarEntrevista}
                     disabled={salvandoEntrevista}
-                    className="bg-violet-600 text-white hover:bg-violet-700"
+                    className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm text-xs font-medium h-9"
                   >
                     {salvandoEntrevista
                       ? 'Enviando...'
@@ -1352,34 +1552,40 @@ export default function NexoCuradoria() {
                         ? 'Enviar para revisão'
                         : 'Próxima pergunta'}
                   </Button>
-                  <Button variant="outline" onClick={fecharEntrevista}>
+                  <Button
+                    variant="outline"
+                    onClick={fecharEntrevista}
+                    className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium h-9 shadow-sm"
+                  >
                     Fechar
                   </Button>
                 </div>
               </>
             ) : (
-              <div className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-relaxed text-emerald-900">
-                <p>
+              <div className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 text-xs leading-relaxed text-emerald-950">
+                <p className="font-medium text-emerald-900">
                   {entrevistaSalva
                     ? 'Entrevista enviada para revisão.'
                     : 'Entrevista registrada para revisão.'}{' '}
                   As respostas serão tratadas antes de virar regra ou playbook comercial.
                 </p>
-                <div className="rounded-lg border border-emerald-100 bg-white/80 p-3 text-slate-700">
-                  <p className="font-semibold text-slate-900">Regra candidata para decisão</p>
+                <div className="rounded-lg border border-emerald-100 bg-white/90 p-3.5 text-slate-700 shadow-sm">
+                  <p className="font-bold text-slate-900">Regra candidata para decisão</p>
                   <p className="mt-1 text-xs leading-relaxed text-slate-600">
                     O Nexo classifica se a proposta fica com o gestor comercial ou se deve escalar
                     para direção quando envolver funil, risco, perda, indicador ou política
                     comercial.
                   </p>
-                  <p className="mt-2 text-xs font-semibold text-slate-700">
+                  <p className="mt-2 text-xs font-bold text-slate-800">
                     Nível sugerido:{' '}
-                    {precisaDirecao(classificarImpactoDecisaoNexo(respostasEntrevista))
-                      ? 'Escalar para direção'
-                      : 'Gestor comercial'}
+                    <span className="text-violet-700 font-semibold">
+                      {precisaDirecao(classificarImpactoDecisaoNexo(respostasEntrevista))
+                        ? 'Escalar para direção'
+                        : 'Gestor comercial'}
+                    </span>
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 pt-1">
                   <Button
                     onClick={encaminharDecisaoSuperior}
                     disabled={
@@ -1387,7 +1593,7 @@ export default function NexoCuradoria() {
                       decisaoSuperiorSalva ||
                       Boolean(decisaoExistenteParaPendencia)
                     }
-                    className="bg-blue-600 text-white hover:bg-blue-700"
+                    className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm text-xs font-medium h-9"
                   >
                     {decisaoSuperiorSalva
                       ? 'Encaminhada para decisão superior'
@@ -1395,7 +1601,11 @@ export default function NexoCuradoria() {
                         ? 'Encaminhando...'
                         : 'Encaminhar para decisão superior'}
                   </Button>
-                  <Button variant="outline" onClick={fecharEntrevista}>
+                  <Button
+                    variant="outline"
+                    onClick={fecharEntrevista}
+                    className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-xs font-medium h-9 shadow-sm"
+                  >
                     Fechar
                   </Button>
                 </div>
