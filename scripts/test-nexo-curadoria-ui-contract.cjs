@@ -410,7 +410,7 @@ assert.match(
 )
 assert.match(
   page,
-  /disabled=\{salvandoDecisaoSuperior \|\| decisaoSuperiorSalva \|\| Boolean\(decisaoExistenteParaPendencia\)\}/,
+  /salvandoDecisaoSuperior \|\|\s*decisaoSuperiorSalva \|\|\s*Boolean\(decisaoExistenteParaPendencia\)/,
   'botão de encaminhamento deve bloquear duplicidade',
 )
 assert.match(page, /classificarImpactoDecisaoNexo/, 'página deve classificar impacto da decisão')
