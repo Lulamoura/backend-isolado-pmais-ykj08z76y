@@ -2062,6 +2062,20 @@ cronAdd(
     try {
       salvarPacoteDiario(
         data,
+        'todos',
+        '__todos__',
+        'Todos',
+        gestor,
+        'ipcp_processamento_diario_job_1900_recife_todos',
+      )
+      processados++
+    } catch (errTodos) {
+      console.log('IPCP job diario: falha no Todos: ' + String(errTodos).slice(0, 180))
+    }
+
+    try {
+      salvarPacoteDiario(
+        data,
         'equipe',
         '__todos__',
         'Todos',
