@@ -34,8 +34,13 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /filtroEquipe/,
+  /buscarSnapshotsIpcp\(effectiveScope, ''\)/,
   'visão de equipe deve tentar snapshot consolidado quando não houver snapshot amarrado ao responsável',
+)
+assert.match(
+  routeSource,
+  /effectiveScope === 'todos'[\s\S]{0,220}buscarSnapshotsIpcp\('equipe', '__todos__'\)[\s\S]{0,220}buscarSnapshotsIpcp\('equipe', ''\)/,
+  'visão Todos deve reutilizar a base consolidada diária, incluindo compatibilidade com consolidado antigo em equipe sem filtro de responsável',
 )
 assert.match(
   routeSource,
@@ -135,8 +140,18 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /var calculadoEm = snapshot[\s\S]{0,250}new Date\(\)\.toISOString\(\)/,
-  'rota deve expor data/hora de base: snapshot quando existir ou cálculo vivo do servidor quando não houver snapshot',
+  /var calculadoEm = snapshot[\s\S]{0,180}snapshot\.getString\('updated'\)[\s\S]{0,120}: null/,
+  'Base exibida deve usar data/hora do snapshot disponível; sem snapshot não deve inventar hora da consulta',
+)
+assert.match(
+  routeSource,
+  /calculado_ao_vivo:\s*!snapshotAtualDoDia/,
+  'rota deve diferenciar cálculo ao vivo de snapshot diário para não rotular consulta como Base diária',
+)
+assert.match(
+  routeSource,
+  /snapshot_do_dia:\s*snapshotAtualDoDia/,
+  'rota deve informar se o snapshot encontrado é da data-base solicitada',
 )
 assert.match(
   routeSource,
@@ -150,13 +165,18 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /negocios_atencao:\s*pacoteVivo\.negocios_atencao/,
-  'rota do Nexo deve devolver negócios de atenção calculados ao vivo, não itens fixos do snapshot',
+  /var negociosAtencaoResposta =[\s\S]{0,220}snapshotAtualDoDia && payload\.negocios_atencao[\s\S]{0,220}pacoteVivo\.negocios_atencao/,
+  'rota deve usar negócios do snapshot diário quando há snapshot do dia e leitura viva apenas quando o atual é ao vivo',
 )
 assert.match(
   routeSource,
-  /pacoteVivo\.evolucao|evolucao:\s*pacoteVivo/,
-  'rota do Nexo deve devolver evolução calculada ao vivo',
+  /snapshotAnteriorComparavel\(snapshot, snapshots\)/,
+  'quando há snapshot do dia, evolução deve comparar com snapshot anterior do mesmo escopo/responsável',
+)
+assert.match(
+  routeSource,
+  /snapshotBaseAnteriorQuandoAtualAoVivo\(snapshot\)/,
+  'quando o atual ainda é calculado ao vivo, evolução deve usar o último snapshot como Anterior em vez de primeira leitura',
 )
 assert.match(
   routeSource,

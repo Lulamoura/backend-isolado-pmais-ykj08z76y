@@ -2733,29 +2733,39 @@ routerAdd(
     if (effectiveScope === 'equipe' && !responsavelSelecionado) responsavelId = '__todos__'
     if (effectiveScope === 'proprio') responsavelId = ator.id
 
-    var filtro = "data_referencia <= '" + esc(data) + "' && escopo = '" + esc(effectiveScope) + "'"
-    if (responsavelId) filtro += " && responsavel_id = '" + esc(responsavelId) + "'"
-
-    var snapshots = []
-    var fonteDisponivel = true
-    try {
-      snapshots = $app.findRecordsByFilter(
+    function buscarSnapshotsIpcp(escopoBusca, responsavelBusca) {
+      var filtroBusca =
+        "data_referencia <= '" + esc(data) + "' && escopo = '" + esc(escopoBusca) + "'"
+      if (responsavelBusca) filtroBusca += " && responsavel_id = '" + esc(responsavelBusca) + "'"
+      return $app.findRecordsByFilter(
         'com_ipcp_snapshots',
-        filtro,
+        filtroBusca,
         '-data_referencia,-created',
         5,
         0,
       )
+    }
+
+    var snapshots = []
+    var fonteDisponivel = true
+    var escopoSnapshotEfetivo = effectiveScope
+    var responsavelSnapshotEfetivo = responsavelId
+    try {
+      snapshots = buscarSnapshotsIpcp(effectiveScope, responsavelId)
+      if (!snapshots.length && effectiveScope === 'todos') {
+        // A visão "Todos" usa a mesma base consolidada diária gravada como equipe/__todos__.
+        snapshots = buscarSnapshotsIpcp('equipe', '__todos__')
+        if (!snapshots.length) {
+          // Compatibilidade com snapshots antigos: o consolidado era gravado como equipe amarrada ao gestor.
+          snapshots = buscarSnapshotsIpcp('equipe', '')
+        }
+        if (snapshots.length) {
+          escopoSnapshotEfetivo = 'equipe'
+          responsavelSnapshotEfetivo = snapshots[0].getString('responsavel_id') || '__todos__'
+        }
+      }
       if (!snapshots.length && effectiveScope !== 'proprio' && responsavelId) {
-        var filtroEquipe =
-          "data_referencia <= '" + esc(data) + "' && escopo = '" + esc(effectiveScope) + "'"
-        snapshots = $app.findRecordsByFilter(
-          'com_ipcp_snapshots',
-          filtroEquipe,
-          '-data_referencia,-created',
-          5,
-          0,
-        )
+        snapshots = buscarSnapshotsIpcp(effectiveScope, '')
       }
     } catch (_) {
       fonteDisponivel = false
@@ -2764,6 +2774,8 @@ routerAdd(
 
     var snapshot = snapshots.length ? snapshots[0] : null
     var payload = snapshot ? leituraPayload(snapshot) : {}
+    var snapshotDataReferencia = snapshot ? snapshot.getString('data_referencia') || '' : ''
+    var snapshotAtualDoDia = !!snapshot && snapshotDataReferencia === data
     var pacoteVivoResponsavelId = responsavelId === '__todos__' ? '' : responsavelId
     var pacoteVivo = calcularPacoteIpcpDiarioVivo(
       data,
@@ -2771,8 +2783,11 @@ routerAdd(
       pacoteVivoResponsavelId,
       ator,
     )
-    var ipcpPayload = pacoteVivo.ipcp || payload.ipcp || {}
-    var resumoPayload = pacoteVivo.resumo_nexo || payload.resumo_nexo || {}
+    var ipcpPayload = snapshotAtualDoDia && payload.ipcp ? payload.ipcp : pacoteVivo.ipcp || payload.ipcp || {}
+    var resumoPayload =
+      snapshotAtualDoDia && payload.resumo_nexo
+        ? payload.resumo_nexo
+        : pacoteVivo.resumo_nexo || payload.resumo_nexo || {}
     var guardrailsPayload = payload.guardrails || {}
 
     var ipcpTotal = Number(ipcpPayload.total || 0)
@@ -2798,11 +2813,21 @@ routerAdd(
       return 'manteve'
     }
 
-    function payloadSnapshotAnterior(snapshotAtual, rows) {
-      if (!rows || rows.length < 2) return null
+    function snapshotAnteriorComparavel(snapshotAtual, rows) {
+      if (!rows || !rows.length) return null
+      if (!snapshotAtual) return null
+      var dataAtualSnapshot = snapshotAtual.getString('data_referencia') || data
       for (var ai = 0; ai < rows.length; ai++) {
-        if (!snapshotAtual || rows[ai].id !== snapshotAtual.id) return leituraPayload(rows[ai])
+        var rowData = rows[ai].getString('data_referencia') || ''
+        if (rows[ai].id !== snapshotAtual.id && rowData < dataAtualSnapshot) return leituraPayload(rows[ai])
       }
+      return null
+    }
+
+    function snapshotBaseAnteriorQuandoAtualAoVivo(snapshotAtual) {
+      if (!snapshotAtual) return null
+      var rowData = snapshotAtual.getString('data_referencia') || ''
+      if (rowData && rowData < data) return leituraPayload(snapshotAtual)
       return null
     }
 
@@ -2996,11 +3021,17 @@ routerAdd(
     var prioridades = resumoPayload.prioridades || []
     var calculadoEm = snapshot
       ? snapshot.getString('updated') || snapshot.getString('created') || null
-      : new Date().toISOString()
-    pacoteVivo.evolucao = montarEvolucaoIpcp(
-      ipcpPayload,
-      payloadSnapshotAnterior(snapshot, snapshots),
-    )
+      : null
+    var anteriorComparavel = snapshotAtualDoDia
+      ? snapshotAnteriorComparavel(snapshot, snapshots)
+      : snapshotBaseAnteriorQuandoAtualAoVivo(snapshot)
+    pacoteVivo.evolucao = montarEvolucaoIpcp(ipcpPayload, anteriorComparavel)
+    var negociosAtencaoResposta =
+      snapshotAtualDoDia && payload.negocios_atencao
+        ? payload.negocios_atencao || []
+        : pacoteVivo.negocios_atencao || []
+    var evidenciasResposta =
+      snapshotAtualDoDia && payload.evidencias ? payload.evidencias : pacoteVivo.evidencias
 
     return e.json(200, {
       ok: true,
@@ -3013,10 +3044,14 @@ routerAdd(
         consultados: true,
         fonte_disponivel: fonteDisponivel,
         snapshot_encontrado: !!snapshot,
+        snapshot_do_dia: snapshotAtualDoDia,
+        escopo_snapshot: escopoSnapshotEfetivo,
+        responsavel_snapshot_id:
+          responsavelSnapshotEfetivo === '__todos__' ? null : responsavelSnapshotEfetivo || null,
         total_lido: snapshots.length,
         limite_leitura: 5,
         pacote_completo: true,
-        calculado_ao_vivo: true,
+        calculado_ao_vivo: !snapshotAtualDoDia,
         calculado_em: calculadoEm,
       },
       data_referencia: dataReferencia,
@@ -3047,16 +3082,16 @@ routerAdd(
           pendentes: 0,
         },
       },
-      negocios_atencao: pacoteVivo.negocios_atencao || [],
+      negocios_atencao: negociosAtencaoResposta,
       evolucao: pacoteVivo.evolucao,
       evidencias: {
-        criterio: pacoteVivo.evidencias
-          ? pacoteVivo.evidencias.criterio
+        criterio: evidenciasResposta
+          ? evidenciasResposta.criterio
           : 'leitura_viva_ipcp_dados_reais',
-        fonte: pacoteVivo.evidencias
-          ? pacoteVivo.evidencias.fonte
+        fonte: evidenciasResposta
+          ? evidenciasResposta.fonte
           : 'leitura_viva_ipcp_dados_reais',
-        exemplos: pacoteVivo.evidencias ? pacoteVivo.evidencias.exemplos || [] : [],
+        exemplos: evidenciasResposta ? evidenciasResposta.exemplos || [] : [],
         snapshot_id: snapshot ? snapshot.id : null,
         snapshot_status: snapshot ? snapshot.getString('status') || null : null,
         origem: snapshot ? snapshot.getString('origem') || null : null,

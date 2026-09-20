@@ -11,7 +11,8 @@ function assert(cond, msg) {
   }
 }
 assert(hook.includes('montarEvolucaoIpcp'), 'backend deve montar evolução comparativa do IPCP')
-assert(hook.includes('payloadSnapshotAnterior(snapshot, snapshots)'), 'backend deve comparar com snapshot anterior do mesmo escopo')
+assert(hook.includes('snapshotAnteriorComparavel(snapshot, snapshots)'), 'backend deve comparar com snapshot anterior do mesmo escopo quando há snapshot do dia')
+assert(hook.includes('snapshotBaseAnteriorQuandoAtualAoVivo(snapshot)'), 'backend deve usar o snapshot existente como Anterior quando o Atual ainda é calculado ao vivo')
 assert(hook.includes('variacao_total'), 'backend deve retornar variação total')
 assert(hook.includes('data_anterior'), 'backend deve retornar data anterior comparada')
 assert(hook.includes('blocos: blocos'), 'backend deve retornar variação por bloco')
