@@ -37,8 +37,11 @@ assert(
   'payload/status do job deve indicar automação ativa',
 )
 assert(
-  hookSource.includes("'__todos__'") && hookSource.includes("responsavelId !== '__todos__'"),
-  'job deve gravar pacote consolidado Todos separadamente dos pacotes por responsável',
+  hookSource.includes("'todos'") &&
+    hookSource.includes("ipcp_processamento_diario_job_1900_recife_todos") &&
+    hookSource.includes("'__todos__'") &&
+    hookSource.includes("ipcp_processamento_diario_job_1900_recife_responsavel"),
+  'job deve gravar no mesmo ciclo: snapshot Todos explícito, consolidado e pacotes por responsável',
 )
 assert(
   hookSource.includes('listRule: null') &&
