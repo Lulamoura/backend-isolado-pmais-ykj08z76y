@@ -174,22 +174,15 @@ assert.ok(
   'deve existir migração da coleção de decisões superiores',
 )
 const decisaoMigration = fs.readFileSync(decisaoMigrationPath, 'utf8')
-assert.match(page, /Canal de decisão superior/, 'página deve ter canal de decisão superior')
-assert.match(
+assert.doesNotMatch(
   page,
-  /Regras propostas para validação/,
-  'página deve separar regras propostas para validação',
+  /Canal de decisão superior/,
+  'card informativo sem ação não deve ocupar a tela principal',
 )
-assert.match(page, /Aguardando revisão/, 'canal superior deve exibir estado aguardando revisão')
-assert.match(
+assert.doesNotMatch(
   page,
-  /Aprovada para uso operacional/,
-  'canal superior deve exibir estado aprovada para uso operacional',
-)
-assert.match(
-  page,
-  /Escalar para direção/,
-  'canal superior deve exibir estado de escalonamento para direção',
+  /Regras propostas para validação sobem para gestão ou direção/,
+  'texto explicativo sem ação não deve interromper o fluxo operacional',
 )
 assert.match(
   page,
