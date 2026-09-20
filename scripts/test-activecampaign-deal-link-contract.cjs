@@ -14,6 +14,8 @@ const nexo = read('src/pages/NexoAssistente.tsx')
 const atividades = read('src/pages/Atividades.tsx')
 const qualificacoes = read('src/pages/Qualificacoes.tsx')
 const ordensExecucao = read('src/pages/OrdensExecucao.tsx')
+const foundation = read('src/pages/Foundation.tsx')
+const dealUrlCard = read('src/components/foundation/ActiveCampaignDealUrlCard.tsx')
 const migration = read('pocketbase/migrations/202609201210_activecampaign_deal_base_url_param.js')
 
 function assert(condition, message) {
@@ -36,10 +38,18 @@ assert(
   'hook deve ler URL base editável em com_parametros com fallback seguro',
 )
 assert(
-  param.includes("id: 'integracao-activecampaign'") &&
+  param.includes('PARAMETROS_INTEGRACAO_ACTIVECAMPAIGN') &&
     param.includes("chave: 'activecampaign.deal_base_url'") &&
     param.includes("controle: 'url'"),
-  'Administração deve expor URL base do ActiveCampaign como parâmetro editável',
+  'Administração deve definir URL base do ActiveCampaign como parâmetro editável',
+)
+assert(
+  foundation.includes('ActiveCampaignDealUrlCard') &&
+    foundation.includes('value="integracao"') &&
+    dealUrlCard.includes('Links dos negócios no ActiveCampaign') &&
+    dealUrlCard.includes('ParametroAmigavelCard') &&
+    dealUrlCard.includes('activecampaign.deal_base_url'),
+  'URL base editável deve aparecer na aba Integração ActiveCampaign, não apenas em Configurações',
 )
 assert(
   card.includes('target="_blank"') &&

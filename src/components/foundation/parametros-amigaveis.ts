@@ -45,6 +45,18 @@ const numero = (
   recomendado,
 })
 
+export const PARAMETROS_INTEGRACAO_ACTIVECAMPAIGN: ParametroAmigavel[] = [
+  {
+    chave: 'activecampaign.deal_base_url',
+    titulo: 'URL base dos negócios no ActiveCampaign',
+    descricao:
+      'Endereço usado nos botões “Abrir no ActiveCampaign” dos cards de negócio. O sistema acrescenta automaticamente o ID do negócio ao final.',
+    controle: 'url',
+    recomendado: 'https://pmaisservicos89463.activehosted.com/app/deals/',
+    alerta: 'Altere apenas se o domínio ou caminho do ActiveCampaign mudar.',
+  },
+]
+
 export const GRUPOS_PARAMETROS_AMIGAVEIS: GrupoParametrosAmigaveis[] = [
   {
     id: 'propostas',
@@ -157,22 +169,6 @@ export const GRUPOS_PARAMETROS_AMIGAVEIS: GrupoParametrosAmigaveis[] = [
     ],
   },
   {
-    id: 'integracao-activecampaign',
-    titulo: 'Integração ActiveCampaign',
-    descricao: 'Links e parâmetros usados para operar o CRM a partir do aplicativo.',
-    parametros: [
-      {
-        chave: 'activecampaign.deal_base_url',
-        titulo: 'URL base dos negócios no ActiveCampaign',
-        descricao:
-          'Endereço usado nos botões “Abrir no ActiveCampaign” dos cards de negócio. O sistema acrescenta automaticamente o ID do negócio ao final.',
-        controle: 'url',
-        recomendado: 'https://pmaisservicos89463.activehosted.com/app/deals/',
-        alerta: 'Altere apenas se o domínio ou caminho do ActiveCampaign mudar.',
-      },
-    ],
-  },
-  {
     id: 'padroes',
     titulo: 'Padrões comerciais',
     descricao: 'Valores aplicados automaticamente ao criar usuários ou negócios.',
@@ -213,8 +209,9 @@ export const GRUPOS_PARAMETROS_AMIGAVEIS: GrupoParametrosAmigaveis[] = [
   },
 ]
 
-export const CHAVES_AMIGAVEIS = new Set(
-  GRUPOS_PARAMETROS_AMIGAVEIS.flatMap((grupo) =>
+export const CHAVES_AMIGAVEIS = new Set([
+  ...GRUPOS_PARAMETROS_AMIGAVEIS.flatMap((grupo) =>
     grupo.parametros.map((parametro) => parametro.chave),
   ),
-)
+  ...PARAMETROS_INTEGRACAO_ACTIVECAMPAIGN.map((parametro) => parametro.chave),
+])
