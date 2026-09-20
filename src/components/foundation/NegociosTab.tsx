@@ -50,6 +50,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Plus, Pencil, History, AlertTriangle, Ban, CheckCircle } from 'lucide-react'
+import { ActiveCampaignDealLink } from '@/components/ActiveCampaignDealLink'
 import type { RecordModel } from 'pocketbase'
 
 export function NegociosTab() {
@@ -562,6 +563,7 @@ export function NegociosTab() {
                 </div>
               </TableCell>
               <TableCell className="text-right">
+                <ActiveCampaignDealLink dealId={r.external_id} compact className="mr-1" />
                 <Button
                   variant="ghost"
                   size="sm"

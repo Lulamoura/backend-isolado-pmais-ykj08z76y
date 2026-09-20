@@ -1,4 +1,4 @@
-export type ParametroControle = 'booleano' | 'numero' | 'selecao'
+export type ParametroControle = 'booleano' | 'numero' | 'selecao' | 'texto' | 'url'
 
 export interface ParametroOpcao {
   valor: string
@@ -154,6 +154,22 @@ export const GRUPOS_PARAMETROS_AMIGAVEIS: GrupoParametrosAmigaveis[] = [
         'Quantos dias úteis antes do vencimento o sistema começa a alertar.',
         'dias úteis',
       ),
+    ],
+  },
+  {
+    id: 'integracao-activecampaign',
+    titulo: 'Integração ActiveCampaign',
+    descricao: 'Links e parâmetros usados para operar o CRM a partir do aplicativo.',
+    parametros: [
+      {
+        chave: 'activecampaign.deal_base_url',
+        titulo: 'URL base dos negócios no ActiveCampaign',
+        descricao:
+          'Endereço usado nos botões “Abrir no ActiveCampaign” dos cards de negócio. O sistema acrescenta automaticamente o ID do negócio ao final.',
+        controle: 'url',
+        recomendado: 'https://pmaisservicos89463.activehosted.com/app/deals/',
+        alerta: 'Altere apenas se o domínio ou caminho do ActiveCampaign mudar.',
+      },
     ],
   },
   {
