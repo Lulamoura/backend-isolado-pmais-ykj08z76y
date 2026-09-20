@@ -2755,9 +2755,13 @@ routerAdd(
       if (!snapshots.length && effectiveScope === 'todos') {
         // A visão "Todos" usa a mesma base consolidada diária gravada como equipe/__todos__.
         snapshots = buscarSnapshotsIpcp('equipe', '__todos__')
+        if (!snapshots.length) {
+          // Compatibilidade com snapshots antigos: o consolidado era gravado como equipe amarrada ao gestor.
+          snapshots = buscarSnapshotsIpcp('equipe', '')
+        }
         if (snapshots.length) {
           escopoSnapshotEfetivo = 'equipe'
-          responsavelSnapshotEfetivo = '__todos__'
+          responsavelSnapshotEfetivo = snapshots[0].getString('responsavel_id') || '__todos__'
         }
       }
       if (!snapshots.length && effectiveScope !== 'proprio' && responsavelId) {
