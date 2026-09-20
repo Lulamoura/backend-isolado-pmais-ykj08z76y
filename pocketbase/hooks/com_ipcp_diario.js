@@ -1284,7 +1284,7 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
 
 var IPCP_JOB_DIARIO_HOMOLOGACAO_ATIVO = true
 var IPCP_JOB_DIARIO_HOMOLOGACAO_HORARIO_RECIFE = '19:00'
-var IPCP_JOB_DIARIO_HOMOLOGACAO_CRON_UTC = '0 22 * * *'
+var IPCP_JOB_DIARIO_HOMOLOGACAO_CRON_UTC = '0 22 * * 1-5'
 
 cronAdd(
   'ipcp_processamento_diario_homologacao_1900_recife',
@@ -1292,6 +1292,37 @@ cronAdd(
   function () {
     function civilHojeRecife() {
       return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    }
+
+    function proximaDataCivil(data) {
+      var dt = new Date(String(data) + 'T03:00:00.000Z')
+      dt.setUTCDate(dt.getUTCDate() + 1)
+      return dt.toISOString().slice(0, 10)
+    }
+
+    function fimDeSemanaRecife(data) {
+      var dow = new Date(String(data) + 'T03:00:00.000Z').getUTCDay()
+      return dow === 0 || dow === 6
+    }
+
+    function feriadoAtivoRecife(data) {
+      try {
+        var proxima = proximaDataCivil(data)
+        var filtro =
+          "ativo = true && data >= '" +
+          data +
+          " 00:00:00.000Z' && data < '" +
+          proxima +
+          " 00:00:00.000Z'"
+        var rows = $app.findRecordsByFilter('com_calendario_feriados', filtro, '', 1, 0)
+        return rows && rows.length > 0
+      } catch (_) {
+        return false
+      }
+    }
+
+    function diaUtilProcessamentoIpcp(data) {
+      return !fimDeSemanaRecife(data) && !feriadoAtivoRecife(data)
     }
 
     function isCivilDate(value) {
@@ -2037,6 +2068,12 @@ cronAdd(
     }
 
     var data = civilHojeRecife()
+    if (!diaUtilProcessamentoIpcp(data)) {
+      console.log(
+        'IPCP job diario 19:00 Recife: processamento ignorado por dia nao util para ' + data,
+      )
+      return
+    }
     var processados = 0
     var usuarios = []
     try {
