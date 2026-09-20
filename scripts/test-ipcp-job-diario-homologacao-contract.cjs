@@ -24,8 +24,8 @@ assert(
   'job deve declarar horário de negócio Recife 19:00',
 )
 assert(
-  hookSource.includes("IPCP_JOB_DIARIO_HOMOLOGACAO_CRON_UTC = '0 22 * * *'"),
-  'job deve rodar às 22:00 UTC para corresponder a 19:00 Recife',
+  hookSource.includes("IPCP_JOB_DIARIO_HOMOLOGACAO_CRON_UTC = '0 22 * * 1-5'"),
+  'job deve rodar às 22:00 UTC de segunda a sexta para corresponder a 19:00 Recife em dias úteis',
 )
 assert(
   /record\.set\('origem', origem\)/.test(hookSource) &&
@@ -37,8 +37,19 @@ assert(
   'payload/status do job deve indicar automação ativa',
 )
 assert(
-  hookSource.includes("'__todos__'") && hookSource.includes("responsavelId !== '__todos__'"),
-  'job deve gravar pacote consolidado Todos separadamente dos pacotes por responsável',
+  hookSource.includes('diaUtilProcessamentoIpcp(data)') &&
+    hookSource.includes('fimDeSemanaRecife(data)') &&
+    hookSource.includes('feriadoAtivoRecife(data)') &&
+    hookSource.includes('com_calendario_feriados') &&
+    hookSource.includes('processamento ignorado por dia nao util'),
+  'job deve pular fins de semana e feriados cadastrados antes de gravar snapshots',
+)
+assert(
+  hookSource.includes("'todos'") &&
+    hookSource.includes("ipcp_processamento_diario_job_1900_recife_todos") &&
+    hookSource.includes("'__todos__'") &&
+    hookSource.includes("ipcp_processamento_diario_job_1900_recife_responsavel"),
+  'job deve gravar no mesmo ciclo: snapshot Todos explícito, consolidado e pacotes por responsável',
 )
 assert(
   hookSource.includes('listRule: null') &&
@@ -54,7 +65,7 @@ assert(
   serviceSource.includes("horario_recife: '19:00'"),
   'status da rotina deve mostrar horário Recife',
 )
-assert(serviceSource.includes("cron_utc: '0 22 * * *'"), 'status deve mostrar cron UTC correto')
+assert(serviceSource.includes("cron_utc: '0 22 * * 1-5'"), 'status deve mostrar cron UTC de dias úteis')
 assert(
   serviceSource.includes('agendamento_automatico_ativo: true'),
   'status deve indicar automação de homologação ativa',

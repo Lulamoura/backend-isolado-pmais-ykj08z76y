@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+'use strict'
+const fs = require('node:fs')
+const hook = fs.readFileSync('pocketbase/hooks/com_ipcp_diario.js', 'utf8')
+const ui = fs.readFileSync('src/components/ipcp/IpcpEducativoDiarioCard.tsx', 'utf8')
+const service = fs.readFileSync('src/services/ipcp.ts', 'utf8')
+function assert(cond, msg) {
+  if (!cond) {
+    console.error('FAIL:', msg)
+    process.exit(1)
+  }
+}
+assert(hook.includes('montarEvolucaoIpcp'), 'backend deve montar evolução comparativa do IPCP')
+assert(hook.includes('snapshotAnteriorComparavel(snapshot, snapshots)'), 'backend deve comparar com snapshot anterior do mesmo escopo quando há snapshot do dia')
+assert(hook.includes('snapshotBaseAnteriorQuandoAtualAoVivo(snapshot)'), 'backend deve usar o snapshot existente como Anterior quando o Atual ainda é calculado ao vivo')
+assert(hook.includes('variacao_total'), 'backend deve retornar variação total')
+assert(hook.includes('data_anterior'), 'backend deve retornar data anterior comparada')
+assert(hook.includes('blocos: blocos'), 'backend deve retornar variação por bloco')
+assert(hook.includes('selecionarMensagemEvolucaoIpcp'), 'backend deve usar biblioteca determinística de mensagens educativas')
+assert(hook.includes('cenario: mensagem.cenario'), 'backend deve expor cenário determinístico da mensagem')
+assert(hook.includes('acao_recomendada: mensagem.acao'), 'backend deve expor ação recomendada determinística')
+assert(hook.includes('melhora_distribuida'), 'biblioteca deve cobrir melhora distribuída')
+assert(hook.includes('queda_followup'), 'biblioteca deve cobrir queda por follow-up')
+assert(hook.includes('estabilidade_baixa'), 'biblioteca deve cobrir estabilidade em patamar baixo')
+assert(hook.includes('valor_estrategico_em_queda'), 'biblioteca deve cobrir queda em valor estratégico')
+assert(hook.includes('registros_em_queda'), 'biblioteca deve cobrir queda em registros/aprendizado')
+assert(hook.includes("if (delta >= 0.5) return 'melhorou'"), 'backend deve classificar melhora')
+assert(hook.includes("if (delta <= -0.5) return 'piorou'"), 'backend deve classificar piora')
+assert(hook.includes("return 'manteve'"), 'backend deve classificar estabilidade')
+assert(ui.includes('Relatório evolutivo do IPCP'), 'UI deve exibir relatório evolutivo abaixo de Blocos IPCP')
+assert(ui.includes('Comparação educativa com a leitura diária anterior'), 'UI deve explicar o caráter educativo da comparação')
+assert(ui.includes('formatVariacao'), 'UI deve formatar variação com sinal')
+assert(service.includes('variacao_total?: number | null'), 'serviço deve tipar variação total')
+assert(service.includes('data_anterior?: string | null'), 'serviço deve tipar data anterior')
+assert(service.includes('blocos?: Array'), 'serviço deve tipar evolução por bloco')
+console.log('OK: contrato IPCP evolução diária protegido')
