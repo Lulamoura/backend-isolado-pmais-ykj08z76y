@@ -650,35 +650,81 @@ export default function NexoCuradoria() {
         </Card>
       </div>
 
-      <Card className="rounded-xl border-blue-200 bg-blue-50/60 shadow-sm">
+      <Card className="rounded-xl border-slate-200 bg-white shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg text-slate-950">Canal de decisão superior</CardTitle>
+          <CardTitle className="text-lg text-slate-950">Aguardando curadoria</CardTitle>
           <CardDescription>
-            Regras propostas para validação sobem para gestão ou direção quando afetarem funil,
-            risco, perda, indicador ou política comercial.
+            Sinais gerados pelo uso do Ajuda do Nexo que precisam ser analisados antes de virar
+            regra ou playbook.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-blue-100 bg-white p-3">
-              <p className="text-sm font-semibold text-slate-900">Aguardando revisão</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Regra candidata recebida após entrevista guiada.
-              </p>
+          {loading ? (
+            <p className="text-sm text-slate-500">Carregando pendências...</p>
+          ) : resumo.itens.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+              Não há pendências de curadoria neste momento.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {resumo.itens.map((item) => {
+                const decisaoDoItem = [...decisoesSuperiores, ...decisoesRelacionadas].find(
+                  (decisao) =>
+                    decisao.evento_id === item.id ||
+                    (!!item.external_id && decisao.external_id === item.external_id),
+                )
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-slate-200 bg-slate-50/80 p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-slate-900">{resumoEvento(item)}</p>
+                        <p className="text-xs text-slate-500">
+                          Recebido em {dataCurta(item.created_at || item.created)}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-amber-200 bg-amber-50 text-amber-700"
+                      >
+                        Revisão obrigatória
+                      </Badge>
+                    </div>
+                    {item.contexto_resumo && (
+                      <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-slate-600">
+                        {item.contexto_resumo}
+                      </p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {decisaoDoItem ? (
+                        <>
+                          <Badge
+                            variant="outline"
+                            className="rounded-full border-blue-200 bg-blue-50 text-blue-700"
+                          >
+                            Já existe decisão superior para este caso
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => ajustarDecisaoSuperior(decisaoDoItem)}
+                          >
+                            Ajustar decisão existente
+                          </Button>
+                        </>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={() => iniciarCuradoria(item)}>
+                          Entrevistar sobre esta pendência
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-            <div className="rounded-xl border border-emerald-100 bg-white p-3">
-              <p className="text-sm font-semibold text-slate-900">Aprovada para uso operacional</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Orientação validada para uso pelo Comercial.
-              </p>
-            </div>
-            <div className="rounded-xl border border-amber-100 bg-white p-3">
-              <p className="text-sm font-semibold text-slate-900">Escalar para direção</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Decisão exige diretoria quando altera critério sensível.
-              </p>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -808,7 +854,7 @@ export default function NexoCuradoria() {
                   return (
                     <div
                       key={decisao.id}
-                      className={`rounded-xl border bg-white p-4 ${revisaoTerminal ? 'border-emerald-200' : 'border-amber-200'}`}
+                      className={`rounded-xl border bg-white ${revisaoTerminal ? 'border-emerald-200 p-3' : 'border-amber-200 p-4'}`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-1">
@@ -827,92 +873,95 @@ export default function NexoCuradoria() {
                           {rotuloStatusRevisaoIpcp(decisao.ipcp_revisao_status)}
                         </Badge>
                       </div>
-                      <div className="mt-3 space-y-2 text-sm text-slate-700">
-                        <p>
-                          <span className="font-semibold text-slate-900">Regra aprovada:</span>{' '}
-                          {decisao.regra_proposta || 'Regra não informada'}
-                        </p>
-                        <p>
-                          <span className="font-semibold text-slate-900">
-                            Bloco ou sub-bloco afetado:
-                          </span>{' '}
-                          {decisao.ipcp_revisao_blocos || 'IPCP geral'}
-                        </p>
-                        <p>
-                          <span className="font-semibold text-slate-900">Gatilho:</span> decisão
-                          aprovada envolve indicador, política comercial, follow-up, conversão,
-                          valor estratégico, risco, perda ou registro comercial.
-                        </p>
-                        <p className="text-xs text-slate-600">
-                          Ajuste as condições se a regra precisar de refinamento. Ao aprovar, a
-                          mudança passa a ser aplicada como versão governada da fórmula IPCP, com
-                          origem, responsável e auditoria.
-                        </p>
-                        {decisao.ipcp_revisao_status === 'alteracao_formula_aprovada' && (
-                          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
-                            <p className="font-semibold text-emerald-950">
-                              Alteração aplicada com segurança
-                            </p>
-                            <p className="mt-1">
-                              A regra foi registrada como versão governada da fórmula IPCP e será
-                              usada pelos próximos cálculos diários enquanto permanecer ativa.
-                            </p>
-                            <div className="mt-2 grid gap-1 sm:grid-cols-2">
-                              <p>
-                                <span className="font-semibold">Versão ativa:</span>{' '}
-                                {decisao.ipcp_formula_versao || 'versão registrada'}
-                              </p>
-                              <p>
-                                <span className="font-semibold">Aplicada em:</span>{' '}
-                                {dataCurta(formulaAplicadaEm)}
-                              </p>
-                              <p>
-                                <span className="font-semibold">Aprovada por:</span>{' '}
-                                {audit?.aprovada_por_nome || 'perfil autorizado'}
-                              </p>
-                              <p>
-                                <span className="font-semibold">Bloco afetado:</span>{' '}
-                                {decisao.ipcp_revisao_blocos || 'IPCP geral'}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
                       {revisaoTerminal ? (
-                        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                          Decisão encerrada. Os botões de aprovação, rejeição e ajuste ficam
-                          bloqueados para evitar nova alteração sem abertura de uma nova proposta
-                          governada.
+                        <div className="mt-2 space-y-2 text-xs text-slate-600">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            <span>
+                              <span className="font-semibold text-slate-800">Bloco:</span>{' '}
+                              {decisao.ipcp_revisao_blocos || 'IPCP geral'}
+                            </span>
+                            {decisao.ipcp_revisao_status === 'alteracao_formula_aprovada' && (
+                              <span>
+                                <span className="font-semibold text-slate-800">Versão ativa:</span>{' '}
+                                {decisao.ipcp_formula_versao || 'versão registrada'}
+                              </span>
+                            )}
+                            {decisao.ipcp_revisao_status === 'alteracao_formula_aprovada' && (
+                              <span>
+                                <span className="font-semibold text-slate-800">Aplicada em:</span>{' '}
+                                {dataCurta(formulaAplicadaEm)}
+                              </span>
+                            )}
+                          </div>
+                          {decisao.ipcp_revisao_status === 'alteracao_formula_aprovada' && (
+                            <p className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-900">
+                              <span className="font-semibold">
+                                Alteração aplicada com segurança.
+                              </span>{' '}
+                              Versão governada ativa para os próximos cálculos diários.
+                              {audit?.aprovada_por_nome
+                                ? ` Aprovada por ${audit.aprovada_por_nome}.`
+                                : ''}
+                            </p>
+                          )}
+                          <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            Decisão encerrada. Ações bloqueadas para evitar nova alteração sem
+                            abertura de nova proposta governada.
+                          </p>
                         </div>
                       ) : (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => abrirAjusteRevisaoIpcp(decisao)}
-                            disabled={salvandoAcaoDecisao}
-                          >
-                            Ajuste as condições da regra
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => atualizarRevisaoIpcp(decisao, 'rejeitada')}
-                            disabled={salvandoAcaoDecisao}
-                          >
-                            Rejeitar alteração da fórmula
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              atualizarRevisaoIpcp(decisao, 'alteracao_formula_aprovada')
-                            }
-                            disabled={salvandoAcaoDecisao}
-                          >
-                            Aprovar e aplicar alteração de fórmula
-                          </Button>
-                        </div>
+                        <>
+                          <div className="mt-3 space-y-2 text-sm text-slate-700">
+                            <p>
+                              <span className="font-semibold text-slate-900">Regra aprovada:</span>{' '}
+                              {decisao.regra_proposta || 'Regra não informada'}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-slate-900">
+                                Bloco ou sub-bloco afetado:
+                              </span>{' '}
+                              {decisao.ipcp_revisao_blocos || 'IPCP geral'}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-slate-900">Gatilho:</span> decisão
+                              aprovada envolve indicador, política comercial, follow-up, conversão,
+                              valor estratégico, risco, perda ou registro comercial.
+                            </p>
+                            <p className="text-xs text-slate-600">
+                              Ajuste as condições se a regra precisar de refinamento. Ao aprovar, a
+                              mudança passa a ser aplicada como versão governada da fórmula IPCP,
+                              com origem, responsável e auditoria.
+                            </p>
+                          </div>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => abrirAjusteRevisaoIpcp(decisao)}
+                              disabled={salvandoAcaoDecisao}
+                            >
+                              Ajuste as condições da regra
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => atualizarRevisaoIpcp(decisao, 'rejeitada')}
+                              disabled={salvandoAcaoDecisao}
+                            >
+                              Rejeitar alteração da fórmula
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                atualizarRevisaoIpcp(decisao, 'alteracao_formula_aprovada')
+                              }
+                              disabled={salvandoAcaoDecisao}
+                            >
+                              Aprovar e aplicar alteração de fórmula
+                            </Button>
+                          </div>
+                        </>
                       )}
                     </div>
                   )
@@ -922,6 +971,38 @@ export default function NexoCuradoria() {
           </CardContent>
         </Card>
       )}
+
+      <Card className="rounded-xl border-blue-200 bg-blue-50/60 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg text-slate-950">Canal de decisão superior</CardTitle>
+          <CardDescription>
+            Regras propostas para validação sobem para gestão ou direção quando afetarem funil,
+            risco, perda, indicador ou política comercial.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-blue-100 bg-white p-3">
+              <p className="text-sm font-semibold text-slate-900">Aguardando revisão</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Regra candidata recebida após entrevista guiada.
+              </p>
+            </div>
+            <div className="rounded-xl border border-emerald-100 bg-white p-3">
+              <p className="text-sm font-semibold text-slate-900">Aprovada para uso operacional</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Orientação validada para uso pelo Comercial.
+              </p>
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-white p-3">
+              <p className="text-sm font-semibold text-slate-900">Escalar para direção</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Decisão exige diretoria quando altera critério sensível.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {podeVerDecisaoSuperior && (
         <div className="flex justify-end">
@@ -1220,84 +1301,6 @@ export default function NexoCuradoria() {
           <AlertDescription>{erro}</AlertDescription>
         </Alert>
       )}
-
-      <Card className="rounded-xl border-slate-200 bg-white shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg text-slate-950">Aguardando curadoria</CardTitle>
-          <CardDescription>
-            Sinais gerados pelo uso do Ajuda do Nexo que precisam ser analisados antes de virar
-            regra ou playbook.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-slate-500">Carregando pendências...</p>
-          ) : resumo.itens.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-              Não há pendências de curadoria neste momento.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {resumo.itens.map((item) => {
-                const decisaoDoItem = [...decisoesSuperiores, ...decisoesRelacionadas].find(
-                  (decisao) =>
-                    decisao.evento_id === item.id ||
-                    (!!item.external_id && decisao.external_id === item.external_id),
-                )
-                return (
-                  <div
-                    key={item.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50/80 p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-slate-900">{resumoEvento(item)}</p>
-                        <p className="text-xs text-slate-500">
-                          Recebido em {dataCurta(item.created_at || item.created)}
-                        </p>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className="rounded-full border-amber-200 bg-amber-50 text-amber-700"
-                      >
-                        Revisão obrigatória
-                      </Badge>
-                    </div>
-                    {item.contexto_resumo && (
-                      <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-slate-600">
-                        {item.contexto_resumo}
-                      </p>
-                    )}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {decisaoDoItem ? (
-                        <>
-                          <Badge
-                            variant="outline"
-                            className="rounded-full border-blue-200 bg-blue-50 text-blue-700"
-                          >
-                            Já existe decisão superior para este caso
-                          </Badge>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => ajustarDecisaoSuperior(decisaoDoItem)}
-                          >
-                            Ajustar decisão existente
-                          </Button>
-                        </>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={() => iniciarCuradoria(item)}>
-                          Entrevistar sobre esta pendência
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {entrevistaAberta && (
         <Card className="rounded-xl border-violet-200 bg-white shadow-sm">

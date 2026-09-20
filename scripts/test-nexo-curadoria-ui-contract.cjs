@@ -196,6 +196,30 @@ assert.match(
   /Decisões aguardando validação superior/,
   'página deve listar decisões aguardando validação superior',
 )
+const ordemAguardando = page.indexOf('Aguardando curadoria')
+const ordemDecisaoSuperior = page.indexOf('Decisões aguardando validação superior')
+const ordemIpcp = page.indexOf('Proposta de alteração da fórmula IPCP')
+assert.ok(
+  ordemAguardando >= 0 &&
+    ordemDecisaoSuperior > ordemAguardando &&
+    ordemIpcp > ordemDecisaoSuperior,
+  'ordem principal deve ser Aguardando curadoria → Decisões aguardando validação superior → Proposta de alteração da fórmula IPCP',
+)
+assert.match(
+  page,
+  /revisaoTerminal \? 'border-emerald-200 p-3' : 'border-amber-200 p-4'/,
+  'proposta IPCP encerrada deve ficar compacta na tela',
+)
+assert.match(
+  page,
+  /Ações bloqueadas para evitar nova alteração/,
+  'card IPCP encerrado deve resumir bloqueio de novas ações',
+)
+assert.match(
+  page,
+  /Versão governada ativa para os próximos cálculos diários/,
+  'card IPCP encerrado deve resumir aplicação da fórmula governada',
+)
 assert.match(page, /Histórico de decisões/, 'página deve ter botão/modal de histórico de decisões')
 assert.match(
   page,
