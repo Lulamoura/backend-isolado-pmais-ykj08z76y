@@ -3040,7 +3040,7 @@ routerAdd(
     var resumoTexto = textoCurto(resumoPayload.texto, 700)
 
     var prioridades = resumoPayload.prioridades || []
-    var calculadoEm = snapshotAtualDoDia
+    var calculadoEm = snapshot
       ? snapshot.getString('updated') || snapshot.getString('created') || null
       : null
     var anteriorComparavel = snapshotAtualDoDia
