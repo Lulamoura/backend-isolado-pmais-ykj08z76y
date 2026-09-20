@@ -74,7 +74,7 @@ assert.match(
 assert.match(service, /ipcp_formula_versao_id/, 'serviço deve tipar vínculo da versão da fórmula')
 assert.match(service, /ipcp_formula_versao/, 'serviço deve tipar versão aplicada')
 assert.match(page, /Fórmula aplicada/, 'UI deve mostrar status claro de fórmula aplicada')
-assert.match(page, /Versão da fórmula/, 'UI deve mostrar a versão aplicada')
+assert.match(page, /Versão ativa/, 'UI deve mostrar a versão aplicada em linguagem humana')
 assert.match(
   page,
   /Aprovar e aplicar alteração de fórmula/,

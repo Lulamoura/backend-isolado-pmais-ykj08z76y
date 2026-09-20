@@ -105,6 +105,29 @@ function estiloStatusRevisaoIpcp(status?: string) {
   return 'border-amber-300 bg-amber-50 text-amber-700'
 }
 
+function revisaoIpcpTerminal(status?: string) {
+  return (
+    status === 'alteracao_formula_aprovada' ||
+    status === 'estudo_autorizado' ||
+    status === 'rejeitada'
+  )
+}
+
+function auditoriaFormulaIpcp(decisao: NexoCuradoriaDecisaoSuperior) {
+  if (!decisao.ipcp_formula_audit_json) return null
+  try {
+    const audit = JSON.parse(decisao.ipcp_formula_audit_json) as {
+      aprovada_por_nome?: string
+      aplicada_em?: string
+      retirada_em?: string
+      motivo?: string
+    }
+    return audit && typeof audit === 'object' ? audit : null
+  } catch {
+    return null
+  }
+}
+
 const perguntasEntrevista = [
   'Qual regra comercial precisa ser confirmada neste caso?',
   'Existe alguma exceção ou condição que o Nexo deve considerar?',
@@ -778,81 +801,122 @@ export default function NexoCuradoria() {
               </p>
             ) : (
               <div className="space-y-3">
-                {revisoesIpcpPendentes.map((decisao) => (
-                  <div key={decisao.id} className="rounded-xl border border-amber-200 bg-white p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-slate-950">
-                          {resumoDecisaoSuperior(decisao)}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Sinalizado em{' '}
-                          {dataCurta(decisao.updated_at || decisao.created_at || decisao.created)}
-                        </p>
+                {revisoesIpcpPendentes.map((decisao) => {
+                  const revisaoTerminal = revisaoIpcpTerminal(decisao.ipcp_revisao_status)
+                  const audit = auditoriaFormulaIpcp(decisao)
+                  const formulaAplicadaEm = decisao.ipcp_formula_aplicada_em || audit?.aplicada_em
+                  return (
+                    <div
+                      key={decisao.id}
+                      className={`rounded-xl border bg-white p-4 ${revisaoTerminal ? 'border-emerald-200' : 'border-amber-200'}`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-slate-950">
+                            {resumoDecisaoSuperior(decisao)}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Sinalizado em{' '}
+                            {dataCurta(decisao.updated_at || decisao.created_at || decisao.created)}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full ${estiloStatusRevisaoIpcp(decisao.ipcp_revisao_status)}`}
+                        >
+                          {rotuloStatusRevisaoIpcp(decisao.ipcp_revisao_status)}
+                        </Badge>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={`rounded-full ${estiloStatusRevisaoIpcp(decisao.ipcp_revisao_status)}`}
-                      >
-                        {rotuloStatusRevisaoIpcp(decisao.ipcp_revisao_status)}
-                      </Badge>
-                    </div>
-                    <div className="mt-3 space-y-2 text-sm text-slate-700">
-                      <p>
-                        <span className="font-semibold text-slate-900">Regra aprovada:</span>{' '}
-                        {decisao.regra_proposta || 'Regra não informada'}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-slate-900">
-                          Bloco ou sub-bloco afetado:
-                        </span>{' '}
-                        {decisao.ipcp_revisao_blocos || 'IPCP geral'}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-slate-900">Gatilho:</span> decisão
-                        aprovada envolve indicador, política comercial, follow-up, conversão, valor
-                        estratégico, risco, perda ou registro comercial.
-                      </p>
-                      <p className="text-xs text-slate-600">
-                        Ajuste as condições se a regra precisar de refinamento. Ao aprovar, a
-                        mudança passa a ser aplicada como versão governada da fórmula IPCP, com
-                        origem, responsável e auditoria.
-                      </p>
-                      {decisao.ipcp_formula_versao && (
-                        <p className="text-xs text-emerald-700">
-                          <span className="font-semibold">Versão da fórmula:</span>{' '}
-                          {decisao.ipcp_formula_versao}
+                      <div className="mt-3 space-y-2 text-sm text-slate-700">
+                        <p>
+                          <span className="font-semibold text-slate-900">Regra aprovada:</span>{' '}
+                          {decisao.regra_proposta || 'Regra não informada'}
                         </p>
+                        <p>
+                          <span className="font-semibold text-slate-900">
+                            Bloco ou sub-bloco afetado:
+                          </span>{' '}
+                          {decisao.ipcp_revisao_blocos || 'IPCP geral'}
+                        </p>
+                        <p>
+                          <span className="font-semibold text-slate-900">Gatilho:</span> decisão
+                          aprovada envolve indicador, política comercial, follow-up, conversão,
+                          valor estratégico, risco, perda ou registro comercial.
+                        </p>
+                        <p className="text-xs text-slate-600">
+                          Ajuste as condições se a regra precisar de refinamento. Ao aprovar, a
+                          mudança passa a ser aplicada como versão governada da fórmula IPCP, com
+                          origem, responsável e auditoria.
+                        </p>
+                        {decisao.ipcp_revisao_status === 'alteracao_formula_aprovada' && (
+                          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+                            <p className="font-semibold text-emerald-950">
+                              Alteração aplicada com segurança
+                            </p>
+                            <p className="mt-1">
+                              A regra foi registrada como versão governada da fórmula IPCP e será
+                              usada pelos próximos cálculos diários enquanto permanecer ativa.
+                            </p>
+                            <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                              <p>
+                                <span className="font-semibold">Versão ativa:</span>{' '}
+                                {decisao.ipcp_formula_versao || 'versão registrada'}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Aplicada em:</span>{' '}
+                                {dataCurta(formulaAplicadaEm)}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Aprovada por:</span>{' '}
+                                {audit?.aprovada_por_nome || 'perfil autorizado'}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Bloco afetado:</span>{' '}
+                                {decisao.ipcp_revisao_blocos || 'IPCP geral'}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {revisaoTerminal ? (
+                        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                          Decisão encerrada. Os botões de aprovação, rejeição e ajuste ficam
+                          bloqueados para evitar nova alteração sem abertura de uma nova proposta
+                          governada.
+                        </div>
+                      ) : (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => abrirAjusteRevisaoIpcp(decisao)}
+                            disabled={salvandoAcaoDecisao}
+                          >
+                            Ajuste as condições da regra
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => atualizarRevisaoIpcp(decisao, 'rejeitada')}
+                            disabled={salvandoAcaoDecisao}
+                          >
+                            Rejeitar alteração da fórmula
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              atualizarRevisaoIpcp(decisao, 'alteracao_formula_aprovada')
+                            }
+                            disabled={salvandoAcaoDecisao}
+                          >
+                            Aprovar e aplicar alteração de fórmula
+                          </Button>
+                        </div>
                       )}
                     </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => abrirAjusteRevisaoIpcp(decisao)}
-                        disabled={salvandoAcaoDecisao}
-                      >
-                        Ajuste as condições da regra
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => atualizarRevisaoIpcp(decisao, 'rejeitada')}
-                        disabled={salvandoAcaoDecisao}
-                      >
-                        Rejeitar alteração da fórmula
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => atualizarRevisaoIpcp(decisao, 'alteracao_formula_aprovada')}
-                        disabled={salvandoAcaoDecisao}
-                      >
-                        Aprovar e aplicar alteração de fórmula
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>

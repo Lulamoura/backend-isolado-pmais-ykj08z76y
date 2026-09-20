@@ -269,7 +269,27 @@ assert.match(
   /setCondicoesAjusteIpcp\(decisao\.regra_proposta \|\| decisao\.ipcp_revisao_motivo \|\| ''\)/,
   'modal de ajuste IPCP deve vir preenchida primeiro com a regra aprovada',
 )
-assert.match(page, /Versão da fórmula/, 'UI deve mostrar versão da fórmula aplicada quando existir')
+assert.match(
+  page,
+  /Alteração aplicada com segurança/,
+  'UI deve mostrar aprovação aplicada em linguagem humana',
+)
+assert.match(
+  page,
+  /Versão ativa/,
+  'UI deve mostrar a versão ativa sem expor apenas dado técnico isolado',
+)
+assert.match(
+  page,
+  /Aprovada por/,
+  'UI deve mostrar responsável humano pela aprovação quando disponível',
+)
+assert.match(
+  page,
+  /Decisão encerrada/,
+  'UI deve informar que a proposta aprovada ou rejeitada está encerrada',
+)
+assert.match(page, /revisaoIpcpTerminal/, 'UI deve tratar aprovação/rejeição como estado terminal')
 assert.match(
   page,
   /versão governada da fórmula IPCP/,
