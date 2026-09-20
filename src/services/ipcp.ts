@@ -56,7 +56,9 @@ export type IpcpDiarioReadOnly = {
   negocios_atencao: IpcpNegocioAtencao[]
   evolucao: {
     status: 'sem_historico' | 'melhorou' | 'manteve' | 'piorou'
+    cenario?: string | null
     comentario: string
+    acao_recomendada?: string | null
     total_atual?: number | null
     total_anterior?: number | null
     variacao_total?: number | null
@@ -203,7 +205,9 @@ export const ipcpDiarioFixtureHomologado: IpcpDiarioReadOnly = {
   negocios_atencao: [],
   evolucao: {
     status: 'sem_historico',
+    cenario: 'sem_historico',
     comentario: 'Sem leitura viva disponível para comparar evolução neste escopo.',
+    acao_recomendada: 'Aguardar o próximo processamento diário para formar histórico comparável.',
     total_atual: 0,
     total_anterior: null,
     variacao_total: null,
@@ -421,7 +425,7 @@ export async function obterStatusIpcpJobDiarioHomologacao(): Promise<IpcpJobDiar
       ativo: true,
       ambiente: 'homologacao_preview',
       horario_recife: '19:00',
-      cron_utc: '0 22 * * *',
+      cron_utc: '0 22 * * 1-5',
       agendamento_automatico_ativo: true,
       producao_publicada: false,
       sem_crm_write: true,

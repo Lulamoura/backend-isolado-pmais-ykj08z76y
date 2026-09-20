@@ -8,7 +8,6 @@ vi.mock('@/lib/pocketbase/client', () => ({
 
 import {
   IPCP_DIARIO_READONLY_PATH,
-  NEXO_IPCP_DIARIO_VIVO_PATH,
   nexoIpcpDiarioVivoPath,
   IPCP_JOB_DIARIO_HOMOLOGACAO_STATUS_PATH,
   IPCP_PROCESSAMENTO_DIARIO_HOMOLOGACAO_PATH,
@@ -114,8 +113,26 @@ describe('obterIpcpDiarioReadOnly', () => {
         },
       ],
       evolucao: {
-        status: 'sem_historico',
-        comentario: 'Pacote diário completo gerado para produção assistida.',
+        status: 'melhorou',
+        cenario: 'resultado_comercial_em_alta',
+        comentario:
+          'O IPCP avançou puxado principalmente por resultado comercial. Variação total: +4,2 ponto(s). Próxima orientação: registrar aprendizados.',
+        acao_recomendada:
+          'Registrar quais oportunidades avançaram ou fecharam para transformar o ganho em aprendizado replicável.',
+        total_atual: 62.4,
+        total_anterior: 58.2,
+        variacao_total: 4.2,
+        data_anterior: '2026-09-16',
+        blocos: [
+          {
+            id: 'resultado_comercial',
+            label: 'Resultado comercial',
+            atual: 21,
+            anterior: 18,
+            variacao: 3,
+            status: 'melhorou',
+          },
+        ],
       },
       guardrails: {
         sem_ranking_punitivo: true,
@@ -138,7 +155,11 @@ describe('obterIpcpDiarioReadOnly', () => {
     expect(data.resumo_nexo.prioridades[0].titulo).toBe('Ação de equipe')
     expect(data.ipcp.total).toBe(62.4)
     expect(data.negocios_atencao[0].id_negocio).toBe('9001')
-    expect(data.evolucao.comentario).toMatch(/Pacote diário completo/)
+    expect(data.evolucao.comentario).toMatch(/resultado comercial/)
+    expect(data.evolucao.cenario).toBe('resultado_comercial_em_alta')
+    expect(data.evolucao.acao_recomendada).toMatch(/aprendizado replicável/)
+    expect(data.evolucao.variacao_total).toBe(4.2)
+    expect(data.evolucao.blocos?.[0].id).toBe('resultado_comercial')
   })
 
   it('mantém a Operação do Dia completa quando o snapshot vivo ainda não tem todos os blocos', async () => {
@@ -330,7 +351,7 @@ describe('obterIpcpDiarioReadOnly', () => {
         ativo: true,
         ambiente: 'homologacao_preview',
         horario_recife: '19:00',
-        cron_utc: '0 22 * * *',
+        cron_utc: '0 22 * * 1-5',
         agendamento_automatico_ativo: true,
         producao_publicada: false,
         sem_crm_write: true,
