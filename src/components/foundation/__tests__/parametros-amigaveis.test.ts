@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { CHAVES_AMIGAVEIS, GRUPOS_PARAMETROS_AMIGAVEIS } from '../parametros-amigaveis'
+import {
+  CHAVES_AMIGAVEIS,
+  GRUPOS_PARAMETROS_AMIGAVEIS,
+  PARAMETROS_INTEGRACAO_ACTIVECAMPAIGN,
+} from '../parametros-amigaveis'
 
 const parametros = GRUPOS_PARAMETROS_AMIGAVEIS.flatMap((grupo) => grupo.parametros)
+const parametrosAmigaveis = [...parametros, ...PARAMETROS_INTEGRACAO_ACTIVECAMPAIGN]
 
 describe('configurações amigáveis do sistema', () => {
   it('não repete chaves e mantém os grupos operacionais', () => {
@@ -9,14 +14,13 @@ describe('configurações amigáveis do sistema', () => {
       'propostas',
       'notificacoes',
       'prazos',
-      'integracao-activecampaign',
       'padroes',
     ])
-    expect(CHAVES_AMIGAVEIS.size).toBe(parametros.length)
+    expect(CHAVES_AMIGAVEIS.size).toBe(parametrosAmigaveis.length)
   })
 
   it('usa controles adequados para booleanos, prazos e valores fechados', () => {
-    const porChave = new Map(parametros.map((parametro) => [parametro.chave, parametro]))
+    const porChave = new Map(parametrosAmigaveis.map((parametro) => [parametro.chave, parametro]))
 
     expect(porChave.get('proposta.email_habilitado')?.controle).toBe('booleano')
     expect(porChave.get('proposta.sem_abertura_dias_uteis')).toMatchObject({

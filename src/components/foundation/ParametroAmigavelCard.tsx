@@ -23,8 +23,8 @@ interface Props {
   parametro: RecordModel
   autorId?: string
   onUpdated: () => Promise<void>
-  onDetails: () => void
-  onHistory: () => void
+  onDetails?: () => void
+  onHistory?: () => void
 }
 
 const rotuloValor = (definicao: ParametroAmigavel, valor: string) => {
@@ -156,16 +156,22 @@ export function ParametroAmigavelCard({
             <span>{definicao.alerta}</span>
           </div>
         )}
-        <div className="flex gap-1 border-t pt-2">
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={onHistory}>
-            <History className="mr-1 h-3.5 w-3.5" />
-            Histórico
-          </Button>
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={onDetails}>
-            <Eye className="mr-1 h-3.5 w-3.5" />
-            Detalhes técnicos
-          </Button>
-        </div>
+        {(onHistory || onDetails) && (
+          <div className="flex gap-1 border-t pt-2">
+            {onHistory && (
+              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={onHistory}>
+                <History className="mr-1 h-3.5 w-3.5" />
+                Histórico
+              </Button>
+            )}
+            {onDetails && (
+              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={onDetails}>
+                <Eye className="mr-1 h-3.5 w-3.5" />
+                Detalhes técnicos
+              </Button>
+            )}
+          </div>
+        )}
       </CardContent>
 
       <Dialog open={confirmacaoOpen} onOpenChange={setConfirmacaoOpen}>

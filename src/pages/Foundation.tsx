@@ -9,6 +9,7 @@ import { UsuariosTab } from '@/components/foundation/UsuariosTab'
 import { VinculosTab } from '@/components/foundation/VinculosTab'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
 import { ActiveCampaignReconciliationCard } from '@/components/foundation/ActiveCampaignReconciliationCard'
+import { ActiveCampaignDealUrlCard } from '@/components/foundation/ActiveCampaignDealUrlCard'
 import { useSearchParams } from 'react-router-dom'
 
 export default function Foundation() {
@@ -119,7 +120,12 @@ export default function Foundation() {
           <ParametrosTab />
         </TabsContent>
         <TabsContent value="integracao">
-          {isSuperAdmin && !loadingSuperAdmin ? <ActiveCampaignReconciliationCard /> : null}
+          {isSuperAdmin && !loadingSuperAdmin ? (
+            <div className="space-y-4">
+              <ActiveCampaignDealUrlCard />
+              <ActiveCampaignReconciliationCard />
+            </div>
+          ) : null}
         </TabsContent>
       </Tabs>
     </div>
