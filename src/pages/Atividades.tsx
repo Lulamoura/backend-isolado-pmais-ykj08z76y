@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BusinessNotesDialog } from '@/components/BusinessNotesDialog'
 import { BusinessContactCard } from '@/components/BusinessContactCard'
+import { ActiveCampaignDealLink } from '@/components/ActiveCampaignDealLink'
 import {
   Dialog,
   DialogContent,
@@ -278,6 +279,7 @@ export default function Atividades() {
                       {item.negocio.external_id ? `Negócio AC #${item.negocio.external_id} · ` : ''}
                       {item.negocio.etapa || 'Etapa não informada'}
                     </CardDescription>
+                    <ActiveCampaignDealLink dealId={item.negocio.external_id} compact className="mt-2" />
                   </div>
                   <Badge variant={item.situacao === 'programada' ? 'secondary' : 'destructive'}>
                     {rotuloSituacao[item.situacao]}

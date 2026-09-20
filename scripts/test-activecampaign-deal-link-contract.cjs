@@ -11,6 +11,9 @@ const contextCard = read('src/components/CommercialContextCard.tsx')
 const negocios = read('src/components/foundation/NegociosTab.tsx')
 const ipcp = read('src/components/ipcp/IpcpEducativoDiarioCard.tsx')
 const nexo = read('src/pages/NexoAssistente.tsx')
+const atividades = read('src/pages/Atividades.tsx')
+const qualificacoes = read('src/pages/Qualificacoes.tsx')
+const ordensExecucao = read('src/pages/OrdensExecucao.tsx')
 const migration = read('pocketbase/migrations/202609201210_activecampaign_deal_base_url_param.js')
 
 function assert(condition, message) {
@@ -51,6 +54,12 @@ assert(
 assert(
   ipcp.includes('ActiveCampaignDealLink') && nexo.includes('ActiveCampaignDealLink'),
   'cards IPCP e Nexo devem expor atalho ActiveCampaign quando houver ID',
+)
+assert(
+  atividades.includes('ActiveCampaignDealLink') &&
+    qualificacoes.includes('ActiveCampaignDealLink') &&
+    ordensExecucao.includes('ActiveCampaignDealLink'),
+  'cards de Atividades, Qualificação e OE também devem expor atalho ActiveCampaign quando houver ID',
 )
 assert(
   migration.includes('activecampaign.deal_base_url') &&

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CommercialContextCard } from '@/components/CommercialContextCard'
+import { ActiveCampaignDealLink } from '@/components/ActiveCampaignDealLink'
 import { formatDate } from '@/lib/commercial-context'
 import { NexoBusinessActions } from '@/components/NexoBusinessActions'
 import {
@@ -203,9 +204,12 @@ export default function OrdensExecucao() {
                       {item.negocio.titulo}
                     </CardTitle>
                     {item.negocio.external_id && (
-                      <p className="mt-1 text-xs font-medium text-slate-500">
-                        Negócio AC #{item.negocio.external_id}
-                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <p className="text-xs font-medium text-slate-500">
+                          Negócio AC #{item.negocio.external_id}
+                        </p>
+                        <ActiveCampaignDealLink dealId={item.negocio.external_id} compact />
+                      </div>
                     )}
                     <CardDescription className="text-xs text-slate-500">
                       Negócio ganho
