@@ -64,11 +64,8 @@ assert.match(migration, /deleteRule:\s*null/, 'entrevistas não devem aceitar ex
 const decisaoMigrationPath = 'pocketbase/migrations/202609191330_nexo_curadoria_decisoes.js'
 assert.ok(fs.existsSync(decisaoMigrationPath), 'deve existir migração da coleção de decisões superiores')
 const decisaoMigration = fs.readFileSync(decisaoMigrationPath, 'utf8')
-assert.match(page, /Canal de decisão superior/, 'página deve ter canal de decisão superior')
-assert.match(page, /Regras propostas para validação/, 'página deve separar regras propostas para validação')
-assert.match(page, /Aguardando revisão/, 'canal superior deve exibir estado aguardando revisão')
-assert.match(page, /Aprovada para uso operacional/, 'canal superior deve exibir estado aprovada para uso operacional')
-assert.match(page, /Escalar para direção/, 'canal superior deve exibir estado de escalonamento para direção')
+assert.doesNotMatch(page, /Canal de decisão superior/, 'card informativo sem ação não deve ocupar a tela principal')
+assert.doesNotMatch(page, /Regras propostas para validação sobem para gestão ou direção/, 'texto explicativo sem ação não deve interromper o fluxo operacional')
 assert.match(page, /Decisões aguardando validação superior/, 'página deve listar decisões aguardando validação superior')
 const ordemAguardando = page.indexOf('Aguardando curadoria')
 const ordemDecisaoSuperior = page.indexOf('Decisões aguardando validação superior')

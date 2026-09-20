@@ -841,31 +841,6 @@ export default function NexoCuradoria() {
         </Card>
       )}
 
-      <Card className="rounded-xl border-blue-200 bg-blue-50/60 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg text-slate-950">Canal de decisão superior</CardTitle>
-          <CardDescription>
-            Regras propostas para validação sobem para gestão ou direção quando afetarem funil,
-            risco, perda, indicador ou política comercial.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-blue-100 bg-white p-3">
-              <p className="text-sm font-semibold text-slate-900">Aguardando revisão</p>
-              <p className="mt-1 text-xs text-slate-500">Regra candidata recebida após entrevista guiada.</p>
-            </div>
-            <div className="rounded-xl border border-emerald-100 bg-white p-3">
-              <p className="text-sm font-semibold text-slate-900">Aprovada para uso operacional</p>
-              <p className="mt-1 text-xs text-slate-500">Orientação validada para uso pelo Comercial.</p>
-            </div>
-            <div className="rounded-xl border border-amber-100 bg-white p-3">
-              <p className="text-sm font-semibold text-slate-900">Escalar para direção</p>
-              <p className="mt-1 text-xs text-slate-500">Decisão exige diretoria quando altera critério sensível.</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {podeVerDecisaoSuperior && (
         <div className="flex justify-end">
