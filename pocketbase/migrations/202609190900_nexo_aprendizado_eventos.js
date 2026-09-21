@@ -29,6 +29,10 @@ migrate(
     collection.fields.add(new TextField({ name: 'tipo_servico', required: false, max: 240 }))
     collection.fields.add(new TextField({ name: 'contexto_resumo', required: true, max: 4000 }))
     collection.fields.add(new TextField({ name: 'resposta_resumo', required: true, max: 4000 }))
+    collection.fields.add(new TextField({ name: 'motivo_curadoria', required: false, max: 1200 }))
+    collection.fields.add(new TextField({ name: 'triagem_status', required: false, max: 80 }))
+    collection.fields.add(new TextField({ name: 'avaliacao_negocio_resumo', required: false, max: 4000 }))
+    collection.fields.add(new TextField({ name: 'gatilhos_curadoria', required: false, max: 1200 }))
     collection.fields.add(new BoolField({ name: 'segundo_cerebro_usado', required: false }))
     collection.fields.add(
       new TextField({ name: 'segundo_cerebro_fontes', required: false, max: 4000 }),
