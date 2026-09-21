@@ -264,8 +264,12 @@ describe('Operação do Dia', () => {
     expect(texto.indexOf('Ações do Dia')).toBeGreaterThan(texto.indexOf('Operação do Dia'))
     expect(texto.indexOf('SLAs em atenção')).toBeGreaterThan(texto.indexOf('Ações do Dia'))
     expect(texto.indexOf('Ganhos aguardando OE')).toBeGreaterThan(texto.indexOf('SLAs em atenção'))
-    expect(texto.indexOf('Oportunidades para recuperar')).toBeGreaterThan(texto.indexOf('Ganhos aguardando OE'))
-    expect(texto.indexOf('Oportunidades para recuperar')).toBeLessThan(texto.indexOf('Orientação do Nexo para hoje'))
+    expect(texto.indexOf('Oportunidades para recuperar')).toBeGreaterThan(
+      texto.indexOf('Ganhos aguardando OE'),
+    )
+    expect(texto.indexOf('Oportunidades para recuperar')).toBeLessThan(
+      texto.indexOf('Orientação do Nexo para hoje'),
+    )
     expect(texto.indexOf('Orientação do Nexo para hoje')).toBeLessThan(texto.indexOf('IPCP do dia'))
     expect(texto).not.toMatch(/ranking/i)
     expect(texto).not.toMatch(/pior operadora/i)
