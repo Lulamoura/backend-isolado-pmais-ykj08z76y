@@ -185,6 +185,22 @@ assert.match(
   /motivoCuradoriaPadrao/,
   'serviço deve descrever o motivo da curadoria inclusive para registros antigos',
 )
+
+assert.match(
+  service,
+  /Origem determinística: pedido de ajuda registrado no canal/,
+  'motivo padrão deve indicar origem determinística e canal de ajuda',
+)
+assert.doesNotMatch(
+  service,
+  /orientação única para o caso/,
+  'motivo consolidado não deve sugerir resposta única para canais distintos',
+)
+assert.doesNotMatch(
+  service,
+  /Curadoria solicitada porque a orientação pode virar regra, playbook ou aprendizado operacional/,
+  'motivo não deve usar justificativa genérica de regra ou aprendizado operacional',
+)
 assert.match(
   service,
   /listarNotasCuradoriaNexo/,
@@ -775,7 +791,18 @@ assert.match(
 assert.match(
   hook,
   /nexoMotivoCuradoriaAprendizado/,
-  'hook deve gerar motivo de curadoria a partir da ação e dos sinais da resposta',
+  'hook deve gerar motivo de curadoria a partir do canal determinístico da solicitação',
+)
+
+assert.match(
+  hook,
+  /Origem determinística: pedido de ajuda registrado no canal/,
+  'hook deve persistir motivo operacional determinístico, sem replicar resultado gerado',
+)
+assert.doesNotMatch(
+  hook,
+  /diagnóstico:|perguntas abertas:|risco apontado:|aprendizado operacional|playbook/,
+  'motivo persistido não deve replicar conteúdo gerado nem justificar como regra/playbook',
 )
 assert.doesNotMatch(
   hook,
