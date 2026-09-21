@@ -44,6 +44,16 @@ assert.match(
 )
 assert.match(
   routeSource,
+  /effectiveScope === 'proprio'[\s\S]{0,520}buscarSnapshotsIpcp\('equipe', responsavelId\)/,
+  'perfil individual deve reutilizar histórico diário gravado como equipe + mesmo responsável quando ainda não houver snapshot proprio',
+)
+assert.match(
+  routeSource,
+  /escopoSnapshotEfetivo = 'equipe'[\s\S]{0,180}responsavelSnapshotEfetivo = responsavelId/,
+  'fallback do perfil individual deve sinalizar que o histórico comparável veio do snapshot de equipe do próprio operador',
+)
+assert.match(
+  routeSource,
   /effectiveScope|escopo_efetivo/,
   'deve resolver escopo efetivo por perfil',
 )
