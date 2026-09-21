@@ -1926,6 +1926,25 @@
         )
       }
 
+      function nexoMotivoCuradoriaAprendizado(resposta) {
+        var acaoTexto = nexoRotuloAcaoCuradoria(acao)
+        var sinais = []
+        if (resposta.diagnostico) sinais.push('diagnóstico: ' + resposta.diagnostico)
+        if ((resposta.perguntas_criticas || []).length)
+          sinais.push('perguntas abertas: ' + resposta.perguntas_criticas.slice(0, 2).join(' | '))
+        if ((resposta.riscos || []).length) sinais.push('risco apontado: ' + resposta.riscos[0])
+        if ((resposta.dicas_para_melhorar_notas || []).length)
+          sinais.push('lacuna de registro: ' + resposta.dicas_para_melhorar_notas[0])
+        var base = 'Pedido de ajuda para ' + acaoTexto + '. '
+        var detalhe = sinais.length
+          ? sinais.join(' · ')
+          : 'A orientação pode virar regra, playbook ou aprendizado operacional.'
+        return nexoResumoSeguroAprendizado(
+          base + detalhe + ' Curadoria necessária antes de reutilizar essa orientação pelo Nexo.',
+          1200,
+        )
+      }
+
       function nexoResumoRespostaAprendizado(resposta) {
         var partes = [
           resposta.resposta_curta || '',
@@ -1955,7 +1974,7 @@
             existente.viewRule = regraCuradoria
             ajustada = true
           }
-          var textosHumanos = ['negocio_titulo', 'empresa_nome', 'contato_nome']
+          var textosHumanos = ['negocio_titulo', 'empresa_nome', 'contato_nome', 'motivo_curadoria']
           for (var th = 0; th < textosHumanos.length; th++) {
             try {
               existente.fields.getByName(textosHumanos[th])
@@ -2000,6 +2019,9 @@
         collection.fields.add(new TextField({ name: 'tipo_servico', required: false, max: 240 }))
         collection.fields.add(new TextField({ name: 'contexto_resumo', required: true, max: 4000 }))
         collection.fields.add(new TextField({ name: 'resposta_resumo', required: true, max: 4000 }))
+        collection.fields.add(
+          new TextField({ name: 'motivo_curadoria', required: false, max: 1200 }),
+        )
         collection.fields.add(new BoolField({ name: 'segundo_cerebro_usado', required: false }))
         collection.fields.add(
           new TextField({ name: 'segundo_cerebro_fontes', required: false, max: 4000 }),
@@ -2054,6 +2076,7 @@
           )
           evento.set('contexto_resumo', nexoResumoContextoAprendizado())
           evento.set('resposta_resumo', nexoResumoRespostaAprendizado(resposta))
+          evento.set('motivo_curadoria', nexoMotivoCuradoriaAprendizado(resposta))
           evento.set('segundo_cerebro_usado', Boolean(secondBrain.used))
           evento.set('segundo_cerebro_fontes', nexoFontesSegundoCerebro(secondBrain))
           evento.set('segundo_cerebro_versao', nexoVersaoSegundoCerebro(secondBrain))

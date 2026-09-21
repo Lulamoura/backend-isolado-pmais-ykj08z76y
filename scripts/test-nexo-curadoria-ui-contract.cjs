@@ -124,6 +124,11 @@ assert.match(
 )
 assert.match(
   page,
+  /Motivo da curadoria/,
+  'card de curadoria deve explicar por que o caso foi para curadoria',
+)
+assert.match(
+  page,
   /listarNotasCuradoriaNexo/,
   'botão Notas da curadoria deve carregar as notas completas pelo contexto do Nexo',
 )
@@ -174,6 +179,11 @@ assert.match(
   service,
   /filtrarEventosAguardandoCuradoria/,
   'resumo de curadoria deve filtrar somente eventos realmente aguardando entrevista',
+)
+assert.match(
+  service,
+  /motivoCuradoriaPadrao/,
+  'serviço deve descrever o motivo da curadoria inclusive para registros antigos',
 )
 assert.match(
   service,
@@ -756,6 +766,12 @@ assert.match(
   hook,
   /Notas\/follow-ups: consulte o botão Notas do negócio/,
   'curadoria deve orientar leitura do histórico completo pelo botão Notas, sem resumo parcial de notas',
+)
+assert.match(hook, /motivo_curadoria/, 'evento de aprendizado deve persistir o motivo da curadoria')
+assert.match(
+  hook,
+  /nexoMotivoCuradoriaAprendizado/,
+  'hook deve gerar motivo de curadoria a partir da ação e dos sinais da resposta',
 )
 assert.doesNotMatch(
   hook,

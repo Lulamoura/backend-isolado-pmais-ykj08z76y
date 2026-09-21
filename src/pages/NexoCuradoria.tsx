@@ -839,6 +839,12 @@ export default function NexoCuradoria() {
                         Revisão obrigatória
                       </Badge>
                     </div>
+                    {item.motivo_curadoria && (
+                      <div className="mt-2.5 rounded-lg border border-amber-100 bg-amber-50/70 p-2.5 text-xs leading-relaxed text-amber-900">
+                        <span className="font-semibold">Motivo da curadoria: </span>
+                        {item.motivo_curadoria}
+                      </div>
+                    )}
                     {item.total_consultas && item.total_consultas > 1 && (
                       <Badge
                         variant="outline"
