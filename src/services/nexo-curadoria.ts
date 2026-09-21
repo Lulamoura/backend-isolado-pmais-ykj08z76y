@@ -21,6 +21,15 @@ export interface NexoCuradoriaEvento {
   acoes_relacionadas?: string[]
 }
 
+export interface NexoCuradoriaNota {
+  id: string
+  texto: string
+  autor_external_id?: string | null
+  autor_nome?: string | null
+  criada_em?: string | null
+  alterada_em?: string | null
+}
+
 export interface NexoCuradoriaResumo {
   pendencias: number
   itens: NexoCuradoriaEvento[]
@@ -229,6 +238,14 @@ export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoria
     pendencias: itensConsolidados.length,
     itens: itensConsolidados.slice(0, limit),
   }
+}
+
+export async function listarNotasCuradoriaNexo(externalId: string) {
+  const contexto = await pb.send<{ notas_followups?: NexoCuradoriaNota[] }>(
+    `/backend/v1/nexo/negocios/${externalId}/contexto`,
+    { method: 'GET' },
+  )
+  return contexto.notas_followups || []
 }
 
 export async function obterDecisoesSuperioresCuradoriaNexo(limit = 10) {

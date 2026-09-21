@@ -119,6 +119,21 @@ assert.match(
 assert.match(page, /Aguardando curadoria/, 'página deve listar pendências de curadoria')
 assert.match(
   page,
+  /Notas do negócio/,
+  'pendência de curadoria deve oferecer botão de Notas para abrir histórico completo',
+)
+assert.match(
+  page,
+  /listarNotasCuradoriaNexo/,
+  'botão Notas da curadoria deve carregar as notas completas pelo contexto do Nexo',
+)
+assert.match(
+  page,
+  /textoContextoSemResumoDeNotas/,
+  'card de curadoria deve ocultar resumo parcial de notas e deixar o histórico no botão Notas',
+)
+assert.match(
+  page,
   /consultas agrupadas neste negócio/,
   'página deve sinalizar quando várias consultas viraram uma entrevista consolidada',
 )
@@ -159,6 +174,11 @@ assert.match(
   service,
   /filtrarEventosAguardandoCuradoria/,
   'resumo de curadoria deve filtrar somente eventos realmente aguardando entrevista',
+)
+assert.match(
+  service,
+  /listarNotasCuradoriaNexo/,
+  'serviço da curadoria deve expor carregamento do histórico completo de notas do negócio',
 )
 assert.match(
   service,
@@ -701,6 +721,22 @@ assert.match(
 
 const hook = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
 const centralHook = fs.readFileSync('pocketbase/hooks/com_nexo_central_operacional.js', 'utf8')
+
+assert.match(
+  hook,
+  /campos\.descricao_negocio \|\| negocio\.descricao_negocio \|\| campos\.detalhamento_proposta/,
+  'contexto do Nexo deve usar detalhamento do CRM como fallback para descrição do negócio',
+)
+assert.match(
+  hook,
+  /Notas\/follow-ups: consulte o botão Notas do negócio/,
+  'curadoria deve orientar leitura do histórico completo pelo botão Notas, sem resumo parcial de notas',
+)
+assert.doesNotMatch(
+  hook,
+  /'Follow-ups\/notas: ' \+\s*nexoResumoNotasFollowupsCuradoria\(contextoSeguro\.notas_followups \|\| \[\]\)/,
+  'contexto da curadoria não deve gravar uma seleção parcial de follow-ups como se fosse histórico suficiente',
+)
 
 assert.match(
   hook,
