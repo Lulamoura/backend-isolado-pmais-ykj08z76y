@@ -130,10 +130,20 @@ function notaTexto(nota: NonNullable<NexoContextoNegocio['notas_followups']>[num
   return nota.texto || nota.conteudo || nota.note || 'Nota sem conteúdo textual.'
 }
 
+function notaTimestamp(nota: NonNullable<NexoContextoNegocio['notas_followups']>[number]) {
+  const valor = nota.alterada_em || nota.updated || nota.criada_em || nota.created || nota.data || ''
+  const timestamp = Date.parse(String(valor))
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+function ultimoFollowUp(notas: NonNullable<NexoContextoNegocio['notas_followups']>) {
+  return [...notas].sort((a, b) => notaTimestamp(b) - notaTimestamp(a))[0]
+}
+
 function resumoUltimoFollowUp(contexto: NexoContextoNegocio) {
   const notas = contexto.notas_followups || []
   if (!notas.length) return 'Nenhum follow-up registrado no contexto do Nexo.'
-  const ultimo = notaTexto(notas[0])
+  const ultimo = notaTexto(ultimoFollowUp(notas))
   return `${notas.length} registro${notas.length > 1 ? 's' : ''} de follow-up. Último registro: ${ultimo}`
 }
 

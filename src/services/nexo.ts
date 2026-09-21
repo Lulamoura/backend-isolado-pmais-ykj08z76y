@@ -71,6 +71,8 @@ export interface NexoContextoNegocio {
     note?: string | null
     created?: string | null
     updated?: string | null
+    criada_em?: string | null
+    alterada_em?: string | null
     data?: string | null
   }>
 }
