@@ -26,6 +26,15 @@ routerAdd(
       var timestamp = Date.parse(text)
       return isNaN(timestamp) ? text : new Date(timestamp).toISOString().slice(0, 10)
     }
+    function canonicalOwnerCode(value) {
+      var normalized = String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+      var vendedor = normalized.match(/^vendedor\s*(\d+)$/)
+      if (vendedor) return 'Vendedor ' + vendedor[1]
+      return String(value || '').trim().slice(0, 120)
+    }
 
     var actor = e.auth
     if (!actor) return e.unauthorizedError('Autenticacao necessaria')
@@ -91,7 +100,7 @@ routerAdd(
       var sourceVersion = version(modified)
       events.push({
         schema_version: '1',
-        context_revision: entityType === 'business' ? '7' : '1',
+        context_revision: entityType === 'business' ? '8' : '1',
         event_id:
           'ac:' +
           entityType +
@@ -99,7 +108,7 @@ routerAdd(
           entityId +
           ':' +
           sourceVersion +
-          (entityType === 'business' ? ':ctx7' : ''),
+          (entityType === 'business' ? ':ctx8' : ''),
         source: 'activecampaign',
         entity_type: entityType,
         entity_id: String(entityId),
@@ -389,7 +398,7 @@ routerAdd(
           {
             company_id: String(deals[d].account || deals[d].organization || ''),
             contact_id: String(deals[d].contact || ''),
-            owner_code: customFields['Responsável'] || '',
+            owner_code: canonicalOwnerCode(customFields['Responsável']),
           },
           deals[d].isDisabled === true,
         )
@@ -565,10 +574,11 @@ routerAdd(
         // do ActiveCampaign não deve bloquear essa entrada.
         if (ev.links.owner_code && acExigeResponsavelComercial(eventStageForOwner)) {
           try {
+            var validationOwnerCode = canonicalOwnerCode(ev.links.owner_code)
             $app.findFirstRecordByFilter(
               'com_vinculos_externos',
               "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
-                ev.links.owner_code +
+                validationOwnerCode +
                 "'",
             )
           } catch (_) {
@@ -693,6 +703,15 @@ routerAdd(
       if (civilDate) return civilDate[1]
       var timestamp = Date.parse(text)
       return isNaN(timestamp) ? text : new Date(timestamp).toISOString().slice(0, 10)
+    }
+    function canonicalOwnerCode(value) {
+      var normalized = String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+      var vendedor = normalized.match(/^vendedor\s*(\d+)$/)
+      if (vendedor) return 'Vendedor ' + vendedor[1]
+      return String(value || '').trim().slice(0, 120)
     }
     function canonicalLossReason(value) {
       var normalized = String(value || '')
@@ -911,13 +930,15 @@ routerAdd(
             )
             var owner = null
             var executionStageForOwner = String(ev.data.stage || '')
-            if (ev.links.owner_code && acExigeResponsavelComercial(executionStageForOwner))
+            if (ev.links.owner_code && acExigeResponsavelComercial(executionStageForOwner)) {
+              var executionOwnerCode = canonicalOwnerCode(ev.links.owner_code)
               owner = tx.findFirstRecordByFilter(
                 'com_vinculos_externos',
                 "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
-                  ev.links.owner_code +
+                  executionOwnerCode +
                   "'",
               )
+            }
             var dealStatus = String(ev.data.status)
             var preserveLocalProspectDisqualification =
               !!binding &&
