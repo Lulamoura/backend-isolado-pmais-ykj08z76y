@@ -223,7 +223,9 @@ describe('NexoBusinessActions', () => {
     await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
     await screen.findByText('Escolha a ajuda do Nexo')
 
-    expect(screen.getByText(/2 registros de follow-up\. Último registro: Último follow-up real/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/2 registros de follow-up\. Último registro: Último follow-up real/),
+    ).toBeInTheDocument()
     expect(screen.queryByText(/Último registro: Primeiro follow-up antigo/)).not.toBeInTheDocument()
   })
 

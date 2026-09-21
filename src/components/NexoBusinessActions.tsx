@@ -131,7 +131,8 @@ function notaTexto(nota: NonNullable<NexoContextoNegocio['notas_followups']>[num
 }
 
 function notaTimestamp(nota: NonNullable<NexoContextoNegocio['notas_followups']>[number]) {
-  const valor = nota.alterada_em || nota.updated || nota.criada_em || nota.created || nota.data || ''
+  const valor =
+    nota.alterada_em || nota.updated || nota.criada_em || nota.created || nota.data || ''
   const timestamp = Date.parse(String(valor))
   return Number.isNaN(timestamp) ? 0 : timestamp
 }
