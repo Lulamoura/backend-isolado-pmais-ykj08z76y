@@ -131,9 +131,11 @@ function decisaoHomologacao(decisao: NexoCuradoriaDecisaoSuperior) {
 
 async function buscarEntrevistaExistenteCuradoriaNexo(evento: NexoCuradoriaEvento) {
   try {
-    return await pb.collection(ENTREVISTAS_COLLECTION).getFirstListItem(filtroDecisaoExistente(evento), {
-      sort: '-created_at',
-    })
+    return await pb
+      .collection(ENTREVISTAS_COLLECTION)
+      .getFirstListItem(filtroDecisaoExistente(evento), {
+        sort: '-created_at',
+      })
   } catch (error: any) {
     if (error?.status === 404 || error?.status === 403) return null
     throw error
