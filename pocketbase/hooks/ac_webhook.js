@@ -57,6 +57,12 @@ routerAdd(
       }
       return aliases[normalized] || ''
     }
+    function canonicalOwnerCode(value) {
+      var normalized = clean(value, 120).toLowerCase().replace(/\s+/g, ' ')
+      var vendedor = normalized.match(/^vendedor\s*(\d+)$/)
+      if (vendedor) return 'Vendedor ' + vendedor[1]
+      return clean(value, 120)
+    }
     function validate(event) {
       var required = [
         'schema_version',
@@ -240,11 +246,12 @@ routerAdd(
               "'",
           )
           var owner = null
-          if (links.owner_code)
+          var ownerCode = canonicalOwnerCode(links.owner_code)
+          if (ownerCode)
             owner = tx.findFirstRecordByFilter(
               'com_vinculos_externos',
               "sistema_origem='activecampaign' && external_type='business_owner' && external_id='" +
-                links.owner_code +
+                ownerCode +
                 "'",
             )
           var dealStatus = String(event.data.status)

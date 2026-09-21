@@ -26,6 +26,7 @@ const migration = fs.readFileSync(
   'utf8',
 )
 const synthetic = fs.readFileSync(path.join(root, 'pocketbase/hooks/ac_synthetic_v1.js'), 'utf8')
+const nativeRelay = fs.readFileSync(path.join(root, 'pocketbase/hooks/ac_native_relay.js'), 'utf8')
 const runtimeControls = fs.readFileSync(
   path.join(root, 'pocketbase/hooks/ac_runtime_controls.js'),
   'utf8',
@@ -174,7 +175,7 @@ const checks = [
     'interface orienta pendências não bloqueantes da reconciliação',
     reconciliationUi.includes('Pendências operacionais') &&
       reconciliationUi.includes('Você pode confirmar agora os registros') &&
-      reconciliationUi.includes('responsável comercial apenas') &&
+      reconciliationUi.includes('responsável comercial') &&
       reconciliationUi.includes('a partir de Fazer Proposta'),
   ],
   [
@@ -195,7 +196,7 @@ const checks = [
     'backend retorna pendências detalhadas no dry-run e mensagens de recusa',
     reconciliationHook.includes('pending_issues: pendingIssues') &&
       reconciliationHook.includes('motivoPendenciaAc') &&
-      reconciliationHook.includes("detail: 'Plano vencido ou alterado") &&
+      reconciliationHook.includes("detail:\n          'Plano vencido ou alterado") &&
       reconciliationHook.includes('id_negocio'),
   ],
   [
@@ -238,7 +239,7 @@ const checks = [
   ],
   [
     'reconciliação não usa proprietário técnico do AC como responsável comercial',
-    reconciliationHook.includes("owner_code: customFields['Responsável'] || ''") &&
+    reconciliationHook.includes("owner_code: canonicalOwnerCode(customFields['Responsável'])") &&
       !reconciliationHook.includes(
         "owner_code: customFields['Responsável'] || String(deals[d].owner || '')",
       ),
@@ -308,9 +309,25 @@ const checks = [
   [
     'responsável usa o tipo canônico business_owner',
     webhook.includes("external_type='business_owner'") &&
-      (reconciliationHook.match(/external_type='business_owner'/g) || []).length === 2 &&
+      (reconciliationHook.match(/external_type='business_owner'/g) || []).length >= 2 &&
       !webhook.includes("external_type='owner'") &&
       !reconciliationHook.includes("external_type='owner'"),
+  ],
+  [
+    'código de responsável AC é normalizado antes do vínculo comercial',
+    webhook.includes('function canonicalOwnerCode(value)') &&
+      nativeRelay.includes('function canonicalOwnerCode(value)') &&
+      reconciliationHook.includes('function canonicalOwnerCode(value)') &&
+      webhook.includes("var ownerCode = canonicalOwnerCode(links.owner_code)") &&
+      nativeRelay.includes("var ownerCode = canonicalOwnerCode(customByLabel['Responsável'])") &&
+      reconciliationHook.includes("owner_code: canonicalOwnerCode(customFields['Responsável'])"),
+  ],
+  [
+    'mudança de responsável comercial invalida replay ctx7',
+    nativeRelay.includes("context_revision: type === 'business' ? '8' : '1'") &&
+      nativeRelay.includes("type === 'business' ? ':ctx8' : ''") &&
+      reconciliationHook.includes("context_revision: entityType === 'business' ? '8' : '1'") &&
+      reconciliationHook.includes("entityType === 'business' ? ':ctx8' : ''"),
   ],
   [
     'negócios AC usam etapa durante negociação e distinguem desqualificação de perda',

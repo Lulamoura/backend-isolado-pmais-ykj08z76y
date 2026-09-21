@@ -69,14 +69,20 @@ routerAdd(
       var text = String(value || '').trim()
       return text.length <= max ? text : ''
     }
+    function canonicalOwnerCode(value) {
+      var normalized = clean(value, 120).toLowerCase().replace(/\s+/g, ' ')
+      var vendedor = normalized.match(/^vendedor\s*(\d+)$/)
+      if (vendedor) return 'Vendedor ' + vendedor[1]
+      return clean(value, 120)
+    }
 
     function envelope(type, id, modified, data, links, correlation) {
       var sourceVersion = clean(modified, 80) || new Date(0).toISOString()
       return {
         schema_version: '1',
-        context_revision: type === 'business' ? '7' : '1',
+        context_revision: type === 'business' ? '8' : '1',
         event_id:
-          'ac:' + type + ':' + id + ':' + sourceVersion + (type === 'business' ? ':ctx7' : ''),
+          'ac:' + type + ':' + id + ':' + sourceVersion + (type === 'business' ? ':ctx8' : ''),
         source: 'activecampaign',
         entity_type: type,
         entity_id: String(id),
@@ -294,7 +300,7 @@ routerAdd(
         reason: 'PROSPECT_ANTERIOR_AO_CORTE',
         deal_id: dealId,
       })
-    var ownerCode = clean(customByLabel['Responsável'], 120)
+    var ownerCode = canonicalOwnerCode(customByLabel['Responsável'])
     if (canonicalStage !== 'prospects' && !ownerCode)
       return e.json(422, { error: 'RESPONSAVEL_COMERCIAL_AUSENTE' })
     var stageEnteredAt = ''
