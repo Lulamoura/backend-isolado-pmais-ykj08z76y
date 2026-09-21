@@ -119,6 +119,21 @@ assert.match(
 assert.match(page, /Aguardando curadoria/, 'página deve listar pendências de curadoria')
 assert.match(
   page,
+  /consultas agrupadas neste negócio/,
+  'página deve sinalizar quando várias consultas viraram uma entrevista consolidada',
+)
+assert.match(
+  page,
+  /Entrevistar sobre este negócio/,
+  'entrevista deve ser global por negócio, não repetida por cada consulta',
+)
+assert.match(
+  page,
+  /Qual orientação comercial única deve valer para este negócio ou situação consolidada/,
+  'entrevista deve ser mais global e objetiva para consultas agrupadas',
+)
+assert.match(
+  page,
   /max-h-56 overflow-y-auto whitespace-pre-wrap break-words/,
   'pendência de curadoria deve mostrar o material completo com rolagem, sem cortar o conteúdo',
 )
@@ -144,6 +159,26 @@ assert.match(
   service,
   /filtrarEventosAguardandoCuradoria/,
   'resumo de curadoria deve filtrar somente eventos realmente aguardando entrevista',
+)
+assert.match(
+  service,
+  /consolidarEventosAguardandoCuradoria/,
+  'resumo de curadoria deve consolidar múltiplas consultas do mesmo negócio em uma pendência única',
+)
+assert.match(
+  service,
+  /chaveCuradoriaEvento/,
+  'consolidação deve agrupar por negócio quando houver external_id',
+)
+assert.match(
+  service,
+  /pendencias: itensConsolidados\.length/,
+  'contador da curadoria deve refletir o total consolidado, não apenas o limite solicitado pelo menu',
+)
+assert.match(
+  service,
+  /itens: itensConsolidados\.slice\(0, limit\)/,
+  'lista visual pode respeitar limite sem quebrar o contador total da notificação',
 )
 assert.match(
   service,
