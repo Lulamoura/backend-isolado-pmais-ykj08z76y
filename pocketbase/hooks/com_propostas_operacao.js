@@ -1717,7 +1717,8 @@
           contato: contexto.contato || null,
           responsavel: contexto.responsavel || null,
           tipo_servico: campos.tipo_servico || '',
-          descricao_negocio: campos.descricao_negocio || negocio.descricao_negocio || '',
+          descricao_negocio:
+            campos.descricao_negocio || negocio.descricao_negocio || campos.detalhamento_proposta || '',
           'Detalhamento da Proposta': campos.detalhamento_proposta || '',
           proposta: proposta
             ? {
@@ -1907,13 +1908,14 @@
 
       function nexoResumoContextoAprendizado() {
         var negocio = contextoSeguro.negocio || {}
+        var descricaoCrm =
+          contextoSeguro.descricao_negocio || contextoSeguro['Detalhamento da Proposta'] || ''
         var partes = [
           'Ação solicitada: ' + nexoRotuloAcaoCuradoria(acao),
           'Fase/etapa: ' + (negocio.fase || negocio.etapa || 'não informada'),
           'Tipo de serviço: ' + (contextoSeguro.tipo_servico || 'não informado'),
-          'Descrição: ' + (contextoSeguro.descricao_negocio || 'não informada'),
-          'Follow-ups/notas: ' +
-            nexoResumoNotasFollowupsCuradoria(contextoSeguro.notas_followups || []),
+          'Descrição: ' + (descricaoCrm || 'não informada'),
+          'Notas/follow-ups: consulte o botão Notas do negócio para ler o histórico completo.',
         ]
         return nexoResumoSeguroAprendizado(
           partes.join('\n').replace(/\[object Object\]/g, 'informação textual indisponível'),

@@ -27,6 +27,7 @@ import {
   obterHistoricoDecisoesSuperioresCuradoriaNexo,
   obterResumoCuradoriaNexo,
   obterRevisoesIpcpPendentesCuradoriaNexo,
+  listarNotasCuradoriaNexo,
   salvarDecisaoSuperiorCuradoriaNexo,
   salvarEntrevistaCuradoriaNexo,
   sincronizarDecisaoSegundoCerebroCuradoriaNexo,
@@ -35,6 +36,7 @@ import {
   type NexoCuradoriaDecisaoSuperior,
   type NexoCuradoriaEvento,
   type NexoCuradoriaResumo,
+  type NexoCuradoriaNota,
   atualizarRevisaoIpcpCuradoriaNexo,
 } from '@/services/nexo-curadoria'
 import { useIsSuperAdmin } from '@/hooks/use-is-superadmin'
@@ -49,6 +51,101 @@ function dataCurta(value?: string) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date)
+}
+
+
+function textoContextoSemResumoDeNotas(texto?: string) {
+  return String(texto || '')
+    .split('\n')
+    .filter((linha) => !/^Follow-ups\/notas:/i.test(linha.trim()))
+    .join('\n')
+    .trim()
+}
+
+function formatarDataNota(value?: string | null) {
+  if (!value) return 'sem data'
+  return dataCurta(value)
+}
+
+function NotasCuradoriaDialog({
+  externalId,
+  notasIniciais = [],
+}: {
+  externalId?: string
+  notasIniciais?: NexoCuradoriaNota[]
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [notas, setNotas] = useState<NexoCuradoriaNota[]>(notasIniciais)
+  const [loading, setLoading] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function carregarNotas() {
+    if (!externalId) {
+      setErro('Negócio não identificado para carregar notas.')
+      return
+    }
+    setLoading(true)
+    setErro(null)
+    try {
+      setNotas(await listarNotasCuradoriaNexo(externalId))
+    } catch (_) {
+      setErro('Não foi possível carregar as notas deste negócio agora.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog
+      open={aberto}
+      onOpenChange={(open) => {
+        setAberto(open)
+        if (open && notas.length === 0 && notasIniciais.length === 0 && !loading) void carregarNotas()
+      }}
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => setAberto(true)}
+        className="border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 h-8"
+      >
+        <History className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+        Notas do negócio{(notas.length || notasIniciais.length) > 0 ? ` (${notas.length || notasIniciais.length})` : ''}
+      </Button>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Notas do negócio</DialogTitle>
+          <DialogDescription>
+            Histórico completo de follow-ups disponível para apoiar as respostas da entrevista.
+          </DialogDescription>
+        </DialogHeader>
+        {loading && <p className="text-sm text-slate-500">Carregando notas...</p>}
+        {erro && <p className="text-sm font-medium text-rose-700">{erro}</p>}
+        {!loading && !erro && notas.length === 0 && (
+          <p className="text-sm text-slate-500">Nenhuma nota registrada para este negócio.</p>
+        )}
+        <div className="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
+          {notas.map((nota) => (
+            <article key={nota.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="mb-2 flex flex-wrap justify-between gap-2 text-xs text-slate-500">
+                <span>{nota.autor_nome || `Usuário AC #${nota.autor_external_id || 'não informado'}`}</span>
+                <span>{formatarDataNota(nota.criada_em)}</span>
+              </div>
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-900">
+                {nota.texto}
+              </p>
+              {nota.alterada_em && nota.alterada_em !== nota.criada_em && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Editada em {formatarDataNota(nota.alterada_em)}
+                </p>
+              )}
+            </article>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function resumoEvento(evento: NexoCuradoriaEvento) {
@@ -745,12 +842,16 @@ export default function NexoCuradoria() {
                         {item.total_consultas} consultas agrupadas neste negócio
                       </Badge>
                     )}
-                    {item.contexto_resumo && (
+                    {textoContextoSemResumoDeNotas(item.contexto_resumo) && (
                       <div className="mt-2.5 max-h-56 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 text-xs leading-relaxed text-slate-700">
-                        {item.contexto_resumo}
+                        {textoContextoSemResumoDeNotas(item.contexto_resumo)}
                       </div>
                     )}
                     <div className="mt-3 flex flex-wrap gap-2">
+                      <NotasCuradoriaDialog
+                        externalId={item.external_id}
+                        notasIniciais={item.notas_followups || []}
+                      />
                       {decisaoDoItem ? (
                         <>
                           <Badge

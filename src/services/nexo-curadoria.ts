@@ -19,6 +19,25 @@ export interface NexoCuradoriaEvento {
   eventos_relacionados?: NexoCuradoriaEvento[]
   total_consultas?: number
   acoes_relacionadas?: string[]
+  notas_followups?: NexoCuradoriaNota[]
+}
+
+export interface NexoCuradoriaNota {
+  id: string
+  texto: string
+  autor_external_id?: string | null
+  autor_nome?: string | null
+  criada_em?: string | null
+  alterada_em?: string | null
+}
+
+interface NexoCuradoriaContextoNegocio {
+  negocio?: { descricao_negocio?: string | null }
+  campos_crm?: {
+    descricao_negocio?: string | null
+    detalhamento_proposta?: string | null
+  }
+  notas_followups?: NexoCuradoriaNota[]
 }
 
 export interface NexoCuradoriaResumo {
@@ -178,6 +197,46 @@ function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
     .sort((a, b) => eventoTimestamp(b) - eventoTimestamp(a))
 }
 
+
+async function buscarContextoNegocioCuradoriaNexo(externalId: string) {
+  return pb.send<NexoCuradoriaContextoNegocio>(`/backend/v1/nexo/negocios/${externalId}/contexto`, {
+    method: 'GET',
+  })
+}
+
+function aplicarDescricaoCrmAoContexto(evento: NexoCuradoriaEvento, descricaoCrm: string) {
+  if (!descricaoCrm || !evento.contexto_resumo) return evento
+  return {
+    ...evento,
+    contexto_resumo: evento.contexto_resumo.replace(
+      /^Descrição: não informada$/gim,
+      `Descrição: ${descricaoCrm}`,
+    ),
+  }
+}
+
+async function enriquecerEventosComDescricaoCrm(eventos: NexoCuradoriaEvento[]) {
+  return Promise.all(
+    eventos.map(async (evento) => {
+      if (!evento.external_id) return evento
+      try {
+        const contexto = await buscarContextoNegocioCuradoriaNexo(evento.external_id)
+        const descricaoCrm =
+          contexto.campos_crm?.descricao_negocio ||
+          contexto.negocio?.descricao_negocio ||
+          contexto.campos_crm?.detalhamento_proposta ||
+          ''
+        return {
+          ...aplicarDescricaoCrmAoContexto(evento, descricaoCrm),
+          notas_followups: contexto.notas_followups || [],
+        }
+      } catch (_) {
+        return evento
+      }
+    }),
+  )
+}
+
 function decisaoHomologacao(decisao: NexoCuradoriaDecisaoSuperior) {
   const texto = [decisao.external_id, decisao.evento_id, decisao.negocio_titulo]
     .filter(Boolean)
@@ -223,12 +282,19 @@ export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoria
       sort: '-created_at',
     })
   const eventosAbertos = await filtrarEventosAguardandoCuradoria(response.items)
-  const itensConsolidados = consolidarEventosAguardandoCuradoria(eventosAbertos)
+  const itensConsolidados = await enriquecerEventosComDescricaoCrm(
+    consolidarEventosAguardandoCuradoria(eventosAbertos),
+  )
 
   return {
     pendencias: itensConsolidados.length,
     itens: itensConsolidados.slice(0, limit),
   }
+}
+
+export async function listarNotasCuradoriaNexo(externalId: string) {
+  const contexto = await buscarContextoNegocioCuradoriaNexo(externalId)
+  return contexto.notas_followups || []
 }
 
 export async function obterDecisoesSuperioresCuradoriaNexo(limit = 10) {
