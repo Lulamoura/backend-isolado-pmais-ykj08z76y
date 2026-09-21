@@ -786,7 +786,7 @@ export default function NexoCuradoria() {
                 Aguardando curadoria
               </CardTitle>
               <CardDescription className="text-xs text-slate-500">
-                Pedidos de ajuda do Nexo agrupados por negócio antes de virar regra ou playbook.
+                Pedidos de ajuda do Nexo agrupados por negócio para validação da curadoria.
               </CardDescription>
             </div>
             <Badge
@@ -1686,7 +1686,7 @@ export default function NexoCuradoria() {
                   {entrevistaSalva
                     ? 'Entrevista enviada para revisão.'
                     : 'Entrevista registrada para revisão.'}{' '}
-                  As respostas serão tratadas antes de virar regra ou playbook comercial.
+                  As respostas serão tratadas pela curadoria antes de encerrar a pendência.
                 </p>
                 <div className="rounded-lg border border-emerald-100 bg-white/90 p-3.5 text-slate-700 shadow-sm">
                   <p className="font-bold text-slate-900">Regra candidata para decisão</p>
