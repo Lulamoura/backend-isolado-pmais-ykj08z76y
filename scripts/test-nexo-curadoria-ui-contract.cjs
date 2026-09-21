@@ -182,6 +182,21 @@ assert.match(
 )
 assert.match(
   service,
+  /buscarContextoNegocioCuradoriaNexo/,
+  'serviço da curadoria deve buscar contexto atualizado do negócio para descrição e notas',
+)
+assert.match(
+  service,
+  /campos_crm\?\.detalhamento_proposta/,
+  'curadoria deve usar detalhamento da proposta do CRM quando a descrição principal vier vazia',
+)
+assert.match(
+  service,
+  /Descrição: não informada/,
+  'curadoria deve corrigir a descrição não informada quando houver descrição no CRM',
+)
+assert.match(
+  service,
   /consolidarEventosAguardandoCuradoria/,
   'resumo de curadoria deve consolidar múltiplas consultas do mesmo negócio em uma pendência única',
 )

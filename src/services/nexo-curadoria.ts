@@ -30,6 +30,15 @@ export interface NexoCuradoriaNota {
   alterada_em?: string | null
 }
 
+interface NexoCuradoriaContextoNegocio {
+  negocio?: { descricao_negocio?: string | null }
+  campos_crm?: {
+    descricao_negocio?: string | null
+    detalhamento_proposta?: string | null
+  }
+  notas_followups?: NexoCuradoriaNota[]
+}
+
 export interface NexoCuradoriaResumo {
   pendencias: number
   itens: NexoCuradoriaEvento[]
@@ -187,6 +196,44 @@ function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
     .sort((a, b) => eventoTimestamp(b) - eventoTimestamp(a))
 }
 
+async function buscarContextoNegocioCuradoriaNexo(externalId: string) {
+  return pb.send<NexoCuradoriaContextoNegocio>(`/backend/v1/nexo/negocios/${externalId}/contexto`, {
+    method: 'GET',
+  })
+}
+
+function aplicarDescricaoCrmAoContexto(evento: NexoCuradoriaEvento, descricaoCrm: string) {
+  if (!descricaoCrm || !evento.contexto_resumo) return evento
+  return {
+    ...evento,
+    contexto_resumo: evento.contexto_resumo.replace(
+      /^Descrição: não informada$/gim,
+      `Descrição: ${descricaoCrm}`,
+    ),
+  }
+}
+
+async function enriquecerEventosComDescricaoCrm(eventos: NexoCuradoriaEvento[]) {
+  return Promise.all(
+    eventos.map(async (evento) => {
+      if (!evento.external_id || !/Descrição: não informada/i.test(evento.contexto_resumo || '')) {
+        return evento
+      }
+      try {
+        const contexto = await buscarContextoNegocioCuradoriaNexo(evento.external_id)
+        const descricaoCrm =
+          contexto.campos_crm?.descricao_negocio ||
+          contexto.negocio?.descricao_negocio ||
+          contexto.campos_crm?.detalhamento_proposta ||
+          ''
+        return aplicarDescricaoCrmAoContexto(evento, descricaoCrm)
+      } catch (_) {
+        return evento
+      }
+    }),
+  )
+}
+
 function decisaoHomologacao(decisao: NexoCuradoriaDecisaoSuperior) {
   const texto = [decisao.external_id, decisao.evento_id, decisao.negocio_titulo]
     .filter(Boolean)
@@ -232,7 +279,9 @@ export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoria
       sort: '-created_at',
     })
   const eventosAbertos = await filtrarEventosAguardandoCuradoria(response.items)
-  const itensConsolidados = consolidarEventosAguardandoCuradoria(eventosAbertos)
+  const itensConsolidados = await enriquecerEventosComDescricaoCrm(
+    consolidarEventosAguardandoCuradoria(eventosAbertos),
+  )
 
   return {
     pendencias: itensConsolidados.length,
@@ -241,10 +290,7 @@ export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoria
 }
 
 export async function listarNotasCuradoriaNexo(externalId: string) {
-  const contexto = await pb.send<{ notas_followups?: NexoCuradoriaNota[] }>(
-    `/backend/v1/nexo/negocios/${externalId}/contexto`,
-    { method: 'GET' },
-  )
+  const contexto = await buscarContextoNegocioCuradoriaNexo(externalId)
   return contexto.notas_followups || []
 }
 
