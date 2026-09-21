@@ -788,7 +788,11 @@ assert.match(
   /Notas\/follow-ups: consulte o botão Notas do negócio/,
   'curadoria deve orientar leitura do histórico completo pelo botão Notas, sem resumo parcial de notas',
 )
-assert.match(hook, /motivo_curadoria/, 'evento de aprendizado deve persistir o motivo da curadoria')
+assert.match(
+  hook,
+  /motivo_curadoria/,
+  'evento de aprendizado deve persistir o motivo da curadoria',
+)
 assert.match(
   hook,
   /avaliacao_negocio_resumo/,
@@ -802,18 +806,28 @@ assert.match(
 assert.match(
   hook,
   /nexoMotivoCuradoriaAprendizado/,
-  'hook deve gerar motivo de curadoria a partir da avaliação do negócio',
+  'hook deve gerar motivo de curadoria a partir do canal determinístico da solicitação',
 )
 
 assert.match(
   hook,
-  /Avaliação do negócio indicou necessidade de curadoria:/,
-  'hook deve persistir motivo qualificado de curadoria a partir da avaliação do negócio',
+  /triagem_status/,
+  'evento de ajuda do Nexo deve gravar status de triagem do sinal',
+)
+assert.match(
+  hook,
+  /nexoAvaliarNegocioParaAprendizado/,
+  'pedido de ajuda deve acionar avaliação do negócio antes de decidir curadoria',
+)
+assert.match(
+  hook,
+  /human_review_required', Boolean\(avaliacaoNegocio\.curadoria_necessaria\)/,
+  'pedido comum de ajuda não deve criar curadoria automaticamente',
 )
 assert.doesNotMatch(
   hook,
-  /Origem determinística: pedido de ajuda registrado no canal/,
-  'pedido de ajuda não deve ser persistido como motivo determinístico de curadoria',
+  /evento\.set\('human_review_required', true\)/,
+  'hook não deve marcar todo pedido de ajuda como curadoria humana obrigatória',
 )
 assert.doesNotMatch(
   hook,
