@@ -2815,6 +2815,16 @@ routerAdd(
           responsavelSnapshotEfetivo = snapshots[0].getString('responsavel_id') || '__todos__'
         }
       }
+      if (!snapshots.length && effectiveScope === 'proprio' && responsavelId) {
+        // Compatibilidade operacional: o processamento diário dos operadores foi gravado
+        // como equipe + responsável. O login individual deve reaproveitar esse histórico
+        // comparável sem ampliar a visibilidade da carteira.
+        snapshots = buscarSnapshotsIpcp('equipe', responsavelId)
+        if (snapshots.length) {
+          escopoSnapshotEfetivo = 'equipe'
+          responsavelSnapshotEfetivo = responsavelId
+        }
+      }
       if (!snapshots.length && effectiveScope !== 'proprio' && responsavelId) {
         snapshots = buscarSnapshotsIpcp(effectiveScope, '')
       }
