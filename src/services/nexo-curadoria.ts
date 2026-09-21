@@ -10,6 +10,7 @@ export interface NexoCuradoriaEvento {
   acao?: string
   contexto_resumo?: string
   resposta_resumo?: string
+  motivo_curadoria?: string
   audit_id?: string
   created_at?: string
   created?: string
@@ -157,6 +158,17 @@ function rotuloAcaoCuradoria(acao?: string) {
   return (acao || 'consulta do Nexo').replace(/_/g, ' ')
 }
 
+
+function motivoCuradoriaPadrao(evento: NexoCuradoriaEvento) {
+  if (evento.motivo_curadoria) return evento.motivo_curadoria
+  const acao = rotuloAcaoCuradoria(evento.acao)
+  const resposta = String(evento.resposta_resumo || '').trim()
+  const partes = [`Pedido de ajuda do Nexo para ${acao}.`]
+  if (resposta) partes.push(resposta.slice(0, 420))
+  partes.push('Curadoria solicitada porque a orientação pode virar regra, playbook ou aprendizado operacional e precisa de validação humana antes de ser reutilizada pelo Nexo.')
+  return partes.join(' ')
+}
+
 function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
   const grupos = new Map<string, NexoCuradoriaEvento[]>()
   eventos.forEach((evento) => {
@@ -172,6 +184,7 @@ function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
       principal.eventos_relacionados = ordenados
       principal.total_consultas = ordenados.length
       principal.acoes_relacionadas = acoes
+      principal.motivo_curadoria = motivoCuradoriaPadrao(principal)
       if (ordenados.length > 1) {
         const resumoConsultas = ordenados
           .map((evento) => {
@@ -180,6 +193,7 @@ function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
             return `- ${acao} em ${data}`
           })
           .join('\n')
+        principal.motivo_curadoria = `Foram feitos ${ordenados.length} pedidos de ajuda do Nexo para o mesmo negócio (${acoes.join(' | ')}). A curadoria deve transformar esses sinais em uma orientação única para o caso.`
         principal.contexto_resumo = [
           `Resumo consolidado: ${ordenados.length} pedidos de ajuda do Nexo para o mesmo negócio.`,
           `Ações agrupadas: ${acoes.join(' | ')}.`,
