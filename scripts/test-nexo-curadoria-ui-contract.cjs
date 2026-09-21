@@ -117,6 +117,16 @@ assert.match(
   'canal guiado deve indicar ajuda aberta para decisão',
 )
 assert.match(page, /Aguardando curadoria/, 'página deve listar pendências de curadoria')
+assert.match(
+  page,
+  /max-h-56 overflow-y-auto whitespace-pre-wrap break-words/,
+  'pendência de curadoria deve mostrar o material completo com rolagem, sem cortar o conteúdo',
+)
+assert.doesNotMatch(
+  page,
+  /line-clamp-2[\s\S]{0,180}\{item\.contexto_resumo\}/,
+  'pendência de curadoria não deve truncar o material solicitado',
+)
 assert.match(page, /empresa_nome/, 'página deve priorizar nome da empresa na citação do negócio')
 assert.match(page, /contato_nome/, 'página deve priorizar contato na citação do negócio')
 assert.doesNotMatch(

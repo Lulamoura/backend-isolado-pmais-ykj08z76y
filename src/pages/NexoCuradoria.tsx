@@ -739,9 +739,9 @@ export default function NexoCuradoria() {
                       </Badge>
                     </div>
                     {item.contexto_resumo && (
-                      <p className="mt-2.5 line-clamp-2 rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 text-xs leading-relaxed text-slate-700">
+                      <div className="mt-2.5 max-h-56 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 text-xs leading-relaxed text-slate-700">
                         {item.contexto_resumo}
-                      </p>
+                      </div>
                     )}
                     <div className="mt-3 flex flex-wrap gap-2">
                       {decisaoDoItem ? (
