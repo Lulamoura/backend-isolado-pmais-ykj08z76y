@@ -66,9 +66,15 @@ function formatarDataNota(value?: string | null) {
   return dataCurta(value)
 }
 
-function NotasCuradoriaDialog({ externalId }: { externalId?: string }) {
+function NotasCuradoriaDialog({
+  externalId,
+  notasIniciais = [],
+}: {
+  externalId?: string
+  notasIniciais?: NexoCuradoriaNota[]
+}) {
   const [aberto, setAberto] = useState(false)
-  const [notas, setNotas] = useState<NexoCuradoriaNota[]>([])
+  const [notas, setNotas] = useState<NexoCuradoriaNota[]>(notasIniciais)
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -93,7 +99,8 @@ function NotasCuradoriaDialog({ externalId }: { externalId?: string }) {
       open={aberto}
       onOpenChange={(open) => {
         setAberto(open)
-        if (open && notas.length === 0 && !loading) void carregarNotas()
+        if (open && notas.length === 0 && notasIniciais.length === 0 && !loading)
+          void carregarNotas()
       }}
     >
       <Button
@@ -104,7 +111,10 @@ function NotasCuradoriaDialog({ externalId }: { externalId?: string }) {
         className="border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 h-8"
       >
         <History className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-        Notas do negócio{notas.length > 0 ? ` (${notas.length})` : ''}
+        Notas do negócio
+        {(notas.length || notasIniciais.length) > 0
+          ? ` (${notas.length || notasIniciais.length})`
+          : ''}
       </Button>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
@@ -843,7 +853,10 @@ export default function NexoCuradoria() {
                       </div>
                     )}
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <NotasCuradoriaDialog externalId={item.external_id} />
+                      <NotasCuradoriaDialog
+                        externalId={item.external_id}
+                        notasIniciais={item.notas_followups || []}
+                      />
                       {decisaoDoItem ? (
                         <>
                           <Badge

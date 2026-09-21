@@ -187,6 +187,16 @@ assert.match(
 )
 assert.match(
   service,
+  /notas_followups: contexto\.notas_followups \|\| \[\]/,
+  'resumo da curadoria deve carregar notas completas junto da pendência para o botão Notas',
+)
+assert.match(
+  page,
+  /notasIniciais=\{item\.notas_followups \|\| \[\]\}/,
+  'botão Notas deve usar o histórico já carregado no resumo da curadoria',
+)
+assert.match(
+  service,
   /campos_crm\?\.detalhamento_proposta/,
   'curadoria deve usar detalhamento da proposta do CRM quando a descrição principal vier vazia',
 )

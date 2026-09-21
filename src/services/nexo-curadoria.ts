@@ -19,6 +19,7 @@ export interface NexoCuradoriaEvento {
   eventos_relacionados?: NexoCuradoriaEvento[]
   total_consultas?: number
   acoes_relacionadas?: string[]
+  notas_followups?: NexoCuradoriaNota[]
 }
 
 export interface NexoCuradoriaNota {
@@ -216,9 +217,7 @@ function aplicarDescricaoCrmAoContexto(evento: NexoCuradoriaEvento, descricaoCrm
 async function enriquecerEventosComDescricaoCrm(eventos: NexoCuradoriaEvento[]) {
   return Promise.all(
     eventos.map(async (evento) => {
-      if (!evento.external_id || !/Descrição: não informada/i.test(evento.contexto_resumo || '')) {
-        return evento
-      }
+      if (!evento.external_id) return evento
       try {
         const contexto = await buscarContextoNegocioCuradoriaNexo(evento.external_id)
         const descricaoCrm =
@@ -226,7 +225,10 @@ async function enriquecerEventosComDescricaoCrm(eventos: NexoCuradoriaEvento[]) 
           contexto.negocio?.descricao_negocio ||
           contexto.campos_crm?.detalhamento_proposta ||
           ''
-        return aplicarDescricaoCrmAoContexto(evento, descricaoCrm)
+        return {
+          ...aplicarDescricaoCrmAoContexto(evento, descricaoCrm),
+          notas_followups: contexto.notas_followups || [],
+        }
       } catch (_) {
         return evento
       }
