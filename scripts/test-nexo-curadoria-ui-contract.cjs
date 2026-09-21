@@ -188,8 +188,13 @@ assert.match(
 
 assert.match(
   service,
+  /triagem_status = 'curadoria_necessaria'/,
+  'fila deve listar somente sinais classificados como curadoria necessária',
+)
+assert.doesNotMatch(
+  service,
   /Origem determinística: pedido de ajuda registrado no canal/,
-  'motivo padrão deve indicar origem determinística e canal de ajuda',
+  'pedido de ajuda não deve mais ser tratado como motivo determinístico de curadoria',
 )
 assert.doesNotMatch(
   service,
@@ -790,14 +795,39 @@ assert.match(
 )
 assert.match(
   hook,
+  /avaliacao_negocio_resumo/,
+  'evento de aprendizado deve registrar avaliação do negócio acionada pelo pedido de ajuda',
+)
+assert.match(
+  hook,
+  /gatilhos_curadoria/,
+  'evento de aprendizado deve registrar gatilhos qualificados quando houver curadoria',
+)
+assert.match(
+  hook,
   /nexoMotivoCuradoriaAprendizado/,
   'hook deve gerar motivo de curadoria a partir do canal determinístico da solicitação',
 )
 
 assert.match(
   hook,
-  /Origem determinística: pedido de ajuda registrado no canal/,
-  'hook deve persistir motivo operacional determinístico, sem replicar resultado gerado',
+  /triagem_status/,
+  'evento de ajuda do Nexo deve gravar status de triagem do sinal',
+)
+assert.match(
+  hook,
+  /nexoAvaliarNegocioParaAprendizado/,
+  'pedido de ajuda deve acionar avaliação do negócio antes de decidir curadoria',
+)
+assert.match(
+  hook,
+  /human_review_required', Boolean\(avaliacaoNegocio\.curadoria_necessaria\)/,
+  'pedido comum de ajuda não deve criar curadoria automaticamente',
+)
+assert.doesNotMatch(
+  hook,
+  /evento\.set\('human_review_required', true\)/,
+  'hook não deve marcar todo pedido de ajuda como curadoria humana obrigatória',
 )
 assert.doesNotMatch(
   hook,

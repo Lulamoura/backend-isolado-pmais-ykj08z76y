@@ -1924,12 +1924,49 @@
       }
 
 
-      function nexoMotivoCuradoriaAprendizado(_) {
-        var acaoTexto = nexoRotuloAcaoCuradoria(acao)
+      function nexoAvaliarNegocioParaAprendizado(resposta) {
+        var negocio = contextoSeguro.negocio || {}
+        var descricaoCrm =
+          contextoSeguro.descricao_negocio || contextoSeguro['Detalhamento da Proposta'] || ''
+        var notas = Array.isArray(contextoSeguro.notas_followups)
+          ? contextoSeguro.notas_followups
+          : []
+        var gatilhos = []
+        var fallback = Boolean(
+          (resposta.auditoria_geracao && resposta.auditoria_geracao.fallback) || resposta.fallback,
+        )
+        if (fallback) gatilhos.push('falha_ia_ou_fallback')
+        if (resposta.human_review_required === true) gatilhos.push('sinal_explicito_modelo')
+        if (resposta.curadoria_necessaria === true) gatilhos.push('curadoria_sinalizada')
+        var descricaoStatus = descricaoCrm ? 'descrição disponível' : 'descrição ausente'
+        var notasStatus = notas.length ? notas.length + ' nota(s)/follow-up(s)' : 'sem notas/follow-ups'
+        var faseStatus = negocio.fase || negocio.etapa || 'fase não informada'
+        var curadoriaNecessaria = gatilhos.length > 0
+        return {
+          status: curadoriaNecessaria ? 'curadoria_necessaria' : 'registrado',
+          curadoria_necessaria: curadoriaNecessaria,
+          gatilhos: gatilhos,
+          resumo: nexoResumoSeguroAprendizado(
+            'Pedido de ajuda avaliado como sinal do negócio. Verificados: ' +
+              descricaoStatus +
+              '; ' +
+              notasStatus +
+              '; etapa/fase: ' +
+              faseStatus +
+              '. ' +
+              (curadoriaNecessaria
+                ? 'Há gatilho qualificado para curadoria: ' + gatilhos.join(', ') + '.'
+                : 'Nenhuma divergência ou dúvida de procedimento foi identificada automaticamente nesta etapa.'),
+            4000,
+          ),
+        }
+      }
+
+      function nexoMotivoCuradoriaAprendizado(avaliacaoNegocio) {
+        if (!avaliacaoNegocio || !avaliacaoNegocio.curadoria_necessaria) return ''
         return nexoResumoSeguroAprendizado(
-          'Origem determinística: pedido de ajuda registrado no canal "' +
-            acaoTexto +
-            '". Motivo operacional: este tipo de solicitação está configurado para entrar na fila de curadoria humana antes do encerramento.',
+          'Avaliação do negócio indicou necessidade de curadoria: ' +
+            (avaliacaoNegocio.gatilhos || []).join(', '),
           1200,
         )
       }
@@ -1963,13 +2000,31 @@
             existente.viewRule = regraCuradoria
             ajustada = true
           }
-          var textosHumanos = ['negocio_titulo', 'empresa_nome', 'contato_nome', 'motivo_curadoria']
+          var textosHumanos = ['negocio_titulo', 'empresa_nome', 'contato_nome', 'motivo_curadoria', 'triagem_status']
           for (var th = 0; th < textosHumanos.length; th++) {
             try {
               existente.fields.getByName(textosHumanos[th])
             } catch (_) {
               existente.fields.add(
                 new TextField({ name: textosHumanos[th], required: false, max: 240 }),
+              )
+              ajustada = true
+            }
+          }
+          var textosLongos = [
+            { name: 'avaliacao_negocio_resumo', max: 4000 },
+            { name: 'gatilhos_curadoria', max: 1200 },
+          ]
+          for (var tl = 0; tl < textosLongos.length; tl++) {
+            try {
+              existente.fields.getByName(textosLongos[tl].name)
+            } catch (_) {
+              existente.fields.add(
+                new TextField({
+                  name: textosLongos[tl].name,
+                  required: false,
+                  max: textosLongos[tl].max,
+                }),
               )
               ajustada = true
             }
@@ -2009,6 +2064,9 @@
         collection.fields.add(new TextField({ name: 'contexto_resumo', required: true, max: 4000 }))
         collection.fields.add(new TextField({ name: 'resposta_resumo', required: true, max: 4000 }))
         collection.fields.add(new TextField({ name: 'motivo_curadoria', required: false, max: 1200 }))
+        collection.fields.add(new TextField({ name: 'triagem_status', required: false, max: 80 }))
+        collection.fields.add(new TextField({ name: 'avaliacao_negocio_resumo', required: false, max: 4000 }))
+        collection.fields.add(new TextField({ name: 'gatilhos_curadoria', required: false, max: 1200 }))
         collection.fields.add(new BoolField({ name: 'segundo_cerebro_usado', required: false }))
         collection.fields.add(
           new TextField({ name: 'segundo_cerebro_fontes', required: false, max: 4000 }),
@@ -2042,6 +2100,7 @@
           }
           var collection = nexoGarantirColecaoAprendizadoApp()
           var evento = new Record(collection)
+          var avaliacaoNegocio = nexoAvaliarNegocioParaAprendizado(resposta)
           var negocioSeguro = contextoSeguro.negocio || {}
           var empresaSegura = contextoSeguro.empresa || {}
           var contatoSeguro = contextoSeguro.contato || {}
@@ -2063,7 +2122,10 @@
           )
           evento.set('contexto_resumo', nexoResumoContextoAprendizado())
           evento.set('resposta_resumo', nexoResumoRespostaAprendizado(resposta))
-          evento.set('motivo_curadoria', nexoMotivoCuradoriaAprendizado(resposta))
+          evento.set('motivo_curadoria', nexoMotivoCuradoriaAprendizado(avaliacaoNegocio))
+          evento.set('triagem_status', avaliacaoNegocio.status)
+          evento.set('avaliacao_negocio_resumo', avaliacaoNegocio.resumo)
+          evento.set('gatilhos_curadoria', (avaliacaoNegocio.gatilhos || []).join(', '))
           evento.set('segundo_cerebro_usado', Boolean(secondBrain.used))
           evento.set('segundo_cerebro_fontes', nexoFontesSegundoCerebro(secondBrain))
           evento.set('segundo_cerebro_versao', nexoVersaoSegundoCerebro(secondBrain))
@@ -2076,7 +2138,7 @@
             nexoResumoSeguroAprendizado(auditoria.modelo || resposta.modelo || '', 160),
           )
           evento.set('fallback', Boolean(auditoria.fallback || resposta.fallback))
-          evento.set('human_review_required', true)
+          evento.set('human_review_required', Boolean(avaliacaoNegocio.curadoria_necessaria))
           evento.set('automatic_send_allowed', false)
           evento.set('crm_write_allowed', false)
           evento.set(

@@ -11,6 +11,9 @@ export interface NexoCuradoriaEvento {
   contexto_resumo?: string
   resposta_resumo?: string
   motivo_curadoria?: string
+  triagem_status?: string
+  avaliacao_negocio_resumo?: string
+  gatilhos_curadoria?: string
   audit_id?: string
   created_at?: string
   created?: string
@@ -125,7 +128,7 @@ export interface AtualizarDecisaoSuperiorCuradoriaInput {
 const COLLECTION = 'com_nexo_aprendizado_eventos'
 const ENTREVISTAS_COLLECTION = 'com_nexo_curadoria_entrevistas'
 const DECISOES_COLLECTION = 'com_nexo_curadoria_decisoes'
-const PENDING_FILTER = 'human_review_required = true'
+const PENDING_FILTER = "triagem_status = 'curadoria_necessaria' && human_review_required = true"
 
 function pbValor(valor?: string) {
   return String(valor || '').replace(/'/g, "\\'")
@@ -161,14 +164,10 @@ function rotuloAcaoCuradoria(acao?: string) {
 
 function motivoCuradoriaPadrao(evento: NexoCuradoriaEvento) {
   const motivoRegistrado = String(evento.motivo_curadoria || '').trim()
-  const motivoRegistradoEhOperacional =
-    motivoRegistrado.startsWith('Origem determinística:') &&
-    !/regra|playbook|aprendizado operacional|orientação única|diagnóstico:|perguntas abertas:|risco apontado:/i.test(
-      motivoRegistrado,
-    )
-  if (motivoRegistradoEhOperacional) return motivoRegistrado
-  const acao = rotuloAcaoCuradoria(evento.acao)
-  return `Origem determinística: pedido de ajuda registrado no canal "${acao}". Motivo operacional: este tipo de solicitação está configurado para entrar na fila de curadoria humana antes do encerramento.`
+  if (motivoRegistrado) return motivoRegistrado
+  const avaliacao = String(evento.avaliacao_negocio_resumo || '').trim()
+  if (avaliacao) return avaliacao
+  return 'Avaliação do negócio indicou necessidade de curadoria, mas o motivo específico ainda não foi detalhado.'
 }
 
 function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
@@ -195,7 +194,7 @@ function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
             return `- ${acao} em ${data}`
           })
           .join('\n')
-        principal.motivo_curadoria = `Origem determinística: ${ordenados.length} pedidos de ajuda foram registrados para o mesmo negócio nos canais ${acoes.join(' | ')}. Motivo operacional: cada canal permanece específico; a curadoria deve responder a entrevista considerando o fato de cada solicitação, sem juntar respostas de canais diferentes.`
+        principal.motivo_curadoria = motivoCuradoriaPadrao(principal)
         principal.contexto_resumo = [
           `Resumo consolidado: ${ordenados.length} pedidos de ajuda do Nexo para o mesmo negócio.`,
           `Ações agrupadas: ${acoes.join(' | ')}.`,
