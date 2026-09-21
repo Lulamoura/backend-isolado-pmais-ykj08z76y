@@ -14,6 +14,9 @@ export interface NexoCuradoriaEvento {
   triagem_status?: string
   avaliacao_negocio_resumo?: string
   gatilhos_curadoria?: string
+  regra_pratica_relacionada?: string
+  evidencia_curadoria?: string
+  impacto_ipcp_potencial?: boolean
   audit_id?: string
   created_at?: string
   created?: string

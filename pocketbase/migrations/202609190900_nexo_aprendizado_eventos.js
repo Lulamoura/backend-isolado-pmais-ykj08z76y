@@ -35,6 +35,13 @@ migrate(
       new TextField({ name: 'avaliacao_negocio_resumo', required: false, max: 4000 }),
     )
     collection.fields.add(new TextField({ name: 'gatilhos_curadoria', required: false, max: 1200 }))
+    collection.fields.add(
+      new TextField({ name: 'regra_pratica_relacionada', required: false, max: 1200 }),
+    )
+    collection.fields.add(
+      new TextField({ name: 'evidencia_curadoria', required: false, max: 1200 }),
+    )
+    collection.fields.add(new BoolField({ name: 'impacto_ipcp_potencial', required: false }))
     collection.fields.add(new BoolField({ name: 'segundo_cerebro_usado', required: false }))
     collection.fields.add(
       new TextField({ name: 'segundo_cerebro_fontes', required: false, max: 4000 }),
