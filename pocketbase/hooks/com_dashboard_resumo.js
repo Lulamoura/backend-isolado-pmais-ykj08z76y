@@ -158,22 +158,27 @@ routerAdd(
         fontesProspeccao[fonteProspeccao].quantidade++
 
         var responsavelId = String(n.responsavel_id || '').trim()
-        var responsavelNome = responsavelId
-          ? String(n.responsavel_nome || '').trim() || 'Responsável não identificado'
-          : 'Sem responsável'
-        var responsavelKey = responsavelId || '__sem_responsavel__'
-        if (!responsaveis[responsavelKey])
-          responsaveis[responsavelKey] = {
-            responsavel_id: responsavelId || null,
-            responsavel: responsavelNome,
-            quantidade: 0,
-          }
-        responsaveis[responsavelKey].quantidade++
         var situacao = classificarResultado(n)
         if (situacao === 'ganho') out.situacao.ganhos++
         else if (situacao === 'perdido') out.situacao.perdidos++
         else if (situacao === 'desqualificado') out.situacao.desqualificados++
         else out.situacao.abertos++
+
+        // O gráfico de responsáveis mede a negociação de propostas.
+        // Prospects que ainda não evoluíram para proposta ficam fora dessa fatia.
+        if (String(n.etapa || '').trim() !== 'prospects') {
+          var responsavelNome = responsavelId
+            ? String(n.responsavel_nome || '').trim() || 'Responsável não identificado'
+            : 'Sem responsável'
+          var responsavelKey = responsavelId || '__sem_responsavel__'
+          if (!responsaveis[responsavelKey])
+            responsaveis[responsavelKey] = {
+              responsavel_id: responsavelId || null,
+              responsavel: responsavelNome,
+              quantidade: 0,
+            }
+          responsaveis[responsavelKey].quantidade++
+        }
         var motivoPerda = ''
         if (situacao === 'perdido') {
           motivoPerda = String(n.fechamento_motivo || '').trim() || 'Não informado'

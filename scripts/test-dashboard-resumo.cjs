@@ -301,9 +301,8 @@ assert(
   ]),
 )
 assert(
-  'E18 distribui negócios por responsável e explicita ausência',
+  'E18 distribui propostas por responsável e ignora prospects ainda não evoluídos',
   same(resumo.responsaveis, [
-    { responsavel_id: null, responsavel: 'Sem responsável', quantidade: 2 },
     { responsavel_id: 'u1', responsavel: 'Ana Gestora', quantidade: 1 },
     { responsavel_id: 'u2', responsavel: 'Bruno Comercial', quantidade: 1 },
   ]),
