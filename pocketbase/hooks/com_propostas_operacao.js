@@ -1926,21 +1926,12 @@
         )
       }
 
-      function nexoMotivoCuradoriaAprendizado(resposta) {
+      function nexoMotivoCuradoriaAprendizado(_) {
         var acaoTexto = nexoRotuloAcaoCuradoria(acao)
-        var sinais = []
-        if (resposta.diagnostico) sinais.push('diagnóstico: ' + resposta.diagnostico)
-        if ((resposta.perguntas_criticas || []).length)
-          sinais.push('perguntas abertas: ' + resposta.perguntas_criticas.slice(0, 2).join(' | '))
-        if ((resposta.riscos || []).length) sinais.push('risco apontado: ' + resposta.riscos[0])
-        if ((resposta.dicas_para_melhorar_notas || []).length)
-          sinais.push('lacuna de registro: ' + resposta.dicas_para_melhorar_notas[0])
-        var base = 'Pedido de ajuda para ' + acaoTexto + '. '
-        var detalhe = sinais.length
-          ? sinais.join(' · ')
-          : 'A orientação pode virar regra, playbook ou aprendizado operacional.'
         return nexoResumoSeguroAprendizado(
-          base + detalhe + ' Curadoria necessária antes de reutilizar essa orientação pelo Nexo.',
+          'Origem determinística: pedido de ajuda registrado no canal "' +
+            acaoTexto +
+            '". Motivo operacional: este tipo de solicitação está configurado para entrar na fila de curadoria humana antes do encerramento.',
           1200,
         )
       }

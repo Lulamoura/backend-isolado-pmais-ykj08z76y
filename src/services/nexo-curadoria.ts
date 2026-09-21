@@ -159,15 +159,15 @@ function rotuloAcaoCuradoria(acao?: string) {
 }
 
 function motivoCuradoriaPadrao(evento: NexoCuradoriaEvento) {
-  if (evento.motivo_curadoria) return evento.motivo_curadoria
+  const motivoRegistrado = String(evento.motivo_curadoria || '').trim()
+  const motivoRegistradoEhOperacional =
+    motivoRegistrado.startsWith('Origem determinística:') &&
+    !/regra|playbook|aprendizado operacional|orientação única|diagnóstico:|perguntas abertas:|risco apontado:/i.test(
+      motivoRegistrado,
+    )
+  if (motivoRegistradoEhOperacional) return motivoRegistrado
   const acao = rotuloAcaoCuradoria(evento.acao)
-  const resposta = String(evento.resposta_resumo || '').trim()
-  const partes = [`Pedido de ajuda do Nexo para ${acao}.`]
-  if (resposta) partes.push(resposta.slice(0, 420))
-  partes.push(
-    'Curadoria solicitada porque a orientação pode virar regra, playbook ou aprendizado operacional e precisa de validação humana antes de ser reutilizada pelo Nexo.',
-  )
-  return partes.join(' ')
+  return `Origem determinística: pedido de ajuda registrado no canal "${acao}". Motivo operacional: este tipo de solicitação está configurado para entrar na fila de curadoria humana antes do encerramento.`
 }
 
 function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
@@ -194,7 +194,7 @@ function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
             return `- ${acao} em ${data}`
           })
           .join('\n')
-        principal.motivo_curadoria = `Foram feitos ${ordenados.length} pedidos de ajuda do Nexo para o mesmo negócio (${acoes.join(' | ')}). A curadoria deve transformar esses sinais em uma orientação única para o caso.`
+        principal.motivo_curadoria = `Origem determinística: ${ordenados.length} pedidos de ajuda foram registrados para o mesmo negócio nos canais ${acoes.join(' | ')}. Motivo operacional: cada canal permanece específico; a curadoria deve responder a entrevista considerando o fato de cada solicitação, sem juntar respostas de canais diferentes.`
         principal.contexto_resumo = [
           `Resumo consolidado: ${ordenados.length} pedidos de ajuda do Nexo para o mesmo negócio.`,
           `Ações agrupadas: ${acoes.join(' | ')}.`,
