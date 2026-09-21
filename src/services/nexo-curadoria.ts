@@ -114,8 +114,11 @@ function filtroDecisaoExistente(evento: NexoCuradoriaEvento) {
   return `(${filtros.join(' || ')})`
 }
 
-function decisaoTerminal(decisao: NexoCuradoriaDecisaoSuperior | null) {
-  return decisao?.status === 'aprovada_uso_operacional' || decisao?.status === 'rejeitada'
+function decisaoOuEntrevistaExistente(
+  decisao: NexoCuradoriaDecisaoSuperior | null,
+  entrevista: unknown,
+) {
+  return Boolean(decisao || entrevista)
 }
 
 function decisaoHomologacao(decisao: NexoCuradoriaDecisaoSuperior) {
@@ -126,15 +129,31 @@ function decisaoHomologacao(decisao: NexoCuradoriaDecisaoSuperior) {
   return texto.includes('homologacao-') || texto.includes('homologação')
 }
 
-async function filtrarEventosComDecisaoTerminal(eventos: NexoCuradoriaEvento[]) {
+async function buscarEntrevistaExistenteCuradoriaNexo(evento: NexoCuradoriaEvento) {
+  try {
+    return await pb.collection(ENTREVISTAS_COLLECTION).getFirstListItem(filtroDecisaoExistente(evento), {
+      sort: '-created_at',
+    })
+  } catch (error: any) {
+    if (error?.status === 404 || error?.status === 403) return null
+    throw error
+  }
+}
+
+async function filtrarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
   const pares = await Promise.all(
-    eventos.map(async (evento) => ({
-      evento,
-      decisao: await buscarDecisaoSuperiorExistenteCuradoriaNexo(evento),
-    })),
+    eventos.map(async (evento) => {
+      const [decisao, entrevista] = await Promise.all([
+        buscarDecisaoSuperiorExistenteCuradoriaNexo(evento),
+        buscarEntrevistaExistenteCuradoriaNexo(evento),
+      ])
+      return { evento, decisao, entrevista }
+    }),
   )
 
-  return pares.filter(({ decisao }) => !decisaoTerminal(decisao)).map(({ evento }) => evento)
+  return pares
+    .filter(({ decisao, entrevista }) => !decisaoOuEntrevistaExistente(decisao, entrevista))
+    .map(({ evento }) => evento)
 }
 
 export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoriaResumo> {
@@ -144,7 +163,7 @@ export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoria
       filter: PENDING_FILTER,
       sort: '-created_at',
     })
-  const itensAbertos = (await filtrarEventosComDecisaoTerminal(response.items)).slice(0, limit)
+  const itensAbertos = (await filtrarEventosAguardandoCuradoria(response.items)).slice(0, limit)
 
   return {
     pendencias: itensAbertos.length,

@@ -137,6 +137,26 @@ assert.doesNotMatch(
 
 assert.match(
   service,
+  /buscarEntrevistaExistenteCuradoriaNexo/,
+  'serviço deve consultar entrevistas já abertas antes de listar pendência',
+)
+assert.match(
+  service,
+  /filtrarEventosAguardandoCuradoria/,
+  'resumo de curadoria deve filtrar somente eventos realmente aguardando entrevista',
+)
+assert.match(
+  service,
+  /!decisaoOuEntrevistaExistente\(decisao, entrevista\)/,
+  'evento já entrevistado ou escalado não deve continuar na fila aguardando curadoria',
+)
+assert.doesNotMatch(
+  service,
+  /decisaoTerminal/,
+  'fila aguardando curadoria não deve depender apenas de decisão terminal',
+)
+assert.match(
+  service,
   /com_nexo_curadoria_entrevistas/,
   'serviço deve gravar em coleção própria de entrevistas',
 )
@@ -453,7 +473,7 @@ assert.match(service, /rejeitada/, 'serviço deve aceitar status de rejeição')
 assert.match(
   page,
   /decisoesRelacionadas/,
-  'Aguardando curadoria deve considerar decisões ainda em revisão',
+  'Aguardando curadoria deve preservar leitura de decisões relacionadas fora da fila aberta',
 )
 assert.match(
   page,
@@ -462,13 +482,13 @@ assert.match(
 )
 assert.match(
   service,
-  /filtrarEventosComDecisaoTerminal/,
-  'serviço deve retirar da fila de curadoria casos com decisão terminal',
+  /filtrarEventosAguardandoCuradoria/,
+  'serviço deve retirar da fila de curadoria casos já entrevistados ou escalados',
 )
 assert.match(
   service,
-  /aprovada_uso_operacional|rejeitada/,
-  'aprovação ou rejeição deve encerrar a pendência aberta de curadoria',
+  /buscarEntrevistaExistenteCuradoriaNexo/,
+  'entrevista já respondida deve encerrar a pendência aberta de curadoria',
 )
 assert.doesNotMatch(
   service,
