@@ -33,7 +33,9 @@ routerAdd(
         .replace(/\s+/g, ' ')
       var vendedor = normalized.match(/^vendedor\s*(\d+)$/)
       if (vendedor) return 'Vendedor ' + vendedor[1]
-      return String(value || '').trim().slice(0, 120)
+      return String(value || '')
+        .trim()
+        .slice(0, 120)
     }
 
     var actor = e.auth
@@ -711,7 +713,9 @@ routerAdd(
         .replace(/\s+/g, ' ')
       var vendedor = normalized.match(/^vendedor\s*(\d+)$/)
       if (vendedor) return 'Vendedor ' + vendedor[1]
-      return String(value || '').trim().slice(0, 120)
+      return String(value || '')
+        .trim()
+        .slice(0, 120)
     }
     function canonicalLossReason(value) {
       var normalized = String(value || '')

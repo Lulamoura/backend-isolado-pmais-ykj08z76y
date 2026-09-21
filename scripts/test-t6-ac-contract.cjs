@@ -318,7 +318,7 @@ const checks = [
     webhook.includes('function canonicalOwnerCode(value)') &&
       nativeRelay.includes('function canonicalOwnerCode(value)') &&
       reconciliationHook.includes('function canonicalOwnerCode(value)') &&
-      webhook.includes("var ownerCode = canonicalOwnerCode(links.owner_code)") &&
+      webhook.includes('var ownerCode = canonicalOwnerCode(links.owner_code)') &&
       nativeRelay.includes("var ownerCode = canonicalOwnerCode(customByLabel['Responsável'])") &&
       reconciliationHook.includes("owner_code: canonicalOwnerCode(customFields['Responsável'])"),
   ],
