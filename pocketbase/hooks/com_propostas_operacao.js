@@ -1718,7 +1718,10 @@
           responsavel: contexto.responsavel || null,
           tipo_servico: campos.tipo_servico || '',
           descricao_negocio:
-            campos.descricao_negocio || negocio.descricao_negocio || campos.detalhamento_proposta || '',
+            campos.descricao_negocio ||
+            negocio.descricao_negocio ||
+            campos.detalhamento_proposta ||
+            '',
           'Detalhamento da Proposta': campos.detalhamento_proposta || '',
           proposta: proposta
             ? {
@@ -1923,7 +1926,6 @@
         )
       }
 
-
       function nexoAvaliarNegocioParaAprendizado(resposta) {
         var negocio = contextoSeguro.negocio || {}
         var descricaoCrm =
@@ -1939,7 +1941,9 @@
         if (resposta.human_review_required === true) gatilhos.push('sinal_explicito_modelo')
         if (resposta.curadoria_necessaria === true) gatilhos.push('curadoria_sinalizada')
         var descricaoStatus = descricaoCrm ? 'descrição disponível' : 'descrição ausente'
-        var notasStatus = notas.length ? notas.length + ' nota(s)/follow-up(s)' : 'sem notas/follow-ups'
+        var notasStatus = notas.length
+          ? notas.length + ' nota(s)/follow-up(s)'
+          : 'sem notas/follow-ups'
         var faseStatus = negocio.fase || negocio.etapa || 'fase não informada'
         var curadoriaNecessaria = gatilhos.length > 0
         return {
@@ -2000,7 +2004,13 @@
             existente.viewRule = regraCuradoria
             ajustada = true
           }
-          var textosHumanos = ['negocio_titulo', 'empresa_nome', 'contato_nome', 'motivo_curadoria', 'triagem_status']
+          var textosHumanos = [
+            'negocio_titulo',
+            'empresa_nome',
+            'contato_nome',
+            'motivo_curadoria',
+            'triagem_status',
+          ]
           for (var th = 0; th < textosHumanos.length; th++) {
             try {
               existente.fields.getByName(textosHumanos[th])
@@ -2063,10 +2073,16 @@
         collection.fields.add(new TextField({ name: 'tipo_servico', required: false, max: 240 }))
         collection.fields.add(new TextField({ name: 'contexto_resumo', required: true, max: 4000 }))
         collection.fields.add(new TextField({ name: 'resposta_resumo', required: true, max: 4000 }))
-        collection.fields.add(new TextField({ name: 'motivo_curadoria', required: false, max: 1200 }))
+        collection.fields.add(
+          new TextField({ name: 'motivo_curadoria', required: false, max: 1200 }),
+        )
         collection.fields.add(new TextField({ name: 'triagem_status', required: false, max: 80 }))
-        collection.fields.add(new TextField({ name: 'avaliacao_negocio_resumo', required: false, max: 4000 }))
-        collection.fields.add(new TextField({ name: 'gatilhos_curadoria', required: false, max: 1200 }))
+        collection.fields.add(
+          new TextField({ name: 'avaliacao_negocio_resumo', required: false, max: 4000 }),
+        )
+        collection.fields.add(
+          new TextField({ name: 'gatilhos_curadoria', required: false, max: 1200 }),
+        )
         collection.fields.add(new BoolField({ name: 'segundo_cerebro_usado', required: false }))
         collection.fields.add(
           new TextField({ name: 'segundo_cerebro_fontes', required: false, max: 4000 }),

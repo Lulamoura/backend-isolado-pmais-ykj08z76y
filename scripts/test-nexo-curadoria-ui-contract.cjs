@@ -788,11 +788,7 @@ assert.match(
   /Notas\/follow-ups: consulte o botão Notas do negócio/,
   'curadoria deve orientar leitura do histórico completo pelo botão Notas, sem resumo parcial de notas',
 )
-assert.match(
-  hook,
-  /motivo_curadoria/,
-  'evento de aprendizado deve persistir o motivo da curadoria',
-)
+assert.match(hook, /motivo_curadoria/, 'evento de aprendizado deve persistir o motivo da curadoria')
 assert.match(
   hook,
   /avaliacao_negocio_resumo/,

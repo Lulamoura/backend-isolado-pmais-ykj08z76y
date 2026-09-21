@@ -161,7 +161,6 @@ function rotuloAcaoCuradoria(acao?: string) {
   return (acao || 'consulta do Nexo').replace(/_/g, ' ')
 }
 
-
 function motivoCuradoriaPadrao(evento: NexoCuradoriaEvento) {
   const motivoRegistrado = String(evento.motivo_curadoria || '').trim()
   if (motivoRegistrado) return motivoRegistrado
@@ -211,7 +210,6 @@ function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
     })
     .sort((a, b) => eventoTimestamp(b) - eventoTimestamp(a))
 }
-
 
 async function buscarContextoNegocioCuradoriaNexo(externalId: string) {
   return pb.send<NexoCuradoriaContextoNegocio>(`/backend/v1/nexo/negocios/${externalId}/contexto`, {
