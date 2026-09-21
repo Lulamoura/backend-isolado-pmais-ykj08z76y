@@ -121,5 +121,15 @@ assert.match(
   /nexo-resposta-paragrafos/,
   'UI deve renderizar a resposta do Nexo em parágrafos separados, não em uma caixa com texto corrido',
 )
+assert.match(
+  hook,
+  /result\.sort\(function \(a, b\)[\s\S]*bTime - aTime/,
+  'backend deve ordenar notas/follow-ups do ActiveCampaign do mais recente para o mais antigo',
+)
+assert.match(
+  component,
+  /function ultimoFollowUp[\s\S]*notaTimestamp\(b\) - notaTimestamp\(a\)/,
+  'resumo da modal Ajuda do Nexo deve selecionar o follow-up mais recente por data, não o primeiro item recebido',
+)
 
 console.log('nexo-ajuda-ia contract: PASS')

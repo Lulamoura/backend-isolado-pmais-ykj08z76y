@@ -1405,6 +1405,11 @@
             texto: nexoLimparTexto(notes[i].note, 4000),
           })
         }
+        result.sort(function (a, b) {
+          var bTime = Date.parse(b.alterada_em || b.criada_em || '') || 0
+          var aTime = Date.parse(a.alterada_em || a.criada_em || '') || 0
+          return bTime - aTime
+        })
         return result
       }
 

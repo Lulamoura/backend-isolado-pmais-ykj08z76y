@@ -199,6 +199,34 @@ describe('NexoBusinessActions', () => {
     expect(screen.getByText('Dicas para melhorar notas')).toBeInTheDocument()
   })
 
+  it('mostra o follow-up mais recente no resumo do histórico', async () => {
+    obterContextoNexoNegocio.mockResolvedValue({
+      ...contexto,
+      notas_followups: [
+        {
+          id: 'primeira',
+          texto: 'Primeiro follow-up antigo exibido antes da correção.',
+          criada_em: '2026-09-18T12:00:00-03:00',
+        },
+        {
+          id: 'ultima',
+          texto: 'Último follow-up real do negócio.',
+          criada_em: '2026-09-21T15:30:00-03:00',
+        },
+      ],
+    })
+    const user = userEvent.setup()
+    render(
+      <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
+    await screen.findByText('Escolha a ajuda do Nexo')
+
+    expect(screen.getByText(/2 registros de follow-up\. Último registro: Último follow-up real/)).toBeInTheDocument()
+    expect(screen.queryByText(/Último registro: Primeiro follow-up antigo/)).not.toBeInTheDocument()
+  })
+
   it('mantém Detalhamento da Proposta mesmo quando a ajuda do Nexo está oculta', async () => {
     const user = userEvent.setup()
     render(
