@@ -824,6 +824,42 @@ assert.match(
   /human_review_required', Boolean\(avaliacaoNegocio\.curadoria_necessaria\)/,
   'pedido comum de ajuda não deve criar curadoria automaticamente',
 )
+
+assert.match(
+  hook,
+  /avaliacao_curadoria/,
+  'Ajuda do Nexo deve pedir e processar avaliação estruturada da IA curadora',
+)
+assert.match(
+  hook,
+  /regra_pratica_relacionada/,
+  'avaliação da IA curadora deve registrar regra ou prática relacionada quando houver curadoria',
+)
+assert.match(
+  hook,
+  /evidencia_curadoria/,
+  'avaliação da IA curadora deve registrar evidência objetiva da divergência/lacuna/exceção',
+)
+assert.match(
+  hook,
+  /impacto_ipcp_potencial/,
+  'avaliação da IA curadora deve sinalizar impacto potencial no IPCP sem alterar cálculo',
+)
+assert.match(
+  hook,
+  /Somente marque curadoria_necessaria como true/,
+  'prompt deve impedir que todo pedido de ajuda vire curadoria automática',
+)
+assert.match(
+  hook,
+  /nexoNormalizarAvaliacaoCuradoria/,
+  'hook deve normalizar avaliação da IA curadora antes de gravar o sinal',
+)
+assert.match(
+  hook,
+  /avaliacaoCuradoria\.curadoria_necessaria/,
+  'human_review_required deve depender da avaliação da IA curadora, não do simples uso da ajuda',
+)
 assert.doesNotMatch(
   hook,
   /evento\.set\('human_review_required', true\)/,

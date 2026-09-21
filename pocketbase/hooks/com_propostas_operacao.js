@@ -1825,6 +1825,8 @@
           provider: 'nexo_hermes',
           gateway_provider: gatewayJson.provider || 'pmais_agent_gateway',
           fallback: Boolean(gatewayJson.fallback),
+          avaliacao_curadoria:
+            gatewayJson.avaliacao_curadoria || gatewayJson.avaliacao_negocio_curadoria || null,
           second_brain: gatewayJson.second_brain || null,
           auditoria_geracao: {
             origem: gatewayJson.nexo_provider || 'nexo_hermes',
@@ -1924,6 +1926,38 @@
       }
 
 
+      function nexoNormalizarAvaliacaoCuradoria(valor) {
+        var bruto = valor || {}
+        if (typeof bruto === 'string') bruto = nexoJsonSeguro(bruto)
+        var gatilhos = nexoArrayTextos(bruto.gatilhos_curadoria || bruto.gatilhos || [], '')
+          .map(function (item) {
+            return nexoResumoSeguroAprendizado(item, 160)
+          })
+          .filter(Boolean)
+        var motivo = nexoResumoSeguroAprendizado(bruto.motivo_curadoria || bruto.motivo || '', 1200)
+        var regra = nexoResumoSeguroAprendizado(
+          bruto.regra_pratica_relacionada || bruto.regra_relacionada || bruto.pratica_relacionada || '',
+          1200,
+        )
+        var evidencia = nexoResumoSeguroAprendizado(
+          bruto.evidencia_curadoria || bruto.evidencia || bruto.evidencias || '',
+          1200,
+        )
+        var impactoIpcp = Boolean(bruto.impacto_ipcp_potencial || bruto.impacto_ipcp)
+        var curadoriaSinalizada = Boolean(bruto.curadoria_necessaria)
+        var curadoriaNecessaria = Boolean(
+          curadoriaSinalizada && (motivo || regra || evidencia || gatilhos.length || impactoIpcp),
+        )
+        return {
+          curadoria_necessaria: curadoriaNecessaria,
+          gatilhos: gatilhos,
+          motivo_curadoria: motivo,
+          regra_pratica_relacionada: regra,
+          evidencia_curadoria: evidencia,
+          impacto_ipcp_potencial: impactoIpcp,
+        }
+      }
+
       function nexoAvaliarNegocioParaAprendizado(resposta) {
         var negocio = contextoSeguro.negocio || {}
         var descricaoCrm =
@@ -1931,44 +1965,77 @@
         var notas = Array.isArray(contextoSeguro.notas_followups)
           ? contextoSeguro.notas_followups
           : []
-        var gatilhos = []
+        var avaliacaoCuradoria = nexoNormalizarAvaliacaoCuradoria(
+          resposta.avaliacao_curadoria || resposta.avaliacao_negocio_curadoria,
+        )
+        var gatilhos = avaliacaoCuradoria.gatilhos || []
         var fallback = Boolean(
           (resposta.auditoria_geracao && resposta.auditoria_geracao.fallback) || resposta.fallback,
         )
-        if (fallback) gatilhos.push('falha_ia_ou_fallback')
-        if (resposta.human_review_required === true) gatilhos.push('sinal_explicito_modelo')
-        if (resposta.curadoria_necessaria === true) gatilhos.push('curadoria_sinalizada')
+        if (fallback && gatilhos.indexOf('falha_ia_ou_fallback') < 0) {
+          gatilhos.push('falha_ia_ou_fallback')
+          avaliacaoCuradoria.curadoria_necessaria = true
+          if (!avaliacaoCuradoria.motivo_curadoria) {
+            avaliacaoCuradoria.motivo_curadoria =
+              'Falha ou fallback da IA comprometeu a confiança da orientação comercial.'
+          }
+          if (!avaliacaoCuradoria.evidencia_curadoria) {
+            avaliacaoCuradoria.evidencia_curadoria =
+              'A geração retornou fallback ou erro técnico em vez de análise confiável do negócio.'
+          }
+        }
         var descricaoStatus = descricaoCrm ? 'descrição disponível' : 'descrição ausente'
         var notasStatus = notas.length ? notas.length + ' nota(s)/follow-up(s)' : 'sem notas/follow-ups'
         var faseStatus = negocio.fase || negocio.etapa || 'fase não informada'
-        var curadoriaNecessaria = gatilhos.length > 0
+        var curadoriaNecessaria = Boolean(avaliacaoCuradoria.curadoria_necessaria)
+        var partesResumo = [
+          'Pedido de ajuda avaliado como sinal do negócio.',
+          'Verificados: ' + descricaoStatus + '; ' + notasStatus + '; etapa/fase: ' + faseStatus + '.',
+        ]
+        if (curadoriaNecessaria) {
+          partesResumo.push(
+            'A IA curadora identificou gatilho qualificado para curadoria: ' +
+              (gatilhos.length ? gatilhos.join(', ') : 'motivo específico registrado') +
+              '.',
+          )
+          if (avaliacaoCuradoria.regra_pratica_relacionada)
+            partesResumo.push('Regra/prática relacionada: ' + avaliacaoCuradoria.regra_pratica_relacionada)
+          if (avaliacaoCuradoria.evidencia_curadoria)
+            partesResumo.push('Evidência: ' + avaliacaoCuradoria.evidencia_curadoria)
+          if (avaliacaoCuradoria.impacto_ipcp_potencial)
+            partesResumo.push('Há possível impacto no IPCP; abrir revisão controlada, sem alterar cálculo automaticamente.')
+        } else {
+          partesResumo.push(
+            'Nenhuma divergência ou dúvida de procedimento foi identificada automaticamente nesta etapa.',
+          )
+        }
         return {
           status: curadoriaNecessaria ? 'curadoria_necessaria' : 'registrado',
           curadoria_necessaria: curadoriaNecessaria,
           gatilhos: gatilhos,
-          resumo: nexoResumoSeguroAprendizado(
-            'Pedido de ajuda avaliado como sinal do negócio. Verificados: ' +
-              descricaoStatus +
-              '; ' +
-              notasStatus +
-              '; etapa/fase: ' +
-              faseStatus +
-              '. ' +
-              (curadoriaNecessaria
-                ? 'Há gatilho qualificado para curadoria: ' + gatilhos.join(', ') + '.'
-                : 'Nenhuma divergência ou dúvida de procedimento foi identificada automaticamente nesta etapa.'),
-            4000,
-          ),
+          motivo_curadoria: avaliacaoCuradoria.motivo_curadoria,
+          regra_pratica_relacionada: avaliacaoCuradoria.regra_pratica_relacionada,
+          evidencia_curadoria: avaliacaoCuradoria.evidencia_curadoria,
+          impacto_ipcp_potencial: avaliacaoCuradoria.impacto_ipcp_potencial,
+          resumo: nexoResumoSeguroAprendizado(partesResumo.filter(Boolean).join(' '), 4000),
         }
       }
 
       function nexoMotivoCuradoriaAprendizado(avaliacaoNegocio) {
         if (!avaliacaoNegocio || !avaliacaoNegocio.curadoria_necessaria) return ''
-        return nexoResumoSeguroAprendizado(
-          'Avaliação do negócio indicou necessidade de curadoria: ' +
-            (avaliacaoNegocio.gatilhos || []).join(', '),
-          1200,
-        )
+        var partes = [avaliacaoNegocio.motivo_curadoria]
+        if (avaliacaoNegocio.regra_pratica_relacionada)
+          partes.push('Regra/prática relacionada: ' + avaliacaoNegocio.regra_pratica_relacionada)
+        if (avaliacaoNegocio.evidencia_curadoria)
+          partes.push('Evidência: ' + avaliacaoNegocio.evidencia_curadoria)
+        if (avaliacaoNegocio.impacto_ipcp_potencial)
+          partes.push('Possível impacto no IPCP: abrir revisão controlada antes de qualquer alteração de cálculo.')
+        if (!partes.filter(Boolean).length)
+          partes.push(
+            'Avaliação do negócio indicou necessidade de curadoria: ' +
+              (avaliacaoNegocio.gatilhos || []).join(', '),
+          )
+        return nexoResumoSeguroAprendizado(partes.filter(Boolean).join(' '), 1200)
       }
 
       function nexoResumoRespostaAprendizado(resposta) {
@@ -2014,6 +2081,8 @@
           var textosLongos = [
             { name: 'avaliacao_negocio_resumo', max: 4000 },
             { name: 'gatilhos_curadoria', max: 1200 },
+            { name: 'regra_pratica_relacionada', max: 1200 },
+            { name: 'evidencia_curadoria', max: 1200 },
           ]
           for (var tl = 0; tl < textosLongos.length; tl++) {
             try {
@@ -2029,7 +2098,7 @@
               ajustada = true
             }
           }
-          var bools = ['human_review_required', 'automatic_send_allowed', 'crm_write_allowed']
+          var bools = ['human_review_required', 'automatic_send_allowed', 'crm_write_allowed', 'impacto_ipcp_potencial']
           for (var b = 0; b < bools.length; b++) {
             var campoBool = existente.fields.getByName(bools[b])
             if (campoBool && campoBool.required) {
@@ -2067,6 +2136,9 @@
         collection.fields.add(new TextField({ name: 'triagem_status', required: false, max: 80 }))
         collection.fields.add(new TextField({ name: 'avaliacao_negocio_resumo', required: false, max: 4000 }))
         collection.fields.add(new TextField({ name: 'gatilhos_curadoria', required: false, max: 1200 }))
+        collection.fields.add(new TextField({ name: 'regra_pratica_relacionada', required: false, max: 1200 }))
+        collection.fields.add(new TextField({ name: 'evidencia_curadoria', required: false, max: 1200 }))
+        collection.fields.add(new BoolField({ name: 'impacto_ipcp_potencial', required: false }))
         collection.fields.add(new BoolField({ name: 'segundo_cerebro_usado', required: false }))
         collection.fields.add(
           new TextField({ name: 'segundo_cerebro_fontes', required: false, max: 4000 }),
@@ -2126,6 +2198,9 @@
           evento.set('triagem_status', avaliacaoNegocio.status)
           evento.set('avaliacao_negocio_resumo', avaliacaoNegocio.resumo)
           evento.set('gatilhos_curadoria', (avaliacaoNegocio.gatilhos || []).join(', '))
+          evento.set('regra_pratica_relacionada', avaliacaoNegocio.regra_pratica_relacionada || '')
+          evento.set('evidencia_curadoria', avaliacaoNegocio.evidencia_curadoria || '')
+          evento.set('impacto_ipcp_potencial', Boolean(avaliacaoNegocio.impacto_ipcp_potencial))
           evento.set('segundo_cerebro_usado', Boolean(secondBrain.used))
           evento.set('segundo_cerebro_fontes', nexoFontesSegundoCerebro(secondBrain))
           evento.set('segundo_cerebro_versao', nexoVersaoSegundoCerebro(secondBrain))
@@ -2270,6 +2345,10 @@
         'Inclua Dicas para melhorar notas quando o histórico não tiver decisor, prazo, objeção, pendência ou próximo passo claro.',
         'Nunca prometa preço, prazo operacional, desconto, condição comercial ou disponibilidade de equipe.',
         'Sem envio automático: você apenas recomenda e rascunha; o operador humano revisa e decide.',
+        'Depois de responder ao operador, aja como IA curadora e avalie se o caso revela tensão relevante entre CRM, follow-ups, proposta, etapa/fase e conhecimento comercial consolidado.',
+        'Somente marque curadoria_necessaria como true quando houver divergência com regra/prática, quebra de regra, dúvida de procedimento, lacuna crítica, exceção comercial, recorrência qualificada, falha de confiança ou possível impacto no IPCP.',
+        'Não marque curadoria_necessaria como true apenas porque houve pedido de ajuda ao Nexo.',
+        'Quando houver curadoria, registre motivo objetivo, regra_pratica_relacionada e evidencia_curadoria; para IPCP, apenas sinalize impacto_ipcp_potencial, sem alterar cálculo.',
         'Retorne exclusivamente JSON válido no contrato nexo_ajuda_comercial_v1.',
       ].join('\n')
 
@@ -2291,6 +2370,14 @@
           mensagem_sugerida:
             'rascunho para WhatsApp, email ou ligação conforme a ação; vazio apenas se inadequado',
           dicas_para_melhorar_notas: ['dica 1'],
+          avaliacao_curadoria: {
+            curadoria_necessaria: false,
+            gatilhos_curadoria: [],
+            motivo_curadoria: '',
+            regra_pratica_relacionada: '',
+            evidencia_curadoria: '',
+            impacto_ipcp_potencial: false,
+          },
           aviso: 'Sugestão para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
         },
       })
@@ -2416,6 +2503,7 @@
           aviso:
             nexoLimparTextoAjuda(parsed.aviso, 500) ||
             'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
+          avaliacao_curadoria: nexoNormalizarAvaliacaoCuradoria(parsed.avaliacao_curadoria),
           modelo: model,
           provider: provider,
           fallback: false,
