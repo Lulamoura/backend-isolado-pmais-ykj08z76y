@@ -131,9 +131,9 @@ function auditoriaFormulaIpcp(decisao: NexoCuradoriaDecisaoSuperior) {
 }
 
 const perguntasEntrevista = [
-  'Qual regra comercial precisa ser confirmada neste caso?',
-  'Existe alguma exceção ou condição que o Nexo deve considerar?',
-  'Quem é o responsável pela decisão ou validação final deste alinhamento?',
+  'Qual orientação comercial única deve valer para este negócio ou situação consolidada?',
+  'Existe alguma exceção, limite ou condição que o Nexo deve considerar antes de repetir essa orientação?',
+  'Quem valida essa orientação final e em quais casos ela deve subir para decisão superior?',
 ]
 
 const DECISAO_SUPERIOR_ALLOWLIST = new Set(['superadministrador', 'leitura-executiva'])
@@ -591,8 +591,8 @@ export default function NexoCuradoria() {
             Curadoria Nexo
           </h2>
           <p className="mt-1.5 text-sm text-slate-600">
-            Canal exclusivo para o Nexo conduzir entrevista guiada com usuários habilitados quando
-            houver decisões ou padrões que precisam ser curados antes de virar conhecimento
+            Canal exclusivo para o Nexo consolidar pedidos de ajuda por negócio e conduzir uma
+            entrevista objetiva quando houver decisões ou padrões que precisam virar conhecimento
             operacional.
           </p>
         </div>
@@ -684,8 +684,7 @@ export default function NexoCuradoria() {
                 Aguardando curadoria
               </CardTitle>
               <CardDescription className="text-xs text-slate-500">
-                Sinais gerados pelo uso do Ajuda do Nexo que precisam ser analisados antes de virar
-                regra ou playbook.
+                Pedidos de ajuda do Nexo agrupados por negócio antes de virar regra ou playbook.
               </CardDescription>
             </div>
             <Badge
@@ -738,6 +737,14 @@ export default function NexoCuradoria() {
                         Revisão obrigatória
                       </Badge>
                     </div>
+                    {item.total_consultas && item.total_consultas > 1 && (
+                      <Badge
+                        variant="outline"
+                        className="mt-2.5 rounded-full border-violet-200/60 bg-violet-50 px-2.5 py-0.5 text-[11px] font-medium text-violet-700"
+                      >
+                        {item.total_consultas} consultas agrupadas neste negócio
+                      </Badge>
+                    )}
                     {item.contexto_resumo && (
                       <div className="mt-2.5 max-h-56 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-slate-100 bg-slate-50/70 p-2.5 text-xs leading-relaxed text-slate-700">
                         {item.contexto_resumo}
@@ -768,7 +775,7 @@ export default function NexoCuradoria() {
                           onClick={() => iniciarCuradoria(item)}
                           className="border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 h-8"
                         >
-                          Entrevistar sobre esta pendência
+                          Entrevistar sobre este negócio
                         </Button>
                       )}
                     </div>

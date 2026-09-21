@@ -16,6 +16,9 @@ export interface NexoCuradoriaEvento {
   human_review_required?: boolean
   segundo_cerebro_usado?: boolean
   fallback?: boolean
+  eventos_relacionados?: NexoCuradoriaEvento[]
+  total_consultas?: number
+  acoes_relacionadas?: string[]
 }
 
 export interface NexoCuradoriaResumo {
@@ -121,6 +124,60 @@ function decisaoOuEntrevistaExistente(
   return Boolean(decisao || entrevista)
 }
 
+function eventoTimestamp(evento: NexoCuradoriaEvento) {
+  const valor = evento.created_at || evento.created || ''
+  const data = new Date(valor.replace(' ', 'T')).getTime()
+  return Number.isNaN(data) ? 0 : data
+}
+
+function chaveCuradoriaEvento(evento: NexoCuradoriaEvento) {
+  return evento.external_id ? `negocio:${evento.external_id}` : `evento:${evento.id}`
+}
+
+function rotuloAcaoCuradoria(acao?: string) {
+  return (acao || 'consulta do Nexo').replace(/_/g, ' ')
+}
+
+function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
+  const grupos = new Map<string, NexoCuradoriaEvento[]>()
+  eventos.forEach((evento) => {
+    const chave = chaveCuradoriaEvento(evento)
+    grupos.set(chave, [...(grupos.get(chave) || []), evento])
+  })
+
+  return Array.from(grupos.values())
+    .map((grupo) => {
+      const ordenados = [...grupo].sort((a, b) => eventoTimestamp(b) - eventoTimestamp(a))
+      const principal = { ...ordenados[0] }
+      const acoes = Array.from(new Set(ordenados.map((evento) => rotuloAcaoCuradoria(evento.acao))))
+      principal.eventos_relacionados = ordenados
+      principal.total_consultas = ordenados.length
+      principal.acoes_relacionadas = acoes
+      if (ordenados.length > 1) {
+        const resumoConsultas = ordenados
+          .map((evento) => {
+            const data = evento.created_at || evento.created || 'sem data'
+            const acao = rotuloAcaoCuradoria(evento.acao)
+            return `- ${acao} em ${data}`
+          })
+          .join('\n')
+        principal.contexto_resumo = [
+          `Resumo consolidado: ${ordenados.length} pedidos de ajuda do Nexo para o mesmo negócio.`,
+          `Ações agrupadas: ${acoes.join(' | ')}.`,
+          'Consultas que originaram esta curadoria:',
+          resumoConsultas,
+          '',
+          'Contexto mais recente:',
+          principal.contexto_resumo || '',
+        ]
+          .filter(Boolean)
+          .join('\n')
+      }
+      return principal
+    })
+    .sort((a, b) => eventoTimestamp(b) - eventoTimestamp(a))
+}
+
 function decisaoHomologacao(decisao: NexoCuradoriaDecisaoSuperior) {
   const texto = [decisao.external_id, decisao.evento_id, decisao.negocio_titulo]
     .filter(Boolean)
@@ -161,15 +218,16 @@ async function filtrarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[])
 export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoriaResumo> {
   const response = await pb
     .collection(COLLECTION)
-    .getList<NexoCuradoriaEvento>(1, Math.max(limit * 3, limit), {
+    .getList<NexoCuradoriaEvento>(1, Math.max(limit * 8, 200), {
       filter: PENDING_FILTER,
       sort: '-created_at',
     })
-  const itensAbertos = (await filtrarEventosAguardandoCuradoria(response.items)).slice(0, limit)
+  const eventosAbertos = await filtrarEventosAguardandoCuradoria(response.items)
+  const itensConsolidados = consolidarEventosAguardandoCuradoria(eventosAbertos)
 
   return {
-    pendencias: itensAbertos.length,
-    itens: itensAbertos,
+    pendencias: itensConsolidados.length,
+    itens: itensConsolidados.slice(0, limit),
   }
 }
 
