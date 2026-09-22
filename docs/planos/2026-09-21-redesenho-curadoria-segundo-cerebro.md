@@ -142,15 +142,15 @@ A Curadoria não altera IPCP automaticamente.
   - Verificação: registros passam a ter `triagem_status`, `avaliacao_negocio_resumo` e `gatilhos_curadoria`.
 - [x] Implementar critérios determinísticos iniciais seguros.
   - Verificação: apenas fallback/falha de IA ou sinal explícito do modelo entram como `curadoria_necessaria` nesta primeira estrutura.
-- [~] Preparar camada para análise generativa futura da IA curadora.
-  - Verificação: avaliação estruturada foi criada; análise generativa/comparação profunda com segundo cérebro ainda será fase posterior.
+- [x] Preparar camada para análise generativa futura da IA curadora.
+  - Verificação: o contrato de Ajuda do Nexo agora pede `avaliacao_curadoria` estruturada, com `curadoria_necessaria`, `gatilhos_curadoria`, `motivo_curadoria`, `regra_pratica_relacionada`, `evidencia_curadoria` e `impacto_ipcp_potencial`.
 
 ### Fase 4 — Reformular fila da Curadoria
 
 - [x] A fila passa a listar apenas registros com `curadoria_necessaria`.
   - Verificação: filtro da fila usa `triagem_status = 'curadoria_necessaria' && human_review_required = true`.
-- [~] Exibir motivo específico e evidências.
-  - Verificação: card usa `motivo_curadoria`; próxima fase deve enriquecer regra/prática do segundo cérebro e evidências específicas.
+- [x] Exibir motivo específico e evidências.
+  - Verificação: card usa `motivo_curadoria`; o motivo agora pode vir enriquecido com regra/prática relacionada, evidência objetiva e possível impacto IPCP identificado pela IA curadora.
 - [x] Manter botão de Notas e descrição CRM já ajustados.
   - Verificação: card preserva contexto completo sem voltar a resumir notas.
 
@@ -203,4 +203,5 @@ Validar a primeira estrutura no Preview: pedido comum de Ajuda do Nexo deve gera
 ## Estado atual
 
 - Estrutura inicial implementada: avaliação do negócio, status de triagem, gatilhos de curadoria e filtro da fila por `curadoria_necessaria`.
-- Ainda pendente: criar/aperfeiçoar a camada da IA curadora que compara a prática real com regras do segundo cérebro e produz motivos ancorados em regra/prática específica.
+- Segunda camada implementada: a Ajuda do Nexo agora solicita avaliação estruturada da IA curadora, com motivo, regra/prática relacionada, evidência e sinal de impacto IPCP quando houver tensão relevante.
+- Ainda pendente: validar Preview com caso real/simulado em que a IA curadora deixe pedido comum fora da fila e leve apenas divergência/lacuna/exceção qualificada para Curadoria.
