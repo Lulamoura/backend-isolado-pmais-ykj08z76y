@@ -117,7 +117,10 @@ const contextoNexo = {
 describe('Propostas', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    })
     listarPropostas.mockResolvedValue({
       itens: [itemProposta],
       configuracao: {
@@ -198,5 +201,35 @@ describe('Propostas', () => {
     )
     expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
     expect(salvarMensagemEmailProposta).toHaveBeenCalledWith('neg-1', mensagem)
+  })
+
+  it('mantém a tela de propostas aberta quando o negócio não tem empresa vinculada', async () => {
+    listarPropostas.mockResolvedValueOnce({
+      itens: [
+        {
+          ...itemProposta,
+          negocio: {
+            ...itemProposta.negocio,
+            id: 'neg-sem-empresa',
+            titulo: 'Cliente sem empresa vinculada',
+          },
+          contexto: {
+            ...itemProposta.contexto,
+            empresa: null,
+            external_id: null,
+          },
+        },
+      ],
+      configuracao: {
+        aprovacao_interna_obrigatoria: false,
+        identificacao_visitante_obrigatoria: true,
+        identificacao_visitante_updated: '2026-09-13 10:00:00.000Z',
+      },
+    })
+
+    render(<Propostas />)
+
+    expect(await screen.findByText('Cliente sem empresa vinculada')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Lançar proposta/i })).toBeInTheDocument()
   })
 })
