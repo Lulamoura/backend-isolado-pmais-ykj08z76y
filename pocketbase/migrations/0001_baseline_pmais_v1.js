@@ -6987,14 +6987,26 @@ function fieldFromDefinition(definition) {
 
 migrate(
   (app) => {
+    const existingCollections = []
+    const missingCollections = []
     for (const definition of BASELINE_COLLECTIONS) {
       try {
         app.findCollectionByNameOrId(definition.name)
-        throw new Error('A baseline exige backend vazio; coleção já existe: ' + definition.name)
-      } catch (error) {
-        if (String((error && error.message) || error).includes('baseline exige backend vazio'))
-          throw error
+        existingCollections.push(definition.name)
+      } catch (_) {
+        missingCollections.push(definition.name)
       }
+    }
+
+    if (existingCollections.length > 0) {
+      if (missingCollections.length === 0) return
+      throw new Error(
+        'A baseline encontrou backend parcialmente materializado; coleções ausentes: ' +
+          missingCollections.join(', '),
+      )
+    }
+
+    for (const definition of BASELINE_COLLECTIONS) {
       app.save(new Collection(definition))
     }
 
