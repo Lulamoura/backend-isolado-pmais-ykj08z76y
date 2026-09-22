@@ -1717,11 +1717,7 @@
           contato: contexto.contato || null,
           responsavel: contexto.responsavel || null,
           tipo_servico: campos.tipo_servico || '',
-          descricao_negocio:
-            campos.descricao_negocio ||
-            negocio.descricao_negocio ||
-            campos.detalhamento_proposta ||
-            '',
+          descricao_negocio: campos.descricao_negocio || negocio.descricao_negocio || campos.detalhamento_proposta || '',
           'Detalhamento da Proposta': campos.detalhamento_proposta || '',
           proposta: proposta
             ? {
@@ -1827,9 +1823,10 @@
           modelo: gatewayJson.modelo || gatewayJson.nexo_provider || 'pmais_agent_gateway',
           provider: 'nexo_hermes',
           gateway_provider: gatewayJson.provider || 'pmais_agent_gateway',
-          fallback: Boolean(gatewayJson.fallback),
-          avaliacao_curadoria:
-            gatewayJson.avaliacao_curadoria || gatewayJson.avaliacao_negocio_curadoria || null,
+          fallback: nexoBooleanoCuradoria(gatewayJson.fallback),
+          avaliacao_curadoria: nexoNormalizarAvaliacaoCuradoria(
+            gatewayJson.avaliacao_curadoria || gatewayJson.avaliacao_negocio_curadoria,
+          ),
           second_brain: gatewayJson.second_brain || null,
           auditoria_geracao: {
             origem: gatewayJson.nexo_provider || 'nexo_hermes',
@@ -1843,7 +1840,7 @@
               '' ||
               gatewayJson.nexo_provider ||
               'pmais_agent_gateway',
-            fallback: Boolean(gatewayJson.fallback),
+            fallback: nexoBooleanoCuradoria(gatewayJson.fallback),
             segundo_cerebro_usado: Boolean((gatewayJson.second_brain || {}).used),
             segundo_cerebro_fontes: (gatewayJson.second_brain || {}).sources || [],
             audit_id: 'nexo-' + externalId + '-' + Date.now(),
@@ -1928,6 +1925,15 @@
         )
       }
 
+      function nexoBooleanoCuradoria(valor) {
+        if (valor === true) return true
+        if (valor === false || valor === null || valor === undefined) return false
+        if (typeof valor === 'number') return valor === 1
+        var texto = String(valor || '').trim().toLowerCase()
+        if (!texto) return false
+        return ['true', 'sim', 's', 'yes', 'y', '1'].indexOf(texto) >= 0
+      }
+
       function nexoNormalizarAvaliacaoCuradoria(valor) {
         var bruto = valor || {}
         if (typeof bruto === 'string') bruto = nexoJsonSeguro(bruto)
@@ -1948,8 +1954,10 @@
           bruto.evidencia_curadoria || bruto.evidencia || bruto.evidencias || '',
           1200,
         )
-        var impactoIpcp = Boolean(bruto.impacto_ipcp_potencial || bruto.impacto_ipcp)
-        var curadoriaSinalizada = Boolean(bruto.curadoria_necessaria)
+        var impactoIpcp =
+          nexoBooleanoCuradoria(bruto.impacto_ipcp_potencial) ||
+          nexoBooleanoCuradoria(bruto.impacto_ipcp)
+        var curadoriaSinalizada = nexoBooleanoCuradoria(bruto.curadoria_necessaria)
         var curadoriaNecessaria = Boolean(
           curadoriaSinalizada && (motivo || regra || evidencia || gatilhos.length || impactoIpcp),
         )
@@ -1974,9 +1982,9 @@
           resposta.avaliacao_curadoria || resposta.avaliacao_negocio_curadoria,
         )
         var gatilhos = avaliacaoCuradoria.gatilhos || []
-        var fallback = Boolean(
-          (resposta.auditoria_geracao && resposta.auditoria_geracao.fallback) || resposta.fallback,
-        )
+        var fallback =
+          nexoBooleanoCuradoria(resposta.auditoria_geracao && resposta.auditoria_geracao.fallback) ||
+          nexoBooleanoCuradoria(resposta.fallback)
         if (fallback && gatilhos.indexOf('falha_ia_ou_fallback') < 0) {
           gatilhos.push('falha_ia_ou_fallback')
           avaliacaoCuradoria.curadoria_necessaria = true
@@ -2252,7 +2260,10 @@
             'modelo',
             nexoResumoSeguroAprendizado(auditoria.modelo || resposta.modelo || '', 160),
           )
-          evento.set('fallback', Boolean(auditoria.fallback || resposta.fallback))
+          evento.set(
+            'fallback',
+            nexoBooleanoCuradoria(auditoria.fallback) || nexoBooleanoCuradoria(resposta.fallback),
+          )
           evento.set('human_review_required', Boolean(avaliacaoNegocio.curadoria_necessaria))
           evento.set('automatic_send_allowed', false)
           evento.set('crm_write_allowed', false)
@@ -2386,8 +2397,9 @@
         'Nunca prometa preço, prazo operacional, desconto, condição comercial ou disponibilidade de equipe.',
         'Sem envio automático: você apenas recomenda e rascunha; o operador humano revisa e decide.',
         'Depois de responder ao operador, aja como IA curadora e avalie se o caso revela tensão relevante entre CRM, follow-ups, proposta, etapa/fase e conhecimento comercial consolidado.',
-        'Somente marque curadoria_necessaria como true quando houver divergência com regra/prática, quebra de regra, dúvida de procedimento, lacuna crítica, exceção comercial, recorrência qualificada, falha de confiança ou possível impacto no IPCP.',
-        'Não marque curadoria_necessaria como true apenas porque houve pedido de ajuda ao Nexo.',
+        'Curadoria não é auditoria de perfeição comercial: negociação não ideal, follow-up fraco ou atrasado, nota pouco detalhada, oportunidade esfriando, abordagem melhorável ou execução comum abaixo do ótimo devem ficar como curadoria_necessaria=false, salvo se houver exceção qualificada.',
+        'Somente marque curadoria_necessaria como true quando houver divergência com regra/prática validada, quebra de regra, dúvida real de procedimento, lacuna crítica do segundo cérebro, exceção comercial, recorrência qualificada com potencial de aprendizado, risco operacional/comercial/contratual ou possível impacto em regra de IPCP.',
+        'Não marque curadoria_necessaria como true apenas porque houve pedido de ajuda ao Nexo, nem porque a negociação não está perfeita.',
         'Quando houver curadoria, registre motivo objetivo, regra_pratica_relacionada e evidencia_curadoria; para IPCP, apenas sinalize impacto_ipcp_potencial, sem alterar cálculo.',
         'Retorne exclusivamente JSON válido no contrato nexo_ajuda_comercial_v1.',
       ].join('\n')
