@@ -127,6 +127,9 @@ const prepararCorpoEmailParaEnvio = (corpo: string, link: string) => {
   return `${corpo.trim()}${corpo.trim() ? '\n\n' : ''}[LINK_PROPOSTA]`
 }
 
+const nomeClienteProposta = (item: ItemProposta) =>
+  item.contexto.empresa?.nome?.trim() || item.negocio.titulo?.trim() || 'Cliente não informado'
+
 const assinaturaEmailProposta = (item: ItemProposta) => {
   const responsavel = item.contexto.responsavel?.name?.trim()
   return `Atenciosamente,\n${responsavel || 'Equipe Comercial PMais'}${responsavel ? '\nComercial | PMais' : ''}`
@@ -286,12 +289,11 @@ export default function Propostas() {
     setModalProposta({ negocioId, modo })
     if (modo === 'historico') void carregarTimeline(negocioId)
   }
-  const assuntoPadrao = (item: ItemProposta) =>
-    `Proposta comercial PMais — ${item.contexto.empresa.nome || item.negocio.titulo}`
+  const assuntoPadrao = (item: ItemProposta) => `Proposta comercial PMais — ${nomeClienteProposta(item)}`
   const destinatarioPadrao = (item: ItemProposta) =>
     item.contexto.contato?.email || item.proposta?.destinatario || ''
   const mensagemPadrao = (item: ItemProposta) =>
-    `Olá,\n\nEncaminhamos a proposta comercial da PMais para ${item.contexto.empresa.nome || 'sua empresa'}.\n\nVocê pode visualizar o documento pelo link abaixo:\n[LINK_PROPOSTA]\n\nPermanecemos à disposição para esclarecimentos e para os próximos passos.\n\nAtenciosamente,\nEquipe Comercial PMais`
+    `Olá,\n\nEncaminhamos a proposta comercial da PMais para ${nomeClienteProposta(item)}.\n\nVocê pode visualizar o documento pelo link abaixo:\n[LINK_PROPOSTA]\n\nPermanecemos à disposição para esclarecimentos e para os próximos passos.\n\nAtenciosamente,\nEquipe Comercial PMais`
   const mensagemAtual = (item: ItemProposta) =>
     mensagensEmail[item.negocio.id] ??
     item.proposta?.mensagem_email_rascunho ??
@@ -678,7 +680,7 @@ export default function Propostas() {
                             : 'Lançar proposta'}
                         </DialogTitle>
                         <DialogDescription>
-                          {item.contexto.empresa.nome} · negócio {item.contexto.external_id}
+                          {nomeClienteProposta(item)} · negócio {item.contexto.external_id || 'sem número'}
                         </DialogDescription>
                       </DialogHeader>
                       {modalProposta?.modo === 'historico' ? (
