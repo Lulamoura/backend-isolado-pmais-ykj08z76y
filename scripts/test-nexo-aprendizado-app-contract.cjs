@@ -46,7 +46,7 @@ assert.match(
   'evento deve registrar versão/hash do segundo cérebro quando disponível',
 )
 assert.match(migration, /fallback/, 'evento deve registrar fallback')
-assert.match(migration, /human_review_required/, 'evento deve exigir revisão humana')
+assert.match(migration, /human_review_required/, 'evento deve registrar se exige revisão humana')
 assert.match(
   migration,
   /automatic_send_allowed/,
@@ -85,8 +85,23 @@ assert.match(hook, /contexto_resumo/, 'hook deve persistir resumo sanitizado do 
 assert.match(hook, /resposta_resumo/, 'hook deve persistir resumo sanitizado da resposta')
 assert.match(
   hook,
-  /human_review_required[\s\S]{0,120}true/,
-  'evento deve nascer exigindo revisão humana',
+  /function\s+nexoBooleanoCuradoria/,
+  'hook deve normalizar booleanos da IA sem tratar texto "false" como verdadeiro',
+)
+assert.match(
+  hook,
+  /triagem_status[\s\S]{0,120}avaliacaoNegocio\.status/,
+  'evento deve gravar status estruturado de triagem',
+)
+assert.match(
+  hook,
+  /human_review_required[\s\S]{0,160}avaliacaoNegocio\.curadoria_necessaria/,
+  'evento só deve exigir revisão humana quando a avaliação indicar curadoria necessária',
+)
+assert.match(
+  hook,
+  /negociação não ideal[\s\S]{0,260}curadoria_necessaria=false/,
+  'prompt deve separar imperfeição comercial normal de curadoria',
 )
 assert.match(
   hook,
