@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T22:19:00.998Z",
+  "generatedAt": "2026-09-22T17:21:16.291Z",
   "collections": [
     {
       "name": "users",
@@ -3938,6 +3938,42 @@
           "name": "created_at",
           "type": "date",
           "required": true,
+          "system": false
+        },
+        {
+          "name": "triagem_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avaliacao_negocio_resumo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gatilhos_curadoria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "regra_pratica_relacionada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evidencia_curadoria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "impacto_ipcp_potencial",
+          "type": "bool",
+          "required": false,
           "system": false
         }
       ],
