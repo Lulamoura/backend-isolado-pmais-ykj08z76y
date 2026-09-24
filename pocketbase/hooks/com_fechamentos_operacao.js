@@ -128,7 +128,9 @@
             )[0]
           } catch (_) {}
           var reagendadaEm = reagendamento ? reagendamento.getString('reagendada_em') : ''
-          var ultimaNotaEm = nota ? nota.getString('alterada_em') || nota.getString('criada_em') : ''
+          var ultimaNotaEm = nota
+            ? nota.getString('alterada_em') || nota.getString('criada_em')
+            : ''
           var FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS = 8 * 60 * 1000
           function notaDentroDaJanelaReagendamento(notaEm, reagendamentoEm) {
             if (!notaEm || !reagendamentoEm) return false
