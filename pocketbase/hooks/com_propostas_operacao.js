@@ -510,9 +510,18 @@
           } catch (_) {}
           var reagendadaEm = reagendamento ? reagendamento.getString('reagendada_em') : ''
           var ultimaNotaEm = nota ? nota.getString('criada_em') : ''
+          var FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS = 8 * 60 * 1000
+          function notaDentroDaJanelaReagendamento(notaEm, reagendamentoEm) {
+            if (!notaEm || !reagendamentoEm) return false
+            var notaTime = new Date(notaEm).getTime()
+            var reagendamentoTime = new Date(reagendamentoEm).getTime()
+            if (!isFinite(notaTime) || !isFinite(reagendamentoTime)) return false
+            return Math.abs(notaTime - reagendamentoTime) <= FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS
+          }
           return {
             follow_up_pendente:
-              !!reagendadaEm && (!ultimaNotaEm || new Date(ultimaNotaEm) <= new Date(reagendadaEm)),
+              !!reagendadaEm &&
+              (!ultimaNotaEm || !notaDentroDaJanelaReagendamento(ultimaNotaEm, reagendadaEm)),
             proxima_acao_reagendada_em: reagendadaEm || null,
             ultima_nota_em: ultimaNotaEm || null,
           }

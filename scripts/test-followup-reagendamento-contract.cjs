@@ -10,6 +10,7 @@ const reconciliation = fs.readFileSync('pocketbase/hooks/com_ac_reconciliacao.js
 const proposals = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
 const closings = fs.readFileSync('pocketbase/hooks/com_fechamentos_operacao.js', 'utf8')
 const orders = fs.readFileSync('pocketbase/hooks/com_ordens_execucao.js', 'utf8')
+const slas = fs.readFileSync('pocketbase/hooks/com_slas.js', 'utf8')
 
 assert.match(migration, /reagendamento_external_id/)
 assert.match(migration, /UNIQUE INDEX idx_com_negocio_historico_reagendamento_external/)
@@ -20,8 +21,11 @@ for (const source of [webhook, reconciliation]) {
   assert.match(source, /activecampaign_data_acao/)
   assert.match(source, /:next_action/)
 }
-for (const source of [proposals, closings, orders]) {
+for (const source of [proposals, closings, orders, slas]) {
+  assert.match(source, /FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS\s*=\s*8\s*\*\s*60\s*\*\s*1000/)
+  assert.match(source, /notaDentroDaJanelaReagendamento/)
+  assert.match(source, /Math\.abs\(notaTime - reagendamentoTime\) <= FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS/)
   assert.match(source, /follow_up_pendente/)
-  assert.match(source, /ultimaNotaEm.*reagendadaEm/s)
+  assert.match(source, /!notaDentroDaJanelaReagendamento\(ultimaNotaEm, reagendadaEm\)/)
 }
 console.log('followup-reagendamento contract: PASS')
