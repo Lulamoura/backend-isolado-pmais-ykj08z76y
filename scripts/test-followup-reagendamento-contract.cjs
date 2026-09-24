@@ -24,6 +24,7 @@ for (const source of [webhook, reconciliation]) {
 for (const source of [proposals, closings, orders, slas]) {
   assert.match(source, /FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS\s*=\s*8\s*\*\s*60\s*\*\s*1000/)
   assert.match(source, /notaDentroDaJanelaReagendamento/)
+  assert.match(source, /nota\.getString\('alterada_em'\) \|\| nota\.getString\('criada_em'\)/)
   assert.match(
     source,
     /Math\.abs\(notaTime - reagendamentoTime\) <= FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS/,
