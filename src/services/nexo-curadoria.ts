@@ -131,7 +131,8 @@ export interface AtualizarDecisaoSuperiorCuradoriaInput {
 const COLLECTION = 'com_nexo_aprendizado_eventos'
 const ENTREVISTAS_COLLECTION = 'com_nexo_curadoria_entrevistas'
 const DECISOES_COLLECTION = 'com_nexo_curadoria_decisoes'
-const PENDING_FILTER = "triagem_status = 'curadoria_necessaria' && human_review_required = true"
+const PENDING_FILTER =
+  "(triagem_status = 'curadoria_necessaria' || triagem_status = '') && human_review_required = true"
 
 function pbValor(valor?: string) {
   return String(valor || '').replace(/'/g, "\\'")
