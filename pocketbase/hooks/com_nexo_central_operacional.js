@@ -864,7 +864,7 @@ routerAdd(
           'x-pmais-signature': signature,
         },
         body: gatewayBody,
-        timeout: 45,
+        timeout: 120,
       })
     }
 
@@ -879,7 +879,7 @@ routerAdd(
           'x-pmais-skip-bridge-secret': bridgeSecret,
         },
         body: gatewayBody,
-        timeout: 45,
+        timeout: 120,
       })
     }
 
