@@ -98,8 +98,18 @@ assert.match(
 )
 assert.match(
   hook,
-  /x-pmais-skip-bridge-secret|x-pmais-signature/,
-  'Backend deve chamar PMais Agent Gateway/bridge governada',
+  /PMAIS_AGENT_GATEWAY_URL[\s\S]{0,300}PMAIS_AGENT_GATEWAY_API_KEY[\s\S]{0,300}PMAIS_AGENT_GATEWAY_HMAC_SECRET/,
+  'Central deve priorizar PMais Agent Gateway assinado, igual à Ajuda do Nexo por negócio',
+)
+assert.match(
+  hook,
+  /x-pmais-signature/,
+  'Backend deve assinar chamada do PMais Agent Gateway',
+)
+assert.match(
+  hook,
+  /x-pmais-skip-bridge-secret/,
+  'Backend deve manter bridge governada como contingência',
 )
 assert.match(hook, /second_brain/, 'Contrato deve preservar metadados de segundo cérebro')
 assert.match(
