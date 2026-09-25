@@ -40,6 +40,7 @@ assert('deduplica evento por idempotency_key', hook.includes('idempotencyKey'))
 assert('deduplica mensagem por uazapi-message', hook.includes('uazapi-message'))
 assert('preserva fromMe', hook.includes('fromMe'))
 assert('preserva isGroup e marca grupo ignorado', hook.includes('ignorado_grupo'))
+assert('classifica áudio por AudioMessage/mimetype', hook.includes("lowerMessageType.indexOf('audio')") && hook.includes("lowerMime.indexOf('audio/')"))
 assert(
   'cria pendência de mídia sem download síncrono',
   hook.includes("download_status', data.isGroup ? 'ignorada_grupo' : 'pendente'"),
