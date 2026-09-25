@@ -28,7 +28,9 @@ migrate(
       collection.fields.add(new TextField({ name: 'message_id', required: false, max: 220 }))
       collection.fields.add(new TextField({ name: 'idempotency_key', required: true, max: 200 }))
       collection.fields.add(new TextField({ name: 'payload_hash', required: true, max: 80 }))
-      collection.fields.add(new TextField({ name: 'payload_sanitizado', required: true, max: 50000 }))
+      collection.fields.add(
+        new TextField({ name: 'payload_sanitizado', required: true, max: 50000 }),
+      )
       collection.fields.add(new TextField({ name: 'status', required: true, max: 40 }))
       collection.fields.add(new BoolField({ name: 'from_me', required: false }))
       collection.fields.add(new BoolField({ name: 'is_group', required: false }))
@@ -79,7 +81,9 @@ migrate(
       collection.fields.add(new TextField({ name: 'file_name', required: false, max: 240 }))
       collection.fields.add(new TextField({ name: 'source_url_hash', required: false, max: 80 }))
       collection.fields.add(new TextField({ name: 'download_status', required: true, max: 40 }))
-      collection.fields.add(new NumberField({ name: 'bytes', min: 0, onlyInt: true, required: false }))
+      collection.fields.add(
+        new NumberField({ name: 'bytes', min: 0, onlyInt: true, required: false }),
+      )
       collection.fields.add(new TextField({ name: 'sha256', required: false, max: 80 }))
       collection.fields.add(new TextField({ name: 'storage_path', required: false, max: 500 }))
       collection.fields.add(new TextField({ name: 'erro', required: false, max: 1200 }))

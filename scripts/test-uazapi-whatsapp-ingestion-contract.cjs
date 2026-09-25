@@ -21,9 +21,12 @@ function assert(name, cond, detail = '') {
 
 assert(
   'rota webhook com segredo no path',
-  hook.includes("/backend/v1/integracao/whatsapp/uazapi/{webhookSecret}/webhook"),
+  hook.includes('/backend/v1/integracao/whatsapp/uazapi/{webhookSecret}/webhook'),
 )
-assert('rota status autenticada existe', hook.includes("/backend/v1/integracao/whatsapp/uazapi/status"))
+assert(
+  'rota status autenticada existe',
+  hook.includes('/backend/v1/integracao/whatsapp/uazapi/status'),
+)
 assert('usa secret UAZAPI_WEBHOOK_SECRET', hook.includes("$secrets.get('UAZAPI_WEBHOOK_SECRET')"))
 assert('falha fechada sem secret configurado', hook.includes('WEBHOOK_NAO_CONFIGURADO'))
 assert('bloqueia secret divergente', hook.includes('WEBHOOK_NAO_AUTORIZADO'))
@@ -37,7 +40,10 @@ assert('deduplica evento por idempotency_key', hook.includes('idempotencyKey'))
 assert('deduplica mensagem por uazapi-message', hook.includes('uazapi-message'))
 assert('preserva fromMe', hook.includes('fromMe'))
 assert('preserva isGroup e marca grupo ignorado', hook.includes('ignorado_grupo'))
-assert('cria pendência de mídia sem download síncrono', hook.includes("download_status', data.isGroup ? 'ignorada_grupo' : 'pendente'"))
+assert(
+  'cria pendência de mídia sem download síncrono',
+  hook.includes("download_status', data.isGroup ? 'ignorada_grupo' : 'pendente'"),
+)
 assert('não permite envio automático', hook.includes('automatic_send_allowed: false'))
 
 for (const name of ['com_whatsapp_eventos', 'com_whatsapp_mensagens', 'com_whatsapp_midias']) {
@@ -46,7 +52,10 @@ for (const name of ['com_whatsapp_eventos', 'com_whatsapp_mensagens', 'com_whats
 assert('índice único eventos', migration.includes('idx_com_whatsapp_eventos_idem'))
 assert('índice único mensagens', migration.includes('idx_com_whatsapp_mensagens_idem'))
 assert('índice único mídias por message_id', migration.includes('idx_com_whatsapp_midias_message'))
-assert('payload sanitizado com limite amplo', migration.includes("name: 'payload_sanitizado'") && migration.includes('max: 50000'))
+assert(
+  'payload sanitizado com limite amplo',
+  migration.includes("name: 'payload_sanitizado'") && migration.includes('max: 50000'),
+)
 
 const forbidden = ['fromMeYes', 'wasSentByApi'].filter((term) => hook.includes(`'${term}'`))
 assert('não exclui mensagens da operadora por padrão', forbidden.length === 0, forbidden.join(','))

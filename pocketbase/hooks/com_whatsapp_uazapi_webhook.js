@@ -76,7 +76,8 @@ routerAdd(
       }
       var keys = Object.keys(value).sort()
       var parts = []
-      for (var ki = 0; ki < keys.length; ki++) parts.push(JSON.stringify(keys[ki]) + ':' + canonical(value[keys[ki]]))
+      for (var ki = 0; ki < keys.length; ki++)
+        parts.push(JSON.stringify(keys[ki]) + ':' + canonical(value[keys[ki]]))
       return '{' + parts.join(',') + '}'
     }
 
@@ -138,7 +139,12 @@ routerAdd(
     }
 
     function saveEvent(tx, data) {
-      var existing = findExisting(tx, 'com_whatsapp_eventos', 'idempotency_key', data.idempotencyKey)
+      var existing = findExisting(
+        tx,
+        'com_whatsapp_eventos',
+        'idempotency_key',
+        data.idempotencyKey,
+      )
       if (existing) return { record: existing, replay: true }
       var record = new Record(tx.findCollectionByNameOrId('com_whatsapp_eventos'))
       record.set('provider', 'uazapi')
@@ -160,7 +166,12 @@ routerAdd(
 
     function upsertMessage(tx, data) {
       if (!data.messageId) return null
-      var existing = findExisting(tx, 'com_whatsapp_mensagens', 'idempotency_key', data.messageIdempotencyKey)
+      var existing = findExisting(
+        tx,
+        'com_whatsapp_mensagens',
+        'idempotency_key',
+        data.messageIdempotencyKey,
+      )
       if (existing) return existing
       var record = new Record(tx.findCollectionByNameOrId('com_whatsapp_mensagens'))
       record.set('provider', 'uazapi')
@@ -225,8 +236,10 @@ routerAdd(
     var instanceName = cleanId(body.instanceName || '', 120)
     var owner = cleanId(body.owner || '', 80)
     var messageId = pickMessageId(message, updateEvent)
-    var fromMe = message.fromMe !== undefined ? boolFrom(message.fromMe) : boolFrom(updateEvent.IsFromMe)
-    var isGroup = message.isGroup !== undefined ? boolFrom(message.isGroup) : boolFrom(updateEvent.IsGroup)
+    var fromMe =
+      message.fromMe !== undefined ? boolFrom(message.fromMe) : boolFrom(updateEvent.IsFromMe)
+    var isGroup =
+      message.isGroup !== undefined ? boolFrom(message.isGroup) : boolFrom(updateEvent.IsGroup)
     var messageType = cleanId(message.messageType || updateEvent.Type || '', 80)
     var mediaInfo = pickMediaInfo(message)
     var mediaType = cleanId(mediaInfo.mediaType || '', 80)
@@ -248,7 +261,9 @@ routerAdd(
       updateEvent.Timestamp || message.messageTimestamp || '',
     ].join('|')
     var idempotencyKey = $security.sha256(idempotencyBasis)
-    var messageIdempotencyKey = $security.sha256(['uazapi-message', instanceName, owner, messageId].join('|'))
+    var messageIdempotencyKey = $security.sha256(
+      ['uazapi-message', instanceName, owner, messageId].join('|'),
+    )
     var result = { replay: false, event_id: '', message_record_id: '', media_record_id: '' }
 
     try {
@@ -303,7 +318,11 @@ routerAdd(
         }
       })
     } catch (err) {
-      return e.json(500, { ok: false, error: 'FALHA_INGESTAO', detail: truncate(err && err.message ? err.message : err, 500) })
+      return e.json(500, {
+        ok: false,
+        error: 'FALHA_INGESTAO',
+        detail: truncate(err && err.message ? err.message : err, 500),
+      })
     }
 
     return e.json(200, {
@@ -331,20 +350,22 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
   var secretConfigured = !!asString($secrets.get('UAZAPI_WEBHOOK_SECRET') || '')
   var counts = { eventos_24h: 0, midias_pendentes: 0 }
   try {
-    counts.eventos_24h = $app
-      .findRecordsByFilter(
-        'com_whatsapp_eventos',
-        "created >= @todayStart",
-        '-created',
-        500,
-        0,
-      )
-      .length
+    counts.eventos_24h = $app.findRecordsByFilter(
+      'com_whatsapp_eventos',
+      'created >= @todayStart',
+      '-created',
+      500,
+      0,
+    ).length
   } catch (_) {}
   try {
-    counts.midias_pendentes = $app
-      .findRecordsByFilter('com_whatsapp_midias', "download_status='pendente'", '-created', 500, 0)
-      .length
+    counts.midias_pendentes = $app.findRecordsByFilter(
+      'com_whatsapp_midias',
+      "download_status='pendente'",
+      '-created',
+      500,
+      0,
+    ).length
   } catch (_) {}
   return e.json(200, {
     ok: true,
