@@ -135,11 +135,29 @@ routerAdd(
       )
     }
 
+    function inferMediaType(message, content) {
+      var explicit = cleanId(message.mediaType || message.type || '', 80)
+      if (explicit) return explicit
+      var messageType = cleanId(message.messageType || '', 80)
+      var lowerMessageType = messageType.toLowerCase()
+      var mimetype = cleanId(content.mimetype || content.mimeType || '', 160)
+      var lowerMime = mimetype.toLowerCase()
+      if (lowerMessageType.indexOf('audio') !== -1 || lowerMime.indexOf('audio/') === 0)
+        return 'audio'
+      if (lowerMessageType.indexOf('image') !== -1 || lowerMime.indexOf('image/') === 0)
+        return 'image'
+      if (lowerMessageType.indexOf('document') !== -1 || lowerMime.indexOf('application/') === 0)
+        return 'document'
+      if (lowerMessageType.indexOf('video') !== -1 || lowerMime.indexOf('video/') === 0)
+        return 'video'
+      return ''
+    }
+
     function pickMediaInfo(message) {
       var content = message.content && typeof message.content === 'object' ? message.content : {}
       return {
-        mediaType: cleanId(message.mediaType || message.type || '', 80),
-        mimetype: cleanId(content.mimetype || '', 160),
+        mediaType: inferMediaType(message, content),
+        mimetype: cleanId(content.mimetype || content.mimeType || '', 160),
         fileName: cleanId(content.fileName || content.filename || '', 240),
         urlHash: content.URL ? sha256Safe(asString(content.URL)) : '',
       }
