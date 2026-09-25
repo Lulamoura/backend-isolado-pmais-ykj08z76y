@@ -29,6 +29,19 @@ routerAdd(
       return text
     }
 
+    function envValue(nome) {
+      try {
+        if (typeof $os !== 'undefined' && $os.getenv) return $os.getenv(nome) || ''
+      } catch (_) {}
+      return ''
+    }
+
+    function pmaisAgentGatewayAjudaUrl(base) {
+      var url = String(base || '').replace(/\/+$/, '')
+      if (!url) return ''
+      return url + '/v1/comercial/nexo/ajuda-negocio'
+    }
+
     function perfilSlug(userRec) {
       try {
         return $app.findRecordById('com_perfis', userRec.getString('perfil_id')).getString('slug')
@@ -758,6 +771,9 @@ routerAdd(
 
     var filtro =
       "inativo = false && (etapa != 'ganho' && etapa != 'perdido' && etapa != 'desqualificado')"
+    if (frente !== 'aprendizados-comerciais') {
+      filtro += " && resultado = '' && etapa != 'prospects' && qualificacao != 'pendente'"
+    }
     if (podeVisaoGeral(slug)) {
       if (responsavelId) {
         filtro += " && responsavel_id='" + esc(responsavelId) + "'"
@@ -790,12 +806,24 @@ routerAdd(
       return e.json(500, { error: 'NEXO_CENTRAL_NEGOCIOS', message: String(err).substring(0, 200) })
     }
 
+    var pmaisGatewayUrlBase = ''
+    var pmaisGatewayApiKey = ''
+    var pmaisGatewayHmacSecret = ''
     var bridgeSecret = ''
     try {
+      pmaisGatewayUrlBase =
+        $secrets.get('PMAIS_AGENT_GATEWAY_URL') || envValue('PMAIS_AGENT_GATEWAY_URL') || ''
+      pmaisGatewayApiKey =
+        $secrets.get('PMAIS_AGENT_GATEWAY_API_KEY') || envValue('PMAIS_AGENT_GATEWAY_API_KEY') || ''
+      pmaisGatewayHmacSecret =
+        $secrets.get('PMAIS_AGENT_GATEWAY_HMAC_SECRET') ||
+        envValue('PMAIS_AGENT_GATEWAY_HMAC_SECRET') ||
+        ''
       bridgeSecret = $secrets.get('AC_WEBHOOK_SECRET') || ''
     } catch (_) {}
-    if (!bridgeSecret)
-      return e.json(200, respostaFallback(frente, escopo, negocios, 'SEGREDO_BRIDGE_AUSENTE'))
+    var signedGatewayUrl = pmaisAgentGatewayAjudaUrl(pmaisGatewayUrlBase)
+    if (!signedGatewayUrl && !bridgeSecret)
+      return e.json(200, respostaFallback(frente, escopo, negocios, 'SEGREDO_GATEWAY_AUSENTE'))
 
     var contexto = {
       tipo: 'central_operacional',
@@ -821,8 +849,28 @@ routerAdd(
       contexto: contexto,
     })
 
-    try {
-      var response = $http.send({
+    function chamarGatewayAssinado() {
+      if (!signedGatewayUrl || !pmaisGatewayApiKey || !pmaisGatewayHmacSecret) return null
+      var timestamp = String(Math.floor(Date.now() / 1000))
+      var signature = $security.hs256(timestamp + '.' + gatewayBody, pmaisGatewayHmacSecret)
+      return $http.send({
+        url: signedGatewayUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'x-pmais-api-key': pmaisGatewayApiKey,
+          'x-pmais-timestamp': timestamp,
+          'x-pmais-signature': signature,
+        },
+        body: gatewayBody,
+        timeout: 45,
+      })
+    }
+
+    function chamarSkipBridge() {
+      if (!bridgeSecret) return null
+      return $http.send({
         url: 'https://agents.pmaisservicos.com.br/v1/comercial/skip/nexo/ajuda-negocio',
         method: 'POST',
         headers: {
@@ -831,8 +879,14 @@ routerAdd(
           'x-pmais-skip-bridge-secret': bridgeSecret,
         },
         body: gatewayBody,
-        timeout: 60,
+        timeout: 45,
       })
+    }
+
+    try {
+      var response = chamarGatewayAssinado() || chamarSkipBridge()
+      if (!response)
+        return e.json(200, respostaFallback(frente, escopo, negocios, 'SEGREDO_GATEWAY_AUSENTE'))
       if (response.statusCode >= 200 && response.statusCode < 300)
         return e.json(200, respostaGateway(frente, escopo, negocios, response.json || {}))
       console.error('NEXO_CENTRAL_GATEWAY_ERRO', JSON.stringify({ status: response.statusCode }))
