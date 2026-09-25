@@ -11,6 +11,9 @@ export interface NexoCuradoriaEvento {
   contexto_resumo?: string
   resposta_resumo?: string
   motivo_curadoria?: string
+  responsavel_nome?: string
+  tempo_vida_negocio?: string
+  data_criacao_negocio?: string
   triagem_status?: string
   avaliacao_negocio_resumo?: string
   gatilhos_curadoria?: string
@@ -132,7 +135,7 @@ const COLLECTION = 'com_nexo_aprendizado_eventos'
 const ENTREVISTAS_COLLECTION = 'com_nexo_curadoria_entrevistas'
 const DECISOES_COLLECTION = 'com_nexo_curadoria_decisoes'
 const PENDING_FILTER =
-  "(triagem_status = 'curadoria_necessaria' || triagem_status = '') && human_review_required = true"
+  "triagem_status = 'curadoria_necessaria' && human_review_required = true"
 
 function pbValor(valor?: string) {
   return String(valor || '').replace(/'/g, "\\'")
@@ -170,7 +173,17 @@ function motivoCuradoriaPadrao(evento: NexoCuradoriaEvento) {
   if (motivoRegistrado) return motivoRegistrado
   const avaliacao = String(evento.avaliacao_negocio_resumo || '').trim()
   if (avaliacao) return avaliacao
-  return 'Avaliação do negócio indicou necessidade de curadoria, mas o motivo específico ainda não foi detalhado.'
+  return ''
+}
+
+function eventoCuradoriaQualificado(evento: NexoCuradoriaEvento) {
+  return Boolean(
+    String(evento.motivo_curadoria || '').trim() ||
+      String(evento.evidencia_curadoria || '').trim() ||
+      String(evento.regra_pratica_relacionada || '').trim() ||
+      String(evento.gatilhos_curadoria || '').trim() ||
+      String(evento.avaliacao_negocio_resumo || '').trim(),
+  )
 }
 
 function consolidarEventosAguardandoCuradoria(eventos: NexoCuradoriaEvento[]) {
@@ -298,7 +311,9 @@ export async function obterResumoCuradoriaNexo(limit = 5): Promise<NexoCuradoria
       filter: PENDING_FILTER,
       sort: '-created_at',
     })
-  const eventosAbertos = await filtrarEventosAguardandoCuradoria(response.items)
+  const eventosAbertos = await filtrarEventosAguardandoCuradoria(
+    response.items.filter(eventoCuradoriaQualificado),
+  )
   const itensConsolidados = await enriquecerEventosComDescricaoCrm(
     consolidarEventosAguardandoCuradoria(eventosAbertos),
   )

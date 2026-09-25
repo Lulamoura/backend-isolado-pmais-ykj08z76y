@@ -1721,6 +1721,7 @@
             fase: negocio.fase_crm || negocio.etapa || null,
             valor_centavos: negocio.valor_centavos || null,
             proxima_acao_em: negocio.proxima_acao_em || null,
+            crm_created_at: negocio.crm_created_at || null,
             fonte_prospeccao: negocio.fonte_prospeccao || null,
             modalidade: negocio.modalidade || null,
           },
@@ -1925,10 +1926,14 @@
 
       function nexoResumoContextoAprendizado() {
         var negocio = contextoSeguro.negocio || {}
+        var responsavel = contextoSeguro.responsavel || {}
         var descricaoCrm =
           contextoSeguro.descricao_negocio || contextoSeguro['Detalhamento da Proposta'] || ''
         var partes = [
           'Ação solicitada: ' + nexoRotuloAcaoCuradoria(acao),
+          'Responsável pelo negócio: ' +
+            (responsavel.nome || responsavel.name || responsavel.email || 'não informado'),
+          'Tempo de vida do negócio: ' + nexoTempoVidaNegocioRotulo(negocio),
           'Fase/etapa: ' + (negocio.fase || negocio.etapa || 'não informada'),
           'Tipo de serviço: ' + (contextoSeguro.tipo_servico || 'não informado'),
           'Descrição: ' + (descricaoCrm || 'não informada'),
@@ -1938,6 +1943,25 @@
           partes.join('\n').replace(/\[object Object\]/g, 'informação textual indisponível'),
           4000,
         )
+      }
+
+      function nexoDiasEntreDatas(inicio, fim) {
+        var raw = String(inicio || '').slice(0, 10)
+        if (!raw) return null
+        var start = new Date(raw + 'T00:00:00Z').getTime()
+        var endDate = fim || new Date()
+        var end = new Date(endDate.toISOString().slice(0, 10) + 'T00:00:00Z').getTime()
+        if (!isFinite(start) || !isFinite(end)) return null
+        return Math.max(0, Math.floor((end - start) / 86400000))
+      }
+
+      function nexoTempoVidaNegocioRotulo(negocio) {
+        var criadoEm = negocio.crm_created_at || negocio.created_at || negocio.created || ''
+        var dias = nexoDiasEntreDatas(criadoEm, new Date())
+        if (dias === null) return 'não informado'
+        if (dias === 0) return 'aberto hoje'
+        if (dias === 1) return '1 dia desde a abertura'
+        return dias + ' dias desde a abertura'
       }
 
       function nexoBooleanoCuradoria(valor) {
@@ -2117,6 +2141,9 @@
             'empresa_nome',
             'contato_nome',
             'motivo_curadoria',
+            'responsavel_nome',
+            'tempo_vida_negocio',
+            'data_criacao_negocio',
             'triagem_status',
           ]
           for (var th = 0; th < textosHumanos.length; th++) {
@@ -2191,6 +2218,9 @@
         collection.fields.add(
           new TextField({ name: 'motivo_curadoria', required: false, max: 1200 }),
         )
+        collection.fields.add(new TextField({ name: 'responsavel_nome', required: false, max: 240 }))
+        collection.fields.add(new TextField({ name: 'tempo_vida_negocio', required: false, max: 120 }))
+        collection.fields.add(new TextField({ name: 'data_criacao_negocio', required: false, max: 40 }))
         collection.fields.add(new TextField({ name: 'triagem_status', required: false, max: 80 }))
         collection.fields.add(
           new TextField({ name: 'avaliacao_negocio_resumo', required: false, max: 4000 }),
@@ -2242,6 +2272,7 @@
           var negocioSeguro = contextoSeguro.negocio || {}
           var empresaSegura = contextoSeguro.empresa || {}
           var contatoSeguro = contextoSeguro.contato || {}
+          var responsavelSeguro = contextoSeguro.responsavel || {}
           evento.set('tipo_evento', 'nexo_consulta_suporte_app')
           evento.set('external_id', externalId)
           evento.set('negocio_titulo', nexoResumoSeguroAprendizado(negocioSeguro.titulo || '', 240))
@@ -2261,6 +2292,18 @@
           evento.set('contexto_resumo', nexoResumoContextoAprendizado())
           evento.set('resposta_resumo', nexoResumoRespostaAprendizado(resposta))
           evento.set('motivo_curadoria', nexoMotivoCuradoriaAprendizado(avaliacaoNegocio))
+          evento.set(
+            'responsavel_nome',
+            nexoResumoSeguroAprendizado(
+              responsavelSeguro.nome || responsavelSeguro.name || responsavelSeguro.email || '',
+              240,
+            ),
+          )
+          evento.set('tempo_vida_negocio', nexoTempoVidaNegocioRotulo(negocioSeguro))
+          evento.set(
+            'data_criacao_negocio',
+            nexoResumoSeguroAprendizado(negocioSeguro.crm_created_at || negocioSeguro.created_at || '', 40),
+          )
           evento.set('triagem_status', avaliacaoNegocio.status)
           evento.set('avaliacao_negocio_resumo', avaliacaoNegocio.resumo)
           evento.set('gatilhos_curadoria', (avaliacaoNegocio.gatilhos || []).join(', '))
