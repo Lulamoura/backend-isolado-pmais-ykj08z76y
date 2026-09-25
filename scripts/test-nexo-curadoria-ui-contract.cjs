@@ -188,8 +188,8 @@ assert.match(
 
 assert.match(
   service,
-  /triagem_status = 'curadoria_necessaria'/,
-  'fila deve listar somente sinais classificados como curadoria necessária',
+  /triagem_status = 'curadoria_necessaria'[\s\S]{0,120}triagem_status = ''[\s\S]{0,120}human_review_required = true/,
+  'fila deve listar sinais classificados como curadoria necessária e preservar pendências legadas com revisão humana marcada',
 )
 assert.doesNotMatch(
   service,
@@ -780,7 +780,7 @@ const centralHook = fs.readFileSync('pocketbase/hooks/com_nexo_central_operacion
 
 assert.match(
   hook,
-  /campos\.descricao_negocio \|\| negocio\.descricao_negocio \|\| campos\.detalhamento_proposta/,
+  /campos\.descricao_negocio[\s\S]{0,120}negocio\.descricao_negocio[\s\S]{0,120}campos\.detalhamento_proposta/,
   'contexto do Nexo deve usar detalhamento do CRM como fallback para descrição do negócio',
 )
 assert.match(
