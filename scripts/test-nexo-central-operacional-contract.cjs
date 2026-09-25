@@ -111,6 +111,11 @@ assert.match(
   /x-pmais-skip-bridge-secret/,
   'Backend deve manter bridge governada como contingência',
 )
+assert.match(
+  hook,
+  /timeout:\s*120/,
+  'Central deve aguardar análise agregada de até 30 negócios sem cair em fallback por timeout curto',
+)
 assert.match(hook, /second_brain/, 'Contrato deve preservar metadados de segundo cérebro')
 assert.match(
   hook,
