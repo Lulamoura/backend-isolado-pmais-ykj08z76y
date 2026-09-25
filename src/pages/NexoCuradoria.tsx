@@ -163,6 +163,14 @@ function resumoEvento(evento: NexoCuradoriaEvento) {
   return `${partes.join(' · ')} · ${acao}`
 }
 
+function detalheOperacionalCuradoria(evento: NexoCuradoriaEvento) {
+  const partes = [
+    evento.responsavel_nome ? `Responsável: ${evento.responsavel_nome}` : '',
+    evento.tempo_vida_negocio ? `Tempo de vida: ${evento.tempo_vida_negocio}` : '',
+  ].filter(Boolean)
+  return partes.join(' · ')
+}
+
 function resumoDecisaoSuperior(decisao: NexoCuradoriaDecisaoSuperior) {
   const partes = [
     decisao.empresa_nome || decisao.negocio_titulo || 'Empresa não informada',
@@ -831,6 +839,11 @@ export default function NexoCuradoria() {
                           <Clock className="h-3 w-3 text-slate-400" />
                           Recebido em {dataCurta(item.created_at || item.created)}
                         </p>
+                        {detalheOperacionalCuradoria(item) && (
+                          <p className="text-xs font-medium text-slate-600">
+                            {detalheOperacionalCuradoria(item)}
+                          </p>
+                        )}
                       </div>
                       <Badge
                         variant="outline"

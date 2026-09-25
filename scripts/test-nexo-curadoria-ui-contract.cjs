@@ -164,6 +164,16 @@ assert.doesNotMatch(
 )
 assert.match(page, /empresa_nome/, 'página deve priorizar nome da empresa na citação do negócio')
 assert.match(page, /contato_nome/, 'página deve priorizar contato na citação do negócio')
+assert.match(
+  page,
+  /Responsável: \$\{evento\.responsavel_nome\}/,
+  'card deve mostrar responsável do negócio quando disponível',
+)
+assert.match(
+  page,
+  /Tempo de vida: \$\{evento\.tempo_vida_negocio\}/,
+  'card deve mostrar tempo de vida do negócio quando disponível',
+)
 assert.doesNotMatch(
   page,
   /Digite aqui qualquer coisa para treinar o Nexo/i,
@@ -188,8 +198,18 @@ assert.match(
 
 assert.match(
   service,
-  /triagem_status = 'curadoria_necessaria'/,
-  'fila deve listar somente sinais classificados como curadoria necessária',
+  /triagem_status = 'curadoria_necessaria'[\s\S]{0,120}human_review_required = true/,
+  'fila deve buscar apenas eventos classificados explicitamente como curadoria necessária',
+)
+assert.match(
+  service,
+  /eventoCuradoriaQualificado[\s\S]{0,500}motivo_curadoria[\s\S]{0,500}evidencia_curadoria[\s\S]{0,500}avaliacao_negocio_resumo/,
+  'serviço deve remover pendências sem motivo/evidência objetiva antes de listar curadoria',
+)
+assert.doesNotMatch(
+  service,
+  /triagem_status = ''/,
+  'pendências legadas sem triagem e sem motivo específico não devem voltar para a fila de curadoria',
 )
 assert.doesNotMatch(
   service,
@@ -780,7 +800,7 @@ const centralHook = fs.readFileSync('pocketbase/hooks/com_nexo_central_operacion
 
 assert.match(
   hook,
-  /campos\.descricao_negocio \|\| negocio\.descricao_negocio \|\| campos\.detalhamento_proposta/,
+  /campos\.descricao_negocio[\s\S]{0,120}negocio\.descricao_negocio[\s\S]{0,120}campos\.detalhamento_proposta/,
   'contexto do Nexo deve usar detalhamento do CRM como fallback para descrição do negócio',
 )
 assert.match(
@@ -789,6 +809,21 @@ assert.match(
   'curadoria deve orientar leitura do histórico completo pelo botão Notas, sem resumo parcial de notas',
 )
 assert.match(hook, /motivo_curadoria/, 'evento de aprendizado deve persistir o motivo da curadoria')
+assert.match(
+  hook,
+  /responsavel_nome/,
+  'evento de aprendizado deve persistir o responsável do negócio para orientar a curadoria',
+)
+assert.match(
+  hook,
+  /tempo_vida_negocio/,
+  'evento de aprendizado deve persistir o tempo de vida do negócio para orientar a curadoria',
+)
+assert.match(
+  hook,
+  /Responsável pelo negócio:[\s\S]{0,180}Tempo de vida do negócio:/,
+  'contexto da entrevista deve incluir responsável e tempo de vida do negócio',
+)
 assert.match(
   hook,
   /avaliacao_negocio_resumo/,
