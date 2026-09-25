@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T13:56:14.677Z",
+  "generatedAt": "2026-09-25T14:10:49.956Z",
   "collections": [
     {
       "name": "users",
@@ -4370,6 +4370,368 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "com_whatsapp_mensagens",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "provider",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "instance_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "message_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "idempotency_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "from_me",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_group",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "message_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "media_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "texto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "event_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payload_hash",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "chat_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sender_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sender_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "direcao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "evento_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "message_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "received_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_whatsapp_mensagens_idem ON com_whatsapp_mensagens (idempotency_key)",
+        "CREATE INDEX idx_com_whatsapp_mensagens_chat_created ON com_whatsapp_mensagens (chat_id, message_at)",
+        "CREATE INDEX idx_com_whatsapp_mensagens_owner_created ON com_whatsapp_mensagens (owner, message_at)",
+        "CREATE INDEX idx_com_whatsapp_mensagens_message ON com_whatsapp_mensagens (message_id)"
+      ]
+    },
+    {
+      "name": "com_whatsapp_midias",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "provider",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "instance_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "message_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "message_record_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "media_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mime_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "file_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "source_url_hash",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "download_status",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "bytes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "sha256",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "storage_path",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "erro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mimetype",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "received_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "downloaded_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_whatsapp_midias_message ON com_whatsapp_midias (message_id)",
+        "CREATE INDEX idx_com_whatsapp_midias_status ON com_whatsapp_midias (download_status)",
+        "CREATE INDEX idx_com_whatsapp_midias_owner_created ON com_whatsapp_midias (owner, received_at)"
+      ]
+    },
+    {
+      "name": "com_whatsapp_eventos",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "provider",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "event_type",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "instance_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "owner",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "message_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "idempotency_key",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "payload_hash",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "payload_sanitizado",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "from_me",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_group",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "media_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "erro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "received_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_com_whatsapp_eventos_idem ON com_whatsapp_eventos (idempotency_key)",
+        "CREATE INDEX idx_com_whatsapp_eventos_owner_created ON com_whatsapp_eventos (owner, received_at)",
+        "CREATE INDEX idx_com_whatsapp_eventos_tipo_created ON com_whatsapp_eventos (event_type, received_at)",
+        "CREATE INDEX idx_com_whatsapp_eventos_message ON com_whatsapp_eventos (message_id)"
+      ]
     }
   ]
 }
