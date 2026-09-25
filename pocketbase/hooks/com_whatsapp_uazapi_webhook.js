@@ -43,9 +43,16 @@ routerAdd(
       return false
     }
 
+    function sha256Safe(value) {
+      var text = asString(value)
+      var hash = asString($security.sha256(text) || '')
+      if (hash) return hash
+      return 'hash_unavailable_' + text.length
+    }
+
     function redact(value) {
       var text = asString(value)
-      return { redacted: true, sha256: $security.sha256(text), length: text.length }
+      return { redacted: true, sha256: sha256Safe(text), length: text.length }
     }
 
     function sanitize(value, key) {
@@ -134,7 +141,7 @@ routerAdd(
         mediaType: cleanId(message.mediaType || message.type || '', 80),
         mimetype: cleanId(content.mimetype || '', 160),
         fileName: cleanId(content.fileName || content.filename || '', 240),
-        urlHash: content.URL ? $security.sha256(asString(content.URL)) : '',
+        urlHash: content.URL ? sha256Safe(asString(content.URL)) : '',
       }
     }
 
@@ -248,7 +255,7 @@ routerAdd(
     var senderName = cleanId(message.senderName || '', 180)
     var texto = truncate(nestedText(message.text || message.content), 8000)
     var receivedAt = new Date()
-    var payloadHash = $security.sha256(canonical(body))
+    var payloadHash = sha256Safe(canonical(body))
     var payloadSanitized = truncate(JSON.stringify(sanitize(body), null, 0), 50000)
     var idempotencyBasis = [
       'uazapi',
@@ -260,8 +267,8 @@ routerAdd(
       chatId,
       updateEvent.Timestamp || message.messageTimestamp || '',
     ].join('|')
-    var idempotencyKey = $security.sha256(idempotencyBasis)
-    var messageIdempotencyKey = $security.sha256(
+    var idempotencyKey = sha256Safe(idempotencyBasis)
+    var messageIdempotencyKey = sha256Safe(
       ['uazapi-message', instanceName, owner, messageId].join('|'),
     )
     var result = { replay: false, event_id: '', message_record_id: '', media_record_id: '' }
