@@ -363,6 +363,49 @@ routerAdd(
 )
 
 routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
+  function asString(value) {
+    if (value === null || value === undefined) return ''
+    return String(value)
+  }
+
+  function firstRecord(collectionName, filter, sort) {
+    try {
+      var records = $app.findRecordsByFilter(collectionName, filter || "id != ''", sort, 1, 0)
+      return records && records.length ? records[0] : null
+    } catch (_) {
+      return null
+    }
+  }
+
+  function safeDate(record, field) {
+    if (!record) return ''
+    try {
+      return asString(record.getDateTime(field))
+    } catch (_) {
+      try {
+        return asString(record.getString(field))
+      } catch (_) {
+        return ''
+      }
+    }
+  }
+
+  function recordSummary(record, fields) {
+    if (!record) return null
+    var out = { id: record.id }
+    for (var i = 0; i < fields.length; i++) {
+      var field = fields[i]
+      try {
+        out[field] = record.getString(field)
+      } catch (_) {
+        out[field] = ''
+      }
+    }
+    out.received_at = safeDate(record, 'received_at')
+    out.created = safeDate(record, 'created')
+    return out
+  }
+
   var actor = e.auth
   if (!actor || !actor.getBool('ativo_comercial')) return e.unauthorizedError('Autenticacao')
   var slug = ''
@@ -373,10 +416,25 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     return e.forbiddenError('Perfil comercial necessario')
 
   var secretConfigured = !!asString($secrets.get('UAZAPI_WEBHOOK_SECRET') || '')
-  var counts = { eventos_24h: 0, midias_pendentes: 0 }
+  var counts = {
+    eventos_24h: 0,
+    mensagens_24h: 0,
+    midias_pendentes: 0,
+    transcricoes_pendentes: 0,
+    vinculos_pendentes: 0,
+  }
   try {
     counts.eventos_24h = $app.findRecordsByFilter(
       'com_whatsapp_eventos',
+      'created >= @todayStart',
+      '-created',
+      500,
+      0,
+    ).length
+  } catch (_) {}
+  try {
+    counts.mensagens_24h = $app.findRecordsByFilter(
+      'com_whatsapp_mensagens',
       'created >= @todayStart',
       '-created',
       500,
@@ -392,6 +450,29 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
       0,
     ).length
   } catch (_) {}
+  try {
+    counts.transcricoes_pendentes = $app.findRecordsByFilter(
+      'com_whatsapp_midias',
+      "transcricao_status='pendente_transcricao'",
+      '-created',
+      500,
+      0,
+    ).length
+  } catch (_) {}
+  try {
+    counts.vinculos_pendentes = $app.findRecordsByFilter(
+      'com_whatsapp_vinculos',
+      "status='pendente_confirmacao' || status='ambiguidade'",
+      '-created',
+      500,
+      0,
+    ).length
+  } catch (_) {}
+
+  var ultimoWebhook = firstRecord('com_whatsapp_eventos', '', '-received_at')
+  var ultimaMensagem = firstRecord('com_whatsapp_mensagens', '', '-received_at')
+  var ultimaMidia = firstRecord('com_whatsapp_midias', '', '-received_at')
+
   return e.json(200, {
     ok: true,
     provider: 'uazapi',
@@ -399,6 +480,42 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     secret_configured: secretConfigured,
     modo: 'captura_passiva',
     automatic_send_allowed: false,
+    politica: {
+      sem_automacao_livre: true,
+      audio: 'transcricao_apenas',
+      midia: 'download_temporario_para_processamento',
+      nexo: 'somente_apos_vinculo_comercial_e_curadoria',
+    },
+    proximas_etapas: [
+      'simulacao_controlada',
+      'worker_midia_transcricao',
+      'painel_monitoramento_minimo',
+      'vinculo_negocio_pendente',
+    ],
     counts: counts,
+    ultimo_webhook: recordSummary(ultimoWebhook, [
+      'event_type',
+      'instance_name',
+      'owner',
+      'message_id',
+      'status',
+      'media_type',
+    ]),
+    ultima_mensagem: recordSummary(ultimaMensagem, [
+      'instance_name',
+      'owner',
+      'chat_id',
+      'direcao',
+      'message_type',
+      'media_type',
+      'status',
+    ]),
+    ultima_midia: recordSummary(ultimaMidia, [
+      'message_id',
+      'media_type',
+      'download_status',
+      'retencao_politica',
+      'transcricao_status',
+    ]),
   })
 })

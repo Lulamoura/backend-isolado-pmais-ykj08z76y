@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T14:10:49.956Z",
+  "generatedAt": "2026-09-26T10:05:34.002Z",
   "collections": [
     {
       "name": "users",
@@ -4385,7 +4385,7 @@
         {
           "name": "provider",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4403,13 +4403,13 @@
         {
           "name": "message_id",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
           "name": "idempotency_key",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4445,7 +4445,7 @@
         {
           "name": "status",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4457,7 +4457,7 @@
         {
           "name": "payload_hash",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4481,7 +4481,7 @@
         {
           "name": "direcao",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4499,7 +4499,7 @@
         {
           "name": "received_at",
           "type": "date",
-          "required": true,
+          "required": false,
           "system": false
         }
       ],
@@ -4524,7 +4524,7 @@
         {
           "name": "provider",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4542,7 +4542,7 @@
         {
           "name": "message_id",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4578,7 +4578,7 @@
         {
           "name": "download_status",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4614,7 +4614,7 @@
         {
           "name": "received_at",
           "type": "date",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4644,13 +4644,13 @@
         {
           "name": "provider",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
           "name": "event_type",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4674,13 +4674,13 @@
         {
           "name": "idempotency_key",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
           "name": "payload_hash",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4692,7 +4692,7 @@
         {
           "name": "status",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -4722,7 +4722,7 @@
         {
           "name": "received_at",
           "type": "date",
-          "required": true,
+          "required": false,
           "system": false
         }
       ],

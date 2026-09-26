@@ -81,12 +81,8 @@ migrate(
       collection.fields.add(new TextField({ name: 'file_name', required: false, max: 240 }))
       collection.fields.add(new TextField({ name: 'source_url_hash', required: false, max: 80 }))
       collection.fields.add(new TextField({ name: 'download_status', required: true, max: 40 }))
-      collection.fields.add(
-        new TextField({ name: 'retencao_politica', required: false, max: 60 }),
-      )
-      collection.fields.add(
-        new TextField({ name: 'transcricao_status', required: false, max: 60 }),
-      )
+      collection.fields.add(new TextField({ name: 'retencao_politica', required: false, max: 60 }))
+      collection.fields.add(new TextField({ name: 'transcricao_status', required: false, max: 60 }))
       collection.fields.add(
         new TextField({ name: 'transcricao_texto', required: false, max: 12000 }),
       )

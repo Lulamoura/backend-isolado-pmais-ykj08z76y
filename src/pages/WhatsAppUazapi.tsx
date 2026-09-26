@@ -13,7 +13,13 @@ function formatarValor(value: unknown) {
   return String(value)
 }
 
-function ResumoTecnico({ titulo, dados }: { titulo: string; dados?: Record<string, unknown> | null }) {
+function ResumoTecnico({
+  titulo,
+  dados,
+}: {
+  titulo: string
+  dados?: Record<string, unknown> | null
+}) {
   return (
     <Card className="border-slate-200 shadow-sm">
       <CardHeader className="pb-3">
@@ -26,9 +32,14 @@ function ResumoTecnico({ titulo, dados }: { titulo: string; dados?: Record<strin
           Object.entries(dados)
             .filter(([key]) => !['id', 'created'].includes(key))
             .map(([key, value]) => (
-              <div key={key} className="flex justify-between gap-4 border-b border-slate-100 pb-1 last:border-0">
+              <div
+                key={key}
+                className="flex justify-between gap-4 border-b border-slate-100 pb-1 last:border-0"
+              >
                 <span className="text-slate-500">{key.replace(/_/g, ' ')}</span>
-                <span className="text-right font-medium text-slate-900">{formatarValor(value)}</span>
+                <span className="text-right font-medium text-slate-900">
+                  {formatarValor(value)}
+                </span>
               </div>
             ))
         )}
@@ -64,7 +75,9 @@ export default function WhatsAppUazapi() {
     <main className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-blue-700">WhatsApp Comercial</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
+            WhatsApp Comercial
+          </p>
           <h1 className="mt-1 text-3xl font-semibold text-slate-950">Monitoramento WhatsApp</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Painel mínimo da fase Uazapi para acompanhar captura passiva, mídias pendentes,
@@ -81,8 +94,8 @@ export default function WhatsAppUazapi() {
         <ShieldCheck className="h-4 w-4" />
         <AlertTitle>Sem envio automático</AlertTitle>
         <AlertDescription>
-          Esta etapa é somente captura, normalização e homologação. O Nexo ainda não responde clientes
-          e nenhuma mensagem é enviada pelo sistema.
+          Esta etapa é somente captura, normalização e homologação. O Nexo ainda não responde
+          clientes e nenhuma mensagem é enviada pelo sistema.
         </AlertDescription>
       </Alert>
 
@@ -98,33 +111,41 @@ export default function WhatsAppUazapi() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Eventos hoje</CardDescription>
-            <CardTitle className="text-3xl">{loading ? '...' : counts?.eventos_24h ?? 0}</CardTitle>
+            <CardTitle className="text-3xl">
+              {loading ? '...' : (counts?.eventos_24h ?? 0)}
+            </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Mensagens hoje</CardDescription>
-            <CardTitle className="text-3xl">{loading ? '...' : counts?.mensagens_24h ?? 0}</CardTitle>
+            <CardTitle className="text-3xl">
+              {loading ? '...' : (counts?.mensagens_24h ?? 0)}
+            </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Mídias pendentes</CardDescription>
-            <CardTitle className="text-3xl">{loading ? '...' : counts?.midias_pendentes ?? 0}</CardTitle>
+            <CardTitle className="text-3xl">
+              {loading ? '...' : (counts?.midias_pendentes ?? 0)}
+            </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Transcrições pendentes</CardDescription>
             <CardTitle className="text-3xl">
-              {loading ? '...' : counts?.transcricoes_pendentes ?? 0}
+              {loading ? '...' : (counts?.transcricoes_pendentes ?? 0)}
             </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Vínculos pendentes</CardDescription>
-            <CardTitle className="text-3xl">{loading ? '...' : counts?.vinculos_pendentes ?? 0}</CardTitle>
+            <CardTitle className="text-3xl">
+              {loading ? '...' : (counts?.vinculos_pendentes ?? 0)}
+            </CardTitle>
           </CardHeader>
         </Card>
       </section>
@@ -146,12 +167,14 @@ export default function WhatsAppUazapi() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          {(status?.proximas_etapas || [
-            'simulacao_controlada',
-            'worker_midia_transcricao',
-            'painel_monitoramento_minimo',
-            'vinculo_negocio_pendente',
-          ]).map((etapa) => (
+          {(
+            status?.proximas_etapas || [
+              'simulacao_controlada',
+              'worker_midia_transcricao',
+              'painel_monitoramento_minimo',
+              'vinculo_negocio_pendente',
+            ]
+          ).map((etapa) => (
             <Badge key={etapa} variant="secondary" className="bg-white text-blue-900">
               <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
               {etapa.replace(/_/g, ' ')}

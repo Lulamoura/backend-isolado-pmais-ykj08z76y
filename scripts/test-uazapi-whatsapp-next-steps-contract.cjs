@@ -2,7 +2,10 @@ const fs = require('fs')
 const path = require('path')
 
 const root = path.resolve(__dirname, '..')
-const hook = fs.readFileSync(path.join(root, 'pocketbase/hooks/com_whatsapp_uazapi_webhook.js'), 'utf8')
+const hook = fs.readFileSync(
+  path.join(root, 'pocketbase/hooks/com_whatsapp_uazapi_webhook.js'),
+  'utf8',
+)
 const migration = fs.readFileSync(
   path.join(root, 'pocketbase/migrations/202609251030_uazapi_whatsapp_ingestion.js'),
   'utf8',
@@ -49,8 +52,14 @@ assert(
     migration.includes("name: 'negocio_id'") &&
     migration.includes('idx_com_whatsapp_vinculos_chat'),
 )
-assert('serviço chama status Uazapi', service.includes('/backend/v1/integracao/whatsapp/uazapi/status'))
-assert('página exibe monitoramento Uazapi', page.includes('Monitoramento WhatsApp') && page.includes('Sem envio automático'))
+assert(
+  'serviço chama status Uazapi',
+  service.includes('/backend/v1/integracao/whatsapp/uazapi/status'),
+)
+assert(
+  'página exibe monitoramento Uazapi',
+  page.includes('Monitoramento WhatsApp') && page.includes('Sem envio automático'),
+)
 assert('rota do app existe', app.includes('path="/integracoes/whatsapp"'))
 assert('menu contém WhatsApp Comercial', nav.includes('WhatsApp Comercial'))
 
