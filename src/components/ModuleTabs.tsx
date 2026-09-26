@@ -30,7 +30,7 @@ export function ModuleTabs({ showSubstituicoes, showSystem }: ModuleTabsProps) {
         : PIPELINE_TABS
     label = 'Etapas do Pipeline Comercial'
   } else if (
-    ['/foundation', '/slas', '/substituicoes'].some(
+    ['/foundation', '/slas', '/substituicoes', '/integracoes/whatsapp'].some(
       (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
     )
   ) {

@@ -58,9 +58,26 @@ assert(
 )
 assert(
   'página exibe monitoramento Uazapi',
-  page.includes('Monitoramento WhatsApp') && page.includes('Sem envio automático'),
+  page.includes('Integração WhatsApp') && page.includes('Sem envio automático'),
+)
+assert(
+  'página não expõe roteiro de projeto no frontend',
+  !page.includes('Próximas etapas desta fase') && !page.includes('Itens que podem avançar'),
 )
 assert('rota do app existe', app.includes('path="/integracoes/whatsapp"'))
-assert('menu contém WhatsApp Comercial', nav.includes('WhatsApp Comercial'))
+const mainModulesBlock = nav.slice(
+  nav.indexOf('export const MAIN_MODULES'),
+  nav.indexOf('export const PIPELINE_PATHS'),
+)
+const adminTabsBlock = nav.slice(
+  nav.indexOf('export const ADMIN_TABS'),
+  nav.indexOf('export function modulePathFor'),
+)
+assert(
+  'WhatsApp Comercial fica na Administração',
+  adminTabsBlock.includes("{ label: 'WhatsApp Comercial', path: '/integracoes/whatsapp'") &&
+    nav.includes("ADMIN_PATHS = ['/foundation', '/slas', '/substituicoes', '/integracoes/whatsapp']") &&
+    !mainModulesBlock.includes('WhatsApp Comercial'),
+)
 
 console.log('Contrato de próximas etapas Uazapi validado')

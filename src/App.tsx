@@ -142,9 +142,9 @@ const App = () => (
                 path="/integracoes/whatsapp"
                 element={
                   <ProtectedRoute>
-                    <NexoCuradoriaRoute>
+                    <AdministrationRoute>
                       <WhatsAppUazapi />
-                    </NexoCuradoriaRoute>
+                    </AdministrationRoute>
                   </ProtectedRoute>
                 }
               />

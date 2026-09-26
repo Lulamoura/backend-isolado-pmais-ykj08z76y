@@ -26,7 +26,6 @@ export const MAIN_MODULES: NavigationEntry[] = [
   { label: 'Pipeline Comercial', path: '/pipeline', icon: BriefcaseBusiness },
   { label: 'Assistente Nexo', path: '/nexo', icon: Bot },
   { label: 'Curadoria Nexo', path: '/nexo/curadoria', icon: MessageSquareText },
-  { label: 'WhatsApp Comercial', path: '/integracoes/whatsapp', icon: MessageCircle },
   { label: 'Análises', path: '/analises', icon: BarChart3 },
   { label: 'Administração', path: '/foundation', icon: Layers },
 ]
@@ -39,7 +38,7 @@ export const PIPELINE_PATHS = [
   '/ordens-execucao',
 ]
 
-export const ADMIN_PATHS = ['/foundation', '/slas', '/substituicoes']
+export const ADMIN_PATHS = ['/foundation', '/slas', '/substituicoes', '/integracoes/whatsapp']
 
 export const PIPELINE_TABS: NavigationEntry[] = [
   { label: 'Visão geral', path: '/pipeline', icon: BriefcaseBusiness },
@@ -55,6 +54,7 @@ export const PIPELINE_TABS: NavigationEntry[] = [
 
 export const ADMIN_TABS: NavigationEntry[] = [
   { label: 'Sistema', path: '/foundation', icon: Settings2 },
+  { label: 'WhatsApp Comercial', path: '/integracoes/whatsapp', icon: MessageCircle },
   { label: 'SLAs e alertas', path: '/slas', icon: CalendarClock },
   { label: 'Substituições', path: '/substituicoes', icon: ShieldCheck },
 ]
@@ -65,9 +65,6 @@ export function modulePathFor(pathname: string): string {
   }
   if (pathname === '/nexo/curadoria' || pathname.startsWith('/nexo/curadoria/')) {
     return '/nexo/curadoria'
-  }
-  if (pathname === '/integracoes/whatsapp' || pathname.startsWith('/integracoes/whatsapp/')) {
-    return '/integracoes/whatsapp'
   }
   if (pathname === '/nexo' || pathname.startsWith('/nexo/')) return '/nexo'
   if (pathname === '/analises' || pathname.startsWith('/analises/')) return '/analises'

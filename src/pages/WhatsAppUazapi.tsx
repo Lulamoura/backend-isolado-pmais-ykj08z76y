@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, MessageCircle, RefreshCw, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, RefreshCw, ShieldCheck } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { obterStatusWhatsAppUazapi, type WhatsAppUazapiResumo } from '@/services/whatsapp-uazapi'
@@ -78,10 +77,10 @@ export default function WhatsAppUazapi() {
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
             WhatsApp Comercial
           </p>
-          <h1 className="mt-1 text-3xl font-semibold text-slate-950">Monitoramento WhatsApp</h1>
+          <h1 className="mt-1 text-3xl font-semibold text-slate-950">Integração WhatsApp</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Painel mínimo da fase Uazapi para acompanhar captura passiva, mídias pendentes,
-            transcrições e preparação do vínculo com contato, empresa e negócio.
+            Área administrativa restrita para acompanhar a saúde da integração, pendências
+            operacionais e tratamento de mídias do canal comercial.
           </p>
         </div>
         <Button type="button" variant="outline" onClick={() => void carregar()} disabled={loading}>
@@ -94,8 +93,8 @@ export default function WhatsAppUazapi() {
         <ShieldCheck className="h-4 w-4" />
         <AlertTitle>Sem envio automático</AlertTitle>
         <AlertDescription>
-          Esta etapa é somente captura, normalização e homologação. O Nexo ainda não responde
-          clientes e nenhuma mensagem é enviada pelo sistema.
+          Esta área não envia mensagens a clientes. Ela existe apenas para conferência técnica
+          da integração por usuários autorizados da Administração.
         </AlertDescription>
       </Alert>
 
@@ -155,33 +154,6 @@ export default function WhatsAppUazapi() {
         <ResumoTecnico titulo="Última mensagem" dados={status?.ultima_mensagem} />
         <ResumoTecnico titulo="Última mídia" dados={status?.ultima_midia} />
       </section>
-
-      <Card className="border-blue-100 bg-blue-50/60">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-blue-950">
-            <MessageCircle className="h-5 w-5" aria-hidden="true" />
-            Próximas etapas desta fase
-          </CardTitle>
-          <CardDescription>
-            Itens que podem avançar mesmo sem os aparelhos da equipe neste sábado.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          {(
-            status?.proximas_etapas || [
-              'simulacao_controlada',
-              'worker_midia_transcricao',
-              'painel_monitoramento_minimo',
-              'vinculo_negocio_pendente',
-            ]
-          ).map((etapa) => (
-            <Badge key={etapa} variant="secondary" className="bg-white text-blue-900">
-              <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-              {etapa.replace(/_/g, ' ')}
-            </Badge>
-          ))}
-        </CardContent>
-      </Card>
     </main>
   )
 }
