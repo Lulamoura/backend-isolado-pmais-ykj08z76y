@@ -2265,6 +2265,43 @@
         return collection
       }
 
+      function nexoCriarLedgerComercialApp(data) {
+        try {
+          var collection = $app.findCollectionByNameOrId('com_ledger_comercial')
+          var ledger = new Record(collection)
+          var curadoria = data.avaliacaoNegocio || {}
+          var precisaHumano = Boolean(curadoria.curadoria_necessaria)
+          var destino = precisaHumano ? 'curadoria' : 'promover_baixo_risco'
+          if (curadoria.impacto_ipcp_potencial) destino = 'escalar_direcao'
+          ledger.set('fonte', 'nexo')
+          ledger.set('canal', 'App Comercial')
+          ledger.set('origem', 'nexo_consulta_suporte_app')
+          ledger.set('contato_nome', data.contatoNome || '')
+          ledger.set('empresa_nome', data.empresaNome || '')
+          ledger.set('negocio_ref', data.negocioRef || '')
+          ledger.set('responsavel', data.responsavelNome || '')
+          ledger.set('tipo_evento', 'aprendizado_app')
+          ledger.set('fato', nexoResumoSeguroAprendizado(data.fato || '', 2400))
+          ledger.set('evidencia_ref', data.evidenciaRef || '')
+          ledger.set('destino_sugerido', destino)
+          ledger.set('risco', destino === 'escalar_direcao' ? 'alto' : precisaHumano ? 'medio' : 'baixo')
+          ledger.set('retencao', 'operacional')
+          ledger.set('status', 'novo')
+          ledger.set('confianca', precisaHumano ? 'media' : 'alta')
+          ledger.set('promocao_modo', destino === 'promover_baixo_risco' ? 'promover_baixo_risco' : '')
+          ledger.set('revisao_status', destino === 'promover_baixo_risco' ? 'ativo_provisorio' : '')
+          ledger.set('audit_id', data.auditId)
+          ledger.set('observacao', 'Ledger do App Comercial sem conteúdo bruto ou credenciais; referência fica no evento de aprendizado.')
+          ledger.set('occurred_at', new Date())
+          $app.save(ledger)
+        } catch (err) {
+          console.error(
+            'NEXO_LEDGER_COMERCIAL_ERRO',
+            JSON.stringify({ external_id: externalId, acao: acao, erro: String(err).slice(0, 120) }),
+          )
+        }
+      }
+
       function nexoCapturarAprendizadoApp(resposta) {
         try {
           var auditoria = resposta.auditoria_geracao || {}
@@ -2337,15 +2374,26 @@
           evento.set('human_review_required', Boolean(avaliacaoNegocio.curadoria_necessaria))
           evento.set('automatic_send_allowed', false)
           evento.set('crm_write_allowed', false)
-          evento.set(
-            'audit_id',
-            nexoResumoSeguroAprendizado(
-              auditoria.audit_id || 'nexo-' + externalId + '-' + Date.now(),
-              160,
-            ),
+          var auditId = nexoResumoSeguroAprendizado(
+            auditoria.audit_id || 'nexo-' + externalId + '-' + Date.now(),
+            160,
           )
+          evento.set('audit_id', auditId)
           evento.set('created_at', new Date())
           $app.save(evento)
+          nexoCriarLedgerComercialApp({
+            avaliacaoNegocio: avaliacaoNegocio,
+            contatoNome: nexoResumoSeguroAprendizado(contatoSeguro.nome || '', 240),
+            empresaNome: nexoResumoSeguroAprendizado(empresaSegura.nome || '', 240),
+            negocioRef: externalId + (negocioSeguro.titulo ? ' — ' + negocioSeguro.titulo : ''),
+            responsavelNome: nexoResumoSeguroAprendizado(
+              responsavelSeguro.nome || responsavelSeguro.name || responsavelSeguro.email || '',
+              240,
+            ),
+            fato: nexoResumoContextoAprendizado(),
+            evidenciaRef: evento.id || auditId,
+            auditId: auditId,
+          })
         } catch (err) {
           console.error(
             'NEXO_APRENDIZADO_EVENTO_ERRO',
