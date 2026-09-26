@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Layers,
   ListChecks,
+  MessageCircle,
   MessageSquareText,
   Settings2,
   ShieldCheck,
@@ -25,6 +26,7 @@ export const MAIN_MODULES: NavigationEntry[] = [
   { label: 'Pipeline Comercial', path: '/pipeline', icon: BriefcaseBusiness },
   { label: 'Assistente Nexo', path: '/nexo', icon: Bot },
   { label: 'Curadoria Nexo', path: '/nexo/curadoria', icon: MessageSquareText },
+  { label: 'WhatsApp Comercial', path: '/integracoes/whatsapp', icon: MessageCircle },
   { label: 'Análises', path: '/analises', icon: BarChart3 },
   { label: 'Administração', path: '/foundation', icon: Layers },
 ]
@@ -63,6 +65,9 @@ export function modulePathFor(pathname: string): string {
   }
   if (pathname === '/nexo/curadoria' || pathname.startsWith('/nexo/curadoria/')) {
     return '/nexo/curadoria'
+  }
+  if (pathname === '/integracoes/whatsapp' || pathname.startsWith('/integracoes/whatsapp/')) {
+    return '/integracoes/whatsapp'
   }
   if (pathname === '/nexo' || pathname.startsWith('/nexo/')) return '/nexo'
   if (pathname === '/analises' || pathname.startsWith('/analises/')) return '/analises'

@@ -22,6 +22,7 @@ import NexoAssistente from './pages/NexoAssistente'
 import NexoCuradoria from './pages/NexoCuradoria'
 import NexoRelatorioEquipeComercial from './pages/NexoRelatorioEquipeComercial'
 import IpcpSimulacaoGerencial from './pages/IpcpSimulacaoGerencial'
+import WhatsAppUazapi from './pages/WhatsAppUazapi'
 
 import NotFound from './pages/NotFound'
 import AccessDenied from './pages/AccessDenied'
@@ -134,6 +135,16 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <IpcpSimulacaoGerencial />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/integracoes/whatsapp"
+                element={
+                  <ProtectedRoute>
+                    <NexoCuradoriaRoute>
+                      <WhatsAppUazapi />
+                    </NexoCuradoriaRoute>
                   </ProtectedRoute>
                 }
               />
