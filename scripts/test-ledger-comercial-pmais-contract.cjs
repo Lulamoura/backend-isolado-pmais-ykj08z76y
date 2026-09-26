@@ -84,6 +84,17 @@ assert.match(
 )
 
 assert.match(
+  uazapiHook,
+  /function\s+garantirColecaoLedgerComercial/,
+  'hook Uazapi deve criar/reparar a coleção do ledger quando a migration ainda não materializou no Preview',
+)
+assert.match(
+  nexoHook,
+  /function\s+nexoGarantirColecaoLedgerComercial/,
+  'hook Nexo/App Comercial deve criar/reparar a coleção do ledger quando a migration ainda não materializou no Preview',
+)
+
+assert.match(
   nexoHook,
   /com_ledger_comercial|criarLedgerComercial|nexo.*ledger/i,
   'eventos do App Comercial/Nexo também devem alimentar o Ledger Comercial',
