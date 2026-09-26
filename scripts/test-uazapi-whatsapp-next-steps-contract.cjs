@@ -76,7 +76,9 @@ const adminTabsBlock = nav.slice(
 assert(
   'WhatsApp Comercial fica na Administração',
   adminTabsBlock.includes("{ label: 'WhatsApp Comercial', path: '/integracoes/whatsapp'") &&
-    nav.includes("ADMIN_PATHS = ['/foundation', '/slas', '/substituicoes', '/integracoes/whatsapp']") &&
+    nav.includes(
+      "ADMIN_PATHS = ['/foundation', '/slas', '/substituicoes', '/integracoes/whatsapp']",
+    ) &&
     !mainModulesBlock.includes('WhatsApp Comercial'),
 )
 

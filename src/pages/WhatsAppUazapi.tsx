@@ -93,8 +93,8 @@ export default function WhatsAppUazapi() {
         <ShieldCheck className="h-4 w-4" />
         <AlertTitle>Sem envio automático</AlertTitle>
         <AlertDescription>
-          Esta área não envia mensagens a clientes. Ela existe apenas para conferência técnica
-          da integração por usuários autorizados da Administração.
+          Esta área não envia mensagens a clientes. Ela existe apenas para conferência técnica da
+          integração por usuários autorizados da Administração.
         </AlertDescription>
       </Alert>
 
