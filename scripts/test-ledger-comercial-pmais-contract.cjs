@@ -15,8 +15,16 @@ const pkg = fs.readFileSync(packagePath, 'utf8')
 
 assert.match(migration, /com_ledger_comercial/, 'migração deve criar coleção com_ledger_comercial')
 assert.match(migration, /createRule:\s*null/, 'ledger não deve aceitar criação direta pelo cliente')
-assert.match(migration, /updateRule:\s*null/, 'ledger não deve aceitar atualização direta pelo cliente')
-assert.match(migration, /deleteRule:\s*null/, 'ledger não deve aceitar exclusão direta pelo cliente')
+assert.match(
+  migration,
+  /updateRule:\s*null/,
+  'ledger não deve aceitar atualização direta pelo cliente',
+)
+assert.match(
+  migration,
+  /deleteRule:\s*null/,
+  'ledger não deve aceitar exclusão direta pelo cliente',
+)
 
 for (const field of [
   'fonte',
@@ -80,8 +88,19 @@ assert.match(
   /com_ledger_comercial|criarLedgerComercial|nexo.*ledger/i,
   'eventos do App Comercial/Nexo também devem alimentar o Ledger Comercial',
 )
-const ledgerWrites = [...(nexoHook + uazapiHook).matchAll(/(?:ledger|record)\.set\('([^']+)'/g)].map((m) => m[1])
-for (const forbidden of ['authorization', 'bearer', 'password', 'senha', 'secret', 'api_key', 'apikey', 'token']) {
+const ledgerWrites = [
+  ...(nexoHook + uazapiHook).matchAll(/(?:ledger|record)\.set\('([^']+)'/g),
+].map((m) => m[1])
+for (const forbidden of [
+  'authorization',
+  'bearer',
+  'password',
+  'senha',
+  'secret',
+  'api_key',
+  'apikey',
+  'token',
+]) {
   assert.ok(
     !ledgerWrites.some((field) => field.toLowerCase().includes(forbidden)),
     `ledger não pode persistir campo sensível: ${forbidden}`,

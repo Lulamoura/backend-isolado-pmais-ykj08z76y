@@ -13,10 +13,25 @@ function at(minutes) {
 }
 
 function id(label) {
-  return crypto.createHash('sha256').update(`pmais-uazapi-${label}`).digest('hex').slice(0, 32).toUpperCase()
+  return crypto
+    .createHash('sha256')
+    .update(`pmais-uazapi-${label}`)
+    .digest('hex')
+    .slice(0, 32)
+    .toUpperCase()
 }
 
-function envelope({ label, eventType = 'messages', fromMe = false, isGroup = false, messageType = 'Conversation', mediaType = 'text', text = '', content = {}, minutes = 0 }) {
+function envelope({
+  label,
+  eventType = 'messages',
+  fromMe = false,
+  isGroup = false,
+  messageType = 'Conversation',
+  mediaType = 'text',
+  text = '',
+  content = {},
+  minutes = 0,
+}) {
   const messageId = id(label)
   const chatId = isGroup ? GROUP_CHAT_ID : PRIVATE_CHAT_ID
   return {

@@ -2284,20 +2284,33 @@
           ledger.set('fato', nexoResumoSeguroAprendizado(data.fato || '', 2400))
           ledger.set('evidencia_ref', data.evidenciaRef || '')
           ledger.set('destino_sugerido', destino)
-          ledger.set('risco', destino === 'escalar_direcao' ? 'alto' : precisaHumano ? 'medio' : 'baixo')
+          ledger.set(
+            'risco',
+            destino === 'escalar_direcao' ? 'alto' : precisaHumano ? 'medio' : 'baixo',
+          )
           ledger.set('retencao', 'operacional')
           ledger.set('status', 'novo')
           ledger.set('confianca', precisaHumano ? 'media' : 'alta')
-          ledger.set('promocao_modo', destino === 'promover_baixo_risco' ? 'promover_baixo_risco' : '')
+          ledger.set(
+            'promocao_modo',
+            destino === 'promover_baixo_risco' ? 'promover_baixo_risco' : '',
+          )
           ledger.set('revisao_status', destino === 'promover_baixo_risco' ? 'ativo_provisorio' : '')
           ledger.set('audit_id', data.auditId)
-          ledger.set('observacao', 'Ledger do App Comercial sem conteúdo bruto ou credenciais; referência fica no evento de aprendizado.')
+          ledger.set(
+            'observacao',
+            'Ledger do App Comercial sem conteúdo bruto ou credenciais; referência fica no evento de aprendizado.',
+          )
           ledger.set('occurred_at', new Date())
           $app.save(ledger)
         } catch (err) {
           console.error(
             'NEXO_LEDGER_COMERCIAL_ERRO',
-            JSON.stringify({ external_id: externalId, acao: acao, erro: String(err).slice(0, 120) }),
+            JSON.stringify({
+              external_id: externalId,
+              acao: acao,
+              erro: String(err).slice(0, 120),
+            }),
           )
         }
       }
