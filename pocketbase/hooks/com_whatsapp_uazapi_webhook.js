@@ -334,7 +334,9 @@ routerAdd(
           })
           if (messageRecord) result.message_record_id = messageRecord.id
           var audioRetencaoAte = new Date(receivedAt.getTime() + 24 * 60 * 60 * 1000)
-          var isAudioMedia = asString(mediaType).toLowerCase().indexOf('audio') !== -1 || asString(mediaInfo.mimetype).toLowerCase().indexOf('audio/') === 0
+          var isAudioMedia =
+            asString(mediaType).toLowerCase().indexOf('audio') !== -1 ||
+            asString(mediaInfo.mimetype).toLowerCase().indexOf('audio/') === 0
           var mediaRecord = upsertMedia(tx, {
             instanceName: instanceName,
             owner: owner,
@@ -344,7 +346,9 @@ routerAdd(
             fileName: mediaInfo.fileName,
             urlHash: mediaInfo.urlHash,
             isGroup: isGroup,
-            retencaoPolitica: isAudioMedia ? 'transcricao_apenas_audio_temporario' : 'midia_operacional_temporaria',
+            retencaoPolitica: isAudioMedia
+              ? 'transcricao_apenas_audio_temporario'
+              : 'midia_operacional_temporaria',
             transcricaoStatus: isAudioMedia ? 'pendente_transcricao' : 'nao_aplicavel',
             descarteAudioEm: isAudioMedia ? audioRetencaoAte : null,
             receivedAt: receivedAt,
