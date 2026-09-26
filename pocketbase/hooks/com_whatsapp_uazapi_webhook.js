@@ -262,7 +262,6 @@ routerAdd(
       return 'historico'
     }
 
-
     function garantirColecaoLedgerComercial(app) {
       try {
         return app.findCollectionByNameOrId('com_ledger_comercial')
