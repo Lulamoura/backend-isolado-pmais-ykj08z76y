@@ -245,6 +245,55 @@ routerAdd(
       return record
     }
 
+    function destinoLedger(data) {
+      if (data.isGroup) return 'descartar'
+      if (!data.messageId) return 'historico'
+      if (data.mediaType && asString(data.mediaType).toLowerCase().indexOf('audio') !== -1)
+        return 'pendencia'
+      var textoBaixo = asString(data.texto).toLowerCase()
+      var sinaisDirecao = ['contrato', 'desconto', 'reclama', 'lgpd', 'juridico', 'jurídico']
+      for (var i = 0; i < sinaisDirecao.length; i++) {
+        if (textoBaixo.indexOf(sinaisDirecao[i]) !== -1) return 'escalar_direcao'
+      }
+      var sinaisPendencia = ['proposta', 'retorno', 'prazo', 'documento', 'reunião', 'reuniao']
+      for (var pi = 0; pi < sinaisPendencia.length; pi++) {
+        if (textoBaixo.indexOf(sinaisPendencia[pi]) !== -1) return 'pendencia'
+      }
+      return 'historico'
+    }
+
+    function criarLedgerComercial(tx, data) {
+      if (!data.messageId && !data.eventRecordId) return null
+      var auditId = sha256Safe(
+        ['ledger-comercial', 'uazapi', data.instanceName, data.owner, data.messageId, data.eventRecordId].join('|'),
+      )
+      if (findExisting(tx, 'com_ledger_comercial', 'audit_id', auditId)) return null
+      var destino = destinoLedger(data)
+      var record = new Record(tx.findCollectionByNameOrId('com_ledger_comercial'))
+      record.set('fonte', 'whatsapp_uazapi')
+      record.set('canal', 'WhatsApp Comercial')
+      record.set('origem', data.fromMe ? 'operadora_comercial' : 'cliente_ou_contato')
+      record.set('contato_nome', data.senderName)
+      record.set('empresa_nome', '')
+      record.set('negocio_ref', '')
+      record.set('responsavel', data.owner || data.instanceName)
+      record.set('tipo_evento', data.mediaType ? 'mensagem_midia' : 'mensagem')
+      record.set('fato', truncate(data.texto || data.messageType || 'Mensagem WhatsApp registrada para contexto comercial.', 2400))
+      record.set('evidencia_ref', data.eventRecordId || data.messageId)
+      record.set('destino_sugerido', destino)
+      record.set('risco', destino === 'escalar_direcao' ? 'alto' : 'baixo')
+      record.set('retencao', data.isGroup ? 'curta' : 'operacional')
+      record.set('status', destino === 'descartar' ? 'descartado' : 'novo')
+      record.set('confianca', 'media')
+      record.set('promocao_modo', destino === 'historico' ? 'promover_baixo_risco' : '')
+      record.set('revisao_status', destino === 'historico' ? 'ativo_provisorio' : '')
+      record.set('audit_id', auditId)
+      record.set('observacao', 'Ledger sem payload bruto; segredos e anexos ficam fora desta camada.')
+      record.set('occurred_at', data.messageAt || data.receivedAt)
+      tx.save(record)
+      return record
+    }
+
     var expectedSecret = asString($secrets.get('UAZAPI_WEBHOOK_SECRET') || '')
     var providedSecret = asString(e.request.pathValue('webhookSecret') || '')
     if (!expectedSecret) return e.json(503, { ok: false, error: 'WEBHOOK_NAO_CONFIGURADO' })
@@ -354,6 +403,20 @@ routerAdd(
             receivedAt: receivedAt,
           })
           if (mediaRecord) result.media_record_id = mediaRecord.id
+          criarLedgerComercial(tx, {
+            instanceName: instanceName,
+            owner: owner,
+            senderName: senderName,
+            messageId: messageId,
+            eventRecordId: eventResult.record.id,
+            fromMe: fromMe,
+            isGroup: isGroup,
+            messageType: messageType,
+            mediaType: mediaType,
+            texto: texto,
+            messageAt: dateFromMillisOrSeconds(message.messageTimestamp),
+            receivedAt: receivedAt,
+          })
         }
       })
     } catch (err) {
