@@ -1429,10 +1429,22 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     var inicio = String(body.inicio || body.data_inicio || '').slice(0, 10)
     var fim = String(body.fim || body.data_fim || '').slice(0, 10)
 
+    function proximoDiaCivil(data) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return ''
+      var partes = data.split('-')
+      var d = new Date(Date.UTC(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]) + 1))
+      var ano = String(d.getUTCFullYear())
+      var mes = String(d.getUTCMonth() + 1)
+      if (mes.length < 2) mes = '0' + mes
+      var dia = String(d.getUTCDate())
+      if (dia.length < 2) dia = '0' + dia
+      return ano + '-' + mes + '-' + dia
+    }
+
     function filtroPeriodoCampo(campo) {
       var filtro = ''
       if (/^\d{4}-\d{2}-\d{2}$/.test(inicio)) filtro += " && " + campo + " >= '" + esc(inicio) + " 03:00:00.000Z'"
-      if (/^\d{4}-\d{2}-\d{2}$/.test(fim)) filtro += " && " + campo + " <= '" + esc(fim) + " 23:59:59.999Z'"
+      if (/^\d{4}-\d{2}-\d{2}$/.test(fim)) filtro += " && " + campo + " <= '" + esc(proximoDiaCivil(fim)) + " 02:59:59.999Z'"
       return filtro
     }
 
@@ -1474,7 +1486,7 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
 
     try {
       var filtroLedger = "(fonte ~ 'whatsapp' || canal ~ 'WhatsApp' || origem ~ 'whatsapp' || origem ~ 'uazapi')" + filtroPeriodoCampo('occurred_at')
-      ledgerRows = $app.findRecordsByFilter('com_ledger_comercial', filtroLedger, '-occurred_at,-created', limite, 0)
+      ledgerRows = $app.findRecordsByFilter('com_ledger_comercial', filtroLedger, '-occurred_at', limite, 0)
     } catch (_) {
       fontes.ledger_disponivel = false
       ledgerRows = []
