@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T21:00:10.271Z",
+  "generatedAt": "2026-09-28T23:52:41.540Z",
   "collections": [
     {
       "name": "users",
@@ -4731,6 +4731,145 @@
         "CREATE INDEX idx_com_whatsapp_eventos_owner_created ON com_whatsapp_eventos (owner, received_at)",
         "CREATE INDEX idx_com_whatsapp_eventos_tipo_created ON com_whatsapp_eventos (event_type, received_at)",
         "CREATE INDEX idx_com_whatsapp_eventos_message ON com_whatsapp_eventos (message_id)"
+      ]
+    },
+    {
+      "name": "com_ledger_comercial",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva' || @request.auth.perfil_id.slug = 'integracao')",
+        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva' || @request.auth.perfil_id.slug = 'integracao')",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "fonte",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "canal",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "origem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "empresa_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "negocio_ref",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_evento",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "fato",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "evidencia_ref",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "destino_sugerido",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "risco",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "retencao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "confianca",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "promocao_modo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "revisao_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "audit_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "occurred_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_com_ledger_comercial_occurred ON com_ledger_comercial (occurred_at)",
+        "CREATE INDEX idx_com_ledger_comercial_destino ON com_ledger_comercial (destino_sugerido, status)",
+        "CREATE INDEX idx_com_ledger_comercial_audit ON com_ledger_comercial (audit_id)",
+        "CREATE INDEX idx_com_ledger_comercial_fonte ON com_ledger_comercial (fonte, occurred_at)"
       ]
     }
   ]
