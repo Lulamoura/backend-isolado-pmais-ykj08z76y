@@ -408,6 +408,7 @@ routerAdd(
     var result = { replay: false, event_id: '', message_record_id: '', media_record_id: '' }
 
     try {
+      if (eventType === 'messages' && messageId) garantirColecaoLedgerComercial($app)
       $app.runInTransaction(function (tx) {
         var eventResult = saveEvent(tx, {
           instanceName: instanceName,
