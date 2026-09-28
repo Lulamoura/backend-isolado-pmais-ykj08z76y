@@ -33,6 +33,26 @@ assert.match(
 )
 assert.match(
   hook,
+  /aprendizados_whatsapp_comercial[\s\S]{0,2000}nexo_whatsapp_aprendizados_v1/,
+  'Rota deve suportar leitura governada de aprendizados do WhatsApp Comercial',
+)
+assert.match(
+  hook,
+  /captura_nao_e_aprendizado/,
+  'Consulta WhatsApp deve explicitar que captura não é aprendizado oficial',
+)
+assert.match(
+  hook,
+  /nao_promove_conhecimento_sozinho/,
+  'Consulta WhatsApp não pode promover conhecimento sozinha',
+)
+assert.match(
+  hook,
+  /fatos_observados[\s\S]{0,200}possiveis_aprendizados[\s\S]{0,200}conhecimento_aprovado/,
+  'Consulta WhatsApp deve separar fatos, candidatos e conhecimento aprovado',
+)
+assert.match(
+  hook,
   /ipcp_gerencial/,
   'Rota deve suportar consulta gerencial IPCP para o Nexo Telegram',
 )

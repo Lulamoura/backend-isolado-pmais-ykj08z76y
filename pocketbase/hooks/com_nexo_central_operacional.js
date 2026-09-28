@@ -1420,6 +1420,164 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     })
   }
 
+
+  function consultaAprendizadosWhatsappComercial(body) {
+    var limite = Number(body.limite || 25)
+    if (!isFinite(limite) || limite <= 0) limite = 25
+    if (limite > 80) limite = 80
+
+    var inicio = String(body.inicio || body.data_inicio || '').slice(0, 10)
+    var fim = String(body.fim || body.data_fim || '').slice(0, 10)
+
+    function filtroPeriodoCampo(campo) {
+      var filtro = ''
+      if (/^\d{4}-\d{2}-\d{2}$/.test(inicio)) filtro += " && " + campo + " >= '" + esc(inicio) + " 03:00:00.000Z'"
+      if (/^\d{4}-\d{2}-\d{2}$/.test(fim)) filtro += " && " + campo + " <= '" + esc(fim) + " 23:59:59.999Z'"
+      return filtro
+    }
+
+    function safeGet(rec, field) {
+      try {
+        return rec.getString(field) || ''
+      } catch (_) {
+        return ''
+      }
+    }
+
+    function itemLedger(rec) {
+      return {
+        data: dataCivil(safeGet(rec, 'occurred_at') || safeGet(rec, 'created')),
+        fonte: safeGet(rec, 'fonte'),
+        canal: safeGet(rec, 'canal'),
+        tipo_evento: safeGet(rec, 'tipo_evento'),
+        fato: limparTexto(safeGet(rec, 'fato'), 420),
+        destino_sugerido: safeGet(rec, 'destino_sugerido'),
+        risco: safeGet(rec, 'risco'),
+        status: safeGet(rec, 'status'),
+        empresa: safeGet(rec, 'empresa_nome') || null,
+        contato: safeGet(rec, 'contato_nome') || null,
+        negocio: safeGet(rec, 'negocio_ref') || null,
+        responsavel: safeGet(rec, 'responsavel') || null,
+      }
+    }
+
+    var ledgerRows = []
+    var mensagensRows = []
+    var curadoriaRows = []
+    var decisoesRows = []
+    var fontes = {
+      ledger_disponivel: true,
+      mensagens_whatsapp_disponivel: true,
+      curadoria_disponivel: true,
+      decisoes_disponivel: true,
+    }
+
+    try {
+      var filtroLedger = "(fonte ~ 'whatsapp' || canal ~ 'WhatsApp' || origem ~ 'whatsapp' || origem ~ 'uazapi')" + filtroPeriodoCampo('occurred_at')
+      ledgerRows = $app.findRecordsByFilter('com_ledger_comercial', filtroLedger, '-occurred_at,-created', limite, 0)
+    } catch (_) {
+      fontes.ledger_disponivel = false
+      ledgerRows = []
+    }
+
+    try {
+      var filtroMsg = "provider != ''" + filtroPeriodoCampo('message_at')
+      mensagensRows = $app.findRecordsByFilter('com_whatsapp_mensagens', filtroMsg, '-message_at,-created', limite, 0)
+    } catch (_) {
+      fontes.mensagens_whatsapp_disponivel = false
+      mensagensRows = []
+    }
+
+    try {
+      var filtroCuradoria = "tipo_evento ~ 'whatsapp' || contexto_resumo ~ 'WhatsApp' || resposta_resumo ~ 'WhatsApp' || evidencia_curadoria ~ 'WhatsApp'" + filtroPeriodoCampo('created_at')
+      curadoriaRows = $app.findRecordsByFilter('com_nexo_aprendizado_eventos', filtroCuradoria, '-created_at,-created', limite, 0)
+    } catch (_) {
+      fontes.curadoria_disponivel = false
+      curadoriaRows = []
+    }
+
+    try {
+      var filtroDecisoes = "status = 'aprovada_uso_operacional' && (regra_proposta ~ 'WhatsApp' || regra_proposta ~ 'whatsapp' || fonte_evento ~ 'whatsapp' || evidencia_resumo ~ 'WhatsApp')" + filtroPeriodoCampo('created_at')
+      decisoesRows = $app.findRecordsByFilter('com_nexo_curadoria_decisoes', filtroDecisoes, '-updated_at,-created_at,-created', limite, 0)
+    } catch (_) {
+      fontes.decisoes_disponivel = false
+      decisoesRows = []
+    }
+
+    var fatos = []
+    for (var i = 0; i < ledgerRows.length && fatos.length < 8; i++) fatos.push(itemLedger(ledgerRows[i]))
+
+    var candidatos = []
+    for (var c = 0; c < ledgerRows.length && candidatos.length < 8; c++) {
+      var l = itemLedger(ledgerRows[c])
+      if (l.destino_sugerido === 'curadoria' || l.destino_sugerido === 'escalar_direcao' || l.destino_sugerido === 'promover_baixo_risco') candidatos.push(l)
+    }
+    for (var a = 0; a < curadoriaRows.length && candidatos.length < 8; a++) {
+      var ev = curadoriaRows[a]
+      candidatos.push({
+        data: dataCivil(safeGet(ev, 'created_at') || safeGet(ev, 'created')),
+        fonte: 'nexo_curadoria',
+        tipo_evento: safeGet(ev, 'tipo_evento'),
+        fato: limparTexto(safeGet(ev, 'motivo_curadoria') || safeGet(ev, 'resposta_resumo'), 420),
+        destino_sugerido: 'curadoria',
+        risco: safeGet(ev, 'impacto_ipcp_potencial') ? 'medio' : 'baixo',
+        empresa: safeGet(ev, 'empresa_nome') || null,
+        contato: safeGet(ev, 'contato_nome') || null,
+        negocio: safeGet(ev, 'external_id') || safeGet(ev, 'negocio_titulo') || null,
+        responsavel: safeGet(ev, 'responsavel_nome') || null,
+      })
+    }
+
+    var aprovados = []
+    for (var d = 0; d < decisoesRows.length && aprovados.length < 8; d++) {
+      var dec = decisoesRows[d]
+      aprovados.push({
+        data: dataCivil(safeGet(dec, 'updated_at') || safeGet(dec, 'created_at') || safeGet(dec, 'created')),
+        regra: limparTexto(safeGet(dec, 'regra_proposta'), 500),
+        empresa: safeGet(dec, 'empresa_nome') || null,
+        negocio: safeGet(dec, 'external_id') || safeGet(dec, 'negocio_titulo') || null,
+        status: safeGet(dec, 'status'),
+        segundo_cerebro_status: safeGet(dec, 'segundo_cerebro_status') || null,
+      })
+    }
+
+    return resposta('aprendizados_whatsapp_comercial', {
+      contrato_whatsapp_aprendizados: 'nexo_whatsapp_aprendizados_v1',
+      periodo: {
+        inicio: inicio || null,
+        fim: fim || null,
+      },
+      fontes: fontes,
+      contadores: {
+        ledger_whatsapp_lidos: ledgerRows.length,
+        mensagens_whatsapp_lidas: mensagensRows.length,
+        candidatos_curadoria_lidos: curadoriaRows.length,
+        conhecimentos_aprovados_lidos: decisoesRows.length,
+      },
+      leitura_governada: {
+        status: aprovados.length ? 'ha_conhecimento_aprovado' : candidatos.length ? 'ha_candidatos_sem_promocao_final' : fatos.length ? 'ha_fatos_sem_aprendizado_aprovado' : 'sem_sinal_suficiente',
+        resposta_curta: aprovados.length
+          ? 'Há conhecimento operacional aprovado relacionado ao WhatsApp Comercial. Separar fatos e decisões antes de usar como regra.'
+          : candidatos.length
+            ? 'Há sinais/candidatos vindos do WhatsApp Comercial, mas eles ainda exigem curadoria antes de virarem conhecimento oficial.'
+            : fatos.length
+              ? 'Há registros factuais do WhatsApp Comercial no ledger, mas ainda não há aprendizado aprovado a partir deles.'
+              : 'Não encontrei sinal suficiente de aprendizado do WhatsApp Comercial no recorte consultado.',
+      },
+      fatos_observados: fatos,
+      possiveis_aprendizados: candidatos,
+      conhecimento_aprovado: aprovados,
+      guardrails: {
+        somente_leitura: true,
+        sem_mutacao: true,
+        sem_envio: true,
+        nao_expoe_payload_bruto: true,
+        nao_promove_conhecimento_sozinho: true,
+        captura_nao_e_aprendizado: true,
+      },
+    })
+  }
+
   function consultaRevisoesIpcpPendentes() {
     var rows = []
     try {
@@ -1570,6 +1728,10 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     if (pergunta.indexOf('ipcp') >= 0 || pergunta.indexOf('índice de performance') >= 0)
       return 'ipcp_gerencial'
     if (
+      (pergunta.indexOf('aprendizado') >= 0 && (pergunta.indexOf('whatsapp') >= 0 || pergunta.indexOf('uazapi') >= 0 || pergunta.indexOf('conversa') >= 0))
+    )
+      return 'aprendizados_whatsapp_comercial'
+    if (
       pergunta.indexOf('aprendizado') >= 0 ||
       pergunta.indexOf('perdid') >= 0 ||
       pergunta.indexOf('ganh') >= 0
@@ -1603,6 +1765,7 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     propostas_sem_retorno: true,
     followups_vencidos: true,
     aprendizados_comerciais: true,
+    aprendizados_whatsapp_comercial: true,
     ipcp_gerencial: true,
     ipcp_revisoes_pendentes: true,
   }
@@ -1611,6 +1774,7 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
 
   if (tipo === 'ipcp_gerencial') return consultaIpcpGerencial(body)
   if (tipo === 'ipcp_revisoes_pendentes') return consultaRevisoesIpcpPendentes()
+  if (tipo === 'aprendizados_whatsapp_comercial') return consultaAprendizadosWhatsappComercial(body)
 
   if (tipo === 'negocio_por_id') {
     var id = String(body.id_negocio || body.external_id || '').trim()
