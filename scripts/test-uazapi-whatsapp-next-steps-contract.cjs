@@ -28,6 +28,14 @@ assert(
   hook.includes('ultimo_webhook') && hook.includes('ultima_mensagem'),
 )
 assert(
+  'status expõe qualidade da base WhatsApp Comercial para decisão Nexo',
+  hook.includes('qualidade_base') &&
+    hook.includes('aproveitamento_nexo_percentual') &&
+    hook.includes('por_operador') &&
+    hook.includes('negocios_com_conversas_recentes') &&
+    hook.includes('sinais_comerciais_iniciais'),
+)
+assert(
   'status retorna políticas da fase sem automação',
   hook.includes('sem_automacao_livre') && hook.includes('transcricao_apenas'),
 )
@@ -59,6 +67,14 @@ assert(
 assert(
   'página exibe monitoramento Uazapi',
   page.includes('Integração WhatsApp') && page.includes('Sem envio automático'),
+)
+assert(
+  'página evolui para Qualidade da base WhatsApp Comercial',
+  page.includes('Qualidade da base WhatsApp Comercial') &&
+    page.includes('Aproveitamento para o Nexo') &&
+    page.includes('Por operador') &&
+    page.includes('Negócios com conversas recentes') &&
+    page.includes('Sinais comerciais iniciais'),
 )
 assert(
   'página não expõe roteiro de projeto no frontend',

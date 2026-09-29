@@ -774,6 +774,164 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     return out
   }
 
+  function pct(parte, total) {
+    if (!total) return 0
+    return Math.round((Number(parte || 0) / Number(total || 1)) * 1000) / 10
+  }
+
+  function pushTop(map, key, label, extra) {
+    key = asString(key || 'nao_informado')
+    if (!map[key]) {
+      map[key] = { chave: key, label: label || key, total_mensagens: 0 }
+      if (extra) {
+        for (var ek in extra) map[key][ek] = extra[ek]
+      }
+    }
+    map[key].total_mensagens++
+    return map[key]
+  }
+
+  function valoresOrdenados(map, limite) {
+    var out = []
+    for (var key in map) out.push(map[key])
+    out.sort(function (a, b) {
+      return Number(b.total_mensagens || b.total || 0) - Number(a.total_mensagens || a.total || 0)
+    })
+    return out.slice(0, limite || 8)
+  }
+
+  function negocioResumo(id) {
+    if (!id) return { negocio_id: '', negocio_label: 'Sem negócio vinculado' }
+    try {
+      var rec = $app.findRecordById('com_negocios', id)
+      var empresaId = rec.getString('empresa_id') || ''
+      var contatoId = rec.getString('contato_principal_id') || ''
+      var empresa = ''
+      var contato = ''
+      try {
+        if (empresaId) {
+          var emp = $app.findRecordById('com_empresas', empresaId)
+          empresa = emp.getString('nome') || emp.getString('razao_social') || ''
+        }
+      } catch (_) {}
+      try {
+        if (contatoId) contato = $app.findRecordById('com_contatos', contatoId).getString('nome') || ''
+      } catch (_) {}
+      return {
+        negocio_id: id,
+        negocio_label:
+          rec.getString('oe_numero') || rec.getString('external_id') || rec.getString('codigo') || id,
+        empresa: empresa || rec.getString('empresa_nome') || '',
+        contato: contato || rec.getString('contato_nome') || '',
+      }
+    } catch (_) {
+      return { negocio_id: id, negocio_label: id }
+    }
+  }
+
+  function calcularQualidadeBase() {
+    var mensagens = []
+    var vinculos = []
+    var midiasPendentes = []
+    try {
+      mensagens = $app.findRecordsByFilter('com_whatsapp_mensagens', "is_group = false", '-message_at,-created', 500, 0)
+    } catch (_) {}
+    try {
+      vinculos = $app.findRecordsByFilter('com_whatsapp_vinculos', "id != ''", '-last_message_at,-updated', 500, 0)
+    } catch (_) {}
+    try {
+      midiasPendentes = $app.findRecordsByFilter(
+        'com_whatsapp_midias',
+        "download_status='pendente' || transcricao_status='pendente_transcricao'",
+        '-received_at,-created',
+        500,
+        0,
+      )
+    } catch (_) {}
+
+    var vinculoPorChat = {}
+    var totalVinculado = 0
+    var totalSemContato = 0
+    var totalPendente = 0
+    var totalAmbiguo = 0
+    var totalAmbiguoAberto = 0
+    for (var vi = 0; vi < vinculos.length; vi++) {
+      var v = vinculos[vi]
+      var chat = v.getString('chat_id') || ''
+      if (chat) vinculoPorChat[chat] = v
+      var status = v.getString('status') || ''
+      if (status === 'vinculado_automatico' && v.getString('negocio_id')) totalVinculado++
+      else if (status === 'sem_correspondencia') totalSemContato++
+      else if (status === 'ambiguidade' || status === 'ambiguidade_negocio_aberto') totalAmbiguo++
+      else totalPendente++
+      if (status === 'ambiguidade_negocio_aberto') totalAmbiguoAberto++
+    }
+
+    var porOperador = {}
+    var porNegocio = {}
+    var sinais = {
+      possivel_retorno_cliente: 0,
+      possivel_prazo: 0,
+      possivel_proposta: 0,
+      possivel_objeção: 0,
+      audio_pendente: midiasPendentes.length,
+    }
+    var mensagensVinculadas = 0
+    for (var mi = 0; mi < mensagens.length; mi++) {
+      var msg = mensagens[mi]
+      var operador = msg.getString('instance_name') || msg.getString('owner') || 'Operador não identificado'
+      var itemOperador = pushTop(porOperador, operador, operador, {
+        vinculadas_negocio: 0,
+        pendentes_ou_sem_vinculo: 0,
+        ambiguas: 0,
+        ultima_interacao: '',
+      })
+      if (!itemOperador.ultima_interacao) itemOperador.ultima_interacao = safeDate(msg, 'message_at') || safeDate(msg, 'created')
+      var vinc = vinculoPorChat[msg.getString('chat_id') || '']
+      if (vinc && vinc.getString('status') === 'vinculado_automatico' && vinc.getString('negocio_id')) {
+        mensagensVinculadas++
+        itemOperador.vinculadas_negocio++
+        var resumo = negocioResumo(vinc.getString('negocio_id'))
+        var itemNegocio = pushTop(porNegocio, resumo.negocio_id, resumo.negocio_label, resumo)
+        itemNegocio.operador = operador
+        itemNegocio.ultima_interacao = itemNegocio.ultima_interacao || safeDate(msg, 'message_at') || safeDate(msg, 'created')
+      } else if (vinc && (vinc.getString('status') === 'ambiguidade' || vinc.getString('status') === 'ambiguidade_negocio_aberto')) {
+        itemOperador.ambiguas++
+      } else {
+        itemOperador.pendentes_ou_sem_vinculo++
+      }
+
+      var texto = ''
+      try {
+        texto = String(msg.getString('texto') || '').toLowerCase()
+      } catch (_) {}
+      if (/retorno|responder|me chama|me ligue|aguardo|volto|retorna/.test(texto)) sinais.possivel_retorno_cliente++
+      if (/prazo|amanh[aã]|hoje|segunda|terça|terca|quarta|quinta|sexta|\b\d{1,2}\/\d{1,2}\b/.test(texto)) sinais.possivel_prazo++
+      if (/proposta|orçamento|orcamento|valor|contrato|escopo/.test(texto)) sinais.possivel_proposta++
+      if (/caro|preço|preco|concorrente|não tenho interesse|nao tenho interesse|avaliar depois|sem orçamento|sem orcamento/.test(texto)) sinais['possivel_objeção']++
+    }
+
+    return {
+      periodo: 'últimos registros disponíveis',
+      total_mensagens_lidas: mensagens.length,
+      total_vinculos_lidos: vinculos.length,
+      mensagens_vinculadas_negocio: mensagensVinculadas,
+      vinculos_automaticos_negocio: totalVinculado,
+      vinculos_pendentes_ou_sem_negocio: totalPendente,
+      vinculos_sem_contato: totalSemContato,
+      vinculos_ambiguos: totalAmbiguo,
+      vinculos_ambiguos_negocio_aberto: totalAmbiguoAberto,
+      midias_ou_audios_pendentes: midiasPendentes.length,
+      aproveitamento_nexo_percentual: pct(mensagensVinculadas, mensagens.length),
+      por_operador: valoresOrdenados(porOperador, 8),
+      negocios_com_conversas_recentes: valoresOrdenados(porNegocio, 8),
+      sinais_comerciais_iniciais: sinais,
+      leitura: mensagens.length
+        ? 'Base em formação: captura e vínculo já podem ser acompanhados antes da camada inteligente do Nexo.'
+        : 'Sem mensagens suficientes no recorte para avaliar qualidade da base.',
+    }
+  }
+
   var actor = e.auth
   if (!actor || !actor.getBool('ativo_comercial')) return e.unauthorizedError('Autenticacao')
   var slug = ''
@@ -894,6 +1052,7 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
       'vinculo_negocio_pendente',
     ],
     counts: counts,
+    qualidade_base: calcularQualidadeBase(),
     ambiguidades_negocios_abertos: ambiguidadesNegociosAbertos,
     ultimo_webhook: recordSummary(ultimoWebhook, [
       'event_type',
