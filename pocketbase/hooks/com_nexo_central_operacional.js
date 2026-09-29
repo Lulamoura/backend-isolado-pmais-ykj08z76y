@@ -89,6 +89,13 @@ routerAdd(
       return value ? String(value).slice(0, 10) : ''
     }
 
+    function valorNegocioCentavosConsulta(rec) {
+      var valor = Number(rec.get('valor') || 0)
+      if (!isFinite(valor) || valor <= 0) valor = Number(rec.get('valor_centavos') || 0)
+      if (!isFinite(valor) || valor < 0) return 0
+      return Math.round(valor)
+    }
+
     function formatarDataBR(value) {
       var d = dataCivil(value)
       if (!d || d.length !== 10) return ''
@@ -252,7 +259,7 @@ routerAdd(
         contato_nome: nomeRelacionado('com_contatos', contatoId, ['nome']),
         etapa: n.getString('etapa') || null,
         fase_crm: n.getString('fase_crm') || null,
-        valor_centavos: n.getInt('valor_centavos') || 0,
+        valor_centavos: valorNegocioCentavosConsulta(n),
         responsavel_id: responsavelId,
         responsavel_nome: nomeUsuario(responsavelId),
         equipe_id: n.getString('equipe_id') || null,
@@ -929,6 +936,13 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     return value ? String(value).slice(0, 10) : ''
   }
 
+  function valorNegocioCentavosConsulta(rec) {
+    var valor = Number(rec.get('valor') || 0)
+    if (!isFinite(valor) || valor <= 0) valor = Number(rec.get('valor_centavos') || 0)
+    if (!isFinite(valor) || valor < 0) return 0
+    return Math.round(valor)
+  }
+
   function hojeRecife() {
     return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   }
@@ -1021,8 +1035,8 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
       qualificacao: n.getString('qualificacao') || null,
       resultado: n.getString('resultado') || null,
       modalidade: n.getString('modalidade') || null,
-      valor_centavos: n.getInt('valor_centavos') || 0,
-      valor_formatado: moneyCentavos(n.getInt('valor_centavos') || 0),
+      valor_centavos: valorNegocioCentavosConsulta(n),
+      valor_formatado: moneyCentavos(valorNegocioCentavosConsulta(n)),
       proxima_acao_em: formatarDataBR(n.getString('proxima_acao_em')),
       atualizado_em: formatarDataBR(n.getString('updated')),
     }

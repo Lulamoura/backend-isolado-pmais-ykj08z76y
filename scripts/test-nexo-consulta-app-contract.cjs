@@ -71,6 +71,16 @@ assert.match(
   /fallback_openai_bloqueado/,
   'Consulta IPCP deve bloquear fallback OpenAI para evidência oficial',
 )
+assert.match(
+  hook,
+  /function valorNegocioCentavosConsulta[\s\S]{0,500}rec\.get\('valor'\)/,
+  'Consulta Nexo deve ler o campo canônico valor de com_negocios, não um campo inexistente valor_centavos',
+)
+assert.match(
+  hook,
+  /valor_centavos:\s*valorNegocioCentavosConsulta\(n\)/,
+  'Resumo de negócio para o Nexo deve expor valor_centavos derivado de com_negocios.valor',
+)
 assert.doesNotMatch(
   hook,
   /id_negocio:\s*oeNumero\s*\|\|\s*external\s*\|\|\s*n\.id/,
