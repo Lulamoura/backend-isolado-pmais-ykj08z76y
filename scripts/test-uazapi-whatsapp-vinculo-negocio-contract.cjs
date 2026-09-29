@@ -31,18 +31,32 @@ assert(
     hook.includes("record.getString('telefone')"),
 )
 assert(
-  'hook busca negócios abertos por contato e empresa',
-  hook.includes('function buscarNegociosAbertosParaVinculo') &&
+  'hook busca negócios por contato e empresa separando abertos de fechados',
+  hook.includes('function buscarNegociosParaVinculo') &&
     hook.includes("contato_principal_id='") &&
     hook.includes("empresa_id='") &&
-    hook.includes("resultado=''"),
+    hook.includes('negociosAbertos') &&
+    hook.includes('negociosFechados'),
 )
 assert(
   'hook decide vínculo automático somente com um negócio aberto inequívoco',
   hook.includes("status = 'vinculado_automatico'") &&
-    hook.includes("status = 'ambiguidade'") &&
+    hook.includes("status = 'ambiguidade_negocio_aberto'") &&
     hook.includes("status = 'sem_correspondencia'") &&
-    hook.includes('negocios.length === 1'),
+    hook.includes('negociosAbertos.length === 1'),
+)
+assert(
+  'negócio aberto tem prioridade sobre ganho/perdido e fechados ficam secundários',
+  hook.includes('Negócio aberto tem prioridade sobre ganho/perdido') &&
+    hook.includes('sistema_sem_negocio_aberto_fechados_secundarios') &&
+    hook.includes('Negócios ganhos/perdidos encontrados apenas como referência secundária'),
+)
+assert(
+  'múltiplos negócios abertos entram no piloto Nexo Telegram com operador e candidatos',
+  hook.includes('PILOTO_NEXO_TELEGRAM') &&
+    hook.includes('sistema_multiplos_negocios_abertos_piloto_nexo_telegram') &&
+    hook.includes('resumoNegocios(negociosAbertos)') &&
+    hook.includes('ambiguidades_negocios_abertos'),
 )
 assert(
   'hook persiste/atualiza com_whatsapp_vinculos a cada mensagem privada',

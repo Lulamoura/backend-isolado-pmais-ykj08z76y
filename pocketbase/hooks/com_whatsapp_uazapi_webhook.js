@@ -217,21 +217,50 @@ routerAdd(
       records.push(record)
     }
 
-    function buscarNegociosAbertosParaVinculo(tx, contato, empresaId) {
-      var negocios = []
+    function buscarNegociosParaVinculo(tx, contato, empresaId) {
+      var negociosAbertos = []
+      var negociosFechados = []
       var contatoId = contato ? contato.id : ''
       var filters = []
-      if (contatoId)
-        filters.push("contato_principal_id='" + pbFilterEscape(contatoId) + "' && resultado=''")
-      if (empresaId) filters.push("empresa_id='" + pbFilterEscape(empresaId) + "' && resultado=''")
+      if (contatoId) filters.push("contato_principal_id='" + pbFilterEscape(contatoId) + "'")
+      if (empresaId) filters.push("empresa_id='" + pbFilterEscape(empresaId) + "'")
       for (var i = 0; i < filters.length; i++) {
         try {
           var found = tx.findRecordsByFilter('com_negocios', filters[i], '-updated', 50, 0)
-          for (var fi = 0; fi < found.length; fi++)
-            if (negocioAberto(found[fi])) addUniqueRecord(negocios, found[fi])
+          for (var fi = 0; fi < found.length; fi++) {
+            if (negocioAberto(found[fi])) addUniqueRecord(negociosAbertos, found[fi])
+            else addUniqueRecord(negociosFechados, found[fi])
+          }
         } catch (_) {}
       }
-      return negocios
+      return {
+        abertos: negociosAbertos,
+        fechados: negociosFechados,
+      }
+    }
+
+    function resumoNegocio(record) {
+      if (!record) return ''
+      var titulo = ''
+      try {
+        titulo = record.getString('titulo')
+      } catch (_) {}
+      var codigo = ''
+      try {
+        codigo = record.getString('codigo')
+      } catch (_) {}
+      var resultado = ''
+      try {
+        resultado = record.getString('resultado')
+      } catch (_) {}
+      var label = titulo || codigo || record.id
+      return record.id + '|' + label + '|resultado=' + (resultado || 'aberto')
+    }
+
+    function resumoNegocios(records) {
+      var out = []
+      for (var i = 0; i < records.length; i++) out.push(resumoNegocio(records[i]))
+      return out.join('; ')
     }
 
     function safeRecordString(tx, collectionName, recordId, field) {
@@ -266,19 +295,28 @@ routerAdd(
       var contatos = buscarContatosPorTelefone(tx, telefone)
       var contato = contatos.length === 1 ? contatos[0] : null
       var empresaId = contato ? contato.getString('empresa_id') : ''
-      var negocios = contato ? buscarNegociosAbertosParaVinculo(tx, contato, empresaId) : []
-      var negocio = negocios.length === 1 ? negocios[0] : null
+      var candidatos = contato
+        ? buscarNegociosParaVinculo(tx, contato, empresaId)
+        : { abertos: [], fechados: [] }
+      var negociosAbertos = candidatos.abertos || []
+      var negociosFechados = candidatos.fechados || []
+      var negocio = negociosAbertos.length === 1 ? negociosAbertos[0] : null
       var status = 'sem_correspondencia'
       var origemDecisao = 'sistema_sem_match'
-      if (contatos.length > 1 || negocios.length > 1) {
+      if (contatos.length > 1) {
         status = 'ambiguidade'
-        origemDecisao = 'sistema_ambiguidade'
+        origemDecisao = 'sistema_telefone_multiplos_contatos'
+      } else if (contato && negociosAbertos.length > 1) {
+        status = 'ambiguidade_negocio_aberto'
+        origemDecisao = 'sistema_multiplos_negocios_abertos_piloto_nexo_telegram'
       } else if (contato && negocio) {
         status = 'vinculado_automatico'
-        origemDecisao = 'sistema_telefone_negocio_unico'
+        origemDecisao = 'sistema_telefone_negocio_aberto_unico'
       } else if (contato) {
         status = 'pendente_confirmacao'
-        origemDecisao = 'sistema_contato_sem_negocio_unico'
+        origemDecisao = negociosFechados.length
+          ? 'sistema_sem_negocio_aberto_fechados_secundarios'
+          : 'sistema_contato_sem_negocio_aberto'
       }
 
       var vinculo = buscarVinculoPorChat(tx, data)
@@ -293,10 +331,20 @@ routerAdd(
       vinculo.set('negocio_id', negocio ? negocio.id : '')
       vinculo.set('status', status)
       vinculo.set('origem_decisao', origemDecisao)
-      vinculo.set(
-        'observacao',
-        'Vínculo sugerido pelo telefone do chat; confirmar quando houver ambiguidade.',
-      )
+      var observacao =
+        'Vínculo sugerido pelo telefone do chat. Negócio aberto tem prioridade sobre ganho/perdido.'
+      if (status === 'ambiguidade_negocio_aberto') {
+        observacao =
+          'PILOTO_NEXO_TELEGRAM: múltiplos negócios abertos para o mesmo contato/empresa. Operador=' +
+          (data.instanceName || data.owner || 'indefinido') +
+          '; negócios_abertos=' +
+          resumoNegocios(negociosAbertos)
+      } else if (negociosFechados.length) {
+        observacao +=
+          ' Negócios ganhos/perdidos encontrados apenas como referência secundária: ' +
+          resumoNegocios(negociosFechados)
+      }
+      vinculo.set('observacao', observacao)
       if (status === 'vinculado_automatico')
         vinculo.set('vinculado_em', data.messageAt || data.receivedAt)
       vinculo.set('last_message_at', data.messageAt || data.receivedAt)
@@ -312,6 +360,8 @@ routerAdd(
         empresaNome: safeRecordString(tx, 'com_empresas', empresaId, 'nome'),
         negocioId: negocio ? negocio.id : '',
         negocioTitulo: negocio ? negocio.getString('titulo') : '',
+        negociosAbertos: resumoNegocios(negociosAbertos),
+        negociosFechados: resumoNegocios(negociosFechados),
       }
     }
 
@@ -740,6 +790,7 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     midias_pendentes: 0,
     transcricoes_pendentes: 0,
     vinculos_pendentes: 0,
+    vinculos_ambiguos_negocio_aberto: 0,
   }
   try {
     counts.eventos_24h = $app.findRecordsByFilter(
@@ -780,11 +831,43 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
   try {
     counts.vinculos_pendentes = $app.findRecordsByFilter(
       'com_whatsapp_vinculos',
-      "status='pendente_confirmacao' || status='ambiguidade'",
+      "status='pendente_confirmacao' || status='ambiguidade' || status='ambiguidade_negocio_aberto'",
       '-created',
       500,
       0,
     ).length
+  } catch (_) {}
+
+  try {
+    counts.vinculos_ambiguos_negocio_aberto = $app.findRecordsByFilter(
+      'com_whatsapp_vinculos',
+      "status='ambiguidade_negocio_aberto'",
+      '-last_message_at',
+      500,
+      0,
+    ).length
+  } catch (_) {}
+
+  var ambiguidadesNegociosAbertos = []
+  try {
+    var ambiguos = $app.findRecordsByFilter(
+      'com_whatsapp_vinculos',
+      "status='ambiguidade_negocio_aberto'",
+      '-last_message_at',
+      10,
+      0,
+    )
+    for (var ai = 0; ai < ambiguos.length; ai++) {
+      ambiguidadesNegociosAbertos.push({
+        id: ambiguos[ai].id,
+        operador: ambiguos[ai].getString('instance_name') || ambiguos[ai].getString('owner'),
+        telefone: ambiguos[ai].getString('telefone'),
+        contato_id: ambiguos[ai].getString('contato_id'),
+        empresa_id: ambiguos[ai].getString('empresa_id'),
+        observacao: ambiguos[ai].getString('observacao'),
+        last_message_at: safeDate(ambiguos[ai], 'last_message_at'),
+      })
+    }
   } catch (_) {}
 
   var ultimoWebhook = firstRecord('com_whatsapp_eventos', '', '-received_at')
@@ -811,6 +894,7 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
       'vinculo_negocio_pendente',
     ],
     counts: counts,
+    ambiguidades_negocios_abertos: ambiguidadesNegociosAbertos,
     ultimo_webhook: recordSummary(ultimoWebhook, [
       'event_type',
       'instance_name',
