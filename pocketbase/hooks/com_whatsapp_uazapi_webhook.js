@@ -163,6 +163,154 @@ routerAdd(
       }
     }
 
+    function normalizePhone(value) {
+      var digits = asString(value).replace(/\D/g, '')
+      if (digits.length > 13 && digits.indexOf('55') === 0) digits = digits.substring(0, 13)
+      return digits
+    }
+
+    function telefoneFromChat(chatId, senderId) {
+      var source = cleanId(chatId || senderId || '', 160)
+      var beforeAt = source.split('@')[0]
+      return truncate(normalizePhone(beforeAt), 40)
+    }
+
+    function pbFilterEscape(value) {
+      return asString(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    }
+
+    function samePhone(a, b) {
+      var pa = normalizePhone(a)
+      var pb = normalizePhone(b)
+      if (!pa || !pb) return false
+      if (pa === pb) return true
+      if (pa.length >= 8 && pb.length >= 8) return pa.endsWith(pb) || pb.endsWith(pa)
+      return false
+    }
+
+    function buscarContatosPorTelefone(tx, telefone) {
+      var matches = []
+      if (!telefone) return matches
+      var contatos = []
+      try {
+        contatos = tx.findRecordsByFilter('com_contatos', "id != ''", '-updated', 500, 0)
+      } catch (_) {
+        return matches
+      }
+      for (var i = 0; i < contatos.length; i++) {
+        var record = contatos[i]
+        if (samePhone(record.getString('telefone'), telefone)) matches.push(record)
+      }
+      return matches
+    }
+
+    function negocioAberto(record) {
+      try {
+        if (record.getBool('inativo')) return false
+      } catch (_) {}
+      return !record.getString('resultado')
+    }
+
+    function addUniqueRecord(records, record) {
+      if (!record) return
+      for (var i = 0; i < records.length; i++) if (records[i].id === record.id) return
+      records.push(record)
+    }
+
+    function buscarNegociosAbertosParaVinculo(tx, contato, empresaId) {
+      var negocios = []
+      var contatoId = contato ? contato.id : ''
+      var filters = []
+      if (contatoId)
+        filters.push("contato_principal_id='" + pbFilterEscape(contatoId) + "' && resultado=''")
+      if (empresaId)
+        filters.push("empresa_id='" + pbFilterEscape(empresaId) + "' && resultado=''")
+      for (var i = 0; i < filters.length; i++) {
+        try {
+          var found = tx.findRecordsByFilter('com_negocios', filters[i], '-updated', 50, 0)
+          for (var fi = 0; fi < found.length; fi++) if (negocioAberto(found[fi])) addUniqueRecord(negocios, found[fi])
+        } catch (_) {}
+      }
+      return negocios
+    }
+
+    function safeRecordString(tx, collectionName, recordId, field) {
+      if (!recordId) return ''
+      try {
+        return tx.findRecordById(collectionName, recordId).getString(field)
+      } catch (_) {
+        return ''
+      }
+    }
+
+    function buscarVinculoPorChat(tx, data) {
+      try {
+        var filter =
+          "provider='uazapi' && instance_name='" +
+          pbFilterEscape(data.instanceName) +
+          "' && owner='" +
+          pbFilterEscape(data.owner) +
+          "' && chat_id='" +
+          pbFilterEscape(data.chatId) +
+          "'"
+        var records = tx.findRecordsByFilter('com_whatsapp_vinculos', filter, '-updated', 1, 0)
+        return records && records.length ? records[0] : null
+      } catch (_) {
+        return null
+      }
+    }
+
+    function resolverVinculoComercial(tx, data) {
+      if (data.isGroup || !data.chatId) return null
+      var telefone = telefoneFromChat(data.chatId, data.senderId)
+      var contatos = buscarContatosPorTelefone(tx, telefone)
+      var contato = contatos.length === 1 ? contatos[0] : null
+      var empresaId = contato ? contato.getString('empresa_id') : ''
+      var negocios = contato ? buscarNegociosAbertosParaVinculo(tx, contato, empresaId) : []
+      var negocio = negocios.length === 1 ? negocios[0] : null
+      var status = 'sem_correspondencia'
+      var origemDecisao = 'sistema_sem_match'
+      if (contatos.length > 1 || negocios.length > 1) {
+        status = 'ambiguidade'
+        origemDecisao = 'sistema_ambiguidade'
+      } else if (contato && negocio) {
+        status = 'vinculado_automatico'
+        origemDecisao = 'sistema_telefone_negocio_unico'
+      } else if (contato) {
+        status = 'pendente_confirmacao'
+        origemDecisao = 'sistema_contato_sem_negocio_unico'
+      }
+
+      var vinculo = buscarVinculoPorChat(tx, data)
+      if (!vinculo) vinculo = new Record(tx.findCollectionByNameOrId('com_whatsapp_vinculos'))
+      vinculo.set('provider', 'uazapi')
+      vinculo.set('instance_name', data.instanceName)
+      vinculo.set('owner', data.owner)
+      vinculo.set('chat_id', data.chatId)
+      vinculo.set('telefone', telefone)
+      vinculo.set('contato_id', contato ? contato.id : '')
+      vinculo.set('empresa_id', empresaId)
+      vinculo.set('negocio_id', negocio ? negocio.id : '')
+      vinculo.set('status', status)
+      vinculo.set('origem_decisao', origemDecisao)
+      vinculo.set('observacao', 'Vínculo sugerido pelo telefone do chat; confirmar quando houver ambiguidade.')
+      if (status === 'vinculado_automatico') vinculo.set('vinculado_em', data.messageAt || data.receivedAt)
+      vinculo.set('last_message_at', data.messageAt || data.receivedAt)
+      tx.save(vinculo)
+
+      return {
+        recordId: vinculo.id,
+        telefone: telefone,
+        status: status,
+        contatoId: contato ? contato.id : '',
+        contatoNome: contato ? contato.getString('nome') : '',
+        empresaId: empresaId,
+        empresaNome: safeRecordString(tx, 'com_empresas', empresaId, 'nome'),
+        negocioId: negocio ? negocio.id : '',
+        negocioTitulo: negocio ? negocio.getString('titulo') : '',
+      }
+    }
+
     function saveEvent(tx, data) {
       var existing = findExisting(
         tx,
@@ -326,9 +474,24 @@ routerAdd(
       record.set('fonte', 'whatsapp_uazapi')
       record.set('canal', 'WhatsApp Comercial')
       record.set('origem', data.fromMe ? 'operadora_comercial' : 'cliente_ou_contato')
-      record.set('contato_nome', data.senderName)
-      record.set('empresa_nome', '')
-      record.set('negocio_ref', '')
+      record.set(
+        'contato_nome',
+        data.vinculoComercial && data.vinculoComercial.contatoNome
+          ? data.vinculoComercial.contatoNome
+          : data.senderName,
+      )
+      record.set(
+        'empresa_nome',
+        data.vinculoComercial && data.vinculoComercial.empresaNome
+          ? data.vinculoComercial.empresaNome
+          : '',
+      )
+      record.set(
+        'negocio_ref',
+        data.vinculoComercial && data.vinculoComercial.negocioId
+          ? data.vinculoComercial.negocioTitulo + ' (' + data.vinculoComercial.negocioId + ')'
+          : '',
+      )
       record.set('responsavel', data.owner || data.instanceName)
       record.set('tipo_evento', data.mediaType ? 'mensagem_midia' : 'mensagem')
       record.set(
@@ -441,7 +604,7 @@ routerAdd(
             mediaType: mediaType,
             texto: texto,
             eventRecordId: eventResult.record.id,
-            messageAt: dateFromMillisOrSeconds(message.messageTimestamp),
+            messageAt: dateFromMillisOrSeconds(message.messageTimestamp || message.timestamp),
             receivedAt: receivedAt,
           })
           if (messageRecord) result.message_record_id = messageRecord.id
@@ -466,6 +629,16 @@ routerAdd(
             receivedAt: receivedAt,
           })
           if (mediaRecord) result.media_record_id = mediaRecord.id
+          var messageAt = dateFromMillisOrSeconds(message.messageTimestamp || message.timestamp)
+          var vinculoComercial = resolverVinculoComercial(tx, {
+            instanceName: instanceName,
+            owner: owner,
+            chatId: chatId,
+            senderId: senderId,
+            isGroup: isGroup,
+            messageAt: messageAt,
+            receivedAt: receivedAt,
+          })
           criarLedgerComercial(tx, {
             instanceName: instanceName,
             owner: owner,
@@ -477,7 +650,8 @@ routerAdd(
             messageType: messageType,
             mediaType: mediaType,
             texto: texto,
-            messageAt: dateFromMillisOrSeconds(message.messageTimestamp),
+            vinculoComercial: vinculoComercial,
+            messageAt: messageAt,
             receivedAt: receivedAt,
           })
         }
