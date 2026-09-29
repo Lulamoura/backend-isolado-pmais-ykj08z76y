@@ -2844,17 +2844,17 @@ routerAdd(
       pacoteVivoResponsavelId,
       ator,
     )
-    var ipcpPayload =
-      snapshotAtualDoDia && payload.ipcp ? payload.ipcp : pacoteVivo.ipcp || payload.ipcp || {}
-    var resumoPayload =
-      snapshotAtualDoDia && payload.resumo_nexo
-        ? payload.resumo_nexo
-        : pacoteVivo.resumo_nexo || payload.resumo_nexo || {}
+    var usarSnapshotComoLeituraAtual = !!snapshot && !!payload.ipcp
+    var ipcpPayload = usarSnapshotComoLeituraAtual ? payload.ipcp : pacoteVivo.ipcp || {}
+    var resumoPayload = usarSnapshotComoLeituraAtual
+      ? payload.resumo_nexo || {}
+      : pacoteVivo.resumo_nexo || {}
     var guardrailsPayload = payload.guardrails || {}
 
     var ipcpTotal = Number(ipcpPayload.total || 0)
     var formula = 'ipcp_v0_5_formula_gerencial'
-    var dataReferencia = data
+    var dataReferencia =
+      usarSnapshotComoLeituraAtual && snapshotDataReferencia ? snapshotDataReferencia : data
 
     function blocoLabel(bloco) {
       if (bloco === 'resultado_comercial') return 'Resultado comercial'
@@ -3104,16 +3104,16 @@ routerAdd(
     var calculadoEm = snapshot
       ? snapshot.getString('updated') || snapshot.getString('created') || null
       : null
-    var anteriorComparavel = snapshotAtualDoDia
+    var anteriorComparavel = usarSnapshotComoLeituraAtual
       ? snapshotAnteriorComparavel(snapshot, snapshots)
-      : snapshotBaseAnteriorQuandoAtualAoVivo(snapshot)
+      : null
     pacoteVivo.evolucao = montarEvolucaoIpcp(ipcpPayload, anteriorComparavel)
-    var negociosAtencaoResposta =
-      snapshotAtualDoDia && payload.negocios_atencao
-        ? payload.negocios_atencao || []
-        : pacoteVivo.negocios_atencao || []
-    var evidenciasResposta =
-      snapshotAtualDoDia && payload.evidencias ? payload.evidencias : pacoteVivo.evidencias
+    var negociosAtencaoResposta = usarSnapshotComoLeituraAtual
+      ? payload.negocios_atencao || []
+      : pacoteVivo.negocios_atencao || []
+    var evidenciasResposta = usarSnapshotComoLeituraAtual
+      ? payload.evidencias
+      : pacoteVivo.evidencias
 
     return e.json(200, {
       ok: true,
@@ -3133,7 +3133,8 @@ routerAdd(
         total_lido: snapshots.length,
         limite_leitura: 5,
         pacote_completo: true,
-        calculado_ao_vivo: !snapshotAtualDoDia,
+        calculado_ao_vivo: !usarSnapshotComoLeituraAtual,
+        snapshot_usado_como_leitura_atual: usarSnapshotComoLeituraAtual,
         calculado_em: calculadoEm,
       },
       data_referencia: dataReferencia,
