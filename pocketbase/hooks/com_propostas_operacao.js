@@ -2486,7 +2486,7 @@
             'x-pmais-signature': signature,
           },
           body: gatewayBody,
-          timeout: 45,
+          timeout: 120,
         })
       }
 
@@ -2507,7 +2507,7 @@
             'x-pmais-skip-bridge-secret': pmaisSkipBridgeSecret,
           },
           body: gatewayBody,
-          timeout: 45,
+          timeout: 120,
         })
       }
 

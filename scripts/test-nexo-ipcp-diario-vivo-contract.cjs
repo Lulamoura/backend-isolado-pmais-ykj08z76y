@@ -155,8 +155,8 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /calculado_ao_vivo:\s*!snapshotAtualDoDia/,
-  'rota deve diferenciar cálculo ao vivo de snapshot diário para não rotular consulta como Base diária',
+  /calculado_ao_vivo:\s*!usarSnapshotComoLeituraAtual/,
+  'rota deve diferenciar cálculo ao vivo de leitura diária baseada em snapshot para não rotular consulta como Base diária',
 )
 assert.match(
   routeSource,
@@ -175,8 +175,8 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /var negociosAtencaoResposta =[\s\S]{0,220}snapshotAtualDoDia && payload\.negocios_atencao[\s\S]{0,220}pacoteVivo\.negocios_atencao/,
-  'rota deve usar negócios do snapshot diário quando há snapshot do dia e leitura viva apenas quando o atual é ao vivo',
+  /var negociosAtencaoResposta = usarSnapshotComoLeituraAtual[\s\S]{0,180}payload\.negocios_atencao[\s\S]{0,180}pacoteVivo\.negocios_atencao/,
+  'rota deve usar negócios do snapshot exibido e leitura viva apenas quando não houver snapshot como leitura atual',
 )
 assert.match(
   routeSource,
@@ -185,8 +185,13 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /snapshotBaseAnteriorQuandoAtualAoVivo\(snapshot\)/,
-  'quando o atual ainda é calculado ao vivo, evolução deve usar o último snapshot como Anterior em vez de primeira leitura',
+  /usarSnapshotComoLeituraAtual = !!snapshot && !!payload\.ipcp/,
+  'quando existir snapshot, ele deve ser a leitura Atual exibida, mesmo que ainda não seja do dia corrente',
+)
+assert.match(
+  routeSource,
+  /var anteriorComparavel = usarSnapshotComoLeituraAtual[\s\S]{0,120}snapshotAnteriorComparavel\(snapshot, snapshots\)[\s\S]{0,80}: null/,
+  'quando existe snapshot, evolução deve comparar o snapshot atual exibido contra o snapshot anterior, não contra ele mesmo',
 )
 assert.match(
   routeSource,

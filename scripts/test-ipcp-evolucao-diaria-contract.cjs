@@ -16,8 +16,9 @@ assert(
   'backend deve comparar com snapshot anterior do mesmo escopo quando há snapshot do dia',
 )
 assert(
-  hook.includes('snapshotBaseAnteriorQuandoAtualAoVivo(snapshot)'),
-  'backend deve usar o snapshot existente como Anterior quando o Atual ainda é calculado ao vivo',
+  hook.includes('usarSnapshotComoLeituraAtual') &&
+    hook.includes('snapshotAnteriorComparavel(snapshot, snapshots)'),
+  'backend deve comparar a leitura diária exibida contra o snapshot anterior, mesmo antes do processamento do dia corrente',
 )
 assert(hook.includes('variacao_total'), 'backend deve retornar variação total')
 assert(hook.includes('data_anterior'), 'backend deve retornar data anterior comparada')
