@@ -77,6 +77,21 @@ assert(
     page.includes('Sinais comerciais iniciais'),
 )
 assert(
+  'página humaniza datas e remove exposição de campos técnicos',
+  page.includes('formatarDataHoraRecife') &&
+    page.includes('horário de Recife') &&
+    page.includes('ResumoOperacional') &&
+    page.includes('com negócio identificado') &&
+    page.includes('aguardando vínculo') &&
+    !page.includes('ResumoTecnico') &&
+    !page.includes('Object.entries(dados)') &&
+    !page.includes("key.replace(/_/g, ' ')"),
+)
+assert(
+  'página filtra sondas técnicas da lista de operadores',
+  page.includes('ehOperadorComercial') && page.includes('operadoresComerciais'),
+)
+assert(
   'página não expõe roteiro de projeto no frontend',
   !page.includes('Próximas etapas desta fase') && !page.includes('Itens que podem avançar'),
 )
