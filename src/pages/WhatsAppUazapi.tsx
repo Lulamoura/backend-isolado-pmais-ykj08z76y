@@ -124,12 +124,24 @@ export default function WhatsAppUazapi() {
         </Alert>
       )}
 
+      {status && status.monitoramento_ok !== true && (
+        <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Dados parciais no monitoramento</AlertTitle>
+          <AlertDescription>
+            Uma parte da captura não pôde ser conferida agora. Os números abaixo não devem ser
+            interpretados como ausência de conversas. Atualize novamente ou acione a verificação da
+            integração.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Eventos hoje</CardDescription>
             <CardTitle className="text-3xl">
-              {loading ? '...' : (counts?.eventos_24h ?? 0)}
+              {loading ? '...' : (counts?.eventos_hoje ?? counts?.eventos_24h ?? 0)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -137,7 +149,7 @@ export default function WhatsAppUazapi() {
           <CardHeader className="pb-2">
             <CardDescription>Mensagens hoje</CardDescription>
             <CardTitle className="text-3xl">
-              {loading ? '...' : (counts?.mensagens_24h ?? 0)}
+              {loading ? '...' : (counts?.mensagens_hoje ?? counts?.mensagens_24h ?? 0)}
             </CardTitle>
           </CardHeader>
         </Card>
