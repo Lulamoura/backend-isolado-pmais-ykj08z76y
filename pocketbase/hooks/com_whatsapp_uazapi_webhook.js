@@ -1,6 +1,7 @@
 // PMais WhatsApp/Uazapi — captura passiva de mensagens comerciais.
 // Endpoint definitivo: /backend/v1/integracao/whatsapp/uazapi/{webhookSecret}/webhook
 // Primeira fase: ingestão, sanitização, deduplicação e fila lógica de mídia.
+// Runtime contract: monitoramento_ok, fontes_indisponiveis, eventos_hoje, mensagens_hoje.
 
 routerAdd(
   'POST',
