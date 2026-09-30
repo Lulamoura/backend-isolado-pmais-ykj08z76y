@@ -43,6 +43,16 @@ assert.match(
 )
 assert.match(
   hook,
+  /function nexoChamarPMaisAgentGateway\(\)[\s\S]{0,1200}timeout:\s*120/,
+  'chamada principal ao Gateway deve aguardar o orçamento completo de geração sem encerrar em 45 segundos',
+)
+assert.match(
+  hook,
+  /function nexoChamarPMaisSkipBridge\(\)[\s\S]{0,900}timeout:\s*120/,
+  'ponte segura deve usar o mesmo orçamento completo de geração',
+)
+assert.match(
+  hook,
   /\/v1\/comercial\/skip\/nexo\/ajuda-negocio/,
   'backend deve usar endpoint governado do PMais Agent Gateway compatível com SKIP',
 )
