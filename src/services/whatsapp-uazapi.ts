@@ -42,6 +42,8 @@ export type WhatsAppUazapiQualidadeBase = {
 
 export type WhatsAppUazapiResumo = {
   ok: boolean
+  monitoramento_ok?: boolean
+  fontes_indisponiveis?: string[]
   provider: string
   endpoint: string
   secret_configured: boolean
@@ -55,8 +57,10 @@ export type WhatsAppUazapiResumo = {
   }
   proximas_etapas?: string[]
   counts: {
-    eventos_24h: number
-    mensagens_24h: number
+    eventos_hoje?: number
+    mensagens_hoje?: number
+    eventos_24h?: number
+    mensagens_24h?: number
     midias_pendentes: number
     transcricoes_pendentes?: number
     vinculos_pendentes?: number

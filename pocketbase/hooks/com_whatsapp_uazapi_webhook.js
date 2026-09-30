@@ -282,7 +282,13 @@ routerAdd(
           "' && chat_id='" +
           pbFilterEscape(data.chatId) +
           "'"
-        var records = tx.findRecordsByFilter('com_whatsapp_vinculos', filter, '-updated', 1, 0)
+        var records = tx.findRecordsByFilter(
+          'com_whatsapp_vinculos',
+          filter,
+          '-last_message_at',
+          1,
+          0,
+        )
         return records && records.length ? records[0] : null
       } catch (_) {
         return null
@@ -464,6 +470,51 @@ routerAdd(
       return 'historico'
     }
 
+    function garantirColecaoVinculos(app) {
+      try {
+        return app.findCollectionByNameOrId('com_whatsapp_vinculos')
+      } catch (_) {}
+      var collection = new Collection({
+        type: 'base',
+        name: 'com_whatsapp_vinculos',
+        createRule: null,
+        updateRule: null,
+        deleteRule: null,
+        listRule:
+          "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'integracao')",
+        viewRule:
+          "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'integracao')",
+      })
+      collection.fields.add(new TextField({ name: 'provider', required: true, max: 40 }))
+      collection.fields.add(new TextField({ name: 'instance_name', required: false, max: 120 }))
+      collection.fields.add(new TextField({ name: 'owner', required: false, max: 80 }))
+      collection.fields.add(new TextField({ name: 'chat_id', required: true, max: 160 }))
+      collection.fields.add(new TextField({ name: 'telefone', required: false, max: 40 }))
+      collection.fields.add(new TextField({ name: 'contato_id', required: false, max: 80 }))
+      collection.fields.add(new TextField({ name: 'empresa_id', required: false, max: 80 }))
+      collection.fields.add(new TextField({ name: 'negocio_id', required: false, max: 80 }))
+      collection.fields.add(new TextField({ name: 'status', required: true, max: 60 }))
+      collection.fields.add(new TextField({ name: 'origem_decisao', required: false, max: 80 }))
+      collection.fields.add(new TextField({ name: 'observacao', required: false, max: 1200 }))
+      collection.fields.add(new DateField({ name: 'vinculado_em', required: false }))
+      collection.fields.add(new DateField({ name: 'last_message_at', required: false }))
+      collection.indexes = [
+        'CREATE UNIQUE INDEX idx_com_whatsapp_vinculos_chat ON com_whatsapp_vinculos (provider, instance_name, owner, chat_id)',
+        'CREATE INDEX idx_com_whatsapp_vinculos_status ON com_whatsapp_vinculos (status)',
+        'CREATE INDEX idx_com_whatsapp_vinculos_negocio ON com_whatsapp_vinculos (negocio_id)',
+      ]
+      try {
+        app.save(collection)
+        return collection
+      } catch (err) {
+        try {
+          return app.findCollectionByNameOrId('com_whatsapp_vinculos')
+        } catch (_) {
+          throw err
+        }
+      }
+    }
+
     function garantirColecaoLedgerComercial(app) {
       try {
         return app.findCollectionByNameOrId('com_ledger_comercial')
@@ -625,7 +676,10 @@ routerAdd(
     var result = { replay: false, event_id: '', message_record_id: '', media_record_id: '' }
 
     try {
-      if (eventType === 'messages' && messageId) garantirColecaoLedgerComercial($app)
+      if (eventType === 'messages' && messageId) {
+        garantirColecaoVinculos($app)
+        garantirColecaoLedgerComercial($app)
+      }
       $app.runInTransaction(function (tx) {
         var eventResult = saveEvent(tx, {
           instanceName: instanceName,
@@ -736,12 +790,72 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     return String(value)
   }
 
-  function firstRecord(collectionName, filter, sort) {
+  function inicioDiaRecifeUtc(agora) {
+    var instante = agora || new Date()
+    var horarioRecife = new Date(instante.getTime() - 3 * 60 * 60 * 1000)
+    var inicioUtc = new Date(
+      Date.UTC(
+        horarioRecife.getUTCFullYear(),
+        horarioRecife.getUTCMonth(),
+        horarioRecife.getUTCDate(),
+        3,
+        0,
+        0,
+        0,
+      ),
+    )
+    return inicioUtc.toISOString().replace('T', ' ')
+  }
+
+  var falhasMonitoramento = []
+
+  function registrarFalha(codigo) {
+    if (falhasMonitoramento.indexOf(codigo) === -1) falhasMonitoramento.push(codigo)
+  }
+
+  function firstRecord(collectionName, filter, sort, failureCode) {
     try {
       var records = $app.findRecordsByFilter(collectionName, filter || "id != ''", sort, 1, 0)
       return records && records.length ? records[0] : null
     } catch (_) {
+      registrarFalha(failureCode || 'ultima_leitura')
       return null
+    }
+  }
+
+  function carregarRegistros(collectionName, filter, sort) {
+    var out = []
+    var offset = 0
+    var limite = 500
+    while (true) {
+      var records = $app.findRecordsByFilter(
+        collectionName,
+        filter || "id != ''",
+        sort,
+        limite,
+        offset,
+      )
+      for (var i = 0; i < records.length; i++) out.push(records[i])
+      if (records.length < limite) return out
+      offset += records.length
+    }
+  }
+
+  function contarRegistros(collectionName, filter, sort) {
+    var total = 0
+    var offset = 0
+    var limite = 500
+    while (true) {
+      var records = $app.findRecordsByFilter(
+        collectionName,
+        filter || "id != ''",
+        sort,
+        limite,
+        offset,
+      )
+      total += records.length
+      if (records.length < limite) return total
+      offset += records.length
     }
   }
 
@@ -838,32 +952,28 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     var vinculos = []
     var midiasPendentes = []
     try {
-      mensagens = $app.findRecordsByFilter(
+      mensagens = carregarRegistros(
         'com_whatsapp_mensagens',
         'is_group = false',
-        '-message_at,-created',
-        500,
-        0,
+        '-message_at,-received_at,-id',
       )
-    } catch (_) {}
+    } catch (_) {
+      registrarFalha('mensagens_qualidade')
+    }
     try {
-      vinculos = $app.findRecordsByFilter(
-        'com_whatsapp_vinculos',
-        "id != ''",
-        '-last_message_at,-updated',
-        500,
-        0,
-      )
-    } catch (_) {}
+      vinculos = carregarRegistros('com_whatsapp_vinculos', "id != ''", '-last_message_at,-id')
+    } catch (_) {
+      registrarFalha('vinculos_qualidade')
+    }
     try {
-      midiasPendentes = $app.findRecordsByFilter(
+      midiasPendentes = carregarRegistros(
         'com_whatsapp_midias',
         "download_status='pendente' || transcricao_status='pendente_transcricao'",
-        '-received_at,-created',
-        500,
-        0,
+        '-received_at,-id',
       )
-    } catch (_) {}
+    } catch (_) {
+      registrarFalha('midias_qualidade')
+    }
 
     var vinculoPorChat = {}
     var totalVinculado = 0
@@ -904,7 +1014,7 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
         ultima_interacao: '',
       })
       if (!itemOperador.ultima_interacao)
-        itemOperador.ultima_interacao = safeDate(msg, 'message_at') || safeDate(msg, 'created')
+        itemOperador.ultima_interacao = safeDate(msg, 'message_at') || safeDate(msg, 'received_at')
       var vinc = vinculoPorChat[msg.getString('chat_id') || '']
       if (
         vinc &&
@@ -917,7 +1027,9 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
         var itemNegocio = pushTop(porNegocio, resumo.negocio_id, resumo.negocio_label, resumo)
         itemNegocio.operador = operador
         itemNegocio.ultima_interacao =
-          itemNegocio.ultima_interacao || safeDate(msg, 'message_at') || safeDate(msg, 'created')
+          itemNegocio.ultima_interacao ||
+          safeDate(msg, 'message_at') ||
+          safeDate(msg, 'received_at')
       } else if (
         vinc &&
         (vinc.getString('status') === 'ambiguidade' ||
@@ -951,7 +1063,7 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     }
 
     return {
-      periodo: 'últimos registros disponíveis',
+      periodo: 'base completa disponível',
       total_mensagens_lidas: mensagens.length,
       total_vinculos_lidos: vinculos.length,
       mensagens_vinculadas_negocio: mensagensVinculadas,
@@ -981,7 +1093,11 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     return e.forbiddenError('Perfil comercial necessario')
 
   var secretConfigured = !!asString($secrets.get('UAZAPI_WEBHOOK_SECRET') || '')
+  var inicioHojeRecife = inicioDiaRecifeUtc(new Date())
+  var filtroHojeRecife = "received_at >= '" + inicioHojeRecife + "'"
   var counts = {
+    eventos_hoje: 0,
+    mensagens_hoje: 0,
     eventos_24h: 0,
     mensagens_24h: 0,
     midias_pendentes: 0,
@@ -990,60 +1106,62 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     vinculos_ambiguos_negocio_aberto: 0,
   }
   try {
-    counts.eventos_24h = $app.findRecordsByFilter(
+    counts.eventos_hoje = contarRegistros(
       'com_whatsapp_eventos',
-      'created >= @todayStart',
-      '-created',
-      500,
-      0,
-    ).length
-  } catch (_) {}
+      filtroHojeRecife,
+      '-received_at,-id',
+    )
+    counts.eventos_24h = counts.eventos_hoje
+  } catch (_) {
+    registrarFalha('eventos_hoje')
+  }
   try {
-    counts.mensagens_24h = $app.findRecordsByFilter(
+    counts.mensagens_hoje = contarRegistros(
       'com_whatsapp_mensagens',
-      'created >= @todayStart',
-      '-created',
-      500,
-      0,
-    ).length
-  } catch (_) {}
+      filtroHojeRecife,
+      '-received_at,-id',
+    )
+    counts.mensagens_24h = counts.mensagens_hoje
+  } catch (_) {
+    registrarFalha('mensagens_hoje')
+  }
   try {
-    counts.midias_pendentes = $app.findRecordsByFilter(
+    counts.midias_pendentes = contarRegistros(
       'com_whatsapp_midias',
       "download_status='pendente'",
-      '-created',
-      500,
-      0,
-    ).length
-  } catch (_) {}
+      '-received_at,-id',
+    )
+  } catch (_) {
+    registrarFalha('midias_pendentes')
+  }
   try {
-    counts.transcricoes_pendentes = $app.findRecordsByFilter(
+    counts.transcricoes_pendentes = contarRegistros(
       'com_whatsapp_midias',
       "transcricao_status='pendente_transcricao'",
-      '-created',
-      500,
-      0,
-    ).length
-  } catch (_) {}
+      '-received_at,-id',
+    )
+  } catch (_) {
+    registrarFalha('transcricoes_pendentes')
+  }
   try {
-    counts.vinculos_pendentes = $app.findRecordsByFilter(
+    counts.vinculos_pendentes = contarRegistros(
       'com_whatsapp_vinculos',
       "status='pendente_confirmacao' || status='ambiguidade' || status='ambiguidade_negocio_aberto'",
-      '-created',
-      500,
-      0,
-    ).length
-  } catch (_) {}
+      '-last_message_at,-id',
+    )
+  } catch (_) {
+    registrarFalha('vinculos_pendentes')
+  }
 
   try {
-    counts.vinculos_ambiguos_negocio_aberto = $app.findRecordsByFilter(
+    counts.vinculos_ambiguos_negocio_aberto = contarRegistros(
       'com_whatsapp_vinculos',
       "status='ambiguidade_negocio_aberto'",
-      '-last_message_at',
-      500,
-      0,
-    ).length
-  } catch (_) {}
+      '-last_message_at,-id',
+    )
+  } catch (_) {
+    registrarFalha('vinculos_ambiguos')
+  }
 
   var ambiguidadesNegociosAbertos = []
   try {
@@ -1065,14 +1183,19 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
         last_message_at: safeDate(ambiguos[ai], 'last_message_at'),
       })
     }
-  } catch (_) {}
+  } catch (_) {
+    registrarFalha('detalhes_ambiguidades')
+  }
 
-  var ultimoWebhook = firstRecord('com_whatsapp_eventos', '', '-received_at')
-  var ultimaMensagem = firstRecord('com_whatsapp_mensagens', '', '-received_at')
-  var ultimaMidia = firstRecord('com_whatsapp_midias', '', '-received_at')
+  var ultimoWebhook = firstRecord('com_whatsapp_eventos', '', '-received_at', 'ultimo_webhook')
+  var ultimaMensagem = firstRecord('com_whatsapp_mensagens', '', '-received_at', 'ultima_mensagem')
+  var ultimaMidia = firstRecord('com_whatsapp_midias', '', '-received_at', 'ultima_midia')
+  var qualidadeBase = calcularQualidadeBase()
 
   return e.json(200, {
     ok: true,
+    monitoramento_ok: falhasMonitoramento.length === 0,
+    fontes_indisponiveis: falhasMonitoramento,
     provider: 'uazapi',
     endpoint: '/backend/v1/integracao/whatsapp/uazapi/[SEGREDO]/webhook',
     secret_configured: secretConfigured,
@@ -1091,7 +1214,7 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
       'vinculo_negocio_pendente',
     ],
     counts: counts,
-    qualidade_base: calcularQualidadeBase(),
+    qualidade_base: qualidadeBase,
     ambiguidades_negocios_abertos: ambiguidadesNegociosAbertos,
     ultimo_webhook: recordSummary(ultimoWebhook, [
       'event_type',
