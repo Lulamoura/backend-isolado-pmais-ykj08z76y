@@ -296,6 +296,44 @@ routerAdd(
       }
     }
 
+    function negocioIdsDoVinculo(vinculo) {
+      var raw = []
+      try {
+        raw = vinculo.get('negocio_ids') || []
+      } catch (_) {}
+      if (typeof raw === 'string') {
+        try {
+          raw = JSON.parse(raw)
+        } catch (_) {
+          raw = []
+        }
+      }
+      if (!Array.isArray(raw)) return []
+      var ids = []
+      var vistos = {}
+      for (var i = 0; i < raw.length; i++) {
+        var id = String(raw[i] || '').trim()
+        if (id && !vistos[id]) {
+          vistos[id] = true
+          ids.push(id)
+        }
+      }
+      return ids
+    }
+
+    function resumoNegociosPorIds(tx, ids) {
+      var out = []
+      for (var i = 0; i < ids.length; i++) {
+        try {
+          var negocio = tx.findRecordById('com_negocios', ids[i])
+          out.push((negocio.getString('titulo') || ids[i]) + ' (' + ids[i] + ')')
+        } catch (_) {
+          out.push(ids[i])
+        }
+      }
+      return out.join('; ')
+    }
+
     function resolverVinculoComercial(tx, data) {
       if (data.isGroup || !data.chatId) return null
       var telefone = telefoneFromChat(data.chatId, data.senderId)
@@ -327,6 +365,29 @@ routerAdd(
       }
 
       var vinculo = buscarVinculoPorChat(tx, data)
+      var negocioIdsExistentes = vinculo ? negocioIdsDoVinculo(vinculo) : []
+      var statusExistente = vinculo ? vinculo.getString('status') : ''
+      if (statusExistente === 'vinculado_multiplo' && negocioIdsExistentes.length > 1) {
+        var contatoIdPreservado = vinculo.getString('contato_id') || ''
+        var empresaIdPreservado = vinculo.getString('empresa_id') || ''
+        vinculo.set('last_message_at', data.messageAt || data.receivedAt)
+        tx.save(vinculo)
+        return {
+          recordId: vinculo.id,
+          telefone: vinculo.getString('telefone') || telefone,
+          status: statusExistente,
+          contatoId: contatoIdPreservado,
+          contatoNome: safeRecordString(tx, 'com_contatos', contatoIdPreservado, 'nome'),
+          empresaId: empresaIdPreservado,
+          empresaNome: safeRecordString(tx, 'com_empresas', empresaIdPreservado, 'nome'),
+          negocioId: '',
+          negocioTitulo: '',
+          negocioIds: negocioIdsExistentes,
+          negociosResumo: resumoNegociosPorIds(tx, negocioIdsExistentes),
+          negociosAbertos: resumoNegocios(negociosAbertos),
+          negociosFechados: resumoNegocios(negociosFechados),
+        }
+      }
       if (!vinculo) vinculo = new Record(tx.findCollectionByNameOrId('com_whatsapp_vinculos'))
       vinculo.set('provider', 'uazapi')
       vinculo.set('instance_name', data.instanceName)
@@ -336,6 +397,7 @@ routerAdd(
       vinculo.set('contato_id', contato ? contato.id : '')
       vinculo.set('empresa_id', empresaId)
       vinculo.set('negocio_id', negocio ? negocio.id : '')
+      vinculo.set('negocio_ids', negocio ? [negocio.id] : [])
       vinculo.set('status', status)
       vinculo.set('origem_decisao', origemDecisao)
       var observacao =
@@ -367,6 +429,8 @@ routerAdd(
         empresaNome: safeRecordString(tx, 'com_empresas', empresaId, 'nome'),
         negocioId: negocio ? negocio.id : '',
         negocioTitulo: negocio ? negocio.getString('titulo') : '',
+        negocioIds: negocio ? [negocio.id] : [],
+        negociosResumo: negocio ? resumoNegociosPorIds(tx, [negocio.id]) : '',
         negociosAbertos: resumoNegocios(negociosAbertos),
         negociosFechados: resumoNegocios(negociosFechados),
       }
@@ -472,9 +536,19 @@ routerAdd(
     }
 
     function garantirColecaoVinculos(app) {
+      var existente = null
       try {
-        return app.findCollectionByNameOrId('com_whatsapp_vinculos')
+        existente = app.findCollectionByNameOrId('com_whatsapp_vinculos')
       } catch (_) {}
+      if (existente) {
+        if (!existente.fields.getByName('negocio_ids')) {
+          existente.fields.add(
+            new JSONField({ name: 'negocio_ids', required: false, maxSize: 2000 }),
+          )
+          app.save(existente)
+        }
+        return existente
+      }
       var collection = new Collection({
         type: 'base',
         name: 'com_whatsapp_vinculos',
@@ -494,6 +568,7 @@ routerAdd(
       collection.fields.add(new TextField({ name: 'contato_id', required: false, max: 80 }))
       collection.fields.add(new TextField({ name: 'empresa_id', required: false, max: 80 }))
       collection.fields.add(new TextField({ name: 'negocio_id', required: false, max: 80 }))
+      collection.fields.add(new JSONField({ name: 'negocio_ids', required: false, maxSize: 2000 }))
       collection.fields.add(new TextField({ name: 'status', required: true, max: 60 }))
       collection.fields.add(new TextField({ name: 'origem_decisao', required: false, max: 80 }))
       collection.fields.add(new TextField({ name: 'observacao', required: false, max: 1200 }))
@@ -592,12 +667,18 @@ routerAdd(
           ? data.vinculoComercial.empresaNome
           : '',
       )
-      record.set(
-        'negocio_ref',
-        data.vinculoComercial && data.vinculoComercial.negocioId
-          ? data.vinculoComercial.negocioTitulo + ' (' + data.vinculoComercial.negocioId + ')'
-          : '',
-      )
+      var negocioRef = ''
+      if (
+        data.vinculoComercial &&
+        Array.isArray(data.vinculoComercial.negocioIds) &&
+        data.vinculoComercial.negocioIds.length
+      ) {
+        negocioRef = resumoNegociosPorIds(tx, data.vinculoComercial.negocioIds)
+      } else if (data.vinculoComercial && data.vinculoComercial.negocioId) {
+        negocioRef =
+          data.vinculoComercial.negocioTitulo + ' (' + data.vinculoComercial.negocioId + ')'
+      }
+      record.set('negocio_ref', truncate(negocioRef, 240))
       record.set('responsavel', data.owner || data.instanceName)
       record.set('tipo_evento', data.mediaType ? 'mensagem_midia' : 'mensagem')
       record.set(
@@ -698,6 +779,7 @@ routerAdd(
         })
         result.replay = eventResult.replay
         result.event_id = eventResult.record.id
+        if (eventResult.replay) return
         if (eventType === 'messages' && messageId) {
           var messageRecord = upsertMessage(tx, {
             instanceName: instanceName,
@@ -789,6 +871,43 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
   function asString(value) {
     if (value === null || value === undefined) return ''
     return String(value)
+  }
+
+  function negocioIdsDoVinculo(vinculo) {
+    var raw = []
+    try {
+      raw = vinculo.get('negocio_ids') || []
+    } catch (_) {}
+    if (typeof raw === 'string') {
+      try {
+        raw = JSON.parse(raw)
+      } catch (_) {
+        raw = []
+      }
+    }
+    if (!Array.isArray(raw)) raw = []
+    var unico = vinculo.getString('negocio_id') || ''
+    if (!raw.length && unico) raw = [unico]
+    var ids = []
+    var vistos = {}
+    for (var i = 0; i < raw.length; i++) {
+      var id = asString(raw[i]).trim()
+      if (id && !vistos[id]) {
+        vistos[id] = true
+        ids.push(id)
+      }
+    }
+    return ids
+  }
+
+  function chaveVinculo(record) {
+    if (!record) return ''
+    return [
+      record.getString('provider') || '',
+      record.getString('instance_name') || '',
+      record.getString('owner') || '',
+      record.getString('chat_id') || '',
+    ].join('|')
   }
 
   function inicioDiaRecifeUtc(agora) {
@@ -939,12 +1058,13 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
           rec.getString('oe_numero') ||
           rec.getString('external_id') ||
           rec.getString('codigo') ||
-          id,
+          rec.getString('titulo') ||
+          'Negócio sem identificação comercial',
         empresa: empresa || rec.getString('empresa_nome') || '',
         contato: contato || rec.getString('contato_nome') || '',
       }
     } catch (_) {
-      return { negocio_id: id, negocio_label: id }
+      return { negocio_id: id, negocio_label: 'Negócio sem identificação comercial' }
     }
   }
 
@@ -976,7 +1096,7 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
       registrarFalha('midias_qualidade')
     }
 
-    var vinculoPorChat = {}
+    var vinculoPorConversa = {}
     var totalVinculado = 0
     var totalSemContato = 0
     var totalPendente = 0
@@ -984,10 +1104,15 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     var totalAmbiguoAberto = 0
     for (var vi = 0; vi < vinculos.length; vi++) {
       var v = vinculos[vi]
-      var chat = v.getString('chat_id') || ''
-      if (chat) vinculoPorChat[chat] = v
+      var chaveConversa = chaveVinculo(v)
+      if (chaveConversa) vinculoPorConversa[chaveConversa] = v
       var status = v.getString('status') || ''
-      if (status === 'vinculado_automatico' && v.getString('negocio_id')) totalVinculado++
+      var idsVinculados = negocioIdsDoVinculo(v)
+      if (
+        (status === 'vinculado_automatico' || status === 'vinculado_multiplo') &&
+        idsVinculados.length > 0
+      )
+        totalVinculado++
       else if (status === 'sem_correspondencia') totalSemContato++
       else if (status === 'ambiguidade' || status === 'ambiguidade_negocio_aberto') totalAmbiguo++
       else totalPendente++
@@ -1016,25 +1141,28 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
       })
       if (!itemOperador.ultima_interacao)
         itemOperador.ultima_interacao = safeDate(msg, 'message_at') || safeDate(msg, 'received_at')
-      var vinc = vinculoPorChat[msg.getString('chat_id') || '']
+      var vinc = vinculoPorConversa[chaveVinculo(msg)]
+      var idsDoVinculo = vinc ? negocioIdsDoVinculo(vinc) : []
+      var statusDoVinculo = vinc ? vinc.getString('status') : ''
       if (
         vinc &&
-        vinc.getString('status') === 'vinculado_automatico' &&
-        vinc.getString('negocio_id')
+        (statusDoVinculo === 'vinculado_automatico' || statusDoVinculo === 'vinculado_multiplo') &&
+        idsDoVinculo.length > 0
       ) {
         mensagensVinculadas++
         itemOperador.vinculadas_negocio++
-        var resumo = negocioResumo(vinc.getString('negocio_id'))
-        var itemNegocio = pushTop(porNegocio, resumo.negocio_id, resumo.negocio_label, resumo)
-        itemNegocio.operador = operador
-        itemNegocio.ultima_interacao =
-          itemNegocio.ultima_interacao ||
-          safeDate(msg, 'message_at') ||
-          safeDate(msg, 'received_at')
+        for (var ni = 0; ni < idsDoVinculo.length; ni++) {
+          var resumo = negocioResumo(idsDoVinculo[ni])
+          var itemNegocio = pushTop(porNegocio, resumo.negocio_id, resumo.negocio_label, resumo)
+          itemNegocio.operador = operador
+          itemNegocio.ultima_interacao =
+            itemNegocio.ultima_interacao ||
+            safeDate(msg, 'message_at') ||
+            safeDate(msg, 'received_at')
+        }
       } else if (
         vinc &&
-        (vinc.getString('status') === 'ambiguidade' ||
-          vinc.getString('status') === 'ambiguidade_negocio_aberto')
+        (statusDoVinculo === 'ambiguidade' || statusDoVinculo === 'ambiguidade_negocio_aberto')
       ) {
         itemOperador.ambiguas++
       } else {

@@ -5,11 +5,22 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { obterStatusWhatsAppUazapi, type WhatsAppUazapiResumo } from '@/services/whatsapp-uazapi'
+import {
+  ehOperadorComercial,
+  formatarDataHoraRecife,
+  rotuloDirecao,
+  rotuloEstadoOperacional,
+  rotuloEventoWhatsApp,
+  rotuloMidia,
+} from '@/lib/whatsapp-uazapi-display'
 
-function formatarValor(value: unknown) {
-  if (value === null || value === undefined || value === '') return 'Não informado'
-  if (typeof value === 'boolean') return value ? 'Sim' : 'Não'
-  return String(value)
+function valorDoResumo(dados: Record<string, unknown> | null | undefined, campo: string) {
+  return dados?.[campo]
+}
+
+function textoDoResumo(dados: Record<string, unknown> | null | undefined, campo: string) {
+  const valor = valorDoResumo(dados, campo)
+  return typeof valor === 'string' ? valor : ''
 }
 
 function formatarPercentual(value?: number) {
@@ -28,36 +39,33 @@ function rotuloSinal(chave: string) {
   return mapa[chave] || chave.replace(/_/g, ' ')
 }
 
-function ResumoTecnico({
+function ResumoOperacional({
   titulo,
-  dados,
+  momento,
+  linhas,
 }: {
   titulo: string
-  dados?: Record<string, unknown> | null
+  momento: unknown
+  linhas: Array<{ rotulo: string; valor: string }>
 }) {
   return (
     <Card className="border-slate-200 shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="text-base text-slate-900">{titulo}</CardTitle>
+        <CardDescription>
+          Última atualização: {formatarDataHoraRecife(momento)} — horário de Recife
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2 text-sm text-slate-700">
-        {!dados ? (
-          <p className="text-slate-500">Ainda sem registro.</p>
-        ) : (
-          Object.entries(dados)
-            .filter(([key]) => !['id', 'created'].includes(key))
-            .map(([key, value]) => (
-              <div
-                key={key}
-                className="flex justify-between gap-4 border-b border-slate-100 pb-1 last:border-0"
-              >
-                <span className="text-slate-500">{key.replace(/_/g, ' ')}</span>
-                <span className="text-right font-medium text-slate-900">
-                  {formatarValor(value)}
-                </span>
-              </div>
-            ))
-        )}
+        {linhas.map((linha) => (
+          <div
+            key={linha.rotulo}
+            className="flex justify-between gap-4 border-b border-slate-100 pb-1 last:border-0"
+          >
+            <span className="text-slate-500">{linha.rotulo}</span>
+            <span className="text-right font-medium text-slate-900">{linha.valor}</span>
+          </div>
+        ))}
       </CardContent>
     </Card>
   )
@@ -87,6 +95,13 @@ export default function WhatsAppUazapi() {
   const counts = status?.counts
   const qualidade = status?.qualidade_base
   const sinais = Object.entries(qualidade?.sinais_comerciais_iniciais || {})
+  const operadoresComerciais =
+    qualidade?.por_operador?.filter((item) => ehOperadorComercial(item.label)) || []
+
+  const nomeOperador = (dados?: Record<string, unknown> | null) => {
+    const instancia = textoDoResumo(dados, 'instance_name')
+    return ehOperadorComercial(instancia) ? instancia : 'Processamento automático'
+  }
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
@@ -237,33 +252,33 @@ export default function WhatsAppUazapi() {
           <CardHeader>
             <CardTitle>Por operador</CardTitle>
             <CardDescription>
-              Volume e qualidade de vínculo por instância comercial.
+              Volume e situação das conversas por integrante da equipe comercial.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {qualidade?.por_operador?.length ? (
-              qualidade.por_operador.map((item) => (
+            {operadoresComerciais.length ? (
+              operadoresComerciais.map((item) => (
                 <div key={item.chave} className="rounded-lg border border-slate-100 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-medium text-slate-950">{item.label}</p>
                       <p className="text-xs text-slate-500">
-                        Última interação: {item.ultima_interacao || 'não informada'}
+                        Última interação: {formatarDataHoraRecife(item.ultima_interacao)}
                       </p>
                     </div>
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
-                      {item.total_mensagens} mensagens
+                      {item.total_mensagens} {item.total_mensagens === 1 ? 'mensagem' : 'mensagens'}
                     </span>
                   </div>
-                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-slate-600">
-                    <span>{item.vinculadas_negocio ?? 0} vinculadas</span>
-                    <span>{item.pendentes_ou_sem_vinculo ?? 0} pendentes</span>
-                    <span>{item.ambiguas ?? 0} ambíguas</span>
+                  <div className="mt-2 grid gap-1 text-xs text-slate-600 sm:grid-cols-3">
+                    <span>{item.vinculadas_negocio ?? 0} com negócio identificado</span>
+                    <span>{item.pendentes_ou_sem_vinculo ?? 0} aguardando vínculo</span>
+                    <span>{item.ambiguas ?? 0} com mais de um negócio possível</span>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-slate-500">Ainda sem volume por operador.</p>
+              <p className="text-slate-500">Ainda sem volume por operador comercial.</p>
             )}
           </CardContent>
         </Card>
@@ -272,7 +287,7 @@ export default function WhatsAppUazapi() {
           <CardHeader>
             <CardTitle>Negócios com conversas recentes</CardTitle>
             <CardDescription>
-              Primeira ponte para a memória de conversas por negócio.
+              Conversas recentes organizadas pelo negócio comercial correspondente.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
@@ -285,16 +300,21 @@ export default function WhatsAppUazapi() {
                         {item.negocio_label || item.label || 'Negócio sem identificação'}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {[item.empresa, item.contato, item.operador].filter(Boolean).join(' · ') ||
-                          'Contexto em formação'}
+                        {[
+                          item.empresa,
+                          item.contato,
+                          ehOperadorComercial(item.operador) ? item.operador : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' · ') || 'Contexto em formação'}
                       </p>
                     </div>
                     <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                      {item.total_mensagens} mensagens
+                      {item.total_mensagens} {item.total_mensagens === 1 ? 'mensagem' : 'mensagens'}
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-slate-500">
-                    Última interação: {item.ultima_interacao || 'não informada'}
+                    Última interação: {formatarDataHoraRecife(item.ultima_interacao)}
                   </p>
                 </div>
               ))
@@ -331,9 +351,58 @@ export default function WhatsAppUazapi() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
-        <ResumoTecnico titulo="Último webhook" dados={status?.ultimo_webhook} />
-        <ResumoTecnico titulo="Última mensagem" dados={status?.ultima_mensagem} />
-        <ResumoTecnico titulo="Última mídia" dados={status?.ultima_midia} />
+        <ResumoOperacional
+          titulo="Recebimento da integração"
+          momento={valorDoResumo(status?.ultimo_webhook, 'received_at')}
+          linhas={[
+            {
+              rotulo: 'Atividade',
+              valor: rotuloEventoWhatsApp(textoDoResumo(status?.ultimo_webhook, 'event_type')),
+            },
+            { rotulo: 'Origem', valor: nomeOperador(status?.ultimo_webhook) },
+            {
+              rotulo: 'Situação',
+              valor: rotuloEstadoOperacional(textoDoResumo(status?.ultimo_webhook, 'status')),
+            },
+          ]}
+        />
+        <ResumoOperacional
+          titulo="Última conversa capturada"
+          momento={valorDoResumo(status?.ultima_mensagem, 'received_at')}
+          linhas={[
+            { rotulo: 'Responsável', valor: nomeOperador(status?.ultima_mensagem) },
+            {
+              rotulo: 'Direção',
+              valor: rotuloDirecao(textoDoResumo(status?.ultima_mensagem, 'direcao')),
+            },
+            {
+              rotulo: 'Situação',
+              valor: rotuloEstadoOperacional(textoDoResumo(status?.ultima_mensagem, 'status')),
+            },
+          ]}
+        />
+        <ResumoOperacional
+          titulo="Último arquivo identificado"
+          momento={valorDoResumo(status?.ultima_midia, 'received_at')}
+          linhas={[
+            {
+              rotulo: 'Tipo de arquivo',
+              valor: rotuloMidia(textoDoResumo(status?.ultima_midia, 'media_type')),
+            },
+            {
+              rotulo: 'Recebimento',
+              valor: rotuloEstadoOperacional(
+                textoDoResumo(status?.ultima_midia, 'download_status'),
+              ),
+            },
+            {
+              rotulo: 'Transcrição',
+              valor: rotuloEstadoOperacional(
+                textoDoResumo(status?.ultima_midia, 'transcricao_status'),
+              ),
+            },
+          ]}
+        />
       </section>
     </main>
   )

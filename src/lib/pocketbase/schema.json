@@ -5251,6 +5251,12 @@
           "system": false
         },
         {
+          "name": "negocio_ids",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
           "name": "status",
           "type": "text",
           "required": true,
