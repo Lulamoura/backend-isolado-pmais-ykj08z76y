@@ -51,6 +51,8 @@ export type WhatsAppNegocioCandidato = {
   id: string
   titulo: string
   numero_comercial: string
+  cliente: string
+  responsavel: string
   etapa: string
   valor: number
   atualizado_em: string

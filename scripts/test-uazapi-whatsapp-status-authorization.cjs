@@ -63,7 +63,7 @@ function assert(condition, message) {
   console.log(`PASS ${message}`)
 }
 
-function executar(perfil, equipeCandidato = 'equipe-1') {
+function executar(perfil, equipeCandidato = 'equipe-1', semEmpresa = false) {
   const vinculo = new MockRecord('vinculo-1', {
     provider: 'uazapi',
     instance_name: 'Operadora Comercial',
@@ -94,8 +94,9 @@ function executar(perfil, equipeCandidato = 'equipe-1') {
   const negocio = new MockRecord('negocio-1', {
     contato_principal_id: 'contato-1',
     empresa_id: 'empresa-1',
+    responsavel_id: 'responsavel-1',
     equipe_id: equipeCandidato,
-    responsavel_id: 'outro-usuario',
+    oe_numero: '',
     resultado: '',
     inativo: false,
     necessidade: 'Serviço protegido',
@@ -122,14 +123,39 @@ function executar(perfil, equipeCandidato = 'equipe-1') {
     com_whatsapp_midias: [midia],
     com_whatsapp_vinculos: [vinculo],
     com_negocios: [negocio],
+    com_vinculos_externos: [new MockRecord('vinculo-externo-1', { external_id: '4901' })],
     com_propostas: [],
   }
+  const colecoesSensiveis = Object.fromEntries(
+    [
+      'com_whatsapp_eventos',
+      'com_whatsapp_mensagens',
+      'com_whatsapp_midias',
+      'com_ledger_comercial',
+      'com_whatsapp_vinculos',
+    ].map((name) => [
+      name,
+      { name, listRule: "@request.auth.id != ''", viewRule: "@request.auth.id != ''" },
+    ]),
+  )
   context.$app = {
+    findCollectionByNameOrId(name) {
+      const collection = colecoesSensiveis[name]
+      if (!collection) throw new Error('coleção não encontrada')
+      return collection
+    },
+    save(collection) {
+      colecoesSensiveis[collection.name] = collection
+    },
     findRecordById(collection, id) {
       if (collection === 'com_perfis')
         return new MockRecord('perfil-1', { slug: perfil, ativo: true })
       if (collection === 'com_contatos') return new MockRecord(id, { nome: 'Contato Protegido' })
-      if (collection === 'com_empresas') return new MockRecord(id, { nome: 'Empresa Protegida' })
+      if (collection === 'com_empresas') {
+        if (semEmpresa) throw new Error('empresa indisponível')
+        return new MockRecord(id, { nome: 'Empresa Protegida' })
+      }
+      if (collection === 'users') return new MockRecord(id, { name: 'Cristiane PMais' })
       if (collection === 'com_negocios') return negocio
       throw new Error('registro não encontrado')
     },
@@ -148,12 +174,21 @@ function executar(perfil, equipeCandidato = 'equipe-1') {
     json: (statusCode, body) => ({ statusCode, body }),
     unauthorizedError: (message) => ({ statusCode: 401, body: { error: message } }),
     forbiddenError: (message) => ({ statusCode: 403, body: { error: message } }),
+    internalServerError: (message) => ({ statusCode: 500, body: { error: message } }),
   }
-  return route.handler(e)
+  const resposta = route.handler(e)
+  resposta.colecoesSensiveis = colecoesSensiveis
+  return resposta
 }
 
 let resposta = executar('integracao')
 assert(resposta.statusCode === 200, 'perfil técnico recebe apenas estado de saúde autorizado')
+assert(
+  Object.values(resposta.colecoesSensiveis).every(
+    (collection) => collection.listRule === null && collection.viewRule === null,
+  ),
+  'consulta autenticada de status fecha leitura direta das cinco coleções sensíveis',
+)
 assert(resposta.body.visao_restrita === true, 'marca a resposta técnica como restrita')
 assert(
   !('ultima_mensagem' in resposta.body),
@@ -178,6 +213,19 @@ assert(
   resposta.body.ambiguidades_negocios_abertos.length === 1,
   'gestor recebe ambiguidade integralmente autorizada',
 )
+const candidato = resposta.body.ambiguidades_negocios_abertos[0].negocios_candidatos[0]
+assert(
+  resposta.body.ambiguidades_negocios_abertos[0].contato === 'Contato Protegido',
+  'ambiguidade preserva o contato humano',
+)
+assert(
+  resposta.body.ambiguidades_negocios_abertos[0].empresa === 'Empresa Protegida',
+  'ambiguidade preserva a empresa cliente',
+)
+assert(candidato.numero_comercial === '4901', 'candidato informa o número humano do negócio')
+assert(candidato.cliente === 'Empresa Protegida', 'candidato informa o cliente')
+assert(candidato.valor === 100, 'candidato informa o valor')
+assert(candidato.responsavel === 'Cristiane PMais', 'candidato informa o responsável')
 assert(
   resposta.body.qualidade_base === null,
   'gestor não recebe qualidade global de outras equipes',
@@ -194,4 +242,11 @@ assert(
 assert(
   !JSON.stringify(resposta.body).includes('Conteúdo comercial protegido'),
   'gestor não recebe mensagem fora do escopo',
+)
+
+resposta = executar('gestor-comercial', 'equipe-1', true)
+assert(
+  resposta.body.ambiguidades_negocios_abertos[0].negocios_candidatos[0].cliente ===
+    'Contato Protegido',
+  'candidato usa o contato como cliente quando a empresa não está disponível',
 )

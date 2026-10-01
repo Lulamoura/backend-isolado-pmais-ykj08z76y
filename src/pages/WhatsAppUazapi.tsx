@@ -381,16 +381,20 @@ export default function WhatsAppUazapi() {
                                 <span className="block font-medium text-slate-950">
                                   {negocio.titulo}
                                 </span>
+                                <span className="block text-xs text-slate-700">
+                                  Nº do negócio: {negocio.numero_comercial || 'Não informado'}
+                                </span>
+                                <span className="block text-xs text-slate-700">
+                                  Cliente: {negocio.cliente || 'Não informado'}
+                                </span>
+                                <span className="block text-xs text-slate-700">
+                                  Valor: {formatarMoeda(negocio.valor) || 'Não informado'}
+                                </span>
+                                <span className="block text-xs text-slate-700">
+                                  Responsável: {negocio.responsavel || 'Não informado'}
+                                </span>
                                 <span className="block text-xs text-slate-600">
-                                  {[
-                                    negocio.numero_comercial
-                                      ? `Proposta ${negocio.numero_comercial}`
-                                      : '',
-                                    rotuloEtapa(negocio.etapa),
-                                    formatarMoeda(negocio.valor),
-                                  ]
-                                    .filter(Boolean)
-                                    .join(' · ')}
+                                  Etapa: {rotuloEtapa(negocio.etapa)}
                                 </span>
                                 <span className="block text-xs text-slate-500">
                                   Atualizado em {formatarDataHoraRecife(negocio.atualizado_em)}
