@@ -55,5 +55,31 @@ assert.match(hook, /com_proposta_versoes/, 'deve incluir versão/PDF da proposta
 assert.match(hook, /arquivo_sha256/, 'deve incluir hash/evidência do PDF')
 assert.match(hook, /fontes/, 'resposta deve declarar fontes usadas para o Nexo')
 assert.match(hook, /nexo_contexto_negocio_v1/, 'resposta deve ter versão de contrato estável')
+assert.match(
+  hook,
+  /function nexoContextoWhatsapp\(app, negocioId\)/,
+  'contexto do negócio deve agregar WhatsApp no servidor depois da autorização',
+)
+assert.match(hook, /com_whatsapp_vinculos/, 'deve localizar conversas vinculadas ao negócio')
+assert.match(hook, /negocio_ids/, 'deve respeitar vínculo legítimo com vários negócios')
+assert.match(hook, /com_whatsapp_mensagens/, 'deve consultar mensagens somente no backend')
+assert.match(hook, /is_group/, 'deve excluir mensagens de grupos do contexto comercial')
+assert.match(hook, /mensagens_recentes/, 'deve devolver apenas contexto recente e limitado')
+assert.match(hook, /fonte_indisponivel/, 'deve distinguir falha da fonte de ausência de conversa')
+assert.match(
+  hook,
+  /var whatsappContexto = nexoContextoWhatsapp\(\$app, negocio\.id\)[\s\S]*whatsapp_contexto:\s*whatsappContexto/,
+  'resposta autorizada deve incluir o contexto WhatsApp do negócio',
+)
+assert.match(
+  hook,
+  /whatsapp_contexto:\s*\{[\s\S]*mensagens_recentes/,
+  'resumo seguro enviado ao Nexo deve incluir as mensagens recentes governadas',
+)
+assert.doesNotMatch(
+  hook,
+  /mensagens_recentes[\s\S]{0,500}(chat_id|sender_id|message_id|idempotency_key)\s*:/,
+  'contexto entregue ao Nexo não deve expor identificadores técnicos',
+)
 
 console.log('nexo-contexto-negocio contract: PASS')

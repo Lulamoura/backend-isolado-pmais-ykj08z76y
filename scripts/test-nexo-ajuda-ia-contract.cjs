@@ -58,6 +58,11 @@ assert.match(
 )
 assert.match(
   hook,
+  /https:\/\/agents\.pmaisservicos\.com\.br\/preview\/nexo-hermes\/v1\/comercial\/skip\/nexo\/ajuda-negocio/,
+  'candidato de Preview deve usar o Gateway/Nexo isolado, sem tocar o Gateway de Produção',
+)
+assert.match(
+  hook,
   /AC_WEBHOOK_SECRET/,
   'ponte SKIP deve usar segredo nativo já exposto ao runtime, não segredo customizado ausente',
 )
@@ -99,6 +104,25 @@ assert.match(
   hook,
   /mensagem_sugerida/,
   'resposta deve suportar mensagem de follow-up pronta para revisão',
+)
+assert.match(
+  hook,
+  /analise_whatsapp:\s*\{[\s\S]{0,1800}resumo_conversa:[\s\S]{0,1800}pendencias_compromissos:[\s\S]{0,1800}prazos_proximas_acoes:[\s\S]{0,1800}objecoes_duvidas:[\s\S]{0,1800}sinais_risco:[\s\S]{0,1800}divergencias_crm:[\s\S]{0,1800}proximo_passo_recomendado:[\s\S]{0,1800}rascunho_follow_up:/,
+  'backend deve preservar a análise estruturada das conversas para a interface',
+)
+assert.ok(
+  (hook.match(/analise_whatsapp:\s*\{/g) || []).length >= 2,
+  'o caminho do gateway e o fallback direto devem devolver analise_whatsapp',
+)
+assert.match(
+  hook,
+  /var nexoStatusWhatsappVerificado = nexoWhatsappTemEvidencia\(contextoSeguro\)/,
+  'o fallback direto só pode aceitar fatos com mensagem WhatsApp verificável',
+)
+assert.match(
+  hook,
+  /formato_obrigatorio:[\s\S]{0,2200}resumo_conversa:[\s\S]{0,2200}pendencias_compromissos:[\s\S]{0,2200}divergencias_crm:[\s\S]{0,2200}rascunho_follow_up:/,
+  'prompt do caminho direto deve solicitar os campos estruturados de WhatsApp',
 )
 
 assert.match(
