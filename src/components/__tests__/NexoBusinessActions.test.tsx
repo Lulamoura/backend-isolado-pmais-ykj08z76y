@@ -204,7 +204,7 @@ describe('NexoBusinessActions', () => {
     expect(screen.queryByText('Diagnóstico comercial')).not.toBeInTheDocument()
   })
 
-  it('não apresenta zero como dado válido quando a fonte WhatsApp está indisponível', async () => {
+  it('oculta o quadro do WhatsApp quando a fonte está indisponível', async () => {
     obterContextoNexoNegocio.mockResolvedValue({
       ...contexto,
       whatsapp_contexto: {
@@ -222,7 +222,9 @@ describe('NexoBusinessActions', () => {
 
     await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
 
-    expect(await screen.findByText('Contexto temporariamente indisponível.')).toBeInTheDocument()
+    await screen.findByText('Escolha a ajuda do Nexo')
+    expect(screen.queryByText('Contexto temporariamente indisponível.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Contexto do WhatsApp Comercial')).not.toBeInTheDocument()
     expect(screen.queryByText(/0 mensagens recentes consideradas/)).not.toBeInTheDocument()
   })
 
@@ -250,7 +252,7 @@ describe('NexoBusinessActions', () => {
     expect(screen.queryByText('Contexto temporariamente indisponível.')).not.toBeInTheDocument()
   })
 
-  it('trata estado desconhecido do contexto WhatsApp como indisponível', async () => {
+  it('oculta o quadro do WhatsApp quando recebe um estado desconhecido', async () => {
     obterContextoNexoNegocio.mockResolvedValue({
       ...contexto,
       whatsapp_contexto: {
@@ -268,7 +270,9 @@ describe('NexoBusinessActions', () => {
 
     await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
 
-    expect(await screen.findByText('Contexto temporariamente indisponível.')).toBeInTheDocument()
+    await screen.findByText('Escolha a ajuda do Nexo')
+    expect(screen.queryByText('Contexto temporariamente indisponível.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Contexto do WhatsApp Comercial')).not.toBeInTheDocument()
     expect(screen.queryByText(/0 mensagens recentes consideradas/)).not.toBeInTheDocument()
   })
 

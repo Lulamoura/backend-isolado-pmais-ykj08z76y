@@ -475,9 +475,11 @@ export default function WhatsAppUazapi() {
               <CardTitle className="text-3xl">
                 {loading
                   ? '...'
-                  : relacionamentosQualidadeIndisponiveis
+                  : vinculosQualidadeIndisponivel
                     ? 0
-                    : (qualidade?.mensagens_vinculadas_negocio ?? 0)}
+                    : (qualidade?.conversas_vinculadas_negocio ??
+                      qualidade?.vinculos_automaticos_negocio ??
+                      0)}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -540,12 +542,57 @@ export default function WhatsAppUazapi() {
                     </div>
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
                       {item.total_mensagens} {item.total_mensagens === 1 ? 'mensagem' : 'mensagens'}
+                      {typeof item.total_conversas === 'number'
+                        ? ` · ${item.total_conversas} ${item.total_conversas === 1 ? 'conversa' : 'conversas'}`
+                        : ''}
                     </span>
                   </div>
                   <div className="mt-2 grid gap-1 text-xs text-slate-600 sm:grid-cols-3">
-                    <span>{item.vinculadas_negocio ?? 0} com negócio identificado</span>
-                    <span>{item.pendentes_ou_sem_vinculo ?? 0} aguardando vínculo</span>
-                    <span>{item.ambiguas ?? 0} com mais de um negócio possível</span>
+                    {typeof item.conversas_vinculadas_negocio === 'number' &&
+                    typeof item.conversas_pendentes_ou_sem_vinculo === 'number' &&
+                    typeof item.conversas_ambiguas === 'number' ? (
+                      <>
+                        <span>
+                          {item.conversas_vinculadas_negocio}{' '}
+                          {item.conversas_vinculadas_negocio === 1
+                            ? 'conversa com negócio identificado'
+                            : 'conversas com negócio identificado'}
+                        </span>
+                        <span>
+                          {item.conversas_pendentes_ou_sem_vinculo}{' '}
+                          {item.conversas_pendentes_ou_sem_vinculo === 1
+                            ? 'conversa aguardando vínculo'
+                            : 'conversas aguardando vínculo'}
+                        </span>
+                        <span>
+                          {item.conversas_ambiguas}{' '}
+                          {item.conversas_ambiguas === 1
+                            ? 'conversa com mais de um negócio possível'
+                            : 'conversas com mais de um negócio possível'}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          {item.vinculadas_negocio ?? 0}{' '}
+                          {(item.vinculadas_negocio ?? 0) === 1
+                            ? 'mensagem com negócio identificado'
+                            : 'mensagens com negócio identificado'}
+                        </span>
+                        <span>
+                          {item.pendentes_ou_sem_vinculo ?? 0}{' '}
+                          {(item.pendentes_ou_sem_vinculo ?? 0) === 1
+                            ? 'mensagem aguardando vínculo'
+                            : 'mensagens aguardando vínculo'}
+                        </span>
+                        <span>
+                          {item.ambiguas ?? 0}{' '}
+                          {(item.ambiguas ?? 0) === 1
+                            ? 'mensagem com mais de um negócio possível'
+                            : 'mensagens com mais de um negócio possível'}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               ))

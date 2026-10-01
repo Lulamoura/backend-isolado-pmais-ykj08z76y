@@ -241,14 +241,7 @@ function resumoUltimoFollowUp(contexto: NexoContextoNegocio) {
 function ContextoWhatsapp({ contexto }: { contexto: NexoContextoNegocio }) {
   const whatsapp = contexto.whatsapp_contexto
   if (!whatsapp) return null
-  if (whatsapp.status !== 'disponivel' && whatsapp.status !== 'sem_conversa_vinculada') {
-    return (
-      <section className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
-        <p className="font-semibold text-amber-950">Contexto do WhatsApp Comercial</p>
-        <p className="mt-2 text-amber-900">Contexto temporariamente indisponível.</p>
-      </section>
-    )
-  }
+  if (whatsapp.status !== 'disponivel' && whatsapp.status !== 'sem_conversa_vinculada') return null
   if (whatsapp.status === 'sem_conversa_vinculada') {
     return (
       <section className="rounded-md border bg-slate-50 p-3 text-sm">

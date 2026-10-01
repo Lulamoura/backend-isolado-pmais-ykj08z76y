@@ -80,6 +80,7 @@ const payload = {
     total_mensagens_lidas: 8,
     total_vinculos_lidos: 2,
     mensagens_vinculadas_negocio: 8,
+    conversas_vinculadas_negocio: 2,
     vinculos_automaticos_negocio: 2,
     vinculos_pendentes_ou_sem_negocio: 0,
     vinculos_sem_contato: 0,
@@ -92,18 +93,26 @@ const payload = {
         chave: 'Cristiane PMais',
         label: 'Cristiane PMais',
         total_mensagens: 5,
-        vinculadas_negocio: 5,
-        pendentes_ou_sem_vinculo: 0,
+        total_conversas: 2,
+        vinculadas_negocio: 4,
+        pendentes_ou_sem_vinculo: 1,
         ambiguas: 0,
+        conversas_vinculadas_negocio: 1,
+        conversas_pendentes_ou_sem_vinculo: 1,
+        conversas_ambiguas: 0,
         ultima_interacao: '2026-09-30 20:44:18.000Z',
       },
       {
         chave: 'prod_probe',
         label: 'prod_probe',
         total_mensagens: 3,
+        total_conversas: 1,
         vinculadas_negocio: 0,
         pendentes_ou_sem_vinculo: 3,
         ambiguas: 0,
+        conversas_vinculadas_negocio: 0,
+        conversas_pendentes_ou_sem_vinculo: 1,
+        conversas_ambiguas: 0,
         ultima_interacao: '2026-09-30 20:44:18.000Z',
       },
     ],
@@ -165,6 +174,7 @@ const payloadAtualizado = {
   qualidade_base: {
     ...payload.qualidade_base,
     mensagens_vinculadas_negocio: 10,
+    conversas_vinculadas_negocio: 3,
     vinculos_automaticos_negocio: 3,
     vinculos_ambiguos: 0,
     vinculos_ambiguos_negocio_aberto: 0,
@@ -189,6 +199,9 @@ describe('Integração WhatsApp — apresentação operacional', () => {
     expect(screen.getByText('Áudio')).toBeInTheDocument()
     expect(screen.getByText('Aguardando transcrição')).toBeInTheDocument()
     expect(screen.getByText('Proposta Qualificada')).toBeInTheDocument()
+    expect(screen.getByText('5 mensagens · 2 conversas')).toBeInTheDocument()
+    expect(screen.getByText('1 conversa com negócio identificado')).toBeInTheDocument()
+    expect(screen.getByText('1 conversa aguardando vínculo')).toBeInTheDocument()
     expect(
       screen.getByText('Alguns indicadores não puderam ser atualizados agora.'),
     ).toBeInTheDocument()
@@ -209,6 +222,33 @@ describe('Integração WhatsApp — apresentação operacional', () => {
     expect(screen.queryByText('event_type')).not.toBeInTheDocument()
     expect(screen.queryByText('Sem envio automático')).not.toBeInTheDocument()
     expect(screen.queryByText('Dados parciais no monitoramento')).not.toBeInTheDocument()
+  })
+
+  it('não chama contadores antigos por mensagem de conversas quando o backend ainda não traz o contrato novo', async () => {
+    obterStatusWhatsAppUazapi.mockResolvedValue({
+      ...payload,
+      qualidade_base: {
+        ...payload.qualidade_base,
+        por_operador: [
+          {
+            chave: 'Cristiane PMais',
+            label: 'Cristiane PMais',
+            total_mensagens: 5,
+            vinculadas_negocio: 4,
+            pendentes_ou_sem_vinculo: 1,
+            ambiguas: 0,
+            ultima_interacao: '2026-09-30 20:44:18.000Z',
+          },
+        ],
+      },
+    })
+
+    render(<WhatsAppUazapi />)
+
+    expect((await screen.findAllByText('5 mensagens')).length).toBeGreaterThan(0)
+    expect(screen.getByText('4 mensagens com negócio identificado')).toBeInTheDocument()
+    expect(screen.getByText('1 mensagem aguardando vínculo')).toBeInTheDocument()
+    expect(screen.queryByText(/conversas? com negócio identificado/)).not.toBeInTheDocument()
   })
 
   it('zera apenas os indicadores dependentes das mensagens quando essa fonte falha', async () => {
@@ -236,7 +276,7 @@ describe('Integração WhatsApp — apresentação operacional', () => {
     expect(
       within(
         screen.getByText('Conversas ligadas a negócio').parentElement as HTMLElement,
-      ).getByText(/^0$/),
+      ).getByText(/^2$/),
     ).toBeInTheDocument()
     expect(
       within(screen.getByText('Aproveitamento para o Nexo').parentElement as HTMLElement).getByText(
@@ -281,7 +321,7 @@ describe('Integração WhatsApp — apresentação operacional', () => {
     expect(
       within(
         screen.getByText('Conversas ligadas a negócio').parentElement as HTMLElement,
-      ).getByText(/^8$/),
+      ).getByText(/^2$/),
     ).toBeInTheDocument()
     expect(
       within(screen.getByText('Aproveitamento para o Nexo').parentElement as HTMLElement).getByText(

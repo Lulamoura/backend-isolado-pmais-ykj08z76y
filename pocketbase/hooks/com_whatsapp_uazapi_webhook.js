@@ -170,6 +170,20 @@ routerAdd(
       return digits
     }
 
+    function brazilianPhoneVariants(value) {
+      var digits = normalizePhone(value)
+      if ((digits.length === 12 || digits.length === 13) && digits.indexOf('55') === 0)
+        digits = digits.substring(2)
+      if (digits.length !== 10 && digits.length !== 11) return []
+
+      var variants = [digits]
+      if (digits.length === 11 && digits.charAt(2) === '9' && /[6-9]/.test(digits.charAt(3)))
+        variants.push(digits.substring(0, 2) + digits.substring(3))
+      else if (digits.length === 10 && /[6-9]/.test(digits.charAt(2)))
+        variants.push(digits.substring(0, 2) + '9' + digits.substring(2))
+      return variants
+    }
+
     function telefoneFromChat(chatId, senderId) {
       var source = cleanId(chatId || senderId || '', 160)
       var beforeAt = source.split('@')[0]
@@ -184,8 +198,14 @@ routerAdd(
       var pa = normalizePhone(a)
       var pb = normalizePhone(b)
       if (!pa || !pb) return false
-      if (pa === pb) return true
-      if (pa.length >= 8 && pb.length >= 8) return pa.endsWith(pb) || pb.endsWith(pa)
+      var variantsA = brazilianPhoneVariants(pa)
+      var variantsB = brazilianPhoneVariants(pb)
+      if (!variantsA.length || !variantsB.length) return false
+      for (var ai = 0; ai < variantsA.length; ai++) {
+        for (var bi = 0; bi < variantsB.length; bi++) {
+          if (variantsA[ai] === variantsB[bi]) return true
+        }
+      }
       return false
     }
 
@@ -1219,6 +1239,25 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     return map[key]
   }
 
+  function incrementarConversaUnica(item, conversasVistas, operador, chaveConversa) {
+    var conversa = asString(chaveConversa)
+    if (!conversa) return false
+    var operadorNormalizado = asString(operador)
+    var chaveUnica =
+      'operador:' +
+      operadorNormalizado.length +
+      ':' +
+      operadorNormalizado +
+      '|conversa:' +
+      conversa.length +
+      ':' +
+      conversa
+    if (conversasVistas[chaveUnica]) return false
+    conversasVistas[chaveUnica] = true
+    item.total_conversas = Number(item.total_conversas || 0) + 1
+    return true
+  }
+
   function valoresOrdenados(map, limite) {
     var out = []
     for (var key in map) out.push(map[key])
@@ -1316,6 +1355,7 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     }
 
     var porOperador = {}
+    var conversasVistasPorOperador = {}
     var porNegocio = {}
     var sinais = {
       possivel_retorno_cliente: 0,
@@ -1330,13 +1370,24 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
       var operador =
         msg.getString('instance_name') || msg.getString('owner') || 'Operador não identificado'
       var itemOperador = pushTop(porOperador, operador, operador, {
+        total_conversas: 0,
         vinculadas_negocio: 0,
         pendentes_ou_sem_vinculo: 0,
         ambiguas: 0,
+        conversas_vinculadas_negocio: 0,
+        conversas_pendentes_ou_sem_vinculo: 0,
+        conversas_ambiguas: 0,
         ultima_interacao: '',
       })
       if (!itemOperador.ultima_interacao)
         itemOperador.ultima_interacao = safeDate(msg, 'message_at') || safeDate(msg, 'received_at')
+      var chaveConversaMensagem = chaveVinculo(msg)
+      var novaConversaOperador = incrementarConversaUnica(
+        itemOperador,
+        conversasVistasPorOperador,
+        operador,
+        chaveConversaMensagem,
+      )
       var vinc = vinculoPorConversa[chaveVinculo(msg)]
       var idsDoVinculo = vinc ? negocioIdsDoVinculo(vinc) : []
       var statusDoVinculo = vinc ? vinc.getString('status') : ''
@@ -1349,6 +1400,7 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
       ) {
         mensagensVinculadas++
         itemOperador.vinculadas_negocio++
+        if (novaConversaOperador) itemOperador.conversas_vinculadas_negocio++
         for (var ni = 0; ni < idsDoVinculo.length; ni++) {
           var resumo = negocioResumo(idsDoVinculo[ni])
           var itemNegocio = pushTop(porNegocio, resumo.negocio_id, resumo.negocio_label, resumo)
@@ -1363,8 +1415,10 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
         (statusDoVinculo === 'ambiguidade' || statusDoVinculo === 'ambiguidade_negocio_aberto')
       ) {
         itemOperador.ambiguas++
+        if (novaConversaOperador) itemOperador.conversas_ambiguas++
       } else {
         itemOperador.pendentes_ou_sem_vinculo++
+        if (novaConversaOperador) itemOperador.conversas_pendentes_ou_sem_vinculo++
       }
 
       var texto = ''
@@ -1394,6 +1448,7 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
       total_mensagens_lidas: mensagens.length,
       total_vinculos_lidos: vinculos.length,
       mensagens_vinculadas_negocio: mensagensVinculadas,
+      conversas_vinculadas_negocio: totalVinculado,
       vinculos_automaticos_negocio: totalVinculado,
       vinculos_pendentes_ou_sem_negocio: totalPendente,
       vinculos_sem_contato: totalSemContato,
