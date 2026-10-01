@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const obterStatusWhatsAppUazapi = vi.hoisted(() => vi.fn())
@@ -192,7 +192,9 @@ describe('Integração WhatsApp — apresentação operacional', () => {
     expect(
       screen.getByText('Alguns indicadores não puderam ser atualizados agora.'),
     ).toBeInTheDocument()
-    expect(screen.getByText('Mídias pendentes').parentElement).toHaveTextContent('Indisponível')
+    expect(
+      within(screen.getByText('Mídias pendentes').parentElement as HTMLElement).getByText(/^0$/),
+    ).toBeInTheDocument()
 
     await waitFor(() => {
       expect(screen.queryByText(/prod_probe/)).not.toBeInTheDocument()
@@ -209,7 +211,7 @@ describe('Integração WhatsApp — apresentação operacional', () => {
     expect(screen.queryByText('Dados parciais no monitoramento')).not.toBeInTheDocument()
   })
 
-  it('não apresenta zeros ou listas vazias como dados completos quando a qualidade está indisponível', async () => {
+  it('mantém os indicadores numéricos em zero quando a qualidade está indisponível', async () => {
     obterStatusWhatsAppUazapi.mockResolvedValue({
       ...payload,
       fontes_indisponiveis: ['mensagens_qualidade'],
@@ -217,8 +219,28 @@ describe('Integração WhatsApp — apresentação operacional', () => {
 
     render(<WhatsAppUazapi />)
 
-    expect((await screen.findAllByText('Indisponível')).length).toBeGreaterThanOrEqual(4)
-    expect(screen.getByText('A leitura da base não pôde ser atualizada agora.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('A leitura da base não pôde ser atualizada agora.'),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByText('Mensagens avaliadas').parentElement as HTMLElement).getByText(/^0$/),
+    ).toBeInTheDocument()
+    expect(
+      within(
+        screen.getByText('Conversas ligadas a negócio').parentElement as HTMLElement,
+      ).getByText(/^0$/),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByText('Aproveitamento para o Nexo').parentElement as HTMLElement).getByText(
+        /^0%$/,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByText('Ambiguidades abertas').parentElement as HTMLElement).getByText(
+        /^0$/,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Indisponível')).not.toBeInTheDocument()
     expect(
       screen.getAllByText('Dados temporariamente indisponíveis.').length,
     ).toBeGreaterThanOrEqual(3)
@@ -226,6 +248,35 @@ describe('Integração WhatsApp — apresentação operacional', () => {
     expect(
       screen.queryByText('Ainda sem negócios vinculados com conversas recentes.'),
     ).not.toBeInTheDocument()
+  })
+
+  it('mantém todos os contadores de saúde em zero quando suas fontes estão indisponíveis', async () => {
+    obterStatusWhatsAppUazapi.mockResolvedValue({
+      ...payload,
+      fontes_indisponiveis: [
+        'eventos_hoje',
+        'mensagens_hoje',
+        'midias_pendentes',
+        'transcricoes_pendentes',
+        'vinculos_pendentes',
+      ],
+    })
+
+    render(<WhatsAppUazapi />)
+
+    await screen.findByText('Alguns indicadores não puderam ser atualizados agora.')
+    for (const rotulo of [
+      'Eventos hoje',
+      'Mensagens hoje',
+      'Mídias pendentes',
+      'Transcrições pendentes',
+      'Vínculos pendentes',
+    ]) {
+      expect(
+        within(screen.getByText(rotulo).parentElement as HTMLElement).getByText(/^0$/),
+      ).toBeInTheDocument()
+    }
+    expect(screen.queryByText('Indisponível')).not.toBeInTheDocument()
   })
 
   it('permite analisar o contexto e vincular a conversa a vários negócios', async () => {

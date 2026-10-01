@@ -139,7 +139,7 @@ export default function WhatsAppUazapi() {
   ].some((fonte) => fontesIndisponiveis.has(fonte))
   const valorContador = (fonte: string, valor: number | undefined) => {
     if (loading) return '...'
-    return fontesIndisponiveis.has(fonte) ? 'Indisponível' : (valor ?? 0)
+    return fontesIndisponiveis.has(fonte) ? 0 : (valor ?? 0)
   }
 
   const nomeOperador = (dados?: Record<string, unknown> | null) => {
@@ -460,7 +460,7 @@ export default function WhatsAppUazapi() {
                 {loading
                   ? '...'
                   : qualidadeIndisponivel
-                    ? 'Indisponível'
+                    ? 0
                     : (qualidade?.total_mensagens_lidas ?? 0)}
               </CardTitle>
             </CardHeader>
@@ -472,7 +472,7 @@ export default function WhatsAppUazapi() {
                 {loading
                   ? '...'
                   : qualidadeIndisponivel
-                    ? 'Indisponível'
+                    ? 0
                     : (qualidade?.mensagens_vinculadas_negocio ?? 0)}
               </CardTitle>
             </CardHeader>
@@ -484,7 +484,7 @@ export default function WhatsAppUazapi() {
                 {loading
                   ? '...'
                   : qualidadeIndisponivel
-                    ? 'Indisponível'
+                    ? formatarPercentual(0)
                     : formatarPercentual(qualidade?.aproveitamento_nexo_percentual)}
               </CardTitle>
             </CardHeader>
@@ -496,7 +496,7 @@ export default function WhatsAppUazapi() {
                 {loading
                   ? '...'
                   : qualidadeIndisponivel
-                    ? 'Indisponível'
+                    ? 0
                     : (qualidade?.vinculos_ambiguos_negocio_aberto ?? 0)}
               </CardTitle>
             </CardHeader>
