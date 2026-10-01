@@ -9,6 +9,7 @@ export interface NexoContextoNegocio {
     activecampaign_campos?: boolean
     activecampaign_notas?: boolean
     proposta_aplicativo?: boolean
+    whatsapp_comercial?: boolean
   }
   negocio?: {
     id?: string
@@ -75,6 +76,18 @@ export interface NexoContextoNegocio {
     alterada_em?: string | null
     data?: string | null
   }>
+  whatsapp_contexto?: {
+    status: 'disponivel' | 'sem_conversa_vinculada' | 'fonte_indisponivel' | string
+    conversas_vinculadas: number
+    mensagens_recentes_consideradas: number
+    ultima_interacao?: string | null
+    mensagens_recentes: Array<{
+      direcao: 'cliente' | 'equipe_comercial' | string
+      momento?: string | null
+      texto: string
+      tipo: 'texto' | 'audio' | 'midia' | string
+    }>
+  }
 }
 
 export type NexoAcaoAssistida =
@@ -107,6 +120,17 @@ export interface NexoAjudaComercial {
   proximos_passos: string[]
   mensagem_sugerida: string
   dicas_para_melhorar_notas: string[]
+  analise_whatsapp?: {
+    status_contexto?: string
+    resumo_conversa?: string
+    pendencias_compromissos?: string[]
+    prazos_proximas_acoes?: string[]
+    objecoes_duvidas?: string[]
+    sinais_risco?: string[]
+    divergencias_crm?: string[]
+    proximo_passo_recomendado?: string
+    rascunho_follow_up?: string
+  }
   resposta_curta?: string
   aviso: string
   modelo?: string

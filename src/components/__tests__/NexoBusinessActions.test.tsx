@@ -42,6 +42,20 @@ const contexto = {
     versao_mais_recente: { numero: 2, valor_total_centavos: 3690238 },
   },
   notas_followups: [{ id: 'n1', texto: 'Cliente aguardando análise pela gestora de RH.' }],
+  whatsapp_contexto: {
+    status: 'disponivel',
+    conversas_vinculadas: 1,
+    mensagens_recentes_consideradas: 3,
+    ultima_interacao: '2026-09-30 18:15:00.000Z',
+    mensagens_recentes: [
+      {
+        direcao: 'cliente',
+        momento: '2026-09-30 18:15:00.000Z',
+        texto: 'Vou validar internamente e retorno até sexta-feira.',
+        tipo: 'texto',
+      },
+    ],
+  },
 }
 
 const ajuda = {
@@ -58,6 +72,17 @@ const ajuda = {
   proximos_passos: ['Confirmar com Brenda a previsão real de retorno do RH.'],
   mensagem_sugerida: 'Olá, Brenda. Conseguiu algum retorno da análise do RH?',
   dicas_para_melhorar_notas: ['Registrar decisor, prazo informado e pendência específica.'],
+  analise_whatsapp: {
+    status_contexto: 'disponivel',
+    resumo_conversa: 'O cliente informou que validará a proposta com o RH.',
+    pendencias_compromissos: ['Cliente: retornar após validação com o RH.'],
+    prazos_proximas_acoes: ['Retorno prometido até sexta-feira.'],
+    objecoes_duvidas: ['Nenhuma objeção explícita na conversa recente.'],
+    sinais_risco: ['A próxima ação cadastrada está depois do prazo citado.'],
+    divergencias_crm: ['Conversa: sexta-feira; CRM: 10/10/2026.'],
+    proximo_passo_recomendado: 'Aguardar até sexta-feira e revisar o follow-up.',
+    rascunho_follow_up: 'Olá, Brenda. Conseguiu concluir a validação com o RH?',
+  },
   resposta_curta:
     'Leitura breve: a proposta está em negociação e Brenda aguarda análise da gestora de RH.\n\nSugestão de follow-up: Olá, Brenda. Conseguiu algum retorno da análise do RH? Se houver dúvida sobre escopo ou operação, posso ajudar a organizar os pontos para facilitar a decisão.\n\nDica extra: registre o prazo informado pela gestora.',
   aviso: 'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
@@ -108,6 +133,12 @@ describe('NexoBusinessActions', () => {
 
     await waitFor(() => expect(obterContextoNexoNegocio).toHaveBeenCalledWith('4792'))
     await screen.findByText('Escolha a ajuda do Nexo')
+    expect(screen.getByText('Contexto do WhatsApp Comercial')).toBeInTheDocument()
+    expect(screen.getByText(/3 mensagens recentes consideradas/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Vou validar internamente e retorno até sexta-feira/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/chat_id|message_id|sender_id/)).not.toBeInTheDocument()
     expect(screen.queryByText('Sem envio automático')).not.toBeInTheDocument()
     expect(screen.getByText('Sugerir próximo follow-up')).toBeInTheDocument()
 
@@ -122,6 +153,20 @@ describe('NexoBusinessActions', () => {
       screen.getByText(
         /Sugestão de follow-up: Olá, Brenda. Conseguiu algum retorno da análise do RH\?/,
       ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Fatos observados na conversa')).toBeInTheDocument()
+    expect(
+      screen.getByText('O cliente informou que validará a proposta com o RH.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Pendências e compromissos')).toBeInTheDocument()
+    expect(screen.getByText('Retorno prometido até sexta-feira.')).toBeInTheDocument()
+    expect(screen.getByText('Comparação com o CRM')).toBeInTheDocument()
+    expect(screen.getByText('Conversa: sexta-feira; CRM: 10/10/2026.')).toBeInTheDocument()
+    expect(screen.getByText('Sugestão do Nexo')).toBeInTheDocument()
+    expect(screen.getByText('Aguardar até sexta-feira e revisar o follow-up.')).toBeInTheDocument()
+    expect(screen.getByText('Rascunho para revisão humana')).toBeInTheDocument()
+    expect(
+      screen.getByText('Olá, Brenda. Conseguiu concluir a validação com o RH?'),
     ).toBeInTheDocument()
     expect(screen.queryByText('Perguntas críticas')).not.toBeInTheDocument()
     expect(screen.queryByText('Riscos percebidos')).not.toBeInTheDocument()
@@ -157,6 +202,74 @@ describe('NexoBusinessActions', () => {
     expect(screen.queryByText('Perguntas críticas')).not.toBeInTheDocument()
     expect(screen.queryByText('Riscos percebidos')).not.toBeInTheDocument()
     expect(screen.queryByText('Diagnóstico comercial')).not.toBeInTheDocument()
+  })
+
+  it('não apresenta zero como dado válido quando a fonte WhatsApp está indisponível', async () => {
+    obterContextoNexoNegocio.mockResolvedValue({
+      ...contexto,
+      whatsapp_contexto: {
+        status: 'fonte_indisponivel',
+        conversas_vinculadas: 0,
+        mensagens_recentes_consideradas: 0,
+        ultima_interacao: null,
+        mensagens_recentes: [],
+      },
+    })
+    const user = userEvent.setup()
+    render(
+      <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
+
+    expect(await screen.findByText('Contexto temporariamente indisponível.')).toBeInTheDocument()
+    expect(screen.queryByText(/0 mensagens recentes consideradas/)).not.toBeInTheDocument()
+  })
+
+  it('distingue ausência de conversa vinculada de falha da fonte', async () => {
+    obterContextoNexoNegocio.mockResolvedValue({
+      ...contexto,
+      whatsapp_contexto: {
+        status: 'sem_conversa_vinculada',
+        conversas_vinculadas: 0,
+        mensagens_recentes_consideradas: 0,
+        ultima_interacao: null,
+        mensagens_recentes: [],
+      },
+    })
+    const user = userEvent.setup()
+    render(
+      <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
+
+    expect(
+      await screen.findByText('Nenhuma conversa vinculada a este negócio.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Contexto temporariamente indisponível.')).not.toBeInTheDocument()
+  })
+
+  it('trata estado desconhecido do contexto WhatsApp como indisponível', async () => {
+    obterContextoNexoNegocio.mockResolvedValue({
+      ...contexto,
+      whatsapp_contexto: {
+        status: 'estado_desconhecido',
+        conversas_vinculadas: 0,
+        mensagens_recentes_consideradas: 0,
+        ultima_interacao: null,
+        mensagens_recentes: [],
+      } as typeof contexto.whatsapp_contexto,
+    })
+    const user = userEvent.setup()
+    render(
+      <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
+
+    expect(await screen.findByText('Contexto temporariamente indisponível.')).toBeInTheDocument()
+    expect(screen.queryByText(/0 mensagens recentes consideradas/)).not.toBeInTheDocument()
   })
 
   it('mostra alerta vermelho somente quando há fallback do modelo', async () => {
