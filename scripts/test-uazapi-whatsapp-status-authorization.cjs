@@ -124,7 +124,27 @@ function executar(perfil, equipeCandidato = 'equipe-1') {
     com_negocios: [negocio],
     com_propostas: [],
   }
+  const colecoesSensiveis = Object.fromEntries(
+    [
+      'com_whatsapp_eventos',
+      'com_whatsapp_mensagens',
+      'com_whatsapp_midias',
+      'com_ledger_comercial',
+      'com_whatsapp_vinculos',
+    ].map((name) => [
+      name,
+      { name, listRule: "@request.auth.id != ''", viewRule: "@request.auth.id != ''" },
+    ]),
+  )
   context.$app = {
+    findCollectionByNameOrId(name) {
+      const collection = colecoesSensiveis[name]
+      if (!collection) throw new Error('coleção não encontrada')
+      return collection
+    },
+    save(collection) {
+      colecoesSensiveis[collection.name] = collection
+    },
     findRecordById(collection, id) {
       if (collection === 'com_perfis')
         return new MockRecord('perfil-1', { slug: perfil, ativo: true })
@@ -148,12 +168,21 @@ function executar(perfil, equipeCandidato = 'equipe-1') {
     json: (statusCode, body) => ({ statusCode, body }),
     unauthorizedError: (message) => ({ statusCode: 401, body: { error: message } }),
     forbiddenError: (message) => ({ statusCode: 403, body: { error: message } }),
+    internalServerError: (message) => ({ statusCode: 500, body: { error: message } }),
   }
-  return route.handler(e)
+  const resposta = route.handler(e)
+  resposta.colecoesSensiveis = colecoesSensiveis
+  return resposta
 }
 
 let resposta = executar('integracao')
 assert(resposta.statusCode === 200, 'perfil técnico recebe apenas estado de saúde autorizado')
+assert(
+  Object.values(resposta.colecoesSensiveis).every(
+    (collection) => collection.listRule === null && collection.viewRule === null,
+  ),
+  'consulta autenticada de status fecha leitura direta das cinco coleções sensíveis',
+)
 assert(resposta.body.visao_restrita === true, 'marca a resposta técnica como restrita')
 assert(
   !('ultima_mensagem' in resposta.body),
