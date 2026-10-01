@@ -971,6 +971,24 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     return inicioUtc.toISOString().replace('T', ' ')
   }
 
+  function fecharAcessoDiretoColecoesSensiveis(app) {
+    var nomes = [
+      'com_whatsapp_eventos',
+      'com_whatsapp_mensagens',
+      'com_whatsapp_midias',
+      'com_whatsapp_vinculos',
+      'com_ledger_comercial',
+    ]
+    for (var i = 0; i < nomes.length; i += 1) {
+      var collection = app.findCollectionByNameOrId(nomes[i])
+      if (collection.listRule !== null || collection.viewRule !== null) {
+        collection.listRule = null
+        collection.viewRule = null
+        app.save(collection)
+      }
+    }
+  }
+
   var falhasMonitoramento = []
   var actorId = ''
   var actorEquipeId = ''
@@ -1389,6 +1407,12 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
   actorEquipeId = actor.getString('equipe_id') || ''
   actorIsSuperAdmin = slug === 'superadministrador'
   actorCanDecide = actorIsSuperAdmin || slug === 'gestor-comercial'
+
+  try {
+    fecharAcessoDiretoColecoesSensiveis($app)
+  } catch (_) {
+    return e.internalServerError('Colecoes WhatsApp indisponiveis')
+  }
 
   var secretConfigured = !!asString($secrets.get('UAZAPI_WEBHOOK_SECRET') || '')
   var inicioHojeRecife = inicioDiaRecifeUtc(new Date())
