@@ -58,6 +58,11 @@ assert.match(
 )
 assert.match(
   hook,
+  /https:\/\/agents\.pmaisservicos\.com\.br\/preview\/nexo-hermes\/v1\/comercial\/skip\/nexo\/ajuda-negocio/,
+  'candidato de Preview deve usar o Gateway/Nexo isolado, sem tocar o Gateway de Produção',
+)
+assert.match(
+  hook,
   /AC_WEBHOOK_SECRET/,
   'ponte SKIP deve usar segredo nativo já exposto ao runtime, não segredo customizado ausente',
 )

@@ -2326,8 +2326,9 @@
         ''
       var pmaisSkipBridgeSecret =
         $secrets.get('AC_WEBHOOK_SECRET') || nexoEnv('AC_WEBHOOK_SECRET') || ''
+      // Gate exclusivo de Preview: mantém Gateway e Nexo de Produção intocados durante a homologação.
       var pmaisSkipBridgeUrl =
-        'https://agents.pmaisservicos.com.br/v1/comercial/skip/nexo/ajuda-negocio'
+        'https://agents.pmaisservicos.com.br/preview/nexo-hermes/v1/comercial/skip/nexo/ajuda-negocio'
 
       function nexoPMaisAgentGatewayUrl(base) {
         var url = String(base || '').replace(/\/+$/, '')
