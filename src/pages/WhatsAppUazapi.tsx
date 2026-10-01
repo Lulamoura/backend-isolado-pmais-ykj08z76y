@@ -126,17 +126,21 @@ export default function WhatsAppUazapi() {
 
   const counts = status?.counts
   const qualidade = status?.qualidade_base
-  const sinais = Object.entries(qualidade?.sinais_comerciais_iniciais || {})
+  const sinaisBase = Object.entries(qualidade?.sinais_comerciais_iniciais || {})
   const operadoresComerciais =
     qualidade?.por_operador?.filter((item) => ehOperadorComercial(item.label)) || []
   const ambiguidades = status?.ambiguidades_negocios_abertos || []
   const fontesIndisponiveis = new Set(status?.fontes_indisponiveis || [])
   const filaIndisponivel = fontesIndisponiveis.has('detalhes_ambiguidades')
-  const qualidadeIndisponivel = [
-    'mensagens_qualidade',
-    'vinculos_qualidade',
-    'midias_qualidade',
-  ].some((fonte) => fontesIndisponiveis.has(fonte))
+  const mensagensQualidadeIndisponivel = fontesIndisponiveis.has('mensagens_qualidade')
+  const vinculosQualidadeIndisponivel = fontesIndisponiveis.has('vinculos_qualidade')
+  const midiasQualidadeIndisponivel = fontesIndisponiveis.has('midias_qualidade')
+  const relacionamentosQualidadeIndisponiveis =
+    mensagensQualidadeIndisponivel || vinculosQualidadeIndisponivel
+  const sinaisIndisponiveis = mensagensQualidadeIndisponivel && midiasQualidadeIndisponivel
+  const sinais = sinaisBase.filter(([chave]) =>
+    chave === 'audio_pendente' ? !midiasQualidadeIndisponivel : !mensagensQualidadeIndisponivel,
+  )
   const valorContador = (fonte: string, valor: number | undefined) => {
     if (loading) return '...'
     return fontesIndisponiveis.has(fonte) ? 0 : (valor ?? 0)
@@ -459,7 +463,7 @@ export default function WhatsAppUazapi() {
               <CardTitle className="text-3xl">
                 {loading
                   ? '...'
-                  : qualidadeIndisponivel
+                  : mensagensQualidadeIndisponivel
                     ? 0
                     : (qualidade?.total_mensagens_lidas ?? 0)}
               </CardTitle>
@@ -471,7 +475,7 @@ export default function WhatsAppUazapi() {
               <CardTitle className="text-3xl">
                 {loading
                   ? '...'
-                  : qualidadeIndisponivel
+                  : relacionamentosQualidadeIndisponiveis
                     ? 0
                     : (qualidade?.mensagens_vinculadas_negocio ?? 0)}
               </CardTitle>
@@ -483,7 +487,7 @@ export default function WhatsAppUazapi() {
               <CardTitle className="text-3xl">
                 {loading
                   ? '...'
-                  : qualidadeIndisponivel
+                  : relacionamentosQualidadeIndisponiveis
                     ? formatarPercentual(0)
                     : formatarPercentual(qualidade?.aproveitamento_nexo_percentual)}
               </CardTitle>
@@ -495,7 +499,7 @@ export default function WhatsAppUazapi() {
               <CardTitle className="text-3xl">
                 {loading
                   ? '...'
-                  : qualidadeIndisponivel
+                  : vinculosQualidadeIndisponivel
                     ? 0
                     : (qualidade?.vinculos_ambiguos_negocio_aberto ?? 0)}
               </CardTitle>
@@ -506,7 +510,7 @@ export default function WhatsAppUazapi() {
           <ShieldCheck className="h-4 w-4" />
           <AlertTitle>Leitura da base</AlertTitle>
           <AlertDescription>
-            {qualidadeIndisponivel
+            {relacionamentosQualidadeIndisponiveis
               ? 'A leitura da base não pôde ser atualizada agora.'
               : qualidade?.leitura || 'Aguardando dados suficientes para avaliar a base.'}
           </AlertDescription>
@@ -522,7 +526,7 @@ export default function WhatsAppUazapi() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {qualidadeIndisponivel ? (
+            {relacionamentosQualidadeIndisponiveis ? (
               <p className="text-amber-800">Dados temporariamente indisponíveis.</p>
             ) : operadoresComerciais.length ? (
               operadoresComerciais.map((item) => (
@@ -559,7 +563,7 @@ export default function WhatsAppUazapi() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {qualidadeIndisponivel ? (
+            {relacionamentosQualidadeIndisponiveis ? (
               <p className="text-amber-800">Dados temporariamente indisponíveis.</p>
             ) : qualidade?.negocios_com_conversas_recentes?.length ? (
               qualidade.negocios_com_conversas_recentes.map((item) => (
@@ -606,7 +610,7 @@ export default function WhatsAppUazapi() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-5">
-            {qualidadeIndisponivel ? (
+            {sinaisIndisponiveis ? (
               <p className="text-amber-800">Dados temporariamente indisponíveis.</p>
             ) : sinais.length ? (
               sinais.map(([chave, valor]) => (

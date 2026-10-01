@@ -211,10 +211,18 @@ describe('Integração WhatsApp — apresentação operacional', () => {
     expect(screen.queryByText('Dados parciais no monitoramento')).not.toBeInTheDocument()
   })
 
-  it('mantém os indicadores numéricos em zero quando a qualidade está indisponível', async () => {
+  it('zera apenas os indicadores dependentes das mensagens quando essa fonte falha', async () => {
     obterStatusWhatsAppUazapi.mockResolvedValue({
       ...payload,
       fontes_indisponiveis: ['mensagens_qualidade'],
+      qualidade_base: {
+        ...payload.qualidade_base,
+        vinculos_ambiguos_negocio_aberto: 2,
+        sinais_comerciais_iniciais: {
+          possivel_proposta: 2,
+          audio_pendente: 3,
+        },
+      },
     })
 
     render(<WhatsAppUazapi />)
@@ -237,17 +245,91 @@ describe('Integração WhatsApp — apresentação operacional', () => {
     ).toBeInTheDocument()
     expect(
       within(screen.getByText('Ambiguidades abertas').parentElement as HTMLElement).getByText(
-        /^0$/,
+        /^2$/,
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText('Indisponível')).not.toBeInTheDocument()
-    expect(
-      screen.getAllByText('Dados temporariamente indisponíveis.').length,
-    ).toBeGreaterThanOrEqual(3)
+    expect(screen.getAllByText('Dados temporariamente indisponíveis.')).toHaveLength(2)
+    expect(screen.getByText('Áudio ou mídia pendente').parentElement).toHaveTextContent('3')
+    expect(screen.queryByText('Possível proposta, valor ou contrato')).not.toBeInTheDocument()
     expect(screen.queryByText('Ainda sem volume por operador comercial.')).not.toBeInTheDocument()
     expect(
       screen.queryByText('Ainda sem negócios vinculados com conversas recentes.'),
     ).not.toBeInTheDocument()
+  })
+
+  it('preserva os indicadores válidos quando apenas a qualidade de mídias está indisponível', async () => {
+    obterStatusWhatsAppUazapi.mockResolvedValue({
+      ...payload,
+      fontes_indisponiveis: ['midias_qualidade'],
+      qualidade_base: {
+        ...payload.qualidade_base,
+        vinculos_ambiguos_negocio_aberto: 2,
+        sinais_comerciais_iniciais: {
+          possivel_proposta: 2,
+          audio_pendente: 3,
+        },
+      },
+    })
+
+    render(<WhatsAppUazapi />)
+
+    await screen.findByText('Alguns indicadores não puderam ser atualizados agora.')
+    expect(
+      within(screen.getByText('Mensagens avaliadas').parentElement as HTMLElement).getByText(/^8$/),
+    ).toBeInTheDocument()
+    expect(
+      within(
+        screen.getByText('Conversas ligadas a negócio').parentElement as HTMLElement,
+      ).getByText(/^8$/),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByText('Aproveitamento para o Nexo').parentElement as HTMLElement).getByText(
+        /^100%$/,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByText('Ambiguidades abertas').parentElement as HTMLElement).getByText(
+        /^2$/,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Possível proposta, valor ou contrato').parentElement,
+    ).toHaveTextContent('2')
+    expect(screen.queryByText('Áudio ou mídia pendente')).not.toBeInTheDocument()
+  })
+
+  it('zera somente os indicadores dependentes dos vínculos quando essa fonte falha', async () => {
+    obterStatusWhatsAppUazapi.mockResolvedValue({
+      ...payload,
+      fontes_indisponiveis: ['vinculos_qualidade'],
+      qualidade_base: {
+        ...payload.qualidade_base,
+        vinculos_ambiguos_negocio_aberto: 2,
+      },
+    })
+
+    render(<WhatsAppUazapi />)
+
+    await screen.findByText('Alguns indicadores não puderam ser atualizados agora.')
+    expect(
+      within(screen.getByText('Mensagens avaliadas').parentElement as HTMLElement).getByText(/^8$/),
+    ).toBeInTheDocument()
+    expect(
+      within(
+        screen.getByText('Conversas ligadas a negócio').parentElement as HTMLElement,
+      ).getByText(/^0$/),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByText('Aproveitamento para o Nexo').parentElement as HTMLElement).getByText(
+        /^0%$/,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByText('Ambiguidades abertas').parentElement as HTMLElement).getByText(
+        /^0$/,
+      ),
+    ).toBeInTheDocument()
   })
 
   it('mantém todos os contadores de saúde em zero quando suas fontes estão indisponíveis', async () => {
