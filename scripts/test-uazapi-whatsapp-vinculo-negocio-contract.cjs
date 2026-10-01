@@ -27,7 +27,7 @@ assert(
 assert(
   'hook busca contato comercial por telefone normalizado',
   hook.includes('function buscarContatosPorTelefone') &&
-    hook.includes("tx.findRecordsByFilter('com_contatos'") &&
+    hook.includes("carregarRegistros(tx, 'com_contatos'") &&
     hook.includes("record.getString('telefone')"),
 )
 assert(

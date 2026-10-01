@@ -39,6 +39,8 @@ const SUBSTITUICOES_ALLOWLIST = new Set([
   'prospeccao',
 ])
 
+const WHATSAPP_ADMIN_ALLOWLIST = new Set(['superadministrador', 'gestor-comercial'])
+
 export const CURADORIA_NEXO_ALLOWLIST = new Set([
   'superadministrador',
   'gestor-comercial',
@@ -84,6 +86,11 @@ function LayoutContent() {
       'parametros.gerenciar',
     ].some(hasPermission)
 
+  const podeAdministrarWhatsApp =
+    !perfilLoading &&
+    user?.ativo_comercial === true &&
+    WHATSAPP_ADMIN_ALLOWLIST.has(perfilSlug ?? '')
+
   const podeVerCuradoriaNexo =
     !perfilLoading &&
     user?.ativo_comercial === true &&
@@ -112,7 +119,7 @@ function LayoutContent() {
   const navigation = MAIN_MODULES.filter((item) => {
     if (user?.ativo_comercial !== true) return false
     if (item.path === '/nexo/curadoria') return podeVerCuradoriaNexo
-    if (item.path === '/foundation') return podeAdministrar
+    if (item.path === '/foundation') return podeAdministrar || podeAdministrarWhatsApp
     return true
   })
 
@@ -192,7 +199,11 @@ function LayoutContent() {
                       )}
                     >
                       <Link
-                        to={item.path}
+                        to={
+                          item.path === '/foundation' && !podeAdministrar && podeAdministrarWhatsApp
+                            ? '/integracoes/whatsapp'
+                            : item.path
+                        }
                         onClick={() => setOpenMobile(false)}
                         aria-current={active ? 'page' : undefined}
                       >

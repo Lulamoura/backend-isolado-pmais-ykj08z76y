@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
+
+const authorizationState = vi.hoisted(() => ({
+  perfilSlug: 'superadministrador',
+  hasAdministrationPermission: true,
+}))
 
 // ── Mocks (registrados ANTES de importar o SUT) ─────────────────────
 vi.mock('@/lib/feature-flags', () => ({
@@ -37,7 +42,9 @@ vi.mock('@/lib/pocketbase/client', () => ({
 vi.mock('@/hooks/use-is-superadmin', () => ({
   useIsSuperAdmin: vi.fn().mockReturnValue({
     isSuperAdmin: false,
-    perfilSlug: 'superadministrador',
+    get perfilSlug() {
+      return authorizationState.perfilSlug
+    },
     loading: false,
   }),
 }))
@@ -58,10 +65,18 @@ vi.mock('@/hooks/use-permissions', () => ({
   PermissionsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   usePermissions: () => ({
     permissions: {},
-    hasPermission: () => true,
+    hasPermission: () => authorizationState.hasAdministrationPermission,
     getScope: () => null,
     loading: false,
   }),
+}))
+
+vi.mock('@/components/ProposalNotifications', () => ({
+  ProposalNotifications: () => null,
+}))
+
+vi.mock('./pages/OperacaoDia', () => ({
+  default: () => <div>Operação do Dia</div>,
 }))
 
 // SUT importado DEPOIS dos mocks.
@@ -70,6 +85,8 @@ import App from './App'
 describe('App routing com gate fechado', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authorizationState.perfilSlug = 'superadministrador'
+    authorizationState.hasAdministrationPermission = true
     window.history.pushState({}, '', '/')
   })
 
@@ -90,5 +107,17 @@ describe('App routing com gate fechado', () => {
 
   it('hash verification', async () => {
     expect(true).toBe(true)
+  })
+
+  it('gestor comercial sem permissões gerais alcança WhatsApp pela navegação normal', async () => {
+    authorizationState.perfilSlug = 'gestor-comercial'
+    authorizationState.hasAdministrationPermission = false
+    render(<App />)
+
+    const administracao = await screen.findByRole('link', { name: /Administração/ })
+    expect(administracao).toHaveAttribute('href', '/integracoes/whatsapp')
+
+    fireEvent.click(administracao)
+    expect(await screen.findByRole('heading', { name: 'Integração WhatsApp' })).toBeInTheDocument()
   })
 })

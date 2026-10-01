@@ -14,6 +14,7 @@ const app = fs.readFileSync(path.join(root, 'src/App.tsx'), 'utf8')
 const nav = fs.readFileSync(path.join(root, 'src/lib/navigation.ts'), 'utf8')
 const service = fs.readFileSync(path.join(root, 'src/services/whatsapp-uazapi.ts'), 'utf8')
 const page = fs.readFileSync(path.join(root, 'src/pages/WhatsAppUazapi.tsx'), 'utf8')
+const moduleTabs = fs.readFileSync(path.join(root, 'src/components/ModuleTabs.tsx'), 'utf8')
 
 function assert(name, cond, detail = '') {
   if (!cond) {
@@ -65,8 +66,12 @@ assert(
   service.includes('/backend/v1/integracao/whatsapp/uazapi/status'),
 )
 assert(
-  'página exibe monitoramento Uazapi',
-  page.includes('Integração WhatsApp') && page.includes('Sem envio automático'),
+  'página exibe monitoramento Uazapi e fila de ambiguidades sem alertas removidos',
+  page.includes('Integração WhatsApp') &&
+    page.includes('Ambiguidades para decisão') &&
+    page.includes('Confirmar vínculo') &&
+    !page.includes('Sem envio automático') &&
+    !page.includes('Dados parciais no monitoramento'),
 )
 assert(
   'página evolui para Qualidade da base WhatsApp Comercial',
@@ -96,6 +101,13 @@ assert(
   !page.includes('Próximas etapas desta fase') && !page.includes('Itens que podem avançar'),
 )
 assert('rota do app existe', app.includes('path="/integracoes/whatsapp"'))
+assert(
+  'fila de ambiguidades fica restrita a perfis humanos autorizados também no frontend',
+  app.includes('WhatsAppAdministrationRoute') &&
+    app.includes("new Set(['superadministrador', 'gestor-comercial'])") &&
+    moduleTabs.includes("item.path !== '/integracoes/whatsapp'") &&
+    !app.includes("WHATSAPP_ADMIN_ALLOWLIST = new Set(['integracao'"),
+)
 const mainModulesBlock = nav.slice(
   nav.indexOf('export const MAIN_MODULES'),
   nav.indexOf('export const PIPELINE_PATHS'),

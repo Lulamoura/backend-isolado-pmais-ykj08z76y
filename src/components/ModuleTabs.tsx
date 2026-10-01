@@ -37,7 +37,10 @@ export function ModuleTabs({ showSubstituicoes, showSystem }: ModuleTabsProps) {
     tabs = ADMIN_TABS.filter(
       (item) =>
         (showSystem || item.path !== '/foundation') &&
-        (showSubstituicoes || item.path !== '/substituicoes'),
+        (showSubstituicoes || item.path !== '/substituicoes') &&
+        (item.path !== '/integracoes/whatsapp' ||
+          perfilSlug === 'superadministrador' ||
+          perfilSlug === 'gestor-comercial'),
     )
     label = 'Áreas da Administração'
   }
