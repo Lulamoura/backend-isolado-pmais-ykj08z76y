@@ -1062,14 +1062,17 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     return asString(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
   }
 
-  function nomeRelacionado(collectionName, id) {
+  function nomeRelacionado(collectionName, id, fields) {
     if (!id) return ''
     try {
       var record = $app.findRecordById(collectionName, id)
-      return record.getString('nome') || record.getString('razao_social') || ''
-    } catch (_) {
-      return ''
-    }
+      var fieldsToRead = fields && fields.length ? fields : ['nome', 'razao_social']
+      for (var i = 0; i < fieldsToRead.length; i += 1) {
+        var value = record.getString(fieldsToRead[i]) || ''
+        if (value) return value
+      }
+    } catch (_) {}
+    return ''
   }
 
   function negocioAberto(record) {
@@ -1084,6 +1087,24 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     if (!record || !actorId) return false
     if (record.getString('responsavel_id') === actorId) return true
     return !!actorEquipeId && record.getString('equipe_id') === actorEquipeId
+  }
+
+  function numeroHumanoNegocio(negocio) {
+    var numero = negocio.getString('oe_numero') || ''
+    if (numero) return numero
+    try {
+      var vinculos = $app.findRecordsByFilter(
+        'com_vinculos_externos',
+        "collection_name='com_negocios' && record_id='" +
+          pbFilterEscape(negocio.id) +
+          "' && sistema_origem='activecampaign' && external_type='business'",
+        '-id',
+        1,
+        0,
+      )
+      if (vinculos.length) return vinculos[0].getString('external_id') || ''
+    } catch (_) {}
+    return ''
   }
 
   function negociosCandidatos(vinculo) {
@@ -1103,26 +1124,22 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
         vistos[negocio.id] = true
         totalAbertos++
         if (!podeAcessarNegocio(negocio)) continue
-        var numeroComercial = negocio.getString('oe_numero') || ''
-        if (!numeroComercial) {
-          try {
-            var propostas = $app.findRecordsByFilter(
-              'com_propostas',
-              "negocio_id='" + pbFilterEscape(negocio.id) + "'",
-              '-updated',
-              1,
-              0,
-            )
-            if (propostas.length) numeroComercial = propostas[0].getString('identificador') || ''
-          } catch (_) {}
-        }
+        var empresaIdNegocio = negocio.getString('empresa_id') || ''
+        var contatoIdNegocio = negocio.getString('contato_principal_id') || ''
+        var cliente =
+          nomeRelacionado('com_empresas', empresaIdNegocio, ['nome', 'razao_social']) ||
+          nomeRelacionado('com_contatos', contatoIdNegocio, ['nome'])
         encontrados.push({
           id: negocio.id,
           titulo:
             negocio.getString('necessidade') ||
             negocio.getString('titulo') ||
             'Negócio em andamento',
-          numero_comercial: numeroComercial,
+          numero_comercial: numeroHumanoNegocio(negocio),
+          cliente: cliente,
+          responsavel: nomeRelacionado('users', negocio.getString('responsavel_id') || '', [
+            'name',
+          ]),
           etapa: negocio.getString('etapa') || '',
           valor: negocio.getFloat('valor') || 0,
           atualizado_em: safeDate(negocio, 'updated'),
