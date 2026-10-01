@@ -49,6 +49,8 @@ const payload = {
           id: 'negocio-interno-limpeza',
           titulo: 'Limpeza e conservação',
           numero_comercial: '538',
+          cliente: 'Ciclo Ambiental',
+          responsavel: 'Cristiane PMais',
           etapa: 'negociacao',
           valor: 4580.91,
           atualizado_em: '2026-09-29 15:30:00.000Z',
@@ -57,6 +59,8 @@ const payload = {
           id: 'negocio-interno-vigilancia',
           titulo: 'Vigilância desarmada',
           numero_comercial: '539',
+          cliente: 'Ciclo Ambiental',
+          responsavel: 'Cristiane PMais',
           etapa: 'producao_proposta',
           valor: 10915.25,
           atualizado_em: '2026-09-29 16:00:00.000Z',
@@ -241,8 +245,10 @@ describe('Integração WhatsApp — apresentação operacional', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Limpeza e conservação')).toBeInTheDocument()
     expect(screen.getByText('Vigilância desarmada')).toBeInTheDocument()
-    expect(screen.getByText(/Proposta 538/)).toBeInTheDocument()
-    expect(screen.getByText(/Proposta 539/)).toBeInTheDocument()
+    expect(screen.getByText('Nº do negócio: 538')).toBeInTheDocument()
+    expect(screen.getByText('Nº do negócio: 539')).toBeInTheDocument()
+    expect(screen.getAllByText('Cliente: Ciclo Ambiental')).toHaveLength(2)
+    expect(screen.getAllByText('Responsável: Cristiane PMais')).toHaveLength(2)
     expect(screen.getByText(/R\$ 4\.580,91/)).toBeInTheDocument()
     expect(screen.getByText(/R\$ 10\.915,25/)).toBeInTheDocument()
     expect(screen.getByText(/30\/09\/2026 às 17:40/)).toBeInTheDocument()
