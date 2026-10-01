@@ -4737,8 +4737,8 @@
       "name": "com_ledger_comercial",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva' || @request.auth.perfil_id.slug = 'integracao')",
-        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva' || @request.auth.perfil_id.slug = 'integracao')",
+        "list": null,
+        "view": null,
         "create": null,
         "update": null,
         "delete": null
@@ -4876,8 +4876,8 @@
       "name": "com_whatsapp_vinculos",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'integracao')",
-        "view": "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'integracao')",
+        "list": null,
+        "view": null,
         "create": null,
         "update": null,
         "delete": null
