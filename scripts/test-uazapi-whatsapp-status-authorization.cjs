@@ -63,7 +63,12 @@ function assert(condition, message) {
   console.log(`PASS ${message}`)
 }
 
-function executar(perfil, equipeCandidato = 'equipe-1', semEmpresa = false) {
+function executar(
+  perfil,
+  equipeCandidato = 'equipe-1',
+  semEmpresa = false,
+  cenarioQualidade = false,
+) {
   const vinculo = new MockRecord('vinculo-1', {
     provider: 'uazapi',
     instance_name: 'Operadora Comercial',
@@ -125,6 +130,82 @@ function executar(perfil, equipeCandidato = 'equipe-1', semEmpresa = false) {
     com_negocios: [negocio],
     com_vinculos_externos: [new MockRecord('vinculo-externo-1', { external_id: '4901' })],
     com_propostas: [],
+  }
+  if (cenarioQualidade) {
+    const criarMensagem = (id, chatId, momento) =>
+      new MockRecord(id, {
+        provider: 'uazapi',
+        instance_name: 'Operadora Comercial',
+        owner: '558100000000',
+        chat_id: chatId,
+        sender_name: 'Contato Protegido',
+        texto: 'Conteúdo comercial protegido',
+        direcao: 'recebida',
+        message_type: 'Conversation',
+        status: 'capturada',
+        is_group: false,
+        received_at: momento,
+        message_at: momento,
+      })
+    const criarVinculo = (id, chatId, status, negocioIds) =>
+      new MockRecord(id, {
+        provider: 'uazapi',
+        instance_name: 'Operadora Comercial',
+        owner: '558100000000',
+        chat_id: chatId,
+        telefone: chatId.split('@')[0],
+        contato_id: status === 'sem_correspondencia' ? '' : 'contato-1',
+        empresa_id: status === 'sem_correspondencia' ? '' : 'empresa-1',
+        negocio_id: negocioIds[0] || '',
+        negocio_ids: negocioIds,
+        status,
+        last_message_at: '2026-09-30 20:00:00.000Z',
+      })
+
+    dados.com_whatsapp_mensagens = [
+      criarMensagem(
+        'mensagem-vinculada-1',
+        '558199999991@s.whatsapp.net',
+        '2026-09-30 20:06:00.000Z',
+      ),
+      criarMensagem(
+        'mensagem-vinculada-2',
+        '558199999991@s.whatsapp.net',
+        '2026-09-30 20:05:00.000Z',
+      ),
+      criarMensagem(
+        'mensagem-ambigua-1',
+        '558199999992@s.whatsapp.net',
+        '2026-09-30 20:04:00.000Z',
+      ),
+      criarMensagem(
+        'mensagem-ambigua-2',
+        '558199999992@s.whatsapp.net',
+        '2026-09-30 20:03:00.000Z',
+      ),
+      criarMensagem(
+        'mensagem-ambigua-3',
+        '558199999992@s.whatsapp.net',
+        '2026-09-30 20:02:00.000Z',
+      ),
+      criarMensagem(
+        'mensagem-pendente-1',
+        '558199999993@s.whatsapp.net',
+        '2026-09-30 20:01:00.000Z',
+      ),
+    ]
+    dados.com_whatsapp_vinculos = [
+      criarVinculo('vinculo-vinculado', '558199999991@s.whatsapp.net', 'vinculado_automatico', [
+        'negocio-1',
+      ]),
+      criarVinculo(
+        'vinculo-ambiguo',
+        '558199999992@s.whatsapp.net',
+        'ambiguidade_negocio_aberto',
+        [],
+      ),
+      criarVinculo('vinculo-pendente', '558199999993@s.whatsapp.net', 'sem_correspondencia', []),
+    ]
   }
   const colecoesSensiveis = Object.fromEntries(
     [
@@ -249,4 +330,32 @@ assert(
   resposta.body.ambiguidades_negocios_abertos[0].negocios_candidatos[0].cliente ===
     'Contato Protegido',
   'candidato usa o contato como cliente quando a empresa não está disponível',
+)
+
+resposta = executar('superadministrador', 'equipe-1', false, true)
+const qualidadeOperador = resposta.body.qualidade_base.por_operador[0]
+assert(qualidadeOperador.total_mensagens === 6, 'agregador preserva o volume total de mensagens')
+assert(qualidadeOperador.total_conversas === 3, 'agregador conta conversas distintas por operador')
+assert(
+  resposta.body.qualidade_base.conversas_vinculadas_negocio === 1,
+  'agregador expõe o total global de conversas vinculadas sem confundir com mensagens',
+)
+assert(
+  qualidadeOperador.vinculadas_negocio === 2 &&
+    qualidadeOperador.ambiguas === 3 &&
+    qualidadeOperador.pendentes_ou_sem_vinculo === 1,
+  'agregador preserva os contadores legados por mensagem',
+)
+assert(
+  qualidadeOperador.conversas_vinculadas_negocio === 1 &&
+    qualidadeOperador.conversas_ambiguas === 1 &&
+    qualidadeOperador.conversas_pendentes_ou_sem_vinculo === 1,
+  'agregador classifica cada conversa uma única vez por situação',
+)
+assert(
+  qualidadeOperador.conversas_vinculadas_negocio +
+    qualidadeOperador.conversas_ambiguas +
+    qualidadeOperador.conversas_pendentes_ou_sem_vinculo ===
+    qualidadeOperador.total_conversas,
+  'situações somam exatamente o total de conversas distintas',
 )

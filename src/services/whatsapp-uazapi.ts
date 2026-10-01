@@ -4,9 +4,13 @@ export type WhatsAppUazapiQualidadeOperador = {
   chave: string
   label: string
   total_mensagens: number
+  total_conversas?: number
   vinculadas_negocio?: number
   pendentes_ou_sem_vinculo?: number
   ambiguas?: number
+  conversas_vinculadas_negocio?: number
+  conversas_pendentes_ou_sem_vinculo?: number
+  conversas_ambiguas?: number
   ultima_interacao?: string
 }
 
@@ -27,6 +31,7 @@ export type WhatsAppUazapiQualidadeBase = {
   total_mensagens_lidas: number
   total_vinculos_lidos: number
   mensagens_vinculadas_negocio: number
+  conversas_vinculadas_negocio?: number
   vinculos_automaticos_negocio: number
   vinculos_pendentes_ou_sem_negocio: number
   vinculos_sem_contato: number
