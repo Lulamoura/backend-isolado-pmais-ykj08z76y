@@ -50,6 +50,20 @@ function AdministrationRoute({ children }: { children: React.ReactNode }) {
   return allowed ? children : <AccessDenied />
 }
 
+const WHATSAPP_ADMIN_ALLOWLIST = new Set(['superadministrador', 'gestor-comercial'])
+
+function WhatsAppAdministrationRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth()
+  const { perfilSlug, loading } = useIsSuperAdmin()
+  if (loading) return null
+  if (!perfilSlug) return <AccessDenied profileUnavailable />
+  return user?.ativo_comercial === true && WHATSAPP_ADMIN_ALLOWLIST.has(perfilSlug) ? (
+    children
+  ) : (
+    <AccessDenied />
+  )
+}
+
 function RestrictedProfileRoute({ children }: { children: React.ReactNode }) {
   const { perfilSlug, loading } = useIsSuperAdmin()
   if (loading) return null
@@ -142,9 +156,9 @@ const App = () => (
                 path="/integracoes/whatsapp"
                 element={
                   <ProtectedRoute>
-                    <AdministrationRoute>
+                    <WhatsAppAdministrationRoute>
                       <WhatsAppUazapi />
-                    </AdministrationRoute>
+                    </WhatsAppAdministrationRoute>
                   </ProtectedRoute>
                 }
               />

@@ -189,15 +189,22 @@ routerAdd(
       return false
     }
 
+    function carregarRegistros(tx, collectionName, filter, sort) {
+      var out = []
+      var offset = 0
+      var limite = 500
+      while (true) {
+        var records = tx.findRecordsByFilter(collectionName, filter, sort, limite, offset)
+        for (var i = 0; i < records.length; i++) out.push(records[i])
+        if (records.length < limite) return out
+        offset += records.length
+      }
+    }
+
     function buscarContatosPorTelefone(tx, telefone) {
       var matches = []
       if (!telefone) return matches
-      var contatos = []
-      try {
-        contatos = tx.findRecordsByFilter('com_contatos', "id != ''", '-updated', 500, 0)
-      } catch (_) {
-        return matches
-      }
+      var contatos = carregarRegistros(tx, 'com_contatos', "id != ''", '-updated,-id')
       for (var i = 0; i < contatos.length; i++) {
         var record = contatos[i]
         if (samePhone(record.getString('telefone'), telefone)) matches.push(record)
@@ -226,13 +233,11 @@ routerAdd(
       if (contatoId) filters.push("contato_principal_id='" + pbFilterEscape(contatoId) + "'")
       if (empresaId) filters.push("empresa_id='" + pbFilterEscape(empresaId) + "'")
       for (var i = 0; i < filters.length; i++) {
-        try {
-          var found = tx.findRecordsByFilter('com_negocios', filters[i], '-updated', 50, 0)
-          for (var fi = 0; fi < found.length; fi++) {
-            if (negocioAberto(found[fi])) addUniqueRecord(negociosAbertos, found[fi])
-            else addUniqueRecord(negociosFechados, found[fi])
-          }
-        } catch (_) {}
+        var found = carregarRegistros(tx, 'com_negocios', filters[i], '-updated,-id')
+        for (var fi = 0; fi < found.length; fi++) {
+          if (negocioAberto(found[fi])) addUniqueRecord(negociosAbertos, found[fi])
+          else addUniqueRecord(negociosFechados, found[fi])
+        }
       }
       return {
         abertos: negociosAbertos,
@@ -367,7 +372,10 @@ routerAdd(
       var vinculo = buscarVinculoPorChat(tx, data)
       var negocioIdsExistentes = vinculo ? negocioIdsDoVinculo(vinculo) : []
       var statusExistente = vinculo ? vinculo.getString('status') : ''
-      if (statusExistente === 'vinculado_multiplo' && negocioIdsExistentes.length > 1) {
+      if (
+        (statusExistente === 'vinculado_multiplo' || statusExistente === 'vinculado_manual') &&
+        negocioIdsExistentes.length > 0
+      ) {
         var contatoIdPreservado = vinculo.getString('contato_id') || ''
         var empresaIdPreservado = vinculo.getString('empresa_id') || ''
         vinculo.set('last_message_at', data.messageAt || data.receivedAt)
@@ -380,8 +388,11 @@ routerAdd(
           contatoNome: safeRecordString(tx, 'com_contatos', contatoIdPreservado, 'nome'),
           empresaId: empresaIdPreservado,
           empresaNome: safeRecordString(tx, 'com_empresas', empresaIdPreservado, 'nome'),
-          negocioId: '',
-          negocioTitulo: '',
+          negocioId: negocioIdsExistentes.length === 1 ? negocioIdsExistentes[0] : '',
+          negocioTitulo:
+            negocioIdsExistentes.length === 1
+              ? safeRecordString(tx, 'com_negocios', negocioIdsExistentes[0], 'titulo')
+              : '',
           negocioIds: negocioIdsExistentes,
           negociosResumo: resumoNegociosPorIds(tx, negocioIdsExistentes),
           negociosAbertos: resumoNegocios(negociosAbertos),
@@ -535,18 +546,43 @@ routerAdd(
       return 'historico'
     }
 
+    function fecharAcessoDiretoColecoesWhatsApp(app) {
+      var nomes = [
+        'com_whatsapp_eventos',
+        'com_whatsapp_mensagens',
+        'com_whatsapp_midias',
+        'com_whatsapp_vinculos',
+        'com_ledger_comercial',
+      ]
+      for (var i = 0; i < nomes.length; i++) {
+        var collection = null
+        try {
+          collection = app.findCollectionByNameOrId(nomes[i])
+        } catch (_) {}
+        if (collection && (collection.listRule !== null || collection.viewRule !== null)) {
+          collection.listRule = null
+          collection.viewRule = null
+          app.save(collection)
+        }
+      }
+    }
+
     function garantirColecaoVinculos(app) {
       var existente = null
       try {
         existente = app.findCollectionByNameOrId('com_whatsapp_vinculos')
       } catch (_) {}
       if (existente) {
+        var precisaSalvar = existente.listRule !== null || existente.viewRule !== null
+        existente.listRule = null
+        existente.viewRule = null
         if (!existente.fields.getByName('negocio_ids')) {
           existente.fields.add(
             new JSONField({ name: 'negocio_ids', required: false, maxSize: 2000 }),
           )
-          app.save(existente)
+          precisaSalvar = true
         }
+        if (precisaSalvar) app.save(existente)
         return existente
       }
       var collection = new Collection({
@@ -555,10 +591,8 @@ routerAdd(
         createRule: null,
         updateRule: null,
         deleteRule: null,
-        listRule:
-          "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'integracao')",
-        viewRule:
-          "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'integracao')",
+        listRule: null,
+        viewRule: null,
       })
       collection.fields.add(new TextField({ name: 'provider', required: true, max: 40 }))
       collection.fields.add(new TextField({ name: 'instance_name', required: false, max: 120 }))
@@ -592,19 +626,26 @@ routerAdd(
     }
 
     function garantirColecaoLedgerComercial(app) {
+      var existente = null
       try {
-        return app.findCollectionByNameOrId('com_ledger_comercial')
+        existente = app.findCollectionByNameOrId('com_ledger_comercial')
       } catch (_) {}
+      if (existente) {
+        if (existente.listRule !== null || existente.viewRule !== null) {
+          existente.listRule = null
+          existente.viewRule = null
+          app.save(existente)
+        }
+        return existente
+      }
       var collection = new Collection({
         type: 'base',
         name: 'com_ledger_comercial',
         createRule: null,
         updateRule: null,
         deleteRule: null,
-        listRule:
-          "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva' || @request.auth.perfil_id.slug = 'integracao')",
-        viewRule:
-          "@request.auth.id != '' && (@request.auth.perfil_id.slug = 'superadministrador' || @request.auth.perfil_id.slug = 'gestor-comercial' || @request.auth.perfil_id.slug = 'leitura-executiva' || @request.auth.perfil_id.slug = 'integracao')",
+        listRule: null,
+        viewRule: null,
       })
       collection.fields.add(new TextField({ name: 'fonte', required: true, max: 80 }))
       collection.fields.add(new TextField({ name: 'canal', required: true, max: 120 }))
@@ -758,6 +799,7 @@ routerAdd(
     var result = { replay: false, event_id: '', message_record_id: '', media_record_id: '' }
 
     try {
+      fecharAcessoDiretoColecoesWhatsApp($app)
       if (eventType === 'messages' && messageId) {
         garantirColecaoVinculos($app)
         garantirColecaoLedgerComercial($app)
@@ -868,6 +910,8 @@ routerAdd(
 )
 
 routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
+  var MAX_NEGOCIOS_DECISAO = 80
+
   function asString(value) {
     if (value === null || value === undefined) return ''
     return String(value)
@@ -928,6 +972,10 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
   }
 
   var falhasMonitoramento = []
+  var actorId = ''
+  var actorEquipeId = ''
+  var actorIsSuperAdmin = false
+  var actorCanDecide = false
 
   function registrarFalha(codigo) {
     if (falhasMonitoramento.indexOf(codigo) === -1) falhasMonitoramento.push(codigo)
@@ -990,6 +1038,117 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
         return ''
       }
     }
+  }
+
+  function pbFilterEscape(value) {
+    return asString(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+  }
+
+  function nomeRelacionado(collectionName, id) {
+    if (!id) return ''
+    try {
+      var record = $app.findRecordById(collectionName, id)
+      return record.getString('nome') || record.getString('razao_social') || ''
+    } catch (_) {
+      return ''
+    }
+  }
+
+  function negocioAberto(record) {
+    try {
+      if (record.getBool('inativo')) return false
+    } catch (_) {}
+    return !record.getString('resultado')
+  }
+
+  function podeAcessarNegocio(record) {
+    if (actorIsSuperAdmin) return true
+    if (!record || !actorId) return false
+    if (record.getString('responsavel_id') === actorId) return true
+    return !!actorEquipeId && record.getString('equipe_id') === actorEquipeId
+  }
+
+  function negociosCandidatos(vinculo) {
+    var contatoId = vinculo.getString('contato_id') || ''
+    var empresaId = vinculo.getString('empresa_id') || ''
+    var encontrados = []
+    var totalAbertos = 0
+    var vistos = {}
+    var filtros = []
+    if (contatoId) filtros.push("contato_principal_id='" + pbFilterEscape(contatoId) + "'")
+    if (empresaId) filtros.push("empresa_id='" + pbFilterEscape(empresaId) + "'")
+    for (var fi = 0; fi < filtros.length; fi++) {
+      var records = carregarRegistros('com_negocios', filtros[fi], '-updated,-id')
+      for (var ri = 0; ri < records.length; ri++) {
+        var negocio = records[ri]
+        if (!negocioAberto(negocio) || vistos[negocio.id]) continue
+        vistos[negocio.id] = true
+        totalAbertos++
+        if (!podeAcessarNegocio(negocio)) continue
+        var numeroComercial = negocio.getString('oe_numero') || ''
+        if (!numeroComercial) {
+          try {
+            var propostas = $app.findRecordsByFilter(
+              'com_propostas',
+              "negocio_id='" + pbFilterEscape(negocio.id) + "'",
+              '-updated',
+              1,
+              0,
+            )
+            if (propostas.length) numeroComercial = propostas[0].getString('identificador') || ''
+          } catch (_) {}
+        }
+        encontrados.push({
+          id: negocio.id,
+          titulo:
+            negocio.getString('necessidade') ||
+            negocio.getString('titulo') ||
+            'Negócio em andamento',
+          numero_comercial: numeroComercial,
+          etapa: negocio.getString('etapa') || '',
+          valor: negocio.getFloat('valor') || 0,
+          atualizado_em: safeDate(negocio, 'updated'),
+        })
+      }
+    }
+    return { total_abertos: totalAbertos, itens: encontrados }
+  }
+
+  function mensagensRecentes(vinculo, contatoNome) {
+    var filtro =
+      "provider='" +
+      pbFilterEscape(vinculo.getString('provider') || '') +
+      "' && instance_name='" +
+      pbFilterEscape(vinculo.getString('instance_name') || '') +
+      "' && owner='" +
+      pbFilterEscape(vinculo.getString('owner') || '') +
+      "' && chat_id='" +
+      pbFilterEscape(vinculo.getString('chat_id') || '') +
+      "'"
+    var records = $app.findRecordsByFilter(
+      'com_whatsapp_mensagens',
+      filtro,
+      '-message_at,-received_at',
+      8,
+      0,
+    )
+    var mensagens = []
+    for (var i = records.length - 1; i >= 0; i--) {
+      var direcao = records[i].getString('direcao') || ''
+      var texto = records[i].getString('texto') || ''
+      var tipo = records[i].getString('media_type') || records[i].getString('message_type') || ''
+      mensagens.push({
+        direcao: direcao,
+        autor:
+          direcao === 'enviada_operadora'
+            ? vinculo.getString('instance_name') || 'Equipe comercial'
+            : records[i].getString('sender_name') || contatoNome || 'Contato',
+        texto:
+          texto || (tipo ? 'Arquivo ou conteúdo recebido na conversa.' : 'Mensagem sem texto.'),
+        momento: safeDate(records[i], 'message_at') || safeDate(records[i], 'received_at'),
+      })
+    }
+    return mensagens
   }
 
   function recordSummary(record, fields) {
@@ -1109,7 +1268,9 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
       var status = v.getString('status') || ''
       var idsVinculados = negocioIdsDoVinculo(v)
       if (
-        (status === 'vinculado_automatico' || status === 'vinculado_multiplo') &&
+        (status === 'vinculado_automatico' ||
+          status === 'vinculado_manual' ||
+          status === 'vinculado_multiplo') &&
         idsVinculados.length > 0
       )
         totalVinculado++
@@ -1146,7 +1307,9 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
       var statusDoVinculo = vinc ? vinc.getString('status') : ''
       if (
         vinc &&
-        (statusDoVinculo === 'vinculado_automatico' || statusDoVinculo === 'vinculado_multiplo') &&
+        (statusDoVinculo === 'vinculado_automatico' ||
+          statusDoVinculo === 'vinculado_manual' ||
+          statusDoVinculo === 'vinculado_multiplo') &&
         idsDoVinculo.length > 0
       ) {
         mensagensVinculadas++
@@ -1216,10 +1379,16 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
   if (!actor || !actor.getBool('ativo_comercial')) return e.unauthorizedError('Autenticacao')
   var slug = ''
   try {
-    slug = $app.findRecordById('com_perfis', actor.getString('perfil_id')).getString('slug')
+    var perfil = $app.findRecordById('com_perfis', actor.getString('perfil_id'))
+    if (!perfil.getBool('ativo')) return e.forbiddenError('Perfil comercial inativo')
+    slug = perfil.getString('slug')
   } catch (_) {}
   if (slug !== 'superadministrador' && slug !== 'gestor-comercial' && slug !== 'integracao')
     return e.forbiddenError('Perfil comercial necessario')
+  actorId = actor.id
+  actorEquipeId = actor.getString('equipe_id') || ''
+  actorIsSuperAdmin = slug === 'superadministrador'
+  actorCanDecide = actorIsSuperAdmin || slug === 'gestor-comercial'
 
   var secretConfigured = !!asString($secrets.get('UAZAPI_WEBHOOK_SECRET') || '')
   var inicioHojeRecife = inicioDiaRecifeUtc(new Date())
@@ -1234,86 +1403,152 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     vinculos_pendentes: 0,
     vinculos_ambiguos_negocio_aberto: 0,
   }
-  try {
-    counts.eventos_hoje = contarRegistros(
-      'com_whatsapp_eventos',
-      filtroHojeRecife,
-      '-received_at,-id',
-    )
-    counts.eventos_24h = counts.eventos_hoje
-  } catch (_) {
-    registrarFalha('eventos_hoje')
-  }
-  try {
-    counts.mensagens_hoje = contarRegistros(
-      'com_whatsapp_mensagens',
-      filtroHojeRecife,
-      '-received_at,-id',
-    )
-    counts.mensagens_24h = counts.mensagens_hoje
-  } catch (_) {
-    registrarFalha('mensagens_hoje')
-  }
-  try {
-    counts.midias_pendentes = contarRegistros(
-      'com_whatsapp_midias',
-      "download_status='pendente'",
-      '-received_at,-id',
-    )
-  } catch (_) {
-    registrarFalha('midias_pendentes')
-  }
-  try {
-    counts.transcricoes_pendentes = contarRegistros(
-      'com_whatsapp_midias',
-      "transcricao_status='pendente_transcricao'",
-      '-received_at,-id',
-    )
-  } catch (_) {
-    registrarFalha('transcricoes_pendentes')
-  }
-  try {
-    counts.vinculos_pendentes = contarRegistros(
-      'com_whatsapp_vinculos',
-      "status='pendente_confirmacao' || status='ambiguidade' || status='ambiguidade_negocio_aberto'",
-      '-last_message_at,-id',
-    )
-  } catch (_) {
-    registrarFalha('vinculos_pendentes')
+  if (slug !== 'gestor-comercial') {
+    try {
+      counts.eventos_hoje = contarRegistros(
+        'com_whatsapp_eventos',
+        filtroHojeRecife,
+        '-received_at,-id',
+      )
+      counts.eventos_24h = counts.eventos_hoje
+    } catch (_) {
+      registrarFalha('eventos_hoje')
+    }
+    try {
+      counts.mensagens_hoje = contarRegistros(
+        'com_whatsapp_mensagens',
+        filtroHojeRecife,
+        '-received_at,-id',
+      )
+      counts.mensagens_24h = counts.mensagens_hoje
+    } catch (_) {
+      registrarFalha('mensagens_hoje')
+    }
+    try {
+      counts.midias_pendentes = contarRegistros(
+        'com_whatsapp_midias',
+        "download_status='pendente'",
+        '-received_at,-id',
+      )
+    } catch (_) {
+      registrarFalha('midias_pendentes')
+    }
+    try {
+      counts.transcricoes_pendentes = contarRegistros(
+        'com_whatsapp_midias',
+        "transcricao_status='pendente_transcricao'",
+        '-received_at,-id',
+      )
+    } catch (_) {
+      registrarFalha('transcricoes_pendentes')
+    }
+    try {
+      counts.vinculos_pendentes = contarRegistros(
+        'com_whatsapp_vinculos',
+        "status='pendente_confirmacao' || status='ambiguidade' || status='ambiguidade_negocio_aberto'",
+        '-last_message_at,-id',
+      )
+    } catch (_) {
+      registrarFalha('vinculos_pendentes')
+    }
+
+    try {
+      counts.vinculos_ambiguos_negocio_aberto = contarRegistros(
+        'com_whatsapp_vinculos',
+        "status='ambiguidade_negocio_aberto'",
+        '-last_message_at,-id',
+      )
+    } catch (_) {
+      registrarFalha('vinculos_ambiguos')
+    }
   }
 
-  try {
-    counts.vinculos_ambiguos_negocio_aberto = contarRegistros(
-      'com_whatsapp_vinculos',
-      "status='ambiguidade_negocio_aberto'",
-      '-last_message_at,-id',
-    )
-  } catch (_) {
-    registrarFalha('vinculos_ambiguos')
+  if (slug === 'integracao') {
+    return e.json(200, {
+      ok: true,
+      monitoramento_ok: falhasMonitoramento.length === 0,
+      fontes_indisponiveis: falhasMonitoramento,
+      visao_restrita: true,
+      provider: 'uazapi',
+      secret_configured: secretConfigured,
+      modo: 'captura_passiva',
+      automatic_send_allowed: false,
+      counts: counts,
+      ambiguidades_negocios_abertos: [],
+    })
   }
 
   var ambiguidadesNegociosAbertos = []
-  try {
-    var ambiguos = $app.findRecordsByFilter(
-      'com_whatsapp_vinculos',
-      "status='ambiguidade_negocio_aberto'",
-      '-last_message_at',
-      10,
-      0,
-    )
-    for (var ai = 0; ai < ambiguos.length; ai++) {
-      ambiguidadesNegociosAbertos.push({
-        id: ambiguos[ai].id,
-        operador: ambiguos[ai].getString('instance_name') || ambiguos[ai].getString('owner'),
-        telefone: ambiguos[ai].getString('telefone'),
-        contato_id: ambiguos[ai].getString('contato_id'),
-        empresa_id: ambiguos[ai].getString('empresa_id'),
-        observacao: ambiguos[ai].getString('observacao'),
-        last_message_at: safeDate(ambiguos[ai], 'last_message_at'),
-      })
+  if (actorCanDecide) {
+    try {
+      var ambiguos = carregarRegistros(
+        'com_whatsapp_vinculos',
+        "status='ambiguidade_negocio_aberto'",
+        '-last_message_at,-id',
+      )
+      for (var ai = 0; ai < ambiguos.length; ai++) {
+        var ambiguidade = ambiguos[ai]
+        var candidatos = negociosCandidatos(ambiguidade)
+        if (
+          !actorIsSuperAdmin &&
+          (candidatos.total_abertos === 0 || candidatos.total_abertos !== candidatos.itens.length)
+        )
+          continue
+        var contatoId = ambiguidade.getString('contato_id') || ''
+        var empresaId = ambiguidade.getString('empresa_id') || ''
+        var contatoNome = nomeRelacionado('com_contatos', contatoId)
+        var selecaoIndisponivel = candidatos.total_abertos > MAX_NEGOCIOS_DECISAO
+        ambiguidadesNegociosAbertos.push({
+          id: ambiguidade.id,
+          operador: ambiguidade.getString('instance_name') || ambiguidade.getString('owner'),
+          telefone: ambiguidade.getString('telefone'),
+          contato: contatoNome,
+          empresa: nomeRelacionado('com_empresas', empresaId),
+          ultima_interacao: safeDate(ambiguidade, 'last_message_at'),
+          mensagens_recentes: mensagensRecentes(ambiguidade, contatoNome),
+          negocios_candidatos: selecaoIndisponivel ? [] : candidatos.itens,
+          selecao_indisponivel: selecaoIndisponivel,
+          total_candidatos: candidatos.total_abertos,
+        })
+        if (ambiguidadesNegociosAbertos.length >= 10) break
+      }
+    } catch (_) {
+      registrarFalha('detalhes_ambiguidades')
     }
-  } catch (_) {
-    registrarFalha('detalhes_ambiguidades')
+  }
+
+  if (slug === 'gestor-comercial') {
+    var fontesRestritas = [
+      'eventos_hoje',
+      'mensagens_hoje',
+      'midias_pendentes',
+      'transcricoes_pendentes',
+      'vinculos_pendentes',
+      'vinculos_ambiguos',
+      'mensagens_qualidade',
+      'vinculos_qualidade',
+      'midias_qualidade',
+      'ultimo_webhook',
+      'ultima_mensagem',
+      'ultima_midia',
+    ]
+    for (var fri = 0; fri < fontesRestritas.length; fri++) registrarFalha(fontesRestritas[fri])
+    return e.json(200, {
+      ok: true,
+      monitoramento_ok: false,
+      fontes_indisponiveis: falhasMonitoramento,
+      visao_restrita: true,
+      provider: 'uazapi',
+      secret_configured: secretConfigured,
+      modo: 'captura_passiva',
+      automatic_send_allowed: false,
+      counts: {},
+      ambiguidades_negocios_abertos: ambiguidadesNegociosAbertos,
+      qualidade_base: null,
+      ultimo_webhook: null,
+      ultima_mensagem: null,
+      ultima_midia: null,
+    })
   }
 
   var ultimoWebhook = firstRecord('com_whatsapp_eventos', '', '-received_at', 'ultimo_webhook')
@@ -1371,3 +1606,139 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     ]),
   })
 })
+
+routerAdd(
+  'POST',
+  '/backend/v1/integracao/whatsapp/uazapi/ambiguidades/{id}/resolver',
+  function (e) {
+    var MAX_NEGOCIOS_DECISAO = 80
+
+    function asString(value) {
+      if (value === null || value === undefined) return ''
+      return String(value)
+    }
+
+    function pbFilterEscape(value) {
+      return asString(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    }
+
+    function negocioAberto(record) {
+      try {
+        if (record.getBool('inativo')) return false
+      } catch (_) {}
+      return !record.getString('resultado')
+    }
+
+    var actorId = ''
+    var actorEquipeId = ''
+    var actorIsSuperAdmin = false
+
+    function podeAcessarNegocio(record) {
+      if (actorIsSuperAdmin) return true
+      if (!record || !actorId) return false
+      if (record.getString('responsavel_id') === actorId) return true
+      return !!actorEquipeId && record.getString('equipe_id') === actorEquipeId
+    }
+
+    function carregarRegistros(tx, collectionName, filter, sort) {
+      var out = []
+      var offset = 0
+      var limite = 500
+      while (true) {
+        var records = tx.findRecordsByFilter(collectionName, filter, sort, limite, offset)
+        for (var i = 0; i < records.length; i++) out.push(records[i])
+        if (records.length < limite) return out
+        offset += records.length
+      }
+    }
+
+    var actor = e.auth
+    if (!actor || !actor.getBool('ativo_comercial')) return e.unauthorizedError('Autenticacao')
+    var slug = ''
+    try {
+      var perfil = $app.findRecordById('com_perfis', actor.getString('perfil_id'))
+      if (!perfil.getBool('ativo')) return e.forbiddenError('Perfil comercial inativo')
+      slug = perfil.getString('slug')
+    } catch (_) {}
+    if (slug !== 'superadministrador' && slug !== 'gestor-comercial')
+      return e.forbiddenError('Perfil comercial necessario')
+    actorId = actor.id
+    actorEquipeId = actor.getString('equipe_id') || ''
+    actorIsSuperAdmin = slug === 'superadministrador'
+
+    var vinculoId = asString(e.request.pathValue('id') || '').trim()
+    var body = e.requestInfo().body || {}
+    var recebidos = Array.isArray(body.negocio_ids) ? body.negocio_ids : []
+    var negocioIds = []
+    var vistos = {}
+    for (var i = 0; i < recebidos.length; i++) {
+      var negocioId = asString(recebidos[i]).trim()
+      if (negocioId && !vistos[negocioId]) {
+        vistos[negocioId] = true
+        negocioIds.push(negocioId)
+      }
+    }
+    if (!vinculoId || !negocioIds.length)
+      return e.json(400, { ok: false, error: 'SELECAO_INVALIDA' })
+    if (negocioIds.length > MAX_NEGOCIOS_DECISAO)
+      return e.json(400, { ok: false, error: 'SELECAO_MUITO_AMPLA' })
+
+    try {
+      $app.runInTransaction(function (tx) {
+        var vinculo = tx.findRecordById('com_whatsapp_vinculos', vinculoId)
+        if (vinculo.getString('status') !== 'ambiguidade_negocio_aberto')
+          throw new Error('AMBIGUIDADE_JA_TRATADA')
+
+        var contatoId = vinculo.getString('contato_id') || ''
+        var empresaId = vinculo.getString('empresa_id') || ''
+        var filtros = []
+        if (contatoId) filtros.push("contato_principal_id='" + pbFilterEscape(contatoId) + "'")
+        if (empresaId) filtros.push("empresa_id='" + pbFilterEscape(empresaId) + "'")
+        var candidatos = {}
+        var candidatosVistos = {}
+        var totalCandidatos = 0
+        var candidatoForaDoEscopo = false
+        for (var fi = 0; fi < filtros.length; fi++) {
+          var encontrados = carregarRegistros(tx, 'com_negocios', filtros[fi], '-updated,-id')
+          for (var ei = 0; ei < encontrados.length; ei++) {
+            var candidato = encontrados[ei]
+            if (!negocioAberto(candidato) || candidatosVistos[candidato.id]) continue
+            candidatosVistos[candidato.id] = true
+            totalCandidatos++
+            if (!podeAcessarNegocio(candidato)) candidatoForaDoEscopo = true
+            else candidatos[candidato.id] = true
+          }
+        }
+        if (totalCandidatos < 1) throw new Error('AMBIGUIDADE_DESATUALIZADA')
+        if (totalCandidatos > MAX_NEGOCIOS_DECISAO) throw new Error('SELECAO_MUITO_AMPLA')
+        if (candidatoForaDoEscopo) throw new Error('ESCOPO_INSUFICIENTE')
+        for (var ni = 0; ni < negocioIds.length; ni++) {
+          if (!candidatos[negocioIds[ni]]) throw new Error('NEGOCIO_FORA_DOS_CANDIDATOS')
+        }
+
+        vinculo.set('negocio_id', negocioIds.length === 1 ? negocioIds[0] : '')
+        vinculo.set('negocio_ids', negocioIds)
+        vinculo.set('status', negocioIds.length === 1 ? 'vinculado_manual' : 'vinculado_multiplo')
+        vinculo.set('origem_decisao', 'decisao_humana_fila_ambiguidades')
+        vinculo.set('observacao', 'Vínculo confirmado por decisão humana na fila de ambiguidades.')
+        vinculo.set('vinculado_em', new Date())
+        tx.save(vinculo)
+      })
+    } catch (err) {
+      var mensagem = asString(err && err.message ? err.message : err)
+      if (mensagem.indexOf('AMBIGUIDADE_JA_TRATADA') !== -1)
+        return e.json(409, { ok: false, error: 'AMBIGUIDADE_JA_TRATADA' })
+      if (mensagem.indexOf('AMBIGUIDADE_DESATUALIZADA') !== -1)
+        return e.json(409, { ok: false, error: 'AMBIGUIDADE_DESATUALIZADA' })
+      if (mensagem.indexOf('ESCOPO_INSUFICIENTE') !== -1)
+        return e.json(403, { ok: false, error: 'ESCOPO_INSUFICIENTE' })
+      if (mensagem.indexOf('NEGOCIO_FORA_DOS_CANDIDATOS') !== -1)
+        return e.json(400, { ok: false, error: 'NEGOCIO_FORA_DOS_CANDIDATOS' })
+      if (mensagem.indexOf('SELECAO_MUITO_AMPLA') !== -1)
+        return e.json(409, { ok: false, error: 'SELECAO_MUITO_AMPLA' })
+      return e.json(500, { ok: false, error: 'FALHA_AO_CONFIRMAR_VINCULO' })
+    }
+
+    return e.json(200, { ok: true })
+  },
+)

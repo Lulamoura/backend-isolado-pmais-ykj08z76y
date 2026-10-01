@@ -88,11 +88,11 @@ assert(
     hook.includes('counts.mensagens_hoje = contarRegistros('),
 )
 assert(
-  'frontend trata contrato novo como opcional e ausência de saúde como estado parcial',
+  'frontend mantém o contrato de saúde opcional sem exibir o alerta removido',
   service.includes('monitoramento_ok?: boolean') &&
     service.includes('fontes_indisponiveis?: string[]') &&
-    page.includes('Dados parciais no monitoramento') &&
-    page.includes('status && status.monitoramento_ok !== true'),
+    !page.includes('Dados parciais no monitoramento') &&
+    !page.includes('status && status.monitoramento_ok !== true'),
 )
 
 console.log('Contrato de recuperação da captura WhatsApp validado')

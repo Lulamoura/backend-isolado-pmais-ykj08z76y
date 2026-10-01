@@ -27,9 +27,8 @@ const vinculos = schema.collections.find(
   (collection) => collection.name === 'com_whatsapp_vinculos',
 )
 const negocioIdsField = vinculos?.fields.find((field) => field.name === 'negocio_ids')
-const inicioPreservacao = hook.indexOf(
-  "if (statusExistente === 'vinculado_multiplo' && negocioIdsExistentes.length > 1)",
-)
+const marcadorPreservacao = hook.indexOf('var contatoIdPreservado')
+const inicioPreservacao = hook.lastIndexOf('if (', marcadorPreservacao)
 const fimPreservacao = hook.indexOf('if (!vinculo) vinculo = new Record', inicioPreservacao)
 const ramoPreservacao = hook.slice(inicioPreservacao, fimPreservacao)
 
@@ -65,10 +64,11 @@ assert(
     !migration.includes("collection.fields.removeByName('negocio_ids')"),
 )
 assert(
-  'novas mensagens preservam vínculo múltiplo e seu contexto comercial',
+  'novas mensagens preservam decisões humanas simples ou múltiplas e seu contexto comercial',
   hook.includes('function negocioIdsDoVinculo') &&
     hook.includes("statusExistente === 'vinculado_multiplo'") &&
-    hook.includes('negocioIdsExistentes.length > 1') &&
+    hook.includes("statusExistente === 'vinculado_manual'") &&
+    hook.includes('negocioIdsExistentes.length > 0') &&
     hook.includes('negocioIds: negocioIdsExistentes') &&
     ramoPreservacao.includes("vinculo.set('last_message_at'") &&
     !ramoPreservacao.includes("vinculo.set('contato_id'") &&

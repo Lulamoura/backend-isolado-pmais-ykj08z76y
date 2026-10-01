@@ -40,12 +40,42 @@ export type WhatsAppUazapiQualidadeBase = {
   leitura: string
 }
 
+export type WhatsAppMensagemRecente = {
+  direcao: string
+  autor: string
+  texto: string
+  momento: string
+}
+
+export type WhatsAppNegocioCandidato = {
+  id: string
+  titulo: string
+  numero_comercial: string
+  etapa: string
+  valor: number
+  atualizado_em: string
+}
+
+export type WhatsAppAmbiguidadeNegocio = {
+  id: string
+  operador: string
+  telefone: string
+  contato: string
+  empresa: string
+  ultima_interacao: string
+  mensagens_recentes: WhatsAppMensagemRecente[]
+  negocios_candidatos: WhatsAppNegocioCandidato[]
+  selecao_indisponivel?: boolean
+  total_candidatos?: number
+}
+
 export type WhatsAppUazapiResumo = {
   ok: boolean
   monitoramento_ok?: boolean
   fontes_indisponiveis?: string[]
+  visao_restrita?: boolean
   provider: string
-  endpoint: string
+  endpoint?: string
   secret_configured: boolean
   modo: string
   automatic_send_allowed: boolean
@@ -67,7 +97,7 @@ export type WhatsAppUazapiResumo = {
     vinculos_ambiguos_negocio_aberto?: number
   }
   qualidade_base?: WhatsAppUazapiQualidadeBase
-  ambiguidades_negocios_abertos?: Array<Record<string, unknown>>
+  ambiguidades_negocios_abertos?: WhatsAppAmbiguidadeNegocio[]
   ultimo_webhook?: Record<string, unknown> | null
   ultima_mensagem?: Record<string, unknown> | null
   ultima_midia?: Record<string, unknown> | null
@@ -77,4 +107,14 @@ export async function obterStatusWhatsAppUazapi(): Promise<WhatsAppUazapiResumo>
   return pb.send('/backend/v1/integracao/whatsapp/uazapi/status', {
     method: 'GET',
   })
+}
+
+export async function resolverAmbiguidadeWhatsApp(vinculoId: string, negocioIds: string[]) {
+  return pb.send<{ ok: true }>(
+    `/backend/v1/integracao/whatsapp/uazapi/ambiguidades/${encodeURIComponent(vinculoId)}/resolver`,
+    {
+      method: 'POST',
+      body: { negocio_ids: negocioIds },
+    },
+  )
 }
