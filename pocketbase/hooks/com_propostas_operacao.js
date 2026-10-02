@@ -5045,13 +5045,7 @@
       var offset = 0
       var limit = 500
       while (true) {
-        var page = app.findRecordsByFilter(
-          collectionName,
-          "id != ''",
-          '-updated,-id',
-          limit,
-          offset,
-        )
+        var page = app.findRecordsByFilter(collectionName, "id != ''", '-id', limit, offset)
         for (var i = 0; i < page.length; i++) out.push(page[i])
         if (page.length < limit) return out
         offset += page.length
@@ -5326,13 +5320,7 @@
       var offset = 0
       var limit = 500
       while (true) {
-        var page = app.findRecordsByFilter(
-          collectionName,
-          "id != ''",
-          '-updated,-id',
-          limit,
-          offset,
-        )
+        var page = app.findRecordsByFilter(collectionName, "id != ''", '-id', limit, offset)
         for (var i = 0; i < page.length; i++) out.push(page[i])
         if (page.length < limit) return out
         offset += page.length
@@ -5883,13 +5871,7 @@
       var offset = 0
       var limit = 500
       while (true) {
-        var page = app.findRecordsByFilter(
-          collectionName,
-          "id != ''",
-          '-updated,-id',
-          limit,
-          offset,
-        )
+        var page = app.findRecordsByFilter(collectionName, "id != ''", '-id', limit, offset)
         for (var i = 0; i < page.length; i++) out.push(page[i])
         if (page.length < limit) return out
         offset += page.length
