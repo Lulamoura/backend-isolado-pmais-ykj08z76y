@@ -408,7 +408,7 @@ async function main() {
       } catch (error) {
         validationError = error && error.message ? error.message : String(error)
       }
-      gatewayCalls.push({ rawBody, payload, headers: req.headers, validationError })
+      gatewayCalls.push({ url: req.url, rawBody, payload, headers: req.headers, validationError })
       const response = validationError
         ? { ok: false, error: validationError }
         : {
@@ -566,6 +566,11 @@ async function main() {
     assert.strictEqual(state.outbox.status, 'processado')
     assert.strictEqual(state.outbox.last_error, '')
     assert.strictEqual(gatewayCalls.length, 1)
+    assert.strictEqual(
+      gatewayCalls[0].url,
+      '/v1/comercial/nexo/curadoria/conhecimento',
+      'http localhost sem prefixo deve permanecer seguro no runtime PocketBase real',
+    )
     assert.strictEqual(gatewayCalls[0].validationError, null)
     assert.deepStrictEqual(gatewayCalls[0].payload.sources, businessSources)
     assert.deepStrictEqual(state.outbox.payload_json.sources, businessSources)
@@ -626,6 +631,7 @@ async function main() {
     assert.strictEqual(retiredState.outbox.status, 'processado')
     assert.strictEqual(retiredState.outbox.payload_json.action, 'retirar')
     assert.strictEqual(gatewayCalls.length, 2)
+    assert.strictEqual(gatewayCalls[1].url, '/v1/comercial/nexo/curadoria/conhecimento')
     assert.strictEqual(gatewayCalls[1].validationError, null)
     assert.strictEqual(gatewayCalls[1].payload.action, 'retirar')
 

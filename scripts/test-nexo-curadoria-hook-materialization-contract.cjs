@@ -1,5 +1,6 @@
 const assert = require('assert')
 const fs = require('fs')
+const vm = require('vm')
 const { parseSync } = require('oxc-parser')
 
 const establishedHook = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
@@ -226,6 +227,53 @@ function namedFunctionBlock(callback, name) {
   }
   assert.fail(`helper local ${name} deve ter bloco balanceado`)
 }
+
+const gatewayBaseNormalizer = namedFunctionBlock(processorCallback, 'nexoCuradoriaGatewayBase')
+const gatewayNormalizerContext = {}
+vm.createContext(gatewayNormalizerContext)
+vm.runInContext(
+  `${gatewayBaseNormalizer}; this.normalizeGatewayBase = nexoCuradoriaGatewayBase`,
+  gatewayNormalizerContext,
+)
+const normalizeGatewayBase = gatewayNormalizerContext.normalizeGatewayBase
+const previewGatewayBase = 'https://agents.pmaisservicos.com.br/preview/nexo-hermes'
+for (const [configuredBase, normalizedBase] of [
+  [previewGatewayBase, previewGatewayBase],
+  [`${previewGatewayBase}/`, previewGatewayBase],
+  [`${previewGatewayBase}/v1`, previewGatewayBase],
+  [`${previewGatewayBase}/v1/`, previewGatewayBase],
+  ['http://127.0.0.1:8090/', 'http://127.0.0.1:8090'],
+  ['http://localhost:8090/v1', 'http://localhost:8090'],
+]) {
+  assert.strictEqual(
+    normalizeGatewayBase(configuredBase),
+    normalizedBase,
+    `base segura deve ser normalizada sem perder prefixo: ${configuredBase}`,
+  )
+}
+for (const malformedBase of [
+  'gateway.example.test/preview/nexo-hermes',
+  'ftp://gateway.example.test/preview/nexo-hermes',
+  'http://gateway.example.test/preview/nexo-hermes',
+  'https:///preview/nexo-hermes',
+  'https://gateway.example.test/preview/nexo-hermes?tenant=pmais',
+  'https://gateway.example.test/preview/nexo-hermes#fragment',
+  'https://gateway.example.test/preview/../nexo-hermes',
+  'https://gateway.example.test/preview/%2e%2e/nexo-hermes',
+  'https://gateway.example.test:12.5/preview/nexo-hermes',
+  'https://[:::]/preview/nexo-hermes',
+]) {
+  assert.strictEqual(
+    normalizeGatewayBase(malformedBase),
+    '',
+    `base insegura deve falhar fechada: ${malformedBase}`,
+  )
+}
+assert.strictEqual(
+  `${normalizeGatewayBase(previewGatewayBase)}/v1/comercial/nexo/curadoria/conhecimento`,
+  'https://agents.pmaisservicos.com.br/preview/nexo-hermes/v1/comercial/nexo/curadoria/conhecimento',
+  'endpoint de Curadoria deve preservar exatamente o prefixo de deployment do Gateway',
+)
 
 const transitionPayloadBuilder = namedFunctionBlock(
   transitionCallback,

@@ -375,6 +375,9 @@ function RecordCtor(collection) {
 
 const routes = {}
 const gatewayCalls = []
+const previewGatewayBase = 'https://agents.pmaisservicos.com.br/preview/nexo-hermes'
+const expectedCuradoriaGatewayUrl = `${previewGatewayBase}/v1/comercial/nexo/curadoria/conhecimento`
+let configuredGatewayBase = previewGatewayBase
 let gatewayMode = 'success'
 let concurrentOutboxResult = null
 let concurrentTransitionResult = null
@@ -457,7 +460,7 @@ const context = {
   $secrets: {
     get: (name) => {
       requestedSecrets.push(name)
-      if (name === 'PMAIS_AGENT_GATEWAY_URL') return 'https://gateway.example.test'
+      if (name === 'PMAIS_AGENT_GATEWAY_URL') return configuredGatewayBase
       if (name === 'PMAIS_CURADORIA_API_KEY') return 'protected-api-key'
       if (name === 'PMAIS_CURADORIA_HMAC_SECRET') return 'protected-hmac-secret'
       if (name === 'PMAIS_CURADORIA_APPROVAL_SECRET') return 'protected-approval-secret'
@@ -557,6 +560,28 @@ function invokeRetry(auth, id, body) {
   retryOutboxRoute(e)
   return response
 }
+
+for (const malformedGatewayBase of [
+  'gateway.example.test/preview/nexo-hermes',
+  'ftp://gateway.example.test/preview/nexo-hermes',
+  'http://gateway.example.test/preview/nexo-hermes',
+  'https:///preview/nexo-hermes',
+  'https://gateway.example.test/preview/nexo-hermes?tenant=pmais',
+  'https://gateway.example.test/preview/nexo-hermes#fragment',
+  'https://gateway.example.test/preview/../nexo-hermes',
+]) {
+  configuredGatewayBase = malformedGatewayBase
+  const callsBeforeMalformedBase = gatewayCalls.length
+  const malformedBaseResult = invokeOutbox(superadmin)
+  assert.equal(malformedBaseResult.status, 503)
+  assert.equal(malformedBaseResult.payload.error, 'GATEWAY_NAO_CONFIGURADO')
+  assert.equal(
+    gatewayCalls.length,
+    callsBeforeMalformedBase,
+    `base malformada não pode chamar Gateway: ${malformedGatewayBase}`,
+  )
+}
+configuredGatewayBase = previewGatewayBase
 
 const liveJsvmSuperadminList = invokeList(superadminWithoutCollectionName)
 assert.equal(
@@ -830,6 +855,7 @@ assert.equal(cases[0].getInt('revisao'), 3)
 assert.equal(cases[0].getString('status'), 'aprovado')
 assert.equal(cases[0].getString('conhecimento_status'), 'ativo')
 assert.equal(gatewayCalls.length, callsBeforeTransitionFence + 1)
+assert.equal(gatewayCalls[0].url, expectedCuradoriaGatewayUrl)
 
 outbox[0].set('status', 'processando')
 outbox[0].set('claim_token', 'claim-expirado')
@@ -865,6 +891,7 @@ assert.equal(rejected.payload.caso.revisao, 2)
 assert(transitions.length >= 3)
 
 assert.equal(invokeOutbox(manager).status, 403)
+configuredGatewayBase = `${previewGatewayBase}/`
 gatewayMode = 'concurrent'
 const processed = invokeOutbox(superadmin)
 assert.equal(processed.status, 200)
@@ -872,7 +899,8 @@ assert.equal(processed.payload.processados, 1)
 assert.equal(processed.payload.falhas, 0)
 assert.equal(concurrentOutboxResult.payload.processados, 0)
 assert.equal(gatewayCalls.length, 2)
-assert(gatewayCalls.every((call) => call.url.endsWith('/v1/comercial/nexo/curadoria/conhecimento')))
+assert.equal(gatewayCalls[1].url, expectedCuradoriaGatewayUrl)
+configuredGatewayBase = previewGatewayBase
 assert.equal(gatewayCalls[0].headers['x-pmais-api-key'], 'protected-api-key')
 assert.equal('x-api-key' in gatewayCalls[0].headers, false)
 assert(gatewayCalls[0].headers['x-pmais-approval-signature'])
@@ -1092,9 +1120,14 @@ assert.equal(
   'Gateway restabelecido e incidente registrado.',
 )
 gatewayMode = 'success'
+configuredGatewayBase = `${previewGatewayBase}/v1`
+const callsBeforeV1BaseRecovery = gatewayCalls.length
 const recovered = invokeOutbox(superadmin)
 assert.equal(recovered.payload.processados, 1)
 assert.equal(recovered.payload.pendentes_restantes, 0)
+assert.equal(gatewayCalls.length, callsBeforeV1BaseRecovery + 1)
+assert.equal(gatewayCalls[gatewayCalls.length - 1].url, expectedCuradoriaGatewayUrl)
+configuredGatewayBase = previewGatewayBase
 
 outbox[1].set('status', 'pendente')
 outbox[1].set('next_attempt_at', null)
