@@ -9,7 +9,6 @@ const page = fs.readFileSync('src/pages/NexoCuradoria.tsx', 'utf8')
 const component = fs.readFileSync('src/components/nexo/NexoCuradoriaComercialUnificada.tsx', 'utf8')
 const service = fs.readFileSync('src/services/nexo-curadoria.ts', 'utf8')
 const hook = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
-const centralHook = fs.readFileSync('pocketbase/hooks/com_nexo_central_operacional.js', 'utf8')
 const failClosedMigration = fs.readFileSync(
   'pocketbase/migrations/202610012330_nexo_curadoria_fail_closed.js',
   'utf8',
@@ -124,17 +123,17 @@ assert.doesNotMatch(
 )
 
 assert.match(
-  centralHook,
+  hook,
   /pode_escrever: slug === 'superadministrador' \|\| slug === 'gestor-comercial'/,
   'leitura-executiva deve ser somente leitura na API unificada',
 )
 assert.match(
-  centralHook,
+  hook,
   /pode_decidir_direcao: slug === 'superadministrador'/,
   'somente SuperAdmin deve decidir casos de direção',
 )
 assert.match(
-  centralHook,
+  hook,
   /if \(!nexoCuradoriaCasoNoEscopo\(acesso, caso\)\) throw new Error\('ESCOPO_INSUFICIENTE'\)/,
   'gestor comercial deve mutar somente seu escopo/equipe',
 )

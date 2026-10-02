@@ -423,10 +423,7 @@ const context = {
   },
 }
 vm.createContext(context)
-vm.runInContext(
-  fs.readFileSync('pocketbase/hooks/com_nexo_central_operacional.js', 'utf8'),
-  context,
-)
+vm.runInContext(fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8'), context)
 
 const listRoute = routes['POST /backend/v1/nexo/curadoria/casos/listar']
 const transitionRoute = routes['POST /backend/v1/nexo/curadoria/casos/{id}/transicionar']

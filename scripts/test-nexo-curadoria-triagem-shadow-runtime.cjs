@@ -118,10 +118,7 @@ const context = {
   },
 }
 vm.createContext(context)
-vm.runInContext(
-  fs.readFileSync('pocketbase/hooks/com_nexo_central_operacional.js', 'utf8'),
-  context,
-)
+vm.runInContext(fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8'), context)
 
 const route = routes['POST /backend/v1/nexo/curadoria/triagem-shadow']
 assert(route, 'rota de triagem conservadora em shadow mode deve existir')
