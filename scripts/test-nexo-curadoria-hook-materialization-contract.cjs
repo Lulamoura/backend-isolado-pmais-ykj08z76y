@@ -236,7 +236,20 @@ vm.runInContext(
   gatewayNormalizerContext,
 )
 const normalizeGatewayBase = gatewayNormalizerContext.normalizeGatewayBase
+const requestGatewayBaseRouter = namedFunctionBlock(
+  processorCallback,
+  'nexoCuradoriaGatewayBaseParaRequest',
+)
+const requestGatewayRouterContext = {}
+vm.createContext(requestGatewayRouterContext)
+vm.runInContext(
+  `${gatewayBaseNormalizer}; ${requestGatewayBaseRouter}; this.routeGatewayBase = nexoCuradoriaGatewayBaseParaRequest`,
+  requestGatewayRouterContext,
+)
+const routeGatewayBase = requestGatewayRouterContext.routeGatewayBase
+const gatewayOrigin = 'https://agents.pmaisservicos.com.br'
 const previewGatewayBase = 'https://agents.pmaisservicos.com.br/preview/nexo-hermes'
+const previewAppOrigin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
 for (const [configuredBase, normalizedBase] of [
   [previewGatewayBase, previewGatewayBase],
   [`${previewGatewayBase}/`, previewGatewayBase],
@@ -273,6 +286,38 @@ assert.strictEqual(
   `${normalizeGatewayBase(previewGatewayBase)}/v1/comercial/nexo/curadoria/conhecimento`,
   'https://agents.pmaisservicos.com.br/preview/nexo-hermes/v1/comercial/nexo/curadoria/conhecimento',
   'endpoint de Curadoria deve preservar exatamente o prefixo de deployment do Gateway',
+)
+assert.strictEqual(
+  routeGatewayBase(gatewayOrigin, previewAppOrigin),
+  previewGatewayBase,
+  'gate temporário deve rotear somente a Origin exata do Preview para o deployment Preview',
+)
+for (const origin of [
+  'https://backend-isolado-pmais-43b9c.goskip.app',
+  '',
+  'https://app-parceiro.example',
+  'https://backend-isolado-pmais-atacante--preview.goskip.app',
+]) {
+  assert.strictEqual(
+    routeGatewayBase(gatewayOrigin, origin),
+    gatewayOrigin,
+    `Origin não Preview deve preservar a base configurada: ${origin || '(ausente)'}`,
+  )
+}
+assert.strictEqual(
+  routeGatewayBase(previewGatewayBase, previewAppOrigin),
+  previewGatewayBase,
+  'base já prefixada não pode duplicar o deployment Preview',
+)
+assert.match(
+  processorCallback,
+  /e\.request\.header\.get\('Origin'\)/,
+  'processador deve ler Origin pelo header nativo do request PocketBase',
+)
+assert.match(
+  requestGatewayBaseRouter,
+  /Produção[\s\S]*remoção|remoção[\s\S]*Produção/,
+  'gate temporário deve documentar remoção/configuração separada antes de publicar em Produção',
 )
 
 const transitionPayloadBuilder = namedFunctionBlock(

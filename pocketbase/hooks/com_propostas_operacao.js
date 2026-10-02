@@ -6226,7 +6226,26 @@
       return scheme + '://' + authority + deploymentPath
     }
 
-    var gatewayBase = nexoCuradoriaGatewayBase(secretValue('PMAIS_AGENT_GATEWAY_URL'))
+    function nexoCuradoriaGatewayBaseParaRequest(value, requestOrigin) {
+      var normalizedBase = nexoCuradoriaGatewayBase(value)
+      // Gate temporário exclusivo de Preview. Antes de publicação em Produção, exige remoção
+      // deste hardcode ou configuração separada para não desviar tráfego produtivo ao Preview.
+      if (
+        normalizedBase === 'https://agents.pmaisservicos.com.br' &&
+        String(requestOrigin || '') === 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
+      )
+        return 'https://agents.pmaisservicos.com.br/preview/nexo-hermes'
+      return normalizedBase
+    }
+
+    var requestOrigin = ''
+    try {
+      requestOrigin = String(e.request.header.get('Origin') || '')
+    } catch (_) {}
+    var gatewayBase = nexoCuradoriaGatewayBaseParaRequest(
+      secretValue('PMAIS_AGENT_GATEWAY_URL'),
+      requestOrigin,
+    )
     var gatewayKey = secretValue('PMAIS_CURADORIA_API_KEY')
     var gatewaySecret = secretValue('PMAIS_CURADORIA_HMAC_SECRET')
     var approvalSecret = secretValue('PMAIS_CURADORIA_APPROVAL_SECRET')

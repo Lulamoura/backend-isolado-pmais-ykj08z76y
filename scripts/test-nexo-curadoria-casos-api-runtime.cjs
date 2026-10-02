@@ -375,8 +375,12 @@ function RecordCtor(collection) {
 
 const routes = {}
 const gatewayCalls = []
+const gatewayOrigin = 'https://agents.pmaisservicos.com.br'
 const previewGatewayBase = 'https://agents.pmaisservicos.com.br/preview/nexo-hermes'
 const expectedCuradoriaGatewayUrl = `${previewGatewayBase}/v1/comercial/nexo/curadoria/conhecimento`
+const configuredCuradoriaGatewayUrl = `${gatewayOrigin}/v1/comercial/nexo/curadoria/conhecimento`
+const previewAppOrigin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
+const productionAppOrigin = 'https://backend-isolado-pmais-43b9c.goskip.app'
 let configuredGatewayBase = previewGatewayBase
 let gatewayMode = 'success'
 let concurrentOutboxResult = null
@@ -524,10 +528,15 @@ function invokeTransition(auth, id, body) {
   return response
 }
 
-function invokeOutbox(auth) {
+function invokeOutbox(auth, origin) {
   let response = null
   const e = {
     auth,
+    request: {
+      header: {
+        get: (name) => (name === 'Origin' ? origin || '' : ''),
+      },
+    },
     requestInfo: () => ({ body: { limite: 10 } }),
     json(status, payload) {
       response = { status, payload }
@@ -815,6 +824,48 @@ assert.equal(
   `hash:${canonicalJson(outbox[0].get('payload_json'))}`,
   'hash persistido deve cobrir o payload canônico recursivo',
 )
+
+const routingOutboxSnapshot = { ...outbox[0].values }
+const routingCaseSnapshot = { ...caseManagement.values }
+const routingCallsStart = gatewayCalls.length
+function assertCuradoriaGatewayRoute(configuredBase, origin, expectedUrl, label) {
+  outbox[0].values = { ...routingOutboxSnapshot }
+  caseManagement.values = { ...routingCaseSnapshot }
+  configuredGatewayBase = configuredBase
+  gatewayMode = 'success'
+  const result = invokeOutbox(superadmin, origin)
+  assert.equal(result.payload.processados, 1, `${label}: outbox deve processar`)
+  assert.equal(gatewayCalls[gatewayCalls.length - 1].url, expectedUrl, label)
+}
+
+assertCuradoriaGatewayRoute(
+  gatewayOrigin,
+  previewAppOrigin,
+  expectedCuradoriaGatewayUrl,
+  'Origin exata do app Preview deve rotear para o prefixo temporário de Preview',
+)
+for (const [origin, label] of [
+  [productionAppOrigin, 'Origin direta de Produção não pode rotear para Preview'],
+  ['', 'requisição sem Origin não pode rotear para Preview'],
+  ['https://app-parceiro.example', 'Origin estrangeira não pode rotear para Preview'],
+  [
+    'https://backend-isolado-pmais-atacante--preview.goskip.app',
+    'domínio arbitrário com --preview não pode rotear para Preview',
+  ],
+]) {
+  assertCuradoriaGatewayRoute(gatewayOrigin, origin, configuredCuradoriaGatewayUrl, label)
+}
+assertCuradoriaGatewayRoute(
+  previewGatewayBase,
+  previewAppOrigin,
+  expectedCuradoriaGatewayUrl,
+  'base já prefixada não pode duplicar /preview/nexo-hermes',
+)
+outbox[0].values = routingOutboxSnapshot
+caseManagement.values = routingCaseSnapshot
+gatewayCalls.splice(routingCallsStart)
+configuredGatewayBase = previewGatewayBase
+gatewayMode = 'success'
 
 const approvedReplay = invokeTransition(manager, 'case-management', {
   acao: 'aprovar',
