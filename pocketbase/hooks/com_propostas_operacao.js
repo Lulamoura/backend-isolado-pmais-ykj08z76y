@@ -4945,18 +4945,40 @@
     }
 
     function nexoCuradoriaCasosArray(record, field) {
-      var raw = []
+      var originalRaw = []
       try {
-        raw = record.get(field) || []
+        originalRaw = record.get(field) || []
       } catch (_) {}
-      if (typeof raw === 'string') {
-        try {
-          raw = JSON.parse(raw)
-        } catch (_) {
-          raw = []
+      var byteBuffer = originalRaw && typeof originalRaw === 'object' && originalRaw.length > 0
+      if (byteBuffer) {
+        for (var i = 0; i < originalRaw.length; i++) {
+          if (
+            typeof originalRaw[i] !== 'number' ||
+            originalRaw[i] < 0 ||
+            originalRaw[i] > 255 ||
+            Math.floor(originalRaw[i]) !== originalRaw[i]
+          ) {
+            byteBuffer = false
+            break
+          }
         }
       }
-      return Array.isArray(raw) ? raw : []
+      var decodedRaw
+      if (byteBuffer) {
+        try {
+          decodedRaw = JSON.parse(String(originalRaw))
+        } catch (_) {}
+        if (Array.isArray(decodedRaw)) return decodedRaw
+      }
+      if (Array.isArray(originalRaw)) return originalRaw
+      if (typeof originalRaw === 'string') {
+        try {
+          decodedRaw = JSON.parse(originalRaw)
+        } catch (_) {
+          decodedRaw = []
+        }
+      }
+      return Array.isArray(decodedRaw) ? decodedRaw : []
     }
 
     function nexoCuradoriaCasosPerfil(e) {
@@ -5045,13 +5067,7 @@
       var offset = 0
       var limit = 500
       while (true) {
-        var page = app.findRecordsByFilter(
-          collectionName,
-          "id != ''",
-          '-id',
-          limit,
-          offset,
-        )
+        var page = app.findRecordsByFilter(collectionName, "id != ''", '-id', limit, offset)
         for (var i = 0; i < page.length; i++) out.push(page[i])
         if (page.length < limit) return out
         offset += page.length
@@ -5214,19 +5230,60 @@
       }
     }
 
+    function nexoCuradoriaJsonCanonico(value) {
+      if (value === null || typeof value !== 'object') return JSON.stringify(value)
+      var partes = []
+      if (Array.isArray(value)) {
+        for (var ai = 0; ai < value.length; ai++) {
+          var itemSerializado = nexoCuradoriaJsonCanonico(value[ai])
+          partes.push(typeof itemSerializado === 'undefined' ? 'null' : itemSerializado)
+        }
+        return '[' + partes.join(',') + ']'
+      }
+      var chaves = Object.keys(value).sort()
+      for (var oi = 0; oi < chaves.length; oi++) {
+        var valorSerializado = nexoCuradoriaJsonCanonico(value[chaves[oi]])
+        if (typeof valorSerializado === 'undefined') continue
+        partes.push(JSON.stringify(chaves[oi]) + ':' + valorSerializado)
+      }
+      return '{' + partes.join(',') + '}'
+    }
+
     function nexoCuradoriaCasosArray(record, field) {
-      var raw = []
+      var originalRaw = []
       try {
-        raw = record.get(field) || []
+        originalRaw = record.get(field) || []
       } catch (_) {}
-      if (typeof raw === 'string') {
-        try {
-          raw = JSON.parse(raw)
-        } catch (_) {
-          raw = []
+      var byteBuffer = originalRaw && typeof originalRaw === 'object' && originalRaw.length > 0
+      if (byteBuffer) {
+        for (var i = 0; i < originalRaw.length; i++) {
+          if (
+            typeof originalRaw[i] !== 'number' ||
+            originalRaw[i] < 0 ||
+            originalRaw[i] > 255 ||
+            Math.floor(originalRaw[i]) !== originalRaw[i]
+          ) {
+            byteBuffer = false
+            break
+          }
         }
       }
-      return Array.isArray(raw) ? raw : []
+      var decodedRaw
+      if (byteBuffer) {
+        try {
+          decodedRaw = JSON.parse(String(originalRaw))
+        } catch (_) {}
+        if (Array.isArray(decodedRaw)) return decodedRaw
+      }
+      if (Array.isArray(originalRaw)) return originalRaw
+      if (typeof originalRaw === 'string') {
+        try {
+          decodedRaw = JSON.parse(originalRaw)
+        } catch (_) {
+          decodedRaw = []
+        }
+      }
+      return Array.isArray(decodedRaw) ? decodedRaw : []
     }
 
     function nexoCuradoriaCasosLimpar(value, max) {
@@ -5326,13 +5383,7 @@
       var offset = 0
       var limit = 500
       while (true) {
-        var page = app.findRecordsByFilter(
-          collectionName,
-          "id != ''",
-          '-id',
-          limit,
-          offset,
-        )
+        var page = app.findRecordsByFilter(collectionName, "id != ''", '-id', limit, offset)
         for (var i = 0; i < page.length; i++) out.push(page[i])
         if (page.length < limit) return out
         offset += page.length
@@ -5468,6 +5519,34 @@
         if (!nexoCuradoriaCasoNoEscopo(acesso, caso)) throw new Error('ESCOPO_INSUFICIENTE')
         var revisaoAtual = nexoCuradoriaCasosNumero(caso, 'revisao')
         if (revisaoAtual !== expectedRevision) throw new Error('REVISAO_DESATUALIZADA')
+        var publicacoesCaso = tx.findRecordsByFilter(
+          'com_nexo_curadoria_outbox',
+          "caso_id = '" +
+            caso.id.replace(/\\/g, '\\\\').replace(/'/g, "\\'") +
+            "' && status = 'processando'",
+          '-requested_at',
+          500,
+          0,
+        )
+        var agoraTransicaoMs = new Date().getTime()
+        for (var pci = 0; pci < publicacoesCaso.length; pci++) {
+          if (nexoCuradoriaCasosTexto(publicacoesCaso[pci], 'caso_id') !== caso.id) continue
+          if (nexoCuradoriaCasosTexto(publicacoesCaso[pci], 'status') !== 'processando') continue
+          if (!nexoCuradoriaCasosTexto(publicacoesCaso[pci], 'claim_token')) continue
+          var claimExpiraTransicao = nexoCuradoriaCasosTexto(
+            publicacoesCaso[pci],
+            'claim_expires_at',
+          )
+          var claimExpiraTransicaoMs = claimExpiraTransicao
+            ? new Date(claimExpiraTransicao).getTime()
+            : 0
+          if (
+            claimExpiraTransicaoMs &&
+            isFinite(claimExpiraTransicaoMs) &&
+            claimExpiraTransicaoMs > agoraTransicaoMs
+          )
+            throw new Error('PUBLICACAO_EM_ANDAMENTO')
+        }
         var statusAnterior = nexoCuradoriaCasosTexto(caso, 'status')
         var conhecimentoStatusAnterior = nexoCuradoriaCasosTexto(caso, 'conhecimento_status')
         var alcada = nexoCuradoriaCasoAlcada(caso)
@@ -5594,55 +5673,74 @@
         )
           outboxAcao = 'retirar'
         if (outboxAcao) {
+          function nexoCuradoriaPayloadConhecimento(caso, transicao, acao, revisao) {
+            var respostasConhecimento = nexoCuradoriaCasosArray(caso, 'entrevista_respostas')
+            var conhecimentoRef = String(
+              $security.sha256(
+                [
+                  'nexo-curadoria-conhecimento-v1',
+                  nexoCuradoriaCasosTexto(caso, 'fingerprint') || caso.id,
+                ].join('|'),
+              ),
+            )
+            var atorAprovacaoId = String(
+              $security.sha256(
+                ['curadoria-ator-v1', nexoCuradoriaCasosTexto(transicao, 'ator_id')].join('|'),
+              ),
+            )
+            var confiancaTexto = nexoCuradoriaCasosTexto(caso, 'confianca')
+            var confiancaNumerica =
+              confiancaTexto === 'alta' ? 0.9 : confiancaTexto === 'media' ? 0.6 : 0.3
+            return {
+              schema_version: 'pmais_nexo_curadoria_conhecimento_v1',
+              knowledge_ref: conhecimentoRef,
+              action: acao,
+              case_revision: revisao,
+              title: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'titulo'), 240),
+              regra: nexoCuradoriaCasosLimpar(
+                nexoCuradoriaCasosTexto(caso, 'regra_candidata'),
+                4000,
+              ),
+              exception: nexoCuradoriaCasosLimpar(respostasConhecimento[1], 2000),
+              rationale: nexoCuradoriaCasosLimpar(
+                nexoCuradoriaCasosTexto(caso, 'decisao_observacao') || respostasConhecimento[3],
+                2000,
+              ),
+              subject: nexoCuradoriaCasosLimpar(
+                nexoCuradoriaCasosTexto(caso, 'assunto_chave'),
+                240,
+              ),
+              scope_type: nexoCuradoriaCasosLimpar(
+                nexoCuradoriaCasosTexto(caso, 'escopo_tipo'),
+                80,
+              ),
+              sources: nexoCuradoriaCasosArray(caso, 'fontes'),
+              independent_cases: nexoCuradoriaCasosNumero(caso, 'recorrencia_contagem'),
+              independent_businesses: nexoCuradoriaCasosNumero(caso, 'recorrencia_contagem'),
+              independent_conversations: 0,
+              confidence: confiancaNumerica,
+              risk: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'risco_classe'), 80),
+              approval: {
+                approval_id: nexoCuradoriaCasosTexto(transicao, 'transicao_chave'),
+                case_ref: conhecimentoRef,
+                case_revision: revisao,
+                actor_id: atorAprovacaoId,
+                actor_profile: 'curadoria',
+                authority: 'curadoria_conhecimento_comercial',
+                action: acao,
+                app_id: 'pmais_comercial',
+              },
+            }
+          }
+
           var revisaoNova = revisaoAtual + 1
-          var respostasConhecimento = nexoCuradoriaCasosArray(caso, 'entrevista_respostas')
-          var conhecimentoRef = String(
-            $security.sha256(
-              [
-                'nexo-curadoria-conhecimento-v1',
-                nexoCuradoriaCasosTexto(caso, 'fingerprint') || caso.id,
-              ].join('|'),
-            ),
+          var payloadConhecimento = nexoCuradoriaPayloadConhecimento(
+            caso,
+            transicao,
+            outboxAcao,
+            revisaoNova,
           )
-          var atorAprovacaoId = String(
-            $security.sha256(['curadoria-ator-v1', acesso.actor.id].join('|')),
-          )
-          var approvalConhecimento = {
-            approval_id: transitionKey,
-            case_ref: conhecimentoRef,
-            case_revision: revisaoNova,
-            actor_id: atorAprovacaoId,
-            actor_profile: 'curadoria',
-            authority: 'curadoria_conhecimento_comercial',
-            action: outboxAcao,
-            app_id: 'pmais_comercial',
-          }
-          var confiancaTexto = nexoCuradoriaCasosTexto(caso, 'confianca')
-          var confiancaNumerica =
-            confiancaTexto === 'alta' ? 0.9 : confiancaTexto === 'media' ? 0.6 : 0.3
-          var payloadConhecimento = {
-            schema_version: 'pmais_nexo_curadoria_conhecimento_v1',
-            knowledge_ref: conhecimentoRef,
-            action: outboxAcao,
-            case_revision: revisaoNova,
-            title: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'titulo'), 240),
-            regra: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'regra_candidata'), 4000),
-            exception: nexoCuradoriaCasosLimpar(respostasConhecimento[1], 2000),
-            rationale: nexoCuradoriaCasosLimpar(
-              nexoCuradoriaCasosTexto(caso, 'decisao_observacao') || respostasConhecimento[3],
-              2000,
-            ),
-            subject: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'assunto_chave'), 240),
-            scope_type: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'escopo_tipo'), 80),
-            sources: nexoCuradoriaCasosArray(caso, 'fontes'),
-            independent_cases: nexoCuradoriaCasosNumero(caso, 'recorrencia_contagem'),
-            independent_businesses: nexoCuradoriaCasosNumero(caso, 'recorrencia_contagem'),
-            independent_conversations: 0,
-            confidence: confiancaNumerica,
-            risk: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'risco_classe'), 80),
-            approval: approvalConhecimento,
-          }
-          var payloadSerializado = JSON.stringify(payloadConhecimento)
+          var payloadSerializado = nexoCuradoriaJsonCanonico(payloadConhecimento)
           var idempotencyKeyOutbox = String(
             $security.sha256(
               ['curadoria-outbox-v1', caso.id, String(revisaoNova), outboxAcao].join('|'),
@@ -5686,6 +5784,8 @@
       var message = String(err && err.message ? err.message : err)
       if (message.indexOf('REVISAO_DESATUALIZADA') !== -1)
         return e.json(409, { ok: false, error: 'REVISAO_DESATUALIZADA' })
+      if (message.indexOf('PUBLICACAO_EM_ANDAMENTO') !== -1)
+        return e.json(409, { ok: false, error: 'PUBLICACAO_EM_ANDAMENTO' })
       if (message.indexOf('ALCADA_INSUFICIENTE') !== -1)
         return e.json(403, { ok: false, error: 'ALCADA_INSUFICIENTE' })
       if (message.indexOf('ESCOPO_INSUFICIENTE') !== -1)
@@ -5836,6 +5936,99 @@
       }
     }
 
+    function nexoCuradoriaJsonCanonico(value) {
+      if (value === null || typeof value !== 'object') return JSON.stringify(value)
+      var partes = []
+      if (Array.isArray(value)) {
+        for (var ai = 0; ai < value.length; ai++) {
+          var itemSerializado = nexoCuradoriaJsonCanonico(value[ai])
+          partes.push(typeof itemSerializado === 'undefined' ? 'null' : itemSerializado)
+        }
+        return '[' + partes.join(',') + ']'
+      }
+      var chaves = Object.keys(value).sort()
+      for (var oi = 0; oi < chaves.length; oi++) {
+        var valorSerializado = nexoCuradoriaJsonCanonico(value[chaves[oi]])
+        if (typeof valorSerializado === 'undefined') continue
+        partes.push(JSON.stringify(chaves[oi]) + ':' + valorSerializado)
+      }
+      return '{' + partes.join(',') + '}'
+    }
+
+    function nexoCuradoriaCasosArray(record, field) {
+      var originalRaw = []
+      try {
+        originalRaw = record.get(field) || []
+      } catch (_) {}
+      var byteBuffer = originalRaw && typeof originalRaw === 'object' && originalRaw.length > 0
+      if (byteBuffer) {
+        for (var i = 0; i < originalRaw.length; i++) {
+          if (
+            typeof originalRaw[i] !== 'number' ||
+            originalRaw[i] < 0 ||
+            originalRaw[i] > 255 ||
+            Math.floor(originalRaw[i]) !== originalRaw[i]
+          ) {
+            byteBuffer = false
+            break
+          }
+        }
+      }
+      var decodedRaw
+      if (byteBuffer) {
+        try {
+          decodedRaw = JSON.parse(String(originalRaw))
+        } catch (_) {}
+        if (Array.isArray(decodedRaw)) return decodedRaw
+      }
+      if (Array.isArray(originalRaw)) return originalRaw
+      if (typeof originalRaw === 'string') {
+        try {
+          decodedRaw = JSON.parse(originalRaw)
+        } catch (_) {
+          decodedRaw = []
+        }
+      }
+      return Array.isArray(decodedRaw) ? decodedRaw : []
+    }
+
+    function nexoCuradoriaCasosObjeto(record, field) {
+      var originalRaw = null
+      try {
+        originalRaw = record.get(field)
+      } catch (_) {}
+      if (typeof originalRaw === 'string') {
+        try {
+          originalRaw = JSON.parse(originalRaw)
+        } catch (_) {
+          return null
+        }
+      } else if (Array.isArray(originalRaw) && originalRaw.length > 0) {
+        var byteBuffer = true
+        for (var i = 0; i < originalRaw.length; i++) {
+          if (
+            typeof originalRaw[i] !== 'number' ||
+            originalRaw[i] < 0 ||
+            originalRaw[i] > 255 ||
+            Math.floor(originalRaw[i]) !== originalRaw[i]
+          ) {
+            byteBuffer = false
+            break
+          }
+        }
+        if (byteBuffer) {
+          try {
+            originalRaw = JSON.parse(String(originalRaw))
+          } catch (_) {
+            return null
+          }
+        }
+      }
+      return originalRaw && typeof originalRaw === 'object' && !Array.isArray(originalRaw)
+        ? originalRaw
+        : null
+    }
+
     function nexoCuradoriaCasosLimpar(value, max) {
       var out = String(value || '')
         .replace(/<br\s*\/?\s*>/gi, '\n')
@@ -5845,6 +6038,57 @@
         .trim()
       if (max && out.length > max) out = out.slice(0, max)
       return out
+    }
+
+    function nexoCuradoriaPayloadConhecimento(caso, transicao, acao, revisao) {
+      var respostasConhecimento = nexoCuradoriaCasosArray(caso, 'entrevista_respostas')
+      var conhecimentoRef = String(
+        $security.sha256(
+          [
+            'nexo-curadoria-conhecimento-v1',
+            nexoCuradoriaCasosTexto(caso, 'fingerprint') || caso.id,
+          ].join('|'),
+        ),
+      )
+      var atorAprovacaoId = String(
+        $security.sha256(
+          ['curadoria-ator-v1', nexoCuradoriaCasosTexto(transicao, 'ator_id')].join('|'),
+        ),
+      )
+      var confiancaTexto = nexoCuradoriaCasosTexto(caso, 'confianca')
+      var confiancaNumerica =
+        confiancaTexto === 'alta' ? 0.9 : confiancaTexto === 'media' ? 0.6 : 0.3
+      return {
+        schema_version: 'pmais_nexo_curadoria_conhecimento_v1',
+        knowledge_ref: conhecimentoRef,
+        action: acao,
+        case_revision: revisao,
+        title: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'titulo'), 240),
+        regra: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'regra_candidata'), 4000),
+        exception: nexoCuradoriaCasosLimpar(respostasConhecimento[1], 2000),
+        rationale: nexoCuradoriaCasosLimpar(
+          nexoCuradoriaCasosTexto(caso, 'decisao_observacao') || respostasConhecimento[3],
+          2000,
+        ),
+        subject: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'assunto_chave'), 240),
+        scope_type: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'escopo_tipo'), 80),
+        sources: nexoCuradoriaCasosArray(caso, 'fontes'),
+        independent_cases: nexoCuradoriaCasosNumero(caso, 'recorrencia_contagem'),
+        independent_businesses: nexoCuradoriaCasosNumero(caso, 'recorrencia_contagem'),
+        independent_conversations: 0,
+        confidence: confiancaNumerica,
+        risk: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'risco_classe'), 80),
+        approval: {
+          approval_id: nexoCuradoriaCasosTexto(transicao, 'transicao_chave'),
+          case_ref: conhecimentoRef,
+          case_revision: revisao,
+          actor_id: atorAprovacaoId,
+          actor_profile: 'curadoria',
+          authority: 'curadoria_conhecimento_comercial',
+          action: acao,
+          app_id: 'pmais_comercial',
+        },
+      }
     }
 
     function nexoCuradoriaCasosPerfil(e) {
@@ -5883,13 +6127,7 @@
       var offset = 0
       var limit = 500
       while (true) {
-        var page = app.findRecordsByFilter(
-          collectionName,
-          "id != ''",
-          '-id',
-          limit,
-          offset,
-        )
+        var page = app.findRecordsByFilter(collectionName, "id != ''", '-id', limit, offset)
         for (var i = 0; i < page.length; i++) out.push(page[i])
         if (page.length < limit) return out
         offset += page.length
@@ -6037,6 +6275,9 @@
       item = claimedItem
       try {
         var preHttpValido = false
+        var payload = null
+        var payloadBody = ''
+        var payloadHash = ''
         $app.runInTransaction(function (tx) {
           var atualPreHttp = tx.findRecordById('com_nexo_curadoria_outbox', item.id)
           if (
@@ -6069,22 +6310,117 @@
             result.invalidados++
             return
           }
+          var casoIdAutoritativo = nexoCuradoriaCasosTexto(atualPreHttp, 'caso_id')
+          var decisaoIdAutoritativa = nexoCuradoriaCasosTexto(atualPreHttp, 'decisao_id')
+          var acaoAutoritativa = nexoCuradoriaCasosTexto(atualPreHttp, 'acao')
+          var revisaoAutoritativa = nexoCuradoriaCasosNumero(atualPreHttp, 'caso_revisao')
+          if (!casoIdAutoritativo || !decisaoIdAutoritativa || !revisaoAutoritativa)
+            throw new Error('PAYLOAD_INVALIDO')
+          var idempotencyKeyAutoritativa = String(
+            $security.sha256(
+              [
+                'curadoria-outbox-v1',
+                casoIdAutoritativo,
+                String(revisaoAutoritativa),
+                acaoAutoritativa,
+              ].join('|'),
+            ),
+          )
+          if (
+            nexoCuradoriaCasosTexto(atualPreHttp, 'idempotency_key') !== idempotencyKeyAutoritativa
+          )
+            throw new Error('IDEMPOTENCY_KEY_INVALIDA')
+          var transicaoAutoritativa = tx.findRecordById(
+            'com_nexo_curadoria_transicoes',
+            decisaoIdAutoritativa,
+          )
+          var metadadosTransicao = nexoCuradoriaCasosObjeto(transicaoAutoritativa, 'metadados')
+          var acaoTransicao = metadadosTransicao ? String(metadadosTransicao.acao || '') : ''
+          var revisaoAnteriorTransicao = metadadosTransicao
+            ? Number(metadadosTransicao.revisao_anterior)
+            : NaN
+          var revisaoNovaTransicao = metadadosTransicao
+            ? Number(metadadosTransicao.revisao_nova)
+            : NaN
+          var statusNovoTransicao = nexoCuradoriaCasosTexto(transicaoAutoritativa, 'status_novo')
+          var vinculoAcaoValido =
+            (acaoAutoritativa === 'publicar' &&
+              acaoTransicao === 'aprovar' &&
+              statusNovoTransicao === 'aprovado') ||
+            (acaoAutoritativa === 'retirar' &&
+              ((acaoTransicao === 'retirar' && statusNovoTransicao === 'retirado') ||
+                (acaoTransicao === 'rejeitar' && statusNovoTransicao === 'rejeitado')))
+          if (
+            nexoCuradoriaCasosTexto(transicaoAutoritativa, 'caso_id') !== casoIdAutoritativo ||
+            !nexoCuradoriaCasosTexto(transicaoAutoritativa, 'transicao_chave') ||
+            !nexoCuradoriaCasosTexto(transicaoAutoritativa, 'ator_id') ||
+            revisaoAnteriorTransicao !== revisaoAutoritativa - 1 ||
+            revisaoNovaTransicao !== revisaoAutoritativa ||
+            !vinculoAcaoValido
+          )
+            throw new Error('PAYLOAD_INVALIDO')
+          var payloadAutoritativo = nexoCuradoriaPayloadConhecimento(
+            casoAtualOutbox,
+            transicaoAutoritativa,
+            acaoAutoritativa,
+            revisaoAutoritativa,
+          )
+          var payloadAutoritativoBody = nexoCuradoriaJsonCanonico(payloadAutoritativo)
+          payload = atualPreHttp.get('payload_json') || {}
+          if (typeof payload === 'string') {
+            try {
+              payload = JSON.parse(payload)
+            } catch (_) {
+              throw new Error('PAYLOAD_INVALIDO')
+            }
+          }
+          var payloadByteBuffer = Array.isArray(payload) && payload.length > 0
+          if (payloadByteBuffer) {
+            for (var pbi = 0; pbi < payload.length; pbi++) {
+              if (
+                typeof payload[pbi] !== 'number' ||
+                payload[pbi] < 0 ||
+                payload[pbi] > 255 ||
+                Math.floor(payload[pbi]) !== payload[pbi]
+              ) {
+                payloadByteBuffer = false
+                break
+              }
+            }
+          }
+          if (payloadByteBuffer) {
+            var decodedPayload
+            try {
+              decodedPayload = JSON.parse(String(payload))
+            } catch (_) {}
+            if (
+              decodedPayload &&
+              typeof decodedPayload === 'object' &&
+              !Array.isArray(decodedPayload)
+            )
+              payload = decodedPayload
+          }
+          if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+            throw new Error('PAYLOAD_INVALIDO')
+          payloadBody = nexoCuradoriaJsonCanonico(payload)
+          if (payloadBody !== payloadAutoritativoBody) throw new Error('PAYLOAD_INVALIDO')
+          payloadHash = String($security.sha256(payloadBody))
+          var payloadHashPersistido = nexoCuradoriaCasosTexto(atualPreHttp, 'payload_hash')
+          if (payloadHash !== payloadHashPersistido) {
+            var payloadHashLegado = String($security.sha256(JSON.stringify(payloadAutoritativo)))
+            if (payloadHashPersistido !== payloadHashLegado)
+              throw new Error('PAYLOAD_HASH_DIVERGENTE')
+            atualPreHttp.set('payload_hash', payloadHash)
+            tx.save(atualPreHttp)
+          }
           item = atualPreHttp
           preHttpValido = true
         })
         if (!preHttpValido) continue
-        var payload = item.get('payload_json') || {}
-        if (typeof payload === 'string') payload = JSON.parse(payload)
-        if (!payload || typeof payload !== 'object' || Array.isArray(payload))
-          throw new Error('PAYLOAD_INVALIDO')
-        var payloadBody = JSON.stringify(payload)
-        var payloadHash = String($security.sha256(payloadBody))
-        if (payloadHash !== nexoCuradoriaCasosTexto(item, 'payload_hash'))
-          throw new Error('PAYLOAD_HASH_DIVERGENTE')
         var timestamp = String(Math.floor(Date.now() / 1000))
         var signature = $security.hs256(timestamp + '.' + payloadBody, gatewaySecret)
         var approval = payload.approval || {}
-        var approvalCanonical = JSON.stringify({
+        var approvalCanonical = nexoCuradoriaJsonCanonico({
           action: approval.action,
           actor_id: approval.actor_id,
           actor_profile: approval.actor_profile,

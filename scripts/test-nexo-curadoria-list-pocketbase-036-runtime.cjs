@@ -24,6 +24,10 @@ fs.mkdirSync(emptyHooksDirectory, { recursive: true })
 
 const email = 'curadoria-runtime@example.test'
 const password = 'test-password-12345'
+const caseId = 'case00000000003'
+const expectedSources = ['whatsapp_uazapi', 'activecampaign']
+const expectedSensitiveReasons = ['politica_comercial']
+const expectedInterviewAnswers = ['Resposta comercial', 'Exceção validada']
 
 const setupMigration = `migrate(
   function (app) {
@@ -71,6 +75,40 @@ const setupMigration = `migrate(
 )
 `
 
+const seedCaseMigration = `migrate(
+  function (app) {
+    var caso = new Record(app.findCollectionByNameOrId('com_nexo_curadoria_casos'))
+    caso.id = '${caseId}'
+    caso.set('fingerprint', 'pb036-list-jsonraw-case')
+    caso.set('revisao', 1)
+    caso.set('status', 'aberto_curadoria')
+    caso.set('fonte_principal', 'whatsapp_uazapi')
+    caso.set('fontes', ${JSON.stringify(expectedSources)})
+    caso.set('escopo_tipo', 'negocio')
+    caso.set('assunto_chave', 'politica_comercial')
+    caso.set('recorrencia_chave', 'pb036-list-jsonraw')
+    caso.set('titulo', 'Caso JSONRaw para listagem')
+    caso.set('resumo_factual', 'Lista deve expor arrays de negócio.')
+    caso.set('motivo_curadoria', 'Impedir buffers de bytes na API.')
+    caso.set('evidencia_contagem', 2)
+    caso.set('casos_independentes', 2)
+    caso.set('recorrencia_contagem', 2)
+    caso.set('risco_classe', 'alto')
+    caso.set('alcada', 'direcao')
+    caso.set('sensivel_motivos', ${JSON.stringify(expectedSensitiveReasons)})
+    caso.set('confianca', 'alta')
+    caso.set('human_review_required', true)
+    caso.set('automatic_promotion_allowed', false)
+    caso.set('entrevista_respostas', ${JSON.stringify(expectedInterviewAnswers)})
+    caso.set('entrevista_etapa', 2)
+    caso.set('first_seen_at', '2026-10-01 12:00:00.000Z')
+    caso.set('last_seen_at', '2026-10-01 12:00:00.000Z')
+    app.save(caso)
+  },
+  function (_) {},
+)
+`
+
 const schemaProbeHook = `routerAdd('GET', '/__test/curadoria-schema', function (e) {
   var collection = $app.findCollectionByNameOrId('com_nexo_curadoria_casos')
   var fields = []
@@ -88,6 +126,7 @@ fs.copyFileSync(
   path.join(root, 'pocketbase', 'migrations', '202610012340_nexo_curadoria_schema_recovery.js'),
   path.join(migrationsDirectory, '202610012340_nexo_curadoria_schema_recovery.js'),
 )
+fs.writeFileSync(path.join(migrationsDirectory, '202610012400_seed_case.js'), seedCaseMigration)
 fs.copyFileSync(
   path.join(root, 'pocketbase', 'hooks', 'com_propostas_operacao.js'),
   path.join(hooksDirectory, 'com_propostas_operacao.pb.js'),
@@ -263,14 +302,20 @@ async function main() {
     )
     assert.strictEqual(listed.body.ok, true)
     assert.deepStrictEqual(listed.body.contadores, {
-      para_tratar: 0,
+      para_tratar: 1,
       aguardando_decisao: 0,
       conhecimento_aprovado: 0,
       historico: 0,
     })
+    const item = listed.body.visoes.para_tratar[0]
+    assert.strictEqual(item.id, caseId)
+    assert.deepStrictEqual(item.fontes, expectedSources)
+    assert.deepStrictEqual(item.sensivel_motivos, expectedSensitiveReasons)
+    assert.deepStrictEqual(item.entrevista_respostas, expectedInterviewAnswers)
+    assert(item.fontes.every((source) => typeof source === 'string'))
 
     console.log(
-      `PocketBase 0.36 Curadoria list runtime: PASS status=${listed.status} ok=${listed.body.ok} counters=${JSON.stringify(listed.body.contadores)} has_updated=${schema.body.has_updated}`,
+      `PocketBase 0.36 Curadoria list runtime: PASS status=${listed.status} ok=${listed.body.ok} counters=${JSON.stringify(listed.body.contadores)} sources=${JSON.stringify(item.fontes)} has_updated=${schema.body.has_updated}`,
     )
   } finally {
     await stopServer(server)
