@@ -6226,31 +6226,47 @@
       return scheme + '://' + authority + deploymentPath
     }
 
-    function nexoCuradoriaGatewayBaseParaRequest(value, requestOrigin) {
-      var normalizedBase = nexoCuradoriaGatewayBase(value)
-      // Gate temporário exclusivo de Preview. Antes de publicação em Produção, exige remoção
-      // deste hardcode ou configuração separada para não desviar tráfego produtivo ao Preview.
-      if (
-        normalizedBase === 'https://agents.pmaisservicos.com.br' &&
-        String(requestOrigin || '') === 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
-      )
-        return 'https://agents.pmaisservicos.com.br/preview/nexo-hermes'
-      return normalizedBase
+    function nexoCuradoriaGatewayConfig(requestOrigin) {
+      var origin = String(requestOrigin || '')
+      var gatewayBase = ''
+      var gatewayKey = ''
+      var gatewaySecret = ''
+      var approvalSecret = ''
+      if (origin === 'https://backend-isolado-pmais-43b9c--preview.goskip.app') {
+        gatewayBase = nexoCuradoriaGatewayBase(secretValue('PMAIS_CURADORIA_PREVIEW_GATEWAY_URL'))
+        gatewayKey = secretValue('PMAIS_CURADORIA_API_KEY')
+        gatewaySecret = secretValue('PMAIS_CURADORIA_HMAC_SECRET')
+        approvalSecret = secretValue('PMAIS_CURADORIA_APPROVAL_SECRET')
+      } else if (
+        origin === 'https://comercial.pmaisservicos.com.br' ||
+        origin === 'https://backend-isolado-pmais-43b9c.goskip.app'
+      ) {
+        gatewayBase = nexoCuradoriaGatewayBase(secretValue('PMAIS_CURADORIA_PROD_GATEWAY_URL'))
+        gatewayKey = secretValue('PMAIS_CURADORIA_PROD_API_KEY')
+        gatewaySecret = secretValue('PMAIS_CURADORIA_PROD_HMAC_SECRET')
+        approvalSecret = secretValue('PMAIS_CURADORIA_PROD_APPROVAL_SECRET')
+      } else {
+        return null
+      }
+      if (!gatewayBase || !gatewayKey || !gatewaySecret || !approvalSecret) return null
+      return {
+        gatewayBase: gatewayBase,
+        gatewayKey: gatewayKey,
+        gatewaySecret: gatewaySecret,
+        approvalSecret: approvalSecret,
+      }
     }
 
     var requestOrigin = ''
     try {
       requestOrigin = String(e.request.header.get('Origin') || '')
     } catch (_) {}
-    var gatewayBase = nexoCuradoriaGatewayBaseParaRequest(
-      secretValue('PMAIS_AGENT_GATEWAY_URL'),
-      requestOrigin,
-    )
-    var gatewayKey = secretValue('PMAIS_CURADORIA_API_KEY')
-    var gatewaySecret = secretValue('PMAIS_CURADORIA_HMAC_SECRET')
-    var approvalSecret = secretValue('PMAIS_CURADORIA_APPROVAL_SECRET')
-    if (!gatewayBase || !gatewayKey || !gatewaySecret || !approvalSecret)
-      return e.json(503, { ok: false, error: 'GATEWAY_NAO_CONFIGURADO' })
+    var gatewayConfig = nexoCuradoriaGatewayConfig(requestOrigin)
+    if (!gatewayConfig) return e.json(503, { ok: false, error: 'GATEWAY_NAO_CONFIGURADO' })
+    var gatewayBase = gatewayConfig.gatewayBase
+    var gatewayKey = gatewayConfig.gatewayKey
+    var gatewaySecret = gatewayConfig.gatewaySecret
+    var approvalSecret = gatewayConfig.approvalSecret
 
     var pendentes = []
     var todas = []
