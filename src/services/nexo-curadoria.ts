@@ -55,30 +55,12 @@ export interface NexoCuradoriaResumo {
   itens: NexoCuradoriaEvento[]
 }
 
-export interface NexoCuradoriaResposta {
-  pergunta: string
-  resposta: string
-}
-
-export interface SalvarEntrevistaCuradoriaInput {
-  evento: NexoCuradoriaEvento
-  perguntas: string[]
-  respostas: string[]
-}
-
 export interface ImpactoDecisaoCuradoria {
   altera_funil: boolean
   altera_risco: boolean
   altera_perda: boolean
   altera_indicador: boolean
   altera_politica_comercial: boolean
-}
-
-export interface SalvarDecisaoSuperiorCuradoriaInput {
-  evento: NexoCuradoriaEvento
-  entrevistaId?: string
-  respostas: string[]
-  impacto: ImpactoDecisaoCuradoria
 }
 
 export interface NexoCuradoriaDecisaoSuperior {
@@ -115,20 +97,103 @@ export interface NexoCuradoriaDecisaoSuperior {
   created?: string
 }
 
-export type StatusDecisaoSuperiorCuradoria =
-  | 'aguardando_revisao'
-  | 'aprovada_uso_operacional'
-  | 'rejeitada'
+export type AcaoCasoCuradoriaComercial =
+  | 'salvar_rascunho'
+  | 'encaminhar_gestao'
+  | 'encaminhar_direcao'
+  | 'aprovar'
+  | 'rejeitar'
+  | 'retirar'
+  | 'reabrir'
 
-export interface AtualizarDecisaoSuperiorCuradoriaInput {
+export interface CasoCuradoriaComercial {
   id: string
-  status?: StatusDecisaoSuperiorCuradoria
-  regra_proposta?: string
-  excecao_condicao?: string
-  responsavel_validacao?: string
+  revisao: number
+  status: string
+  fonte_principal: string
+  fontes: string[]
+  empresa_nome?: string | null
+  contato_nome?: string | null
+  negocio_numero?: string | null
+  negocio_titulo?: string | null
+  responsavel_nome?: string | null
+  assunto_chave: string
+  titulo: string
+  resumo_factual: string
+  motivo_curadoria: string
+  regra_candidata?: string | null
+  evidencia_contagem: number
+  recorrencia_contagem: number
+  risco_classe: string
+  alcada: 'gestao_comercial' | 'direcao' | string
+  sensivel_motivos: string[]
+  confianca: string
+  human_review_required: boolean
+  automatic_promotion_allowed: boolean
+  entrevista_respostas: string[]
+  entrevista_etapa: number
+  decisao_observacao?: string | null
+  conhecimento_status: string
+  last_seen_at?: string | null
+  decisao_em?: string | null
+}
+
+export interface CuradoriaComercialVisoes {
+  para_tratar: CasoCuradoriaComercial[]
+  aguardando_decisao: CasoCuradoriaComercial[]
+  conhecimento_aprovado: CasoCuradoriaComercial[]
+  historico: CasoCuradoriaComercial[]
+}
+
+export interface CuradoriaComercialResponse {
+  ok: boolean
+  visoes: CuradoriaComercialVisoes
+  contadores: Record<keyof CuradoriaComercialVisoes, number>
+  guardrails: {
+    sem_payload_bruto: boolean
+    sem_ids_tecnicos_visiveis: boolean
+    automatic_send_allowed: boolean
+  }
+}
+
+export interface TransicionarCasoCuradoriaComercialInput {
+  acao: AcaoCasoCuradoriaComercial
+  expected_revision: number
+  regra_candidata?: string
   decisao_observacao?: string
-  ipcp_revisao_status?: string
-  ipcp_revisao_motivo?: string
+  entrevista_respostas?: string[]
+  entrevista_etapa?: number
+}
+
+export interface TransicionarCasoCuradoriaComercialResponse {
+  ok: boolean
+  idempotent_replay?: boolean
+  caso: CasoCuradoriaComercial
+  automatic_send_allowed: boolean
+  promocao_automatica_realizada?: boolean
+}
+
+export async function listarCasosCuradoriaComercial(limite = 50) {
+  const limiteSeguro = Math.max(1, Math.min(100, Math.floor(limite || 50)))
+  return pb.send<CuradoriaComercialResponse>('/backend/v1/nexo/curadoria/casos/listar', {
+    method: 'POST',
+    body: { limite: limiteSeguro },
+  })
+}
+
+export async function transicionarCasoCuradoriaComercial(
+  casoId: string,
+  input: TransicionarCasoCuradoriaComercialInput,
+) {
+  const id = String(casoId || '').trim()
+  if (!id) throw new Error('CASO_CURADORIA_INVALIDO')
+  return pb.send<TransicionarCasoCuradoriaComercialResponse>(
+    `/backend/v1/nexo/curadoria/casos/${encodeURIComponent(id)}/transicionar`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  )
 }
 
 const COLLECTION = 'com_nexo_aprendizado_eventos'
@@ -438,127 +503,4 @@ export async function buscarDecisaoSuperiorExistenteCuradoriaNexo(evento: NexoCu
     if (error?.status === 404 || error?.status === 403) return null
     throw error
   }
-}
-
-export async function salvarEntrevistaCuradoriaNexo({
-  evento,
-  perguntas,
-  respostas,
-}: SalvarEntrevistaCuradoriaInput) {
-  const usuario = pb.authStore.model
-  const respostasEstruturadas: NexoCuradoriaResposta[] = perguntas.map((pergunta, index) => ({
-    pergunta,
-    resposta: respostas[index]?.trim() || '',
-  }))
-
-  return pb.collection(ENTREVISTAS_COLLECTION).create({
-    evento_id: evento.id,
-    external_id: evento.external_id || '',
-    empresa_nome: evento.empresa_nome || '',
-    contato_nome: evento.contato_nome || '',
-    negocio_titulo: evento.negocio_titulo || '',
-    status: 'aguardando_revisao',
-    perguntas_json: JSON.stringify(perguntas),
-    respostas_json: JSON.stringify(respostasEstruturadas),
-    resumo_contexto: evento.contexto_resumo || '',
-    usuario_id: usuario?.id || '',
-    usuario_nome: usuario?.name || usuario?.email || '',
-    created_at: new Date().toISOString(),
-  })
-}
-
-export function decisaoExigeDirecao(impacto: ImpactoDecisaoCuradoria) {
-  return Boolean(
-    impacto.altera_funil ||
-    impacto.altera_risco ||
-    impacto.altera_perda ||
-    impacto.altera_indicador ||
-    impacto.altera_politica_comercial,
-  )
-}
-
-export async function salvarDecisaoSuperiorCuradoriaNexo({
-  evento,
-  entrevistaId,
-  respostas,
-  impacto,
-}: SalvarDecisaoSuperiorCuradoriaInput) {
-  const usuario = pb.authStore.model
-  const escalarDirecao = decisaoExigeDirecao(impacto)
-  const decisaoExistente = await buscarDecisaoSuperiorExistenteCuradoriaNexo(evento)
-  if (decisaoExistente) throw new Error('DECISAO_SUPERIOR_DUPLICADA')
-
-  return pb.collection(DECISOES_COLLECTION).create({
-    evento_id: evento.id,
-    entrevista_id: entrevistaId || '',
-    external_id: evento.external_id || '',
-    empresa_nome: evento.empresa_nome || '',
-    contato_nome: evento.contato_nome || '',
-    negocio_titulo: evento.negocio_titulo || '',
-    status: 'aguardando_revisao',
-    nivel_decisao: escalarDirecao ? 'direcao_comercial' : 'gestor_comercial',
-    escalar_direcao: escalarDirecao,
-    regra_proposta: respostas[0]?.trim() || '',
-    excecao_condicao: respostas[1]?.trim() || '',
-    responsavel_validacao: respostas[2]?.trim() || '',
-    impacto_json: JSON.stringify(impacto),
-    origem_respostas_json: JSON.stringify(respostas),
-    usuario_id: usuario?.id || '',
-    usuario_nome: usuario?.name || usuario?.email || '',
-    created_at: new Date().toISOString(),
-  })
-}
-
-export async function atualizarDecisaoSuperiorCuradoriaNexo({
-  id,
-  status,
-  regra_proposta,
-  excecao_condicao,
-  responsavel_validacao,
-  decisao_observacao,
-  ipcp_revisao_status,
-  ipcp_revisao_motivo,
-}: AtualizarDecisaoSuperiorCuradoriaInput) {
-  const usuario = pb.authStore.model
-  const payload: Record<string, string> = {
-    updated_at: new Date().toISOString(),
-    usuario_nome: usuario?.name || usuario?.email || '',
-  }
-
-  if (status) payload.status = status
-  if (regra_proposta !== undefined) payload.regra_proposta = regra_proposta.trim()
-  if (excecao_condicao !== undefined) payload.excecao_condicao = excecao_condicao.trim()
-  if (responsavel_validacao !== undefined)
-    payload.responsavel_validacao = responsavel_validacao.trim()
-  if (decisao_observacao !== undefined) payload.decisao_observacao = decisao_observacao.trim()
-  if (ipcp_revisao_status !== undefined) payload.ipcp_revisao_status = ipcp_revisao_status.trim()
-  if (ipcp_revisao_motivo !== undefined) payload.ipcp_revisao_motivo = ipcp_revisao_motivo.trim()
-
-  return pb.collection(DECISOES_COLLECTION).update<NexoCuradoriaDecisaoSuperior>(id, payload)
-}
-
-export async function sincronizarDecisaoSegundoCerebroCuradoriaNexo(id: string) {
-  return pb.send<NexoCuradoriaDecisaoSuperior>(
-    `/backend/v1/nexo/curadoria/decisoes/${id}/segundo-cerebro`,
-    {
-      method: 'POST',
-    },
-  )
-}
-
-export async function atualizarRevisaoIpcpCuradoriaNexo(
-  id: string,
-  status: string,
-  motivo: string,
-) {
-  return pb.send<NexoCuradoriaDecisaoSuperior>(
-    `/backend/v1/nexo/curadoria/decisoes/${id}/ipcp-revisao`,
-    {
-      method: 'POST',
-      body: {
-        status,
-        motivo,
-      },
-    },
-  )
 }

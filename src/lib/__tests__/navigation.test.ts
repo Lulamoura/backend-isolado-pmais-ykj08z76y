@@ -3,11 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { MAIN_MODULES, modulePathFor } from '@/lib/navigation'
 
 describe('navegação por módulos', () => {
-  it('mantém somente quatro módulos principais', () => {
+  it('mantém os módulos principais aprovados', () => {
     expect(MAIN_MODULES.map((item) => item.label)).toEqual([
       'Operação do Dia',
       'Pipeline Comercial',
       'Assistente Nexo',
+      'Curadoria Nexo',
       'Análises',
       'Administração',
     ])
@@ -20,6 +21,7 @@ describe('navegação por módulos', () => {
     ['/fechamentos', '/pipeline'],
     ['/ordens-execucao', '/pipeline'],
     ['/nexo', '/nexo'],
+    ['/nexo/curadoria', '/nexo/curadoria'],
     ['/analises', '/analises'],
     ['/slas', '/foundation'],
     ['/substituicoes/abc', '/foundation'],

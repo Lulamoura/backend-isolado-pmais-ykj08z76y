@@ -68,9 +68,11 @@ assert.match(
 )
 assert.match(
   hook,
-  /provider:\s*'nexo_hermes'|provider:\s*"nexo_hermes"/,
-  'resposta via PMais Agent Gateway deve ser identificada como nexo_hermes',
+  /provider:\s*gatewayJson\.nexo_provider/,
+  'resposta deve preservar o provider real retornado pelo Gateway',
 )
+assert.match(hook, /gatewayJson\.contract_version !== 'pmais_agent_gateway_nexo_ajuda_v1'/)
+assert.match(hook, /typeof gatewayJson\.fallback !== 'boolean'/)
 assert.match(
   hook,
   /SKIP_AI_GATEWAY_URL/,

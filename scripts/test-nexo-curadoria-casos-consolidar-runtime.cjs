@@ -1,0 +1,339 @@
+const assert = require('assert')
+const fs = require('fs')
+const vm = require('vm')
+
+class MockRecord {
+  constructor(collection, id, values) {
+    this.collection = collection
+    this.id = id || ''
+    this.values = { ...(values || {}) }
+  }
+  getString(name) {
+    const value = this.values[name]
+    return value === undefined || value === null ? '' : String(value)
+  }
+  getBool(name) {
+    return Boolean(this.values[name])
+  }
+  getInt(name) {
+    return Number(this.values[name] || 0)
+  }
+  getFloat(name) {
+    return Number(this.values[name] || 0)
+  }
+  get(name) {
+    return this.values[name]
+  }
+  set(name, value) {
+    this.values[name] = value
+  }
+}
+
+const profile = new MockRecord('com_perfis', 'profile-admin', {
+  ativo: true,
+  slug: 'superadministrador',
+})
+const actor = new MockRecord('users', 'user-admin', {
+  ativo_comercial: true,
+  perfil_id: profile.id,
+})
+const executiveProfile = new MockRecord('com_perfis', 'profile-executive', {
+  ativo: true,
+  slug: 'leitura-executiva',
+})
+const executive = new MockRecord('users', 'user-executive', {
+  ativo_comercial: true,
+  perfil_id: executiveProfile.id,
+})
+
+const ledger = [
+  new MockRecord('com_ledger_comercial', 'ledger-1', {
+    fonte: 'whatsapp_uazapi',
+    canal: 'WhatsApp Comercial',
+    empresa_nome: 'Cliente A',
+    negocio_ref: 'OE-201',
+    responsavel: 'Equipe 1',
+    tipo_evento: 'mensagem',
+    fato: 'Cliente prefere receber resumo objetivo antes da reunião.',
+    evidencia_ref: 'event-1',
+    destino_sugerido: 'historico',
+    risco: 'baixo',
+    confianca: 'alta',
+    promocao_modo: 'promover_baixo_risco',
+    occurred_at: '2026-09-28 12:00:00.000Z',
+    status: 'novo',
+  }),
+  new MockRecord('com_ledger_comercial', 'ledger-2', {
+    fonte: 'nexo_app',
+    canal: 'Ajuda do Nexo',
+    empresa_nome: 'Cliente A',
+    negocio_ref: 'OE-201',
+    responsavel: 'Equipe 1',
+    tipo_evento: 'preferencia_comunicacao',
+    fato: 'Reforçada preferência por resumo objetivo antes da reunião.',
+    evidencia_ref: 'event-2',
+    destino_sugerido: 'curadoria',
+    risco: 'baixo',
+    confianca: 'media',
+    occurred_at: '2026-09-29 12:00:00.000Z',
+    status: 'novo',
+  }),
+  new MockRecord('com_ledger_comercial', 'ledger-3', {
+    fonte: 'whatsapp_uazapi',
+    canal: 'WhatsApp Comercial',
+    empresa_nome: 'Cliente B',
+    negocio_ref: 'OE-202',
+    responsavel: 'Equipe 2',
+    tipo_evento: 'mensagem',
+    fato: 'Contato prefere receber resumo objetivo antes da reunião.',
+    evidencia_ref: 'event-3',
+    destino_sugerido: 'historico',
+    risco: 'baixo',
+    confianca: 'alta',
+    promocao_modo: 'promover_baixo_risco',
+    occurred_at: '2026-09-30 12:00:00.000Z',
+    status: 'novo',
+  }),
+  new MockRecord('com_ledger_comercial', 'ledger-4', {
+    fonte: 'whatsapp_uazapi',
+    canal: 'WhatsApp Comercial',
+    empresa_nome: 'Cliente A',
+    negocio_ref: 'OE-201',
+    responsavel: 'Equipe 1',
+    tipo_evento: 'mensagem',
+    fato: 'Cliente pediu desconto e alteração do preço.',
+    evidencia_ref: 'event-4',
+    destino_sugerido: 'historico',
+    risco: 'baixo',
+    confianca: 'media',
+    promocao_modo: 'promover_baixo_risco',
+    occurred_at: '2026-10-01 12:00:00.000Z',
+    status: 'novo',
+  }),
+]
+
+const collections = {
+  com_perfis: [profile, executiveProfile],
+  com_ledger_comercial: ledger,
+  com_nexo_curadoria_casos: [],
+  com_nexo_curadoria_evidencias: [],
+  com_nexo_curadoria_transicoes: [],
+  com_nexo_curadoria_outbox: [],
+}
+let nextId = 1
+let saveCalls = 0
+
+function rowsFor(name) {
+  if (!collections[name]) collections[name] = []
+  return collections[name]
+}
+
+const app = {
+  findRecordById(collection, id) {
+    const rec = rowsFor(collection).find((row) => row.id === id)
+    if (!rec) throw new Error('not found')
+    return rec
+  },
+  findRecordsByFilter(collection, _filter, _sort, limit, offset) {
+    const rows = rowsFor(collection)
+    return rows.slice(offset || 0, (offset || 0) + (limit || rows.length))
+  },
+  findCollectionByNameOrId(name) {
+    return { name }
+  },
+  save(record) {
+    saveCalls++
+    const name = record.collection.name || record.collection
+    const rows = rowsFor(name)
+    if (!record.id) {
+      record.id = `generated-${nextId++}`
+      rows.push(record)
+    }
+  },
+  runInTransaction(callback) {
+    return callback(this)
+  },
+}
+
+function RecordCtor(collection) {
+  return new MockRecord(collection, '', {})
+}
+
+const routes = {}
+const context = {
+  console,
+  Date,
+  JSON,
+  Math,
+  Record: RecordCtor,
+  $app: app,
+  $os: { getenv: () => '' },
+  $http: { send: () => ({ statusCode: 500, json: {}, raw: '' }) },
+  $security: { sha256: (value) => `hash:${value}` },
+  $apis: {
+    bodyLimit: () => function () {},
+    requireAuth: () => function () {},
+  },
+  routerAdd(method, path, callback) {
+    routes[`${method} ${path}`] = callback
+  },
+}
+vm.createContext(context)
+vm.runInContext(
+  fs.readFileSync('pocketbase/hooks/com_nexo_central_operacional.js', 'utf8'),
+  context,
+)
+
+const route = routes['POST /backend/v1/nexo/curadoria/casos/consolidar']
+assert(route, 'rota governada de consolidação de casos deve existir')
+
+function invoke(body, auth = actor) {
+  let response = null
+  const e = {
+    auth,
+    requestInfo() {
+      return { body: body || {} }
+    },
+    json(status, payload) {
+      response = { status, payload }
+      return response
+    },
+    forbiddenError(message) {
+      response = { status: 403, payload: { message } }
+      return response
+    },
+  }
+  route(e)
+  return response
+}
+
+const dryRun = invoke({ dry_run: true })
+assert.equal(dryRun.status, 200)
+assert.equal(dryRun.payload.dry_run, true)
+assert.equal(dryRun.payload.casos_novos, 3)
+assert.equal(dryRun.payload.evidencias_novas, 4)
+assert.equal(saveCalls, 0)
+assert.equal(collections.com_nexo_curadoria_casos.length, 0)
+
+const noConfirmation = invoke({ dry_run: false })
+assert.equal(noConfirmation.status, 400)
+assert.equal(collections.com_nexo_curadoria_casos.length, 0)
+
+const executiveDryRun = invoke({ dry_run: true }, executive)
+assert.equal(executiveDryRun.status, 200, 'leitura executiva pode consultar a prévia sem mutação')
+const executiveApply = invoke(
+  { dry_run: false, confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL' },
+  executive,
+)
+assert.equal(executiveApply.status, 403, 'leitura executiva nunca pode aplicar consolidação')
+assert.equal(collections.com_nexo_curadoria_casos.length, 0)
+
+const applied = invoke({
+  dry_run: false,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(applied.status, 200)
+assert.equal(applied.payload.casos_criados, 3)
+assert.equal(applied.payload.evidencias_criadas, 4)
+assert.equal(applied.payload.transicoes_criadas, 3)
+assert.equal(collections.com_nexo_curadoria_casos.length, 3)
+assert.equal(collections.com_nexo_curadoria_evidencias.length, 4)
+
+const preferenceCases = collections.com_nexo_curadoria_casos.filter(
+  (item) => item.getString('assunto_chave') === 'preferencia_comunicacao',
+)
+assert.equal(preferenceCases.length, 2)
+assert.equal(preferenceCases[0].getInt('recorrencia_contagem'), 2)
+assert.equal(preferenceCases[1].getInt('recorrencia_contagem'), 2)
+assert.equal(preferenceCases[0].getBool('human_review_required'), true)
+assert.equal(preferenceCases[0].getBool('automatic_promotion_allowed'), false)
+
+const sensitiveCase = collections.com_nexo_curadoria_casos.find(
+  (item) => item.getString('assunto_chave') === 'preco_ou_desconto',
+)
+assert(sensitiveCase)
+assert.equal(sensitiveCase.getString('status'), 'aguardando_direcao')
+assert.equal(sensitiveCase.getString('alcada'), 'direcao')
+assert.equal(sensitiveCase.getBool('automatic_promotion_allowed'), false)
+
+const thirdPreference = new MockRecord('com_ledger_comercial', 'ledger-5', {
+  fonte: 'activecampaign',
+  canal: 'ActiveCampaign',
+  empresa_nome: 'Cliente C',
+  negocio_ref: 'OE-203',
+  responsavel: 'Equipe 3',
+  tipo_evento: 'preferencia_comunicacao',
+  fato: 'Contato prefere receber resumo objetivo antes da reunião.',
+  evidencia_ref: 'event-5',
+  destino_sugerido: 'curadoria',
+  risco: 'baixo',
+  confianca: 'alta',
+  occurred_at: '2026-10-02 12:00:00.000Z',
+  status: 'novo',
+})
+ledger.push(thirdPreference)
+const recurrenceApply = invoke({
+  dry_run: false,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(recurrenceApply.status, 200)
+assert.equal(recurrenceApply.payload.casos_criados, 1)
+assert.equal(recurrenceApply.payload.casos_atualizados, 2)
+assert.equal(recurrenceApply.payload.evidencias_criadas, 1)
+for (const item of preferenceCases) {
+  assert.equal(item.getInt('recorrencia_contagem'), 3)
+  assert.equal(item.getInt('revisao'), 2)
+  assert.equal(item.getString('confianca'), 'alta')
+}
+
+sensitiveCase.set('status', 'aprovado')
+sensitiveCase.set('conhecimento_status', 'ativo')
+sensitiveCase.set('validado_por', 'director-1')
+sensitiveCase.set('approved_at', '2026-10-01 00:00:00.000Z')
+sensitiveCase.set('next_review_at', '2030-09-01 00:00:00.000Z')
+const newerSensitiveEvidence = new MockRecord('com_ledger_comercial', 'ledger-6', {
+  fonte: 'whatsapp_uazapi',
+  canal: 'WhatsApp Comercial',
+  empresa_nome: 'Cliente A',
+  negocio_ref: 'OE-201',
+  responsavel: 'Equipe 1',
+  tipo_evento: 'mensagem',
+  fato: 'Cliente voltou a pedir desconto no preço.',
+  evidencia_ref: 'event-6',
+  destino_sugerido: 'curadoria',
+  risco: 'medio',
+  confianca: 'alta',
+  occurred_at: '2026-10-03 12:00:00.000Z',
+  status: 'novo',
+})
+ledger.push(newerSensitiveEvidence)
+const reopened = invoke({
+  dry_run: false,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(reopened.status, 200)
+assert.equal(reopened.payload.casos_criados, 0)
+assert.equal(reopened.payload.casos_atualizados, 1)
+assert.equal(reopened.payload.evidencias_criadas, 1)
+assert.equal(reopened.payload.transicoes_criadas, 1)
+assert.equal(sensitiveCase.getString('status'), 'aguardando_direcao')
+assert.equal(sensitiveCase.getInt('revisao'), 2)
+assert.equal(sensitiveCase.getString('conhecimento_status'), 'revisao_necessaria')
+assert.equal(sensitiveCase.getString('validado_por'), 'director-1')
+assert.equal(sensitiveCase.getString('approved_at'), '2026-10-01 00:00:00.000Z')
+assert.match(sensitiveCase.getString('resumo_factual'), /voltou a pedir desconto/)
+assert.equal(sensitiveCase.getString('confianca'), 'media')
+
+const secondApply = invoke({
+  dry_run: false,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(secondApply.status, 200)
+assert.equal(secondApply.payload.casos_criados, 0)
+assert.equal(secondApply.payload.casos_atualizados, 0)
+assert.equal(secondApply.payload.evidencias_criadas, 0)
+assert.equal(secondApply.payload.transicoes_criadas, 0)
+assert.equal(secondApply.payload.automatic_send_allowed, false)
+assert.equal('caso_ids' in secondApply.payload, false)
+
+console.log('nexo-curadoria-casos-consolidar runtime: PASS')

@@ -108,6 +108,12 @@ routerAdd(
       return false
     }
 
+    function boolKnown(value) {
+      if (value === true || value === false) return true
+      var normalized = asString(value).toLowerCase()
+      return normalized === 'true' || normalized === 'false'
+    }
+
     function dateFromMillisOrSeconds(value) {
       var n = Number(value || 0)
       if (!n) return null
@@ -351,12 +357,17 @@ routerAdd(
       for (var i = 0; i < ids.length; i++) {
         try {
           var negocio = tx.findRecordById('com_negocios', ids[i])
-          out.push((negocio.getString('titulo') || ids[i]) + ' (' + ids[i] + ')')
-        } catch (_) {
-          out.push(ids[i])
-        }
+          var numero =
+            negocio.getString('oe_numero') ||
+            negocio.getString('external_id') ||
+            negocio.getString('codigo')
+          var titulo = negocio.getString('titulo') || negocio.getString('necessidade')
+          var label = numero || titulo
+          if (numero && titulo) label += ' — ' + titulo
+          if (label) out.push(label)
+        } catch (_) {}
       }
-      return out.join('; ')
+      return truncate(out.join('; '), 240)
     }
 
     function resolverVinculoComercial(tx, data) {
@@ -474,7 +485,11 @@ routerAdd(
         'idempotency_key',
         data.idempotencyKey,
       )
-      if (existing) return { record: existing, replay: true }
+      if (existing) {
+        if (existing.getString('payload_hash') !== data.payloadHash)
+          throw new Error('IDEMPOTENCY_PAYLOAD_CONFLICT')
+        return { record: existing, replay: true }
+      }
       var record = new Record(tx.findCollectionByNameOrId('com_whatsapp_eventos'))
       record.set('provider', 'uazapi')
       record.set('instance_name', data.instanceName)
@@ -511,7 +526,14 @@ routerAdd(
       record.set('sender_name', data.senderName)
       record.set('message_id', data.messageId)
       record.set('idempotency_key', data.messageIdempotencyKey)
-      record.set('direcao', data.fromMe ? 'enviada_operadora' : 'recebida')
+      record.set(
+        'direcao',
+        data.fromMeKnown
+          ? data.fromMe
+            ? 'enviada_operadora'
+            : 'recebida'
+          : 'direcao_desconhecida',
+      )
       record.set('is_group', data.isGroup)
       record.set('message_type', data.messageType)
       record.set('media_type', data.mediaType)
@@ -551,6 +573,7 @@ routerAdd(
 
     function destinoLedger(data) {
       if (data.isGroup) return 'descartar'
+      if (!data.fromMeKnown) return 'pendencia'
       if (!data.messageId) return 'historico'
       if (data.mediaType && asString(data.mediaType).toLowerCase().indexOf('audio') !== -1)
         return 'pendencia'
@@ -715,7 +738,14 @@ routerAdd(
       var record = new Record(tx.findCollectionByNameOrId('com_ledger_comercial'))
       record.set('fonte', 'whatsapp_uazapi')
       record.set('canal', 'WhatsApp Comercial')
-      record.set('origem', data.fromMe ? 'operadora_comercial' : 'cliente_ou_contato')
+      record.set(
+        'origem',
+        data.fromMeKnown
+          ? data.fromMe
+            ? 'operadora_comercial'
+            : 'cliente_ou_contato'
+          : 'direcao_desconhecida',
+      )
       record.set(
         'contato_nome',
         data.vinculoComercial && data.vinculoComercial.contatoNome
@@ -736,10 +766,26 @@ routerAdd(
       ) {
         negocioRef = resumoNegociosPorIds(tx, data.vinculoComercial.negocioIds)
       } else if (data.vinculoComercial && data.vinculoComercial.negocioId) {
-        negocioRef =
-          data.vinculoComercial.negocioTitulo + ' (' + data.vinculoComercial.negocioId + ')'
+        negocioRef = data.vinculoComercial.negociosResumo || data.vinculoComercial.negocioTitulo
       }
       record.set('negocio_ref', truncate(negocioRef, 240))
+      var negocioIdGovernado = ''
+      if (
+        data.vinculoComercial &&
+        Array.isArray(data.vinculoComercial.negocioIds) &&
+        data.vinculoComercial.negocioIds.length === 1
+      )
+        negocioIdGovernado = String(data.vinculoComercial.negocioIds[0] || '')
+      else if (data.vinculoComercial && data.vinculoComercial.negocioId)
+        negocioIdGovernado = String(data.vinculoComercial.negocioId)
+      record.set('negocio_id', negocioIdGovernado)
+      if (negocioIdGovernado) {
+        try {
+          var negocioGovernado = tx.findRecordById('com_negocios', negocioIdGovernado)
+          record.set('responsavel_id', negocioGovernado.getString('responsavel_id'))
+          record.set('equipe_id', negocioGovernado.getString('equipe_id'))
+        } catch (_) {}
+      }
       record.set('responsavel', data.owner || data.instanceName)
       record.set('tipo_evento', data.mediaType ? 'mensagem_midia' : 'mensagem')
       record.set(
@@ -788,8 +834,9 @@ routerAdd(
     var instanceName = cleanId(body.instanceName || '', 120)
     var owner = cleanId(body.owner || '', 80)
     var messageId = pickMessageId(message, updateEvent)
-    var fromMe =
-      message.fromMe !== undefined ? boolFrom(message.fromMe) : boolFrom(updateEvent.IsFromMe)
+    var rawFromMe = message.fromMe !== undefined ? message.fromMe : updateEvent.IsFromMe
+    var fromMeKnown = boolKnown(rawFromMe)
+    var fromMe = boolFrom(rawFromMe)
     var isGroup =
       message.isGroup !== undefined ? boolFrom(message.isGroup) : boolFrom(updateEvent.IsGroup)
     var messageType = cleanId(message.messageType || updateEvent.Type || '', 80)
@@ -835,6 +882,7 @@ routerAdd(
           payloadSanitized: payloadSanitized,
           status: isGroup ? 'ignorado_grupo' : 'recebido',
           fromMe: fromMe,
+          fromMeKnown: fromMeKnown,
           isGroup: isGroup,
           mediaType: mediaType,
           receivedAt: receivedAt,
@@ -852,6 +900,7 @@ routerAdd(
             messageId: messageId,
             messageIdempotencyKey: messageIdempotencyKey,
             fromMe: fromMe,
+            fromMeKnown: fromMeKnown,
             isGroup: isGroup,
             messageType: messageType,
             mediaType: mediaType,
@@ -899,6 +948,7 @@ routerAdd(
             messageId: messageId,
             eventRecordId: eventResult.record.id,
             fromMe: fromMe,
+            fromMeKnown: fromMeKnown,
             isGroup: isGroup,
             messageType: messageType,
             mediaType: mediaType,
@@ -910,6 +960,11 @@ routerAdd(
         }
       })
     } catch (err) {
+      if (
+        String(err && err.message ? err.message : err).indexOf('IDEMPOTENCY_PAYLOAD_CONFLICT') !==
+        -1
+      )
+        return e.json(409, { ok: false, error: 'IDEMPOTENCY_PAYLOAD_CONFLICT' })
       return e.json(500, {
         ok: false,
         error: 'FALHA_INGESTAO',
@@ -1838,3 +1893,287 @@ routerAdd(
     return e.json(200, { ok: true })
   },
 )
+
+routerAdd('POST', '/backend/v1/integracao/whatsapp/uazapi/ledger/reconciliar', function (e) {
+  var CONFIRMACAO_APLICACAO = 'APLICAR_RECONCILIACAO_LEDGER_WHATSAPP'
+
+  function asString(value) {
+    if (value === null || value === undefined) return ''
+    return String(value)
+  }
+
+  function texto(record, field) {
+    if (!record) return ''
+    try {
+      return record.getString(field) || ''
+    } catch (_) {
+      return ''
+    }
+  }
+
+  function carregarRegistros(app, collectionName, filter, sort) {
+    var out = []
+    var offset = 0
+    var limite = 500
+    while (true) {
+      var records = app.findRecordsByFilter(
+        collectionName,
+        filter || "id != ''",
+        sort || '+id',
+        limite,
+        offset,
+      )
+      for (var i = 0; i < records.length; i++) out.push(records[i])
+      if (records.length < limite) return out
+      offset += records.length
+    }
+  }
+
+  function negocioIds(vinculo) {
+    var raw = []
+    try {
+      raw = vinculo.get('negocio_ids') || []
+    } catch (_) {}
+    if (typeof raw === 'string') {
+      try {
+        raw = JSON.parse(raw)
+      } catch (_) {
+        raw = []
+      }
+    }
+    if (!Array.isArray(raw)) raw = []
+    var unico = texto(vinculo, 'negocio_id')
+    if (!raw.length && unico) raw = [unico]
+    var ids = []
+    var vistos = {}
+    for (var i = 0; i < raw.length; i++) {
+      var id = asString(raw[i]).trim()
+      if (id && !vistos[id]) {
+        vistos[id] = true
+        ids.push(id)
+      }
+    }
+    ids.sort()
+    return ids
+  }
+
+  function chaveConversa(record) {
+    return [
+      texto(record, 'provider'),
+      texto(record, 'instance_name'),
+      texto(record, 'owner'),
+      texto(record, 'chat_id'),
+    ].join('|')
+  }
+
+  function nomeRelacionado(app, collectionName, id, fields) {
+    if (!id) return ''
+    try {
+      var record = app.findRecordById(collectionName, id)
+      for (var i = 0; i < fields.length; i++) {
+        var value = texto(record, fields[i])
+        if (value) return value
+      }
+    } catch (_) {}
+    return ''
+  }
+
+  function resumoNegocios(app, ids) {
+    var itens = []
+    for (var i = 0; i < ids.length; i++) {
+      try {
+        var negocio = app.findRecordById('com_negocios', ids[i])
+        var numero =
+          texto(negocio, 'oe_numero') || texto(negocio, 'external_id') || texto(negocio, 'codigo')
+        var titulo = texto(negocio, 'titulo') || texto(negocio, 'necessidade')
+        var label = numero || titulo
+        if (numero && titulo) label += ' — ' + titulo
+        if (label) itens.push(label)
+      } catch (_) {}
+    }
+    return itens.join('; ').slice(0, 240)
+  }
+
+  function assinaturaVinculo(vinculo) {
+    return JSON.stringify({
+      chave: chaveConversa(vinculo),
+      status: texto(vinculo, 'status'),
+      contato_id: texto(vinculo, 'contato_id'),
+      empresa_id: texto(vinculo, 'empresa_id'),
+      negocio_ids: negocioIds(vinculo),
+      origem_decisao: texto(vinculo, 'origem_decisao'),
+    })
+  }
+
+  function campoConflita(atual, alvo) {
+    return !!atual && !!alvo && atual !== alvo
+  }
+
+  var actor = e.auth
+  if (!actor || !actor.getBool('ativo_comercial')) return e.unauthorizedError('Autenticacao')
+  var slug = ''
+  try {
+    var perfil = $app.findRecordById('com_perfis', actor.getString('perfil_id'))
+    if (!perfil.getBool('ativo')) return e.forbiddenError('Perfil comercial inativo')
+    slug = perfil.getString('slug') || ''
+  } catch (_) {
+    return e.forbiddenError('Perfil comercial necessario')
+  }
+  if (slug !== 'superadministrador' && slug !== 'leitura-executiva')
+    return e.forbiddenError('Perfil executivo necessario')
+
+  var body = e.requestInfo().body || {}
+  var dryRun = body.dry_run !== false
+  if (!dryRun && asString(body.confirmacao) !== CONFIRMACAO_APLICACAO)
+    return e.json(400, { ok: false, error: 'CONFIRMACAO_NECESSARIA' })
+
+  var vinculos = []
+  var mensagens = []
+  var ledger = []
+  try {
+    vinculos = carregarRegistros($app, 'com_whatsapp_vinculos', "id != ''", '+id')
+    mensagens = carregarRegistros($app, 'com_whatsapp_mensagens', 'is_group = false', '+id')
+    ledger = carregarRegistros($app, 'com_ledger_comercial', "fonte = 'whatsapp_uazapi'", '+id')
+  } catch (_) {
+    return e.json(503, { ok: false, error: 'FONTES_INDISPONIVEIS' })
+  }
+
+  var vinculosGovernados = {}
+  for (var vi = 0; vi < vinculos.length; vi++) {
+    var vinculo = vinculos[vi]
+    var status = texto(vinculo, 'status')
+    if (
+      status !== 'vinculado' &&
+      status !== 'vinculado_automatico' &&
+      status !== 'vinculado_manual' &&
+      status !== 'vinculado_multiplo'
+    )
+      continue
+    var ids = negocioIds(vinculo)
+    if (!ids.length) continue
+    var chave = chaveConversa(vinculo)
+    if (chave) vinculosGovernados[chave] = vinculo
+  }
+
+  var ledgerPorEvidencia = {}
+  for (var li = 0; li < ledger.length; li++) {
+    var evidencia = texto(ledger[li], 'evidencia_ref')
+    if (!evidencia) continue
+    if (!ledgerPorEvidencia[evidencia]) ledgerPorEvidencia[evidencia] = []
+    ledgerPorEvidencia[evidencia].push(ledger[li])
+  }
+
+  var plano = []
+  var alinhados = 0
+  var conflitos = 0
+  var processados = {}
+  for (var mi = 0; mi < mensagens.length; mi++) {
+    var mensagem = mensagens[mi]
+    var vinculoDaMensagem = vinculosGovernados[chaveConversa(mensagem)]
+    if (!vinculoDaMensagem) continue
+    var referencias = []
+    var eventoId = texto(mensagem, 'evento_id')
+    var messageId = texto(mensagem, 'message_id')
+    if (eventoId) referencias.push(eventoId)
+    if (messageId && messageId !== eventoId) referencias.push(messageId)
+    var idsNegocio = negocioIds(vinculoDaMensagem)
+    var contatoId = texto(vinculoDaMensagem, 'contato_id')
+    var empresaId = texto(vinculoDaMensagem, 'empresa_id')
+    var alvo = {
+      contato_nome: nomeRelacionado($app, 'com_contatos', contatoId, ['nome']),
+      empresa_nome: nomeRelacionado($app, 'com_empresas', empresaId, ['nome', 'razao_social']),
+      negocio_ref: resumoNegocios($app, idsNegocio),
+    }
+    for (var ri = 0; ri < referencias.length; ri++) {
+      var rows = ledgerPorEvidencia[referencias[ri]] || []
+      for (var lr = 0; lr < rows.length; lr++) {
+        var row = rows[lr]
+        if (processados[row.id]) continue
+        processados[row.id] = true
+        var atual = {
+          contato_nome: texto(row, 'contato_nome'),
+          empresa_nome: texto(row, 'empresa_nome'),
+          negocio_ref: texto(row, 'negocio_ref'),
+        }
+        var conflitoNoRegistro =
+          campoConflita(atual.contato_nome, alvo.contato_nome) ||
+          campoConflita(atual.empresa_nome, alvo.empresa_nome) ||
+          campoConflita(atual.negocio_ref, alvo.negocio_ref)
+        if (conflitoNoRegistro) conflitos++
+        var alvoSeguro = {
+          contato_nome: campoConflita(atual.contato_nome, alvo.contato_nome)
+            ? atual.contato_nome
+            : alvo.contato_nome || atual.contato_nome,
+          empresa_nome: campoConflita(atual.empresa_nome, alvo.empresa_nome)
+            ? atual.empresa_nome
+            : alvo.empresa_nome || atual.empresa_nome,
+          negocio_ref: campoConflita(atual.negocio_ref, alvo.negocio_ref)
+            ? atual.negocio_ref
+            : alvo.negocio_ref || atual.negocio_ref,
+        }
+        if (
+          atual.contato_nome === alvoSeguro.contato_nome &&
+          atual.empresa_nome === alvoSeguro.empresa_nome &&
+          atual.negocio_ref === alvoSeguro.negocio_ref
+        ) {
+          if (!conflitoNoRegistro) alinhados++
+          continue
+        }
+        plano.push({
+          ledger_id: row.id,
+          vinculo_id: vinculoDaMensagem.id,
+          vinculo_assinatura: assinaturaVinculo(vinculoDaMensagem),
+          esperado: atual,
+          alvo: alvoSeguro,
+        })
+      }
+    }
+  }
+
+  var atualizados = 0
+  var mudancasConcorrentes = 0
+  if (!dryRun && plano.length) {
+    try {
+      $app.runInTransaction(function (tx) {
+        for (var pi = 0; pi < plano.length; pi++) {
+          var item = plano[pi]
+          var vinculoAtual = tx.findRecordById('com_whatsapp_vinculos', item.vinculo_id)
+          if (assinaturaVinculo(vinculoAtual) !== item.vinculo_assinatura) {
+            mudancasConcorrentes++
+            continue
+          }
+          var ledgerAtual = tx.findRecordById('com_ledger_comercial', item.ledger_id)
+          if (
+            texto(ledgerAtual, 'fonte') !== 'whatsapp_uazapi' ||
+            texto(ledgerAtual, 'contato_nome') !== item.esperado.contato_nome ||
+            texto(ledgerAtual, 'empresa_nome') !== item.esperado.empresa_nome ||
+            texto(ledgerAtual, 'negocio_ref') !== item.esperado.negocio_ref
+          ) {
+            mudancasConcorrentes++
+            continue
+          }
+          ledgerAtual.set('contato_nome', item.alvo.contato_nome)
+          ledgerAtual.set('empresa_nome', item.alvo.empresa_nome)
+          ledgerAtual.set('negocio_ref', item.alvo.negocio_ref)
+          tx.save(ledgerAtual)
+          atualizados++
+        }
+      })
+    } catch (_) {
+      return e.json(500, { ok: false, error: 'FALHA_RECONCILIACAO_LEDGER' })
+    }
+  }
+
+  return e.json(200, {
+    ok: true,
+    dry_run: dryRun,
+    registros_elegiveis: plano.length,
+    registros_atualizados: atualizados,
+    registros_ja_alinhados: alinhados,
+    conflitos_preservados: conflitos,
+    mudancas_concorrentes_preservadas: mudancasConcorrentes,
+    vinculos_alterados: 0,
+    mensagens_alteradas: 0,
+    automatic_send_allowed: false,
+  })
+})

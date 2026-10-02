@@ -73,12 +73,20 @@ assert.match(
 
 assert.match(service, /ipcp_formula_versao_id/, 'serviço deve tipar vínculo da versão da fórmula')
 assert.match(service, /ipcp_formula_versao/, 'serviço deve tipar versão aplicada')
-assert.match(page, /Fórmula aplicada/, 'UI deve mostrar status claro de fórmula aplicada')
-assert.match(page, /Versão ativa/, 'UI deve mostrar a versão aplicada em linguagem humana')
 assert.match(
   page,
-  /Aprovar e aplicar alteração de fórmula/,
-  'botão deve deixar claro que aplica a versão',
+  /Histórico legado somente leitura/,
+  'UI deve manter decisões IPCP legadas apenas para consulta histórica',
+)
+assert.doesNotMatch(
+  page,
+  /Fórmula aplicada|Versão ativa|Aprovar e aplicar alteração de fórmula/,
+  'UI histórica não deve oferecer tratamento ou aplicação de fórmula IPCP',
+)
+assert.match(
+  hook,
+  /\/ipcp-revisao[\s\S]+perfil !== 'superadministrador'/,
+  'eventual mutação governada deve permanecer exclusivamente server-side e SuperAdmin',
 )
 
 console.log('ipcp-formula-versioning contract: PASS')

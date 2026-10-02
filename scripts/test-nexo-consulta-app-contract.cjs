@@ -2,6 +2,9 @@ const fs = require('fs')
 const assert = require('assert')
 
 const hook = fs.readFileSync('pocketbase/hooks/com_nexo_central_operacional.js', 'utf8')
+const whatsappStart = hook.indexOf('function consultaAprendizadosWhatsappComercial')
+const whatsappEnd = hook.indexOf('function consultaRevisoesIpcpPendentes', whatsappStart)
+const whatsappSection = hook.slice(whatsappStart, whatsappEnd)
 
 assert.match(
   hook,
@@ -50,6 +53,46 @@ assert.match(
   hook,
   /fatos_observados[\s\S]{0,200}possiveis_aprendizados[\s\S]{0,200}conhecimento_aprovado/,
   'Consulta WhatsApp deve separar fatos, candidatos e conhecimento aprovado',
+)
+assert.match(
+  whatsappSection,
+  /whatsapp_evidencia\s*=\s*true/,
+  'eventos de curadoria WhatsApp devem ser selecionados por proveniência estrutural',
+)
+assert.doesNotMatch(
+  whatsappSection,
+  /fonte_evento|evidencia_resumo/,
+  'consulta não pode filtrar decisões por campos inexistentes',
+)
+assert.match(
+  whatsappSection,
+  /com_nexo_curadoria_casos/,
+  'consulta governada deve ler os casos unificados',
+)
+assert.match(
+  whatsappSection,
+  /conhecimento_status\s*=\s*'ativo'/,
+  'consulta governada deve restringir conhecimento ao estado ativo',
+)
+assert.match(
+  whatsappSection,
+  /conhecimento_audit_id[\s\S]{0,500}conhecimento_versao|conhecimento_versao[\s\S]{0,500}conhecimento_audit_id/,
+  'conhecimento ativo deve possuir confirmação de auditoria e versão',
+)
+assert.doesNotMatch(
+  whatsappSection,
+  /com_nexo_aprendizado_decisoes/,
+  'consulta governada não deve usar o fluxo legado de decisões',
+)
+assert.doesNotMatch(
+  whatsappSection,
+  /safeGet\(ev, 'external_id'\)/,
+  'consulta governada não deve expor identificador técnico como referência de negócio',
+)
+assert.match(
+  whatsappSection,
+  /inconclusivo_fontes_indisponiveis/,
+  'consulta deve marcar resultado inconclusivo quando alguma fonte necessária falhar',
 )
 assert.match(
   hook,

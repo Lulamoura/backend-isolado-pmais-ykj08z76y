@@ -1464,11 +1464,12 @@
             var status = vinculo.getString('status')
             var vinculoDireto = vinculo.getString('negocio_id') === String(negocioId)
             var vinculoMultiplo = propostaListaContem(vinculo.get('negocio_ids'), String(negocioId))
-            if (
-              (status !== 'vinculado' && status !== 'vinculado_multiplo') ||
-              (!vinculoDireto && !vinculoMultiplo)
-            )
-              continue
+            var statusGovernado =
+              status === 'vinculado' ||
+              status === 'vinculado_automatico' ||
+              status === 'vinculado_manual' ||
+              status === 'vinculado_multiplo'
+            if (!statusGovernado || (!vinculoDireto && !vinculoMultiplo)) continue
             vistos[vinculo.id] = true
             vinculos.push(vinculo)
           }
@@ -1511,7 +1512,7 @@
                 /(image|video|document|sticker|location|contact)/.test(tipoOriginal)
               )
                 tipo = 'midia'
-              var texto = nexoLimparTexto(mensagem.getString('body_text'), 1200)
+              var texto = nexoLimparTexto(mensagem.getString('texto'), 1200)
               if (!texto && tipo === 'audio')
                 texto = 'Áudio registrado sem conteúdo textual disponível.'
               if (!texto && tipo === 'midia')
@@ -1519,7 +1520,11 @@
               if (!texto) continue
               mensagens.push({
                 direcao:
-                  mensagem.getString('direction') === 'saida' ? 'equipe_comercial' : 'cliente',
+                  mensagem.getString('direcao') === 'enviada_operadora'
+                    ? 'equipe_comercial'
+                    : mensagem.getString('direcao') === 'recebida'
+                      ? 'cliente'
+                      : 'desconhecida',
                 momento:
                   mensagem.getString('message_at') ||
                   mensagem.getString('received_at') ||
@@ -1910,7 +1915,8 @@
           var direcao = nexoLimparTextoAjuda(mensagens[i].direcao, 40)
           var tipo = nexoLimparTextoAjuda(mensagens[i].tipo, 40)
           if (!texto) return false
-          if (direcao !== 'cliente' && direcao !== 'equipe_comercial') return false
+          if (direcao !== 'cliente' && direcao !== 'equipe_comercial' && direcao !== 'desconhecida')
+            return false
           if (tipo !== 'texto' && tipo !== 'audio' && tipo !== 'midia') return false
           totalCaracteres += texto.length
           if (totalCaracteres > 24000) return false
@@ -1958,8 +1964,12 @@
             var corresponde =
               vinculo.getString('negocio_id') === String(negocioId) ||
               nexoAjudaListaContem(vinculo.get('negocio_ids'), String(negocioId))
-            if ((status !== 'vinculado' && status !== 'vinculado_multiplo') || !corresponde)
-              continue
+            var statusGovernado =
+              status === 'vinculado' ||
+              status === 'vinculado_automatico' ||
+              status === 'vinculado_manual' ||
+              status === 'vinculado_multiplo'
+            if (!statusGovernado || !corresponde) continue
             vistos[vinculo.id] = true
             vinculos.push(vinculo)
           }
@@ -2001,7 +2011,7 @@
                 /(image|video|document|sticker|location|contact)/.test(tipoOriginal)
               )
                 tipo = 'midia'
-              var texto = nexoLimparTextoAjuda(mensagem.getString('body_text'), 1200)
+              var texto = nexoLimparTextoAjuda(mensagem.getString('texto'), 1200)
               if (!texto && tipo === 'audio')
                 texto = 'Áudio registrado sem conteúdo textual disponível.'
               if (!texto && tipo === 'midia')
@@ -2009,7 +2019,11 @@
               if (!texto) continue
               mensagens.push({
                 direcao:
-                  mensagem.getString('direction') === 'saida' ? 'equipe_comercial' : 'cliente',
+                  mensagem.getString('direcao') === 'enviada_operadora'
+                    ? 'equipe_comercial'
+                    : mensagem.getString('direcao') === 'recebida'
+                      ? 'cliente'
+                      : 'desconhecida',
                 momento:
                   mensagem.getString('message_at') ||
                   mensagem.getString('received_at') ||
@@ -2337,6 +2351,36 @@
       }
 
       function nexoRespostaGatewayParaContrato(gatewayJson) {
+        if (!gatewayJson || typeof gatewayJson !== 'object')
+          throw new Error('GATEWAY_CONTRACT_INVALID')
+        var modeloRoteado = (gatewayJson.model_routing || {}).selected_model
+        var modeloDeclaradoInvalido =
+          Object.prototype.hasOwnProperty.call(gatewayJson, 'modelo') &&
+          (typeof gatewayJson.modelo !== 'string' || !gatewayJson.modelo.trim())
+        var modeloGateway =
+          typeof gatewayJson.modelo === 'string'
+            ? gatewayJson.modelo
+            : typeof modeloRoteado === 'string'
+              ? modeloRoteado
+              : ''
+        var nexoProvidersPermitidos = {
+          bootstrap_second_brain: true,
+          nexo_hermes: true,
+          openai_chat: true,
+        }
+        if (
+          gatewayJson.ok !== true ||
+          gatewayJson.contract_version !== 'pmais_agent_gateway_nexo_ajuda_v1' ||
+          gatewayJson.provider !== 'pmais_agent_gateway' ||
+          typeof gatewayJson.nexo_provider !== 'string' ||
+          !nexoProvidersPermitidos[gatewayJson.nexo_provider] ||
+          typeof gatewayJson.fallback !== 'boolean' ||
+          modeloDeclaradoInvalido ||
+          !modeloGateway.trim() ||
+          typeof gatewayJson.resposta_curta !== 'string'
+        ) {
+          throw new Error('GATEWAY_CONTRACT_INVALID')
+        }
         var nexoStatusWhatsappVerificado = nexoWhatsappTemEvidencia(contextoSeguro)
         return {
           contrato: 'nexo_ajuda_comercial_v1',
@@ -2344,6 +2388,7 @@
           acao: acao,
           resposta_curta: nexoLimparTextoAjuda(gatewayJson.resposta_curta, 3000),
           diagnostico: nexoLimparTextoAjuda(gatewayJson.diagnostico, 3000),
+          recomendacao: nexoLimparTextoAjuda(gatewayJson.recomendacao, 3000),
           perguntas_criticas: nexoArrayTextos(
             gatewayJson.perguntas_de_avanco || gatewayJson.perguntas_criticas,
             'Confirmar prazo, decisor e próxima ação.',
@@ -2403,27 +2448,21 @@
           aviso:
             nexoLimparTextoAjuda(gatewayJson.aviso, 500) ||
             'Sugestão gerada para revisão humana. Nenhuma mensagem foi enviada automaticamente.',
-          modelo: gatewayJson.modelo || gatewayJson.nexo_provider || 'pmais_agent_gateway',
-          provider: 'nexo_hermes',
-          gateway_provider: gatewayJson.provider || 'pmais_agent_gateway',
-          fallback: nexoBooleanoCuradoria(gatewayJson.fallback),
+          modelo: modeloGateway,
+          provider: gatewayJson.nexo_provider,
+          gateway_provider: gatewayJson.provider,
+          fallback: gatewayJson.fallback,
           avaliacao_curadoria: nexoNormalizarAvaliacaoCuradoria(
             gatewayJson.avaliacao_curadoria || gatewayJson.avaliacao_negocio_curadoria,
           ),
           second_brain: gatewayJson.second_brain || null,
           auditoria_geracao: {
-            origem: gatewayJson.nexo_provider || 'nexo_hermes',
-            provider: gatewayJson.nexo_provider || 'nexo_hermes',
-            gateway_provider: gatewayJson.provider || 'pmais_agent_gateway',
-            model_provider:
-              gatewayJson.model_provider || gatewayJson.nexo_provider || 'nexo_hermes',
-            modelo:
-              gatewayJson.modelo ||
-              (gatewayJson.model_routing || {}).selected_model ||
-              '' ||
-              gatewayJson.nexo_provider ||
-              'pmais_agent_gateway',
-            fallback: nexoBooleanoCuradoria(gatewayJson.fallback),
+            origem: gatewayJson.nexo_provider,
+            provider: gatewayJson.nexo_provider,
+            gateway_provider: gatewayJson.provider,
+            model_provider: gatewayJson.model_provider || gatewayJson.nexo_provider,
+            modelo: modeloGateway,
+            fallback: gatewayJson.fallback,
             segundo_cerebro_usado: Boolean((gatewayJson.second_brain || {}).used),
             segundo_cerebro_fontes: (gatewayJson.second_brain || {}).sources || [],
             audit_id: 'nexo-' + externalId + '-' + Date.now(),
@@ -2728,6 +2767,7 @@
             { name: 'gatilhos_curadoria', max: 1200 },
             { name: 'regra_pratica_relacionada', max: 1200 },
             { name: 'evidencia_curadoria', max: 1200 },
+            { name: 'whatsapp_resumo_factual', max: 4000 },
           ]
           for (var tl = 0; tl < textosLongos.length; tl++) {
             try {
@@ -2748,11 +2788,62 @@
             'automatic_send_allowed',
             'crm_write_allowed',
             'impacto_ipcp_potencial',
+            'whatsapp_evidencia',
+            'conhecimento_oficial',
           ]
           for (var b = 0; b < bools.length; b++) {
-            var campoBool = existente.fields.getByName(bools[b])
-            if (campoBool && campoBool.required) {
-              campoBool.required = false
+            try {
+              var campoBool = existente.fields.getByName(bools[b])
+              if (campoBool && campoBool.required) {
+                campoBool.required = false
+                ajustada = true
+              }
+            } catch (_) {
+              existente.fields.add(new BoolField({ name: bools[b], required: false }))
+              ajustada = true
+            }
+          }
+          var textosProveniencia = [
+            { name: 'fonte_origem', max: 160 },
+            { name: 'evidencia_status', max: 80 },
+            { name: 'whatsapp_evidencia_hash', max: 160 },
+          ]
+          for (var tp = 0; tp < textosProveniencia.length; tp++) {
+            try {
+              existente.fields.getByName(textosProveniencia[tp].name)
+            } catch (_) {
+              existente.fields.add(
+                new TextField({
+                  name: textosProveniencia[tp].name,
+                  required: false,
+                  max: textosProveniencia[tp].max,
+                }),
+              )
+              ajustada = true
+            }
+          }
+          var numerosProveniencia = ['whatsapp_conversas', 'whatsapp_mensagens']
+          for (var np = 0; np < numerosProveniencia.length; np++) {
+            try {
+              existente.fields.getByName(numerosProveniencia[np])
+            } catch (_) {
+              existente.fields.add(
+                new NumberField({
+                  name: numerosProveniencia[np],
+                  min: 0,
+                  onlyInt: true,
+                  required: false,
+                }),
+              )
+              ajustada = true
+            }
+          }
+          var datasProveniencia = ['whatsapp_janela_inicio', 'whatsapp_janela_fim']
+          for (var dp = 0; dp < datasProveniencia.length; dp++) {
+            try {
+              existente.fields.getByName(datasProveniencia[dp])
+            } catch (_) {
+              existente.fields.add(new DateField({ name: datasProveniencia[dp], required: false }))
               ajustada = true
             }
           }
@@ -2821,6 +2912,34 @@
         collection.fields.add(new BoolField({ name: 'human_review_required', required: false }))
         collection.fields.add(new BoolField({ name: 'automatic_send_allowed', required: false }))
         collection.fields.add(new BoolField({ name: 'crm_write_allowed', required: false }))
+        collection.fields.add(new TextField({ name: 'fonte_origem', required: false, max: 160 }))
+        collection.fields.add(new TextField({ name: 'evidencia_status', required: false, max: 80 }))
+        collection.fields.add(new BoolField({ name: 'whatsapp_evidencia', required: false }))
+        collection.fields.add(
+          new TextField({ name: 'whatsapp_evidencia_hash', required: false, max: 160 }),
+        )
+        collection.fields.add(new DateField({ name: 'whatsapp_janela_inicio', required: false }))
+        collection.fields.add(new DateField({ name: 'whatsapp_janela_fim', required: false }))
+        collection.fields.add(
+          new NumberField({
+            name: 'whatsapp_conversas',
+            min: 0,
+            onlyInt: true,
+            required: false,
+          }),
+        )
+        collection.fields.add(
+          new NumberField({
+            name: 'whatsapp_mensagens',
+            min: 0,
+            onlyInt: true,
+            required: false,
+          }),
+        )
+        collection.fields.add(
+          new TextField({ name: 'whatsapp_resumo_factual', required: false, max: 4000 }),
+        )
+        collection.fields.add(new BoolField({ name: 'conhecimento_oficial', required: false }))
         collection.fields.add(new TextField({ name: 'audit_id', required: true, max: 160 }))
         collection.fields.add(new DateField({ name: 'created_at', required: true }))
         collection.indexes = [
@@ -2927,6 +3046,55 @@
         }
       }
 
+      function nexoProvenienciaWhatsappAprendizado(resposta) {
+        var whatsapp = contextoSeguro.whatsapp_contexto || {}
+        var mensagens = Array.isArray(whatsapp.mensagens_recentes)
+          ? whatsapp.mensagens_recentes
+          : []
+        var evidencia = nexoWhatsappTemEvidencia(contextoSeguro)
+        var momentos = []
+        var canonico = []
+        if (evidencia) {
+          for (var i = 0; i < mensagens.length; i++) {
+            var item = mensagens[i] || {}
+            var momento = nexoResumoSeguroAprendizado(item.momento || '', 80)
+            if (momento && isFinite(Date.parse(momento))) momentos.push(momento)
+            canonico.push({
+              direcao: nexoResumoSeguroAprendizado(item.direcao || '', 40),
+              momento: momento,
+              tipo: nexoResumoSeguroAprendizado(item.tipo || '', 40),
+              texto: nexoResumoSeguroAprendizado(item.texto || '', 1200),
+            })
+          }
+        }
+        momentos.sort(function (a, b) {
+          return (Date.parse(a) || 0) - (Date.parse(b) || 0)
+        })
+        var hash = ''
+        if (evidencia && canonico.length) {
+          try {
+            hash = String($security.sha256(JSON.stringify(canonico)) || '')
+          } catch (_) {}
+        }
+        var analise = resposta && resposta.analise_whatsapp ? resposta.analise_whatsapp : {}
+        return {
+          fonte_origem: evidencia ? 'app_comercial+whatsapp_uazapi' : 'app_comercial',
+          evidencia_status: nexoResumoSeguroAprendizado(
+            whatsapp.status || 'fonte_indisponivel',
+            80,
+          ),
+          whatsapp_evidencia: evidencia,
+          whatsapp_evidencia_hash: nexoResumoSeguroAprendizado(hash, 160),
+          whatsapp_janela_inicio: momentos.length ? momentos[0] : '',
+          whatsapp_janela_fim: momentos.length ? momentos[momentos.length - 1] : '',
+          whatsapp_conversas: evidencia ? Number(whatsapp.conversas_vinculadas || 0) : 0,
+          whatsapp_mensagens: evidencia ? mensagens.length : 0,
+          whatsapp_resumo_factual: evidencia
+            ? nexoResumoSeguroAprendizado(analise.resumo_conversa || '', 4000)
+            : '',
+        }
+      }
+
       function nexoCapturarAprendizadoApp(resposta) {
         try {
           var auditoria = resposta.auditoria_geracao || {}
@@ -2937,6 +3105,7 @@
           var collection = nexoGarantirColecaoAprendizadoApp()
           var evento = new Record(collection)
           var avaliacaoNegocio = nexoAvaliarNegocioParaAprendizado(resposta)
+          var provenienciaWhatsapp = nexoProvenienciaWhatsappAprendizado(resposta)
           var negocioSeguro = contextoSeguro.negocio || {}
           var empresaSegura = contextoSeguro.empresa || {}
           var contatoSeguro = contextoSeguro.contato || {}
@@ -2999,6 +3168,18 @@
           evento.set('human_review_required', Boolean(avaliacaoNegocio.curadoria_necessaria))
           evento.set('automatic_send_allowed', false)
           evento.set('crm_write_allowed', false)
+          evento.set('fonte_origem', provenienciaWhatsapp.fonte_origem)
+          evento.set('evidencia_status', provenienciaWhatsapp.evidencia_status)
+          evento.set('whatsapp_evidencia', Boolean(provenienciaWhatsapp.whatsapp_evidencia))
+          evento.set('whatsapp_evidencia_hash', provenienciaWhatsapp.whatsapp_evidencia_hash || '')
+          if (provenienciaWhatsapp.whatsapp_janela_inicio)
+            evento.set('whatsapp_janela_inicio', provenienciaWhatsapp.whatsapp_janela_inicio)
+          if (provenienciaWhatsapp.whatsapp_janela_fim)
+            evento.set('whatsapp_janela_fim', provenienciaWhatsapp.whatsapp_janela_fim)
+          evento.set('whatsapp_conversas', provenienciaWhatsapp.whatsapp_conversas)
+          evento.set('whatsapp_mensagens', provenienciaWhatsapp.whatsapp_mensagens)
+          evento.set('whatsapp_resumo_factual', provenienciaWhatsapp.whatsapp_resumo_factual || '')
+          evento.set('conhecimento_oficial', false)
           var auditId = nexoResumoSeguroAprendizado(
             auditoria.audit_id || 'nexo-' + externalId + '-' + Date.now(),
             160,
@@ -3470,97 +3651,24 @@
         }
       }
       var ator = e.auth
-      var perfil = perfilAtual(ator)
-      if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva') {
-        return e.forbiddenError('Decisão superior necessária')
+      if (!ator || !ator.getBool('ativo_comercial'))
+        return e.forbiddenError('Usuário comercial ativo necessário')
+      var perfilRec
+      try {
+        perfilRec = $app.findRecordById('com_perfis', ator.getString('perfil_id'))
+      } catch (_) {
+        return e.forbiddenError('Perfil comercial ativo necessário')
       }
-      var id = String(e.request.pathValue('id') || '').trim()
-      if (!/^[a-z0-9]{15}$/.test(id)) return e.badRequestError('ID da decisão inválido')
-      var decisao = $app.findRecordById('com_nexo_curadoria_decisoes', id)
-      var status = decisao.getString('status')
-      if (status !== 'aprovada_uso_operacional' && status !== 'rejeitada') {
-        return e.badRequestError(
-          'Somente decisão aprovada ou rejeitada pode sincronizar conhecimento operacional',
-        )
+      if (!perfilRec.getBool('ativo')) return e.forbiddenError('Perfil comercial ativo necessário')
+      var perfil = perfilRec.getString('slug')
+      if (perfil !== 'superadministrador') {
+        return e.forbiddenError('Superadministrador necessário')
       }
-      var gatewayBase = (
-        $secrets.get('PMAIS_AGENT_GATEWAY_URL') ||
-        envValue('PMAIS_AGENT_GATEWAY_URL') ||
-        ''
-      ).replace(/\/+$/, '')
-      var gatewayOriginMatch = gatewayBase.match(/^https?:\/\/[^/]+/i)
-      gatewayBase = gatewayOriginMatch ? gatewayOriginMatch[0] : gatewayBase.replace(/\/v1.*$/i, '')
-      var gatewayKey =
-        $secrets.get('PMAIS_AGENT_GATEWAY_API_KEY') || envValue('PMAIS_AGENT_GATEWAY_API_KEY') || ''
-      var gatewaySecret =
-        $secrets.get('PMAIS_AGENT_GATEWAY_HMAC_SECRET') ||
-        envValue('PMAIS_AGENT_GATEWAY_HMAC_SECRET') ||
-        ''
-      if (!gatewayBase || !gatewayKey || !gatewaySecret)
-        return e.json(502, { ok: false, code: 'PMAIS_GATEWAY_NOT_CONFIGURED' })
-      var body = JSON.stringify({
-        decision_id: decisao.id,
-        status: status,
-        external_id: safeText(decisao.getString('external_id'), 80),
-        empresa_nome: safeText(decisao.getString('empresa_nome'), 240),
-        contato_nome: safeText(decisao.getString('contato_nome'), 240),
-        negocio_titulo: safeText(decisao.getString('negocio_titulo'), 240),
-        regra_proposta: safeText(decisao.getString('regra_proposta'), 4000),
-        excecao_condicao: safeText(decisao.getString('excecao_condicao'), 4000),
-        responsavel_validacao: safeText(decisao.getString('responsavel_validacao'), 1000),
-        decisao_observacao: safeText(decisao.getString('decisao_observacao'), 2000),
-        decisor_nome: safeText(ator.getString('name') || ator.getString('email'), 160),
+      return e.json(410, {
+        ok: false,
+        code: 'LEGACY_CURADORIA_DECISION_DISABLED',
+        message: 'SQLite e /curadoria/conhecimento são a autoridade vigente.',
       })
-      var timestamp = String(Math.floor(Date.now() / 1000))
-      var signature = $security.hs256(timestamp + '.' + body, gatewaySecret)
-      var response = $http.send({
-        url: gatewayBase + '/v1/comercial/nexo/curadoria/decisao',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          'x-pmais-api-key': gatewayKey,
-          'x-pmais-timestamp': timestamp,
-          'x-pmais-signature': signature,
-        },
-        body: body,
-        timeout: 30,
-      })
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        return e.json(502, {
-          ok: false,
-          code: 'PMAIS_GATEWAY_CURADORIA_ERRO',
-          status: response.statusCode,
-        })
-      }
-      var collection = $app.findCollectionByNameOrId('com_nexo_curadoria_decisoes')
-      var changed = false
-      changed = ensureDecisionField(collection, 'segundo_cerebro_status', 'text') || changed
-      changed = ensureDecisionField(collection, 'segundo_cerebro_audit_id', 'text') || changed
-      changed = ensureDecisionField(collection, 'segundo_cerebro_atualizado_em', 'date') || changed
-      changed = ensureDecisionField(collection, 'ipcp_revisao_status', 'text') || changed
-      changed = ensureDecisionField(collection, 'ipcp_revisao_blocos', 'text') || changed
-      changed = ensureDecisionField(collection, 'ipcp_revisao_motivo', 'text') || changed
-      changed = ensureDecisionField(collection, 'ipcp_revisao_notificado_em', 'date') || changed
-      if (changed) $app.save(collection)
-      decisao.set(
-        'segundo_cerebro_status',
-        status === 'aprovada_uso_operacional' ? 'ativo' : 'retirado',
-      )
-      decisao.set('segundo_cerebro_audit_id', safeText((response.json || {}).audit_id, 120))
-      decisao.set('segundo_cerebro_atualizado_em', new Date())
-      if (status === 'aprovada_uso_operacional' && decisaoImpactaIpcp(decisao)) {
-        if (!decisao.getString('ipcp_revisao_status'))
-          decisao.set('ipcp_revisao_status', 'pendente')
-        decisao.set('ipcp_revisao_blocos', blocosIpcpImpactados(decisao))
-        decisao.set('ipcp_revisao_motivo', motivoIpcp(decisao))
-      }
-      if (status === 'rejeitada' && decisao.getString('ipcp_revisao_status') === 'pendente') {
-        decisao.set('ipcp_revisao_status', 'rejeitada')
-      }
-      decisao.set('updated_at', new Date())
-      $app.save(decisao)
-      return e.json(200, decisao)
     },
     $apis.requireAuth('users'),
   )
@@ -3749,9 +3857,18 @@
         }
       }
       var ator = e.auth
-      var perfil = perfilAtual(ator)
-      if (perfil !== 'superadministrador' && perfil !== 'leitura-executiva') {
-        return e.forbiddenError('Decisão superior necessária')
+      if (!ator || !ator.getBool('ativo_comercial'))
+        return e.forbiddenError('Usuário comercial ativo necessário')
+      var perfilRec
+      try {
+        perfilRec = $app.findRecordById('com_perfis', ator.getString('perfil_id'))
+      } catch (_) {
+        return e.forbiddenError('Perfil comercial ativo necessário')
+      }
+      if (!perfilRec.getBool('ativo')) return e.forbiddenError('Perfil comercial ativo necessário')
+      var perfil = perfilRec.getString('slug')
+      if (perfil !== 'superadministrador') {
+        return e.forbiddenError('Superadministrador necessário')
       }
       var id = String(e.request.pathValue('id') || '').trim()
       if (!/^[a-z0-9]{15}$/.test(id)) return e.badRequestError('ID da decisão inválido')
