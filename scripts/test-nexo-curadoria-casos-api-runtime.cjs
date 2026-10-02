@@ -51,6 +51,12 @@ const manager = new MockRecord('users', 'manager-1', {
   perfil_id: managerProfile.id,
   equipe_id: 'team-1',
 })
+const managerWithoutCollectionName = new MockRecord('', 'manager-1', {
+  ativo_comercial: true,
+  perfil_id: superadminProfile.id,
+  equipe_id: 'team-9',
+})
+managerWithoutCollectionName.collection = () => ({ name: '' })
 const executive = new MockRecord('users', 'executive-1', {
   ativo_comercial: true,
   perfil_id: executiveProfile.id,
@@ -59,6 +65,11 @@ const superadmin = new MockRecord('users', 'superadmin-1', {
   ativo_comercial: true,
   perfil_id: superadminProfile.id,
 })
+const superadminWithoutCollectionName = new MockRecord('', 'superadmin-1', {
+  ativo_comercial: true,
+  perfil_id: 'profile-from-auth-must-not-be-trusted',
+})
+superadminWithoutCollectionName.collection = () => ({ name: '' })
 const approver = new MockRecord('users', 'approver-1', {
   ativo_comercial: true,
   perfil_id: approverProfile.id,
@@ -265,6 +276,15 @@ const transitions = []
 const outbox = []
 let nextId = 1
 const collections = {
+  users: [
+    manager,
+    executive,
+    superadmin,
+    approver,
+    inactiveUser,
+    inactiveProfileUser,
+    missingProfileUser,
+  ],
   com_perfis: profiles,
   com_nexo_curadoria_casos: cases,
   com_nexo_curadoria_transicoes: transitions,
@@ -507,6 +527,22 @@ function invokeRetry(auth, id, body) {
   retryOutboxRoute(e)
   return response
 }
+
+const liveJsvmSuperadminList = invokeList(superadminWithoutCollectionName)
+assert.equal(
+  liveJsvmSuperadminList.status,
+  200,
+  'auth sem collection name deve ser validado pelo registro canônico ativo em users',
+)
+const canonicalManagerList = invokeList(managerWithoutCollectionName)
+assert.equal(canonicalManagerList.status, 200)
+assert.equal(
+  canonicalManagerList.payload.visoes.para_tratar.some(
+    (item) => item.titulo === 'Caso fora do escopo',
+  ),
+  false,
+  'escopo deve usar o users canônico, nunca perfil ou equipe vindos do auth record',
+)
 
 const managerList = invokeList(manager)
 assert.equal(managerList.status, 200)

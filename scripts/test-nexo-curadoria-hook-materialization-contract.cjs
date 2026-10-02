@@ -76,4 +76,20 @@ for (const route of routes) {
   }
 }
 
+assert.equal(
+  occurrences(establishedHook, 'function nexoCuradoriaCasosPerfil(e)'),
+  4,
+  'as quatro rotas autenticadas devem materializar o helper de autorização localmente',
+)
+assert.equal(
+  occurrences(establishedHook, "$app.findRecordById('users', authActorId)"),
+  4,
+  'cada helper local deve validar o ator pelo registro canônico em users',
+)
+assert.equal(
+  occurrences(establishedHook, 'actor.collection'),
+  0,
+  'autorização não pode depender da introspecção de collection do auth record',
+)
+
 console.log('Curadoria hook materialization contract: PASS')
