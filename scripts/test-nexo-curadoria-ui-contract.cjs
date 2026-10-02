@@ -82,9 +82,21 @@ assert.match(
   'sync legado deve aceitar somente SuperAdmin',
 )
 assert.match(syncRoute[0], /ator\.getBool\('ativo_comercial'\)/, 'sync legado exige usuário ativo')
-assert.match(syncRoute[0], /perfilRec\.getBool\('ativo'\)/, 'sync legado exige perfil comercial ativo')
-assert.match(syncRoute[0], /LEGACY_CURADORIA_DECISION_DISABLED/, 'sync legado deve responder 410 sem escrever')
-assert.doesNotMatch(syncRoute[0], /\$http\.send|curadoria\/decisao/, 'sync legado não consome mais o Gateway singular')
+assert.match(
+  syncRoute[0],
+  /perfilRec\.getBool\('ativo'\)/,
+  'sync legado exige perfil comercial ativo',
+)
+assert.match(
+  syncRoute[0],
+  /LEGACY_CURADORIA_DECISION_DISABLED/,
+  'sync legado deve responder 410 sem escrever',
+)
+assert.doesNotMatch(
+  syncRoute[0],
+  /\$http\.send|curadoria\/decisao/,
+  'sync legado não consome mais o Gateway singular',
+)
 assert.doesNotMatch(
   syncRoute[0],
   /perfil !== 'superadministrador' && perfil !== 'leitura-executiva'/,
@@ -100,7 +112,11 @@ assert.match(
   'revisão IPCP deve aceitar somente SuperAdmin',
 )
 assert.match(ipcpRoute[0], /ator\.getBool\('ativo_comercial'\)/, 'revisão IPCP exige usuário ativo')
-assert.match(ipcpRoute[0], /perfilRec\.getBool\('ativo'\)/, 'revisão IPCP exige perfil comercial ativo')
+assert.match(
+  ipcpRoute[0],
+  /perfilRec\.getBool\('ativo'\)/,
+  'revisão IPCP exige perfil comercial ativo',
+)
 assert.doesNotMatch(
   ipcpRoute[0],
   /perfil !== 'superadministrador' && perfil !== 'leitura-executiva'/,

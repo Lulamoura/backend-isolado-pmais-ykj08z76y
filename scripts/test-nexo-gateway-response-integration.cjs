@@ -45,7 +45,10 @@ const sandbox = {
   Date: { now: () => 123 },
 }
 vm.createContext(sandbox)
-vm.runInContext(`${extractFunction(hook, 'nexoRespostaGatewayParaContrato')}; this.adaptar = nexoRespostaGatewayParaContrato`, sandbox)
+vm.runInContext(
+  `${extractFunction(hook, 'nexoRespostaGatewayParaContrato')}; this.adaptar = nexoRespostaGatewayParaContrato`,
+  sandbox,
+)
 
 const gatewayResponse = process.env.GATEWAY_RESPONSE_JSON
   ? JSON.parse(process.env.GATEWAY_RESPONSE_JSON)
@@ -75,10 +78,7 @@ assert.deepEqual(
 )
 assert.equal(adapted.provider, gatewayResponse.nexo_provider)
 assert.equal(adapted.gateway_provider, gatewayResponse.provider)
-assert.equal(
-  adapted.modelo,
-  gatewayResponse.modelo || gatewayResponse.model_routing.selected_model,
-)
+assert.equal(adapted.modelo, gatewayResponse.modelo || gatewayResponse.model_routing.selected_model)
 assert.equal(adapted.fallback, gatewayResponse.fallback)
 
 for (const invalid of [
@@ -94,7 +94,10 @@ for (const invalid of [
   assert.throws(() => sandbox.adaptar(invalid), /GATEWAY_CONTRACT_INVALID/)
 }
 
-const dispatch = hook.slice(hook.indexOf('var pmaisGatewayResponse ='), hook.indexOf('var gatewayKey =', hook.indexOf('var pmaisGatewayResponse =')))
+const dispatch = hook.slice(
+  hook.indexOf('var pmaisGatewayResponse ='),
+  hook.indexOf('var gatewayKey =', hook.indexOf('var pmaisGatewayResponse =')),
+)
 assert.match(dispatch, /statusCode >= 200 && pmaisGatewayResponse\.statusCode < 300/)
 assert.match(dispatch, /nexoRespostaGatewayParaContrato\(pmaisGatewayResponse\.json \|\| \{\}\)/)
 
