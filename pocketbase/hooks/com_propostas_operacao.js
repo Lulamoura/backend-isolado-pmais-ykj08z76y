@@ -4960,18 +4960,16 @@
     }
 
     function nexoCuradoriaCasosPerfil(e) {
-      var actor = e.auth
-      if (!actor || !actor.getBool('ativo_comercial')) return null
+      var authActor = e.auth
+      var authActorId = authActor ? String(authActor.id || '') : ''
+      if (!authActorId) return null
       try {
-        var collectionName = ''
-        try {
-          if (typeof actor.collection === 'function') collectionName = actor.collection().name || ''
-          else if (actor.collection && typeof actor.collection === 'object')
-            collectionName = actor.collection.name || ''
-          else collectionName = String(actor.collection || '')
-        } catch (_) {}
-        if (collectionName !== 'users') return null
-        var perfil = $app.findRecordById('com_perfis', actor.getString('perfil_id'))
+        var actor = $app.findRecordById('users', authActorId)
+        if (!actor || String(actor.id || '') !== authActorId) return null
+        if (!actor.getBool('ativo_comercial')) return null
+        var perfilId = actor.getString('perfil_id') || ''
+        if (!perfilId) return null
+        var perfil = $app.findRecordById('com_perfis', perfilId)
         if (!perfil.getBool('ativo')) return null
         var slug = perfil.getString('slug') || ''
         if (
@@ -5243,18 +5241,16 @@
     }
 
     function nexoCuradoriaCasosPerfil(e) {
-      var actor = e.auth
-      if (!actor || !actor.getBool('ativo_comercial')) return null
+      var authActor = e.auth
+      var authActorId = authActor ? String(authActor.id || '') : ''
+      if (!authActorId) return null
       try {
-        var collectionName = ''
-        try {
-          if (typeof actor.collection === 'function') collectionName = actor.collection().name || ''
-          else if (actor.collection && typeof actor.collection === 'object')
-            collectionName = actor.collection.name || ''
-          else collectionName = String(actor.collection || '')
-        } catch (_) {}
-        if (collectionName !== 'users') return null
-        var perfil = $app.findRecordById('com_perfis', actor.getString('perfil_id'))
+        var actor = $app.findRecordById('users', authActorId)
+        if (!actor || String(actor.id || '') !== authActorId) return null
+        if (!actor.getBool('ativo_comercial')) return null
+        var perfilId = actor.getString('perfil_id') || ''
+        if (!perfilId) return null
+        var perfil = $app.findRecordById('com_perfis', perfilId)
         if (!perfil.getBool('ativo')) return null
         var slug = perfil.getString('slug') || ''
         if (
@@ -5740,18 +5736,16 @@
     }
 
     function nexoCuradoriaCasosPerfil(e) {
-      var actor = e.auth
-      if (!actor || !actor.getBool('ativo_comercial')) return null
+      var authActor = e.auth
+      var authActorId = authActor ? String(authActor.id || '') : ''
+      if (!authActorId) return null
       try {
-        var collectionName = ''
-        try {
-          if (typeof actor.collection === 'function') collectionName = actor.collection().name || ''
-          else if (actor.collection && typeof actor.collection === 'object')
-            collectionName = actor.collection.name || ''
-          else collectionName = String(actor.collection || '')
-        } catch (_) {}
-        if (collectionName !== 'users') return null
-        var perfil = $app.findRecordById('com_perfis', actor.getString('perfil_id'))
+        var actor = $app.findRecordById('users', authActorId)
+        if (!actor || String(actor.id || '') !== authActorId) return null
+        if (!actor.getBool('ativo_comercial')) return null
+        var perfilId = actor.getString('perfil_id') || ''
+        if (!perfilId) return null
+        var perfil = $app.findRecordById('com_perfis', perfilId)
         if (!perfil.getBool('ativo')) return null
         var slug = perfil.getString('slug') || ''
         if (
@@ -5854,18 +5848,16 @@
     }
 
     function nexoCuradoriaCasosPerfil(e) {
-      var actor = e.auth
-      if (!actor || !actor.getBool('ativo_comercial')) return null
+      var authActor = e.auth
+      var authActorId = authActor ? String(authActor.id || '') : ''
+      if (!authActorId) return null
       try {
-        var collectionName = ''
-        try {
-          if (typeof actor.collection === 'function') collectionName = actor.collection().name || ''
-          else if (actor.collection && typeof actor.collection === 'object')
-            collectionName = actor.collection.name || ''
-          else collectionName = String(actor.collection || '')
-        } catch (_) {}
-        if (collectionName !== 'users') return null
-        var perfil = $app.findRecordById('com_perfis', actor.getString('perfil_id'))
+        var actor = $app.findRecordById('users', authActorId)
+        if (!actor || String(actor.id || '') !== authActorId) return null
+        if (!actor.getBool('ativo_comercial')) return null
+        var perfilId = actor.getString('perfil_id') || ''
+        if (!perfilId) return null
+        var perfil = $app.findRecordById('com_perfis', perfilId)
         if (!perfil.getBool('ativo')) return null
         var slug = perfil.getString('slug') || ''
         if (
