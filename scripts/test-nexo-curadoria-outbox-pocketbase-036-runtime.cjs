@@ -29,6 +29,7 @@ const caseId = 'case00000000002'
 const gatewayApiKey = 'pb036-gateway-api-key'
 const gatewayHmacSecret = 'pb036-transport-hmac-secret'
 const approvalHmacSecret = 'pb036-approval-hmac-secret'
+const previewAppOrigin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
 const businessSources = ['whatsapp_uazapi', 'activecampaign']
 const interviewAnswers = [
   'Orientar o registro do próximo passo.',
@@ -455,7 +456,7 @@ async function main() {
       cwd: root,
       env: {
         ...process.env,
-        PMAIS_AGENT_GATEWAY_URL: gatewayBaseUrl,
+        PMAIS_CURADORIA_PREVIEW_GATEWAY_URL: gatewayBaseUrl,
         PMAIS_CURADORIA_API_KEY: gatewayApiKey,
         PMAIS_CURADORIA_HMAC_SECRET: gatewayHmacSecret,
         PMAIS_CURADORIA_APPROVAL_SECRET: approvalHmacSecret,
@@ -488,6 +489,7 @@ async function main() {
     assert.strictEqual(auth.status, 200, `canonical user authentication failed: ${auth.raw}`)
     assert(auth.body.token, 'canonical user authentication must return a token')
     const authenticated = { method: 'POST', headers: { Authorization: auth.body.token } }
+    authenticated.headers.Origin = previewAppOrigin
 
     const approval = await request(
       `${baseUrl}/backend/v1/nexo/curadoria/casos/${caseId}/transicionar`,

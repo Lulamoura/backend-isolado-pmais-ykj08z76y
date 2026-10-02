@@ -375,13 +375,15 @@ function RecordCtor(collection) {
 
 const routes = {}
 const gatewayCalls = []
-const gatewayOrigin = 'https://agents.pmaisservicos.com.br'
 const previewGatewayBase = 'https://agents.pmaisservicos.com.br/preview/nexo-hermes'
-const expectedCuradoriaGatewayUrl = `${previewGatewayBase}/v1/comercial/nexo/curadoria/conhecimento`
-const configuredCuradoriaGatewayUrl = `${gatewayOrigin}/v1/comercial/nexo/curadoria/conhecimento`
+const productionGatewayBase = 'https://agents.pmaisservicos.com.br/producao/nexo-hermes'
+const expectedPreviewGatewayUrl = `${previewGatewayBase}/v1/comercial/nexo/curadoria/conhecimento`
+const expectedProductionGatewayUrl = `${productionGatewayBase}/v1/comercial/nexo/curadoria/conhecimento`
 const previewAppOrigin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
-const productionAppOrigin = 'https://backend-isolado-pmais-43b9c.goskip.app'
-let configuredGatewayBase = previewGatewayBase
+const productionCustomOrigin = 'https://comercial.pmaisservicos.com.br'
+const productionDirectOrigin = 'https://backend-isolado-pmais-43b9c.goskip.app'
+let configuredPreviewGatewayBase = previewGatewayBase
+let configuredProductionGatewayBase = productionGatewayBase
 let gatewayMode = 'success'
 let concurrentOutboxResult = null
 let concurrentTransitionResult = null
@@ -464,10 +466,14 @@ const context = {
   $secrets: {
     get: (name) => {
       requestedSecrets.push(name)
-      if (name === 'PMAIS_AGENT_GATEWAY_URL') return configuredGatewayBase
-      if (name === 'PMAIS_CURADORIA_API_KEY') return 'protected-api-key'
-      if (name === 'PMAIS_CURADORIA_HMAC_SECRET') return 'protected-hmac-secret'
-      if (name === 'PMAIS_CURADORIA_APPROVAL_SECRET') return 'protected-approval-secret'
+      if (name === 'PMAIS_CURADORIA_PREVIEW_GATEWAY_URL') return configuredPreviewGatewayBase
+      if (name === 'PMAIS_CURADORIA_API_KEY') return 'protected-preview-api-key'
+      if (name === 'PMAIS_CURADORIA_HMAC_SECRET') return 'protected-preview-hmac-secret'
+      if (name === 'PMAIS_CURADORIA_APPROVAL_SECRET') return 'protected-preview-approval-secret'
+      if (name === 'PMAIS_CURADORIA_PROD_GATEWAY_URL') return configuredProductionGatewayBase
+      if (name === 'PMAIS_CURADORIA_PROD_API_KEY') return 'protected-prod-api-key'
+      if (name === 'PMAIS_CURADORIA_PROD_HMAC_SECRET') return 'protected-prod-hmac-secret'
+      if (name === 'PMAIS_CURADORIA_PROD_APPROVAL_SECRET') return 'protected-prod-approval-secret'
       return ''
     },
   },
@@ -530,11 +536,12 @@ function invokeTransition(auth, id, body) {
 
 function invokeOutbox(auth, origin) {
   let response = null
+  const effectiveOrigin = arguments.length >= 2 ? origin : previewAppOrigin
   const e = {
     auth,
     request: {
       header: {
-        get: (name) => (name === 'Origin' ? origin || '' : ''),
+        get: (name) => (name === 'Origin' ? effectiveOrigin || '' : ''),
       },
     },
     requestInfo: () => ({ body: { limite: 10 } }),
@@ -579,18 +586,25 @@ for (const malformedGatewayBase of [
   'https://gateway.example.test/preview/nexo-hermes#fragment',
   'https://gateway.example.test/preview/../nexo-hermes',
 ]) {
-  configuredGatewayBase = malformedGatewayBase
-  const callsBeforeMalformedBase = gatewayCalls.length
-  const malformedBaseResult = invokeOutbox(superadmin)
-  assert.equal(malformedBaseResult.status, 503)
-  assert.equal(malformedBaseResult.payload.error, 'GATEWAY_NAO_CONFIGURADO')
-  assert.equal(
-    gatewayCalls.length,
-    callsBeforeMalformedBase,
-    `base malformada não pode chamar Gateway: ${malformedGatewayBase}`,
-  )
+  for (const environment of ['preview', 'production']) {
+    if (environment === 'preview') configuredPreviewGatewayBase = malformedGatewayBase
+    else configuredProductionGatewayBase = malformedGatewayBase
+    const callsBeforeMalformedBase = gatewayCalls.length
+    const malformedBaseResult = invokeOutbox(
+      superadmin,
+      environment === 'preview' ? previewAppOrigin : productionCustomOrigin,
+    )
+    assert.equal(malformedBaseResult.status, 503)
+    assert.equal(malformedBaseResult.payload.error, 'GATEWAY_NAO_CONFIGURADO')
+    assert.equal(
+      gatewayCalls.length,
+      callsBeforeMalformedBase,
+      `base ${environment} malformada não pode chamar Gateway: ${malformedGatewayBase}`,
+    )
+    configuredPreviewGatewayBase = previewGatewayBase
+    configuredProductionGatewayBase = productionGatewayBase
+  }
 }
-configuredGatewayBase = previewGatewayBase
 
 const liveJsvmSuperadminList = invokeList(superadminWithoutCollectionName)
 assert.equal(
@@ -828,43 +842,77 @@ assert.equal(
 const routingOutboxSnapshot = { ...outbox[0].values }
 const routingCaseSnapshot = { ...caseManagement.values }
 const routingCallsStart = gatewayCalls.length
-function assertCuradoriaGatewayRoute(configuredBase, origin, expectedUrl, label) {
+function assertCuradoriaGatewayRoute(origin, expectedUrl, credentials, label) {
   outbox[0].values = { ...routingOutboxSnapshot }
   caseManagement.values = { ...routingCaseSnapshot }
-  configuredGatewayBase = configuredBase
   gatewayMode = 'success'
   const result = invokeOutbox(superadmin, origin)
   assert.equal(result.payload.processados, 1, `${label}: outbox deve processar`)
-  assert.equal(gatewayCalls[gatewayCalls.length - 1].url, expectedUrl, label)
+  const call = gatewayCalls[gatewayCalls.length - 1]
+  assert.equal(call.url, expectedUrl, label)
+  assert.equal(call.headers['x-pmais-api-key'], credentials.apiKey, `${label}: API key incorreta`)
+  assert.equal(
+    call.headers['x-pmais-signature'],
+    `signature:${credentials.hmacSecret}:${call.headers['x-pmais-timestamp']}.${call.body}`,
+    `${label}: HMAC de transporte deve usar o segredo do ambiente`,
+  )
+  const payload = JSON.parse(call.body)
+  assert.equal(
+    call.headers['x-pmais-approval-signature'],
+    `signature:${credentials.approvalSecret}:${canonicalJson(payload.approval)}.${call.headers['x-pmais-payload-hash']}`,
+    `${label}: assinatura de aprovação deve usar o segredo do ambiente`,
+  )
 }
 
 assertCuradoriaGatewayRoute(
-  gatewayOrigin,
   previewAppOrigin,
-  expectedCuradoriaGatewayUrl,
-  'Origin exata do app Preview deve rotear para o prefixo temporário de Preview',
+  expectedPreviewGatewayUrl,
+  {
+    apiKey: 'protected-preview-api-key',
+    hmacSecret: 'protected-preview-hmac-secret',
+    approvalSecret: 'protected-preview-approval-secret',
+  },
+  'Origin exata do app Preview deve usar URL e credenciais de Preview',
 )
 for (const [origin, label] of [
-  [productionAppOrigin, 'Origin direta de Produção não pode rotear para Preview'],
-  ['', 'requisição sem Origin não pode rotear para Preview'],
-  ['https://app-parceiro.example', 'Origin estrangeira não pode rotear para Preview'],
+  [productionCustomOrigin, 'Origin custom de Produção'],
+  [productionDirectOrigin, 'Origin direta de Produção'],
+]) {
+  assertCuradoriaGatewayRoute(
+    origin,
+    expectedProductionGatewayUrl,
+    {
+      apiKey: 'protected-prod-api-key',
+      hmacSecret: 'protected-prod-hmac-secret',
+      approvalSecret: 'protected-prod-approval-secret',
+    },
+    `${label} deve usar URL e credenciais de Produção`,
+  )
+}
+for (const [origin, label] of [
+  [undefined, 'Origin ausente'],
+  [null, 'Origin nula'],
+  ['not-an-origin', 'Origin malformada'],
+  ['https://app-parceiro.example', 'Origin estrangeira'],
   [
     'https://backend-isolado-pmais-atacante--preview.goskip.app',
-    'domínio arbitrário com --preview não pode rotear para Preview',
+    'domínio arbitrário com --preview',
   ],
+  ['https://comercial.pmaisservicos.com.br.evil.example', 'lookalike da Origin custom'],
+  ['https://backend-isolado-pmais-43b9c.goskip.app.evil.example', 'lookalike da Origin direta'],
+  [`${previewAppOrigin}/lookalike`, 'lookalike com prefixo exato de Preview'],
 ]) {
-  assertCuradoriaGatewayRoute(gatewayOrigin, origin, configuredCuradoriaGatewayUrl, label)
+  outbox[0].values = { ...routingOutboxSnapshot }
+  caseManagement.values = { ...routingCaseSnapshot }
+  const callsBefore = gatewayCalls.length
+  const result = invokeOutbox(superadmin, origin)
+  assert.equal(result.status, 503, label)
+  assert.equal(result.payload.error, 'GATEWAY_NAO_CONFIGURADO', label)
+  assert.equal(gatewayCalls.length, callsBefore, `${label} não pode chamar o Gateway`)
 }
-assertCuradoriaGatewayRoute(
-  previewGatewayBase,
-  previewAppOrigin,
-  expectedCuradoriaGatewayUrl,
-  'base já prefixada não pode duplicar /preview/nexo-hermes',
-)
 outbox[0].values = routingOutboxSnapshot
 caseManagement.values = routingCaseSnapshot
 gatewayCalls.splice(routingCallsStart)
-configuredGatewayBase = previewGatewayBase
 gatewayMode = 'success'
 
 const approvedReplay = invokeTransition(manager, 'case-management', {
@@ -906,7 +954,7 @@ assert.equal(cases[0].getInt('revisao'), 3)
 assert.equal(cases[0].getString('status'), 'aprovado')
 assert.equal(cases[0].getString('conhecimento_status'), 'ativo')
 assert.equal(gatewayCalls.length, callsBeforeTransitionFence + 1)
-assert.equal(gatewayCalls[0].url, expectedCuradoriaGatewayUrl)
+assert.equal(gatewayCalls[0].url, expectedPreviewGatewayUrl)
 
 outbox[0].set('status', 'processando')
 outbox[0].set('claim_token', 'claim-expirado')
@@ -942,7 +990,7 @@ assert.equal(rejected.payload.caso.revisao, 2)
 assert(transitions.length >= 3)
 
 assert.equal(invokeOutbox(manager).status, 403)
-configuredGatewayBase = `${previewGatewayBase}/`
+configuredPreviewGatewayBase = `${previewGatewayBase}/`
 gatewayMode = 'concurrent'
 const processed = invokeOutbox(superadmin)
 assert.equal(processed.status, 200)
@@ -950,9 +998,9 @@ assert.equal(processed.payload.processados, 1)
 assert.equal(processed.payload.falhas, 0)
 assert.equal(concurrentOutboxResult.payload.processados, 0)
 assert.equal(gatewayCalls.length, 2)
-assert.equal(gatewayCalls[1].url, expectedCuradoriaGatewayUrl)
-configuredGatewayBase = previewGatewayBase
-assert.equal(gatewayCalls[0].headers['x-pmais-api-key'], 'protected-api-key')
+assert.equal(gatewayCalls[1].url, expectedPreviewGatewayUrl)
+configuredPreviewGatewayBase = previewGatewayBase
+assert.equal(gatewayCalls[0].headers['x-pmais-api-key'], 'protected-preview-api-key')
 assert.equal('x-api-key' in gatewayCalls[0].headers, false)
 assert(gatewayCalls[0].headers['x-pmais-approval-signature'])
 const gatewayPayload = JSON.parse(gatewayCalls[0].body)
@@ -965,9 +1013,10 @@ assert.equal(
 const approvalCanonical = canonicalJson(gatewayPayload.approval)
 assert.equal(
   gatewayCalls[0].headers['x-pmais-approval-signature'],
-  `signature:protected-approval-secret:${approvalCanonical}.${gatewayCalls[0].headers['x-pmais-payload-hash']}`,
+  `signature:protected-preview-approval-secret:${approvalCanonical}.${gatewayCalls[0].headers['x-pmais-payload-hash']}`,
   'assinatura da aprovação deve usar o JSON canônico ordenado exigido pelo Gateway',
 )
+assert.equal(requestedSecrets.includes('PMAIS_AGENT_GATEWAY_URL'), false)
 assert.equal(requestedSecrets.includes('PMAIS_AGENT_GATEWAY_API_KEY'), false)
 assert.equal(requestedSecrets.includes('PMAIS_AGENT_GATEWAY_HMAC_SECRET'), false)
 assert.equal(outbox[0].getString('status'), 'supersedido')
@@ -1171,14 +1220,14 @@ assert.equal(
   'Gateway restabelecido e incidente registrado.',
 )
 gatewayMode = 'success'
-configuredGatewayBase = `${previewGatewayBase}/v1`
+configuredPreviewGatewayBase = `${previewGatewayBase}/v1`
 const callsBeforeV1BaseRecovery = gatewayCalls.length
 const recovered = invokeOutbox(superadmin)
 assert.equal(recovered.payload.processados, 1)
 assert.equal(recovered.payload.pendentes_restantes, 0)
 assert.equal(gatewayCalls.length, callsBeforeV1BaseRecovery + 1)
-assert.equal(gatewayCalls[gatewayCalls.length - 1].url, expectedCuradoriaGatewayUrl)
-configuredGatewayBase = previewGatewayBase
+assert.equal(gatewayCalls[gatewayCalls.length - 1].url, expectedPreviewGatewayUrl)
+configuredPreviewGatewayBase = previewGatewayBase
 
 outbox[1].set('status', 'pendente')
 outbox[1].set('next_attempt_at', null)

@@ -236,25 +236,43 @@ vm.runInContext(
   gatewayNormalizerContext,
 )
 const normalizeGatewayBase = gatewayNormalizerContext.normalizeGatewayBase
-const requestGatewayBaseRouter = namedFunctionBlock(
-  processorCallback,
-  'nexoCuradoriaGatewayBaseParaRequest',
-)
-const requestGatewayRouterContext = {}
-vm.createContext(requestGatewayRouterContext)
+const gatewayEnvironmentRouter = namedFunctionBlock(processorCallback, 'nexoCuradoriaGatewayConfig')
+const configuredSecrets = {
+  PMAIS_CURADORIA_PREVIEW_GATEWAY_URL:
+    'https://agents.pmaisservicos.com.br/preview/nexo-hermes/v1/',
+  PMAIS_CURADORIA_API_KEY: 'preview-api-key',
+  PMAIS_CURADORIA_HMAC_SECRET: 'preview-hmac-secret',
+  PMAIS_CURADORIA_APPROVAL_SECRET: 'preview-approval-secret',
+  PMAIS_CURADORIA_PROD_GATEWAY_URL: 'https://agents.pmaisservicos.com.br/producao/nexo-hermes/v1',
+  PMAIS_CURADORIA_PROD_API_KEY: 'prod-api-key',
+  PMAIS_CURADORIA_PROD_HMAC_SECRET: 'prod-hmac-secret',
+  PMAIS_CURADORIA_PROD_APPROVAL_SECRET: 'prod-approval-secret',
+}
+const requestedEnvironmentSecrets = []
+const gatewayRouterContext = {
+  secretValue(name) {
+    requestedEnvironmentSecrets.push(name)
+    return configuredSecrets[name] || ''
+  },
+}
+vm.createContext(gatewayRouterContext)
 vm.runInContext(
-  `${gatewayBaseNormalizer}; ${requestGatewayBaseRouter}; this.routeGatewayBase = nexoCuradoriaGatewayBaseParaRequest`,
-  requestGatewayRouterContext,
+  `${gatewayBaseNormalizer}; ${gatewayEnvironmentRouter}; this.routeGatewayConfig = nexoCuradoriaGatewayConfig`,
+  gatewayRouterContext,
 )
-const routeGatewayBase = requestGatewayRouterContext.routeGatewayBase
-const gatewayOrigin = 'https://agents.pmaisservicos.com.br'
+const routeGatewayConfig = gatewayRouterContext.routeGatewayConfig
 const previewGatewayBase = 'https://agents.pmaisservicos.com.br/preview/nexo-hermes'
+const productionGatewayBase = 'https://agents.pmaisservicos.com.br/producao/nexo-hermes'
 const previewAppOrigin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
+const productionCustomOrigin = 'https://comercial.pmaisservicos.com.br'
+const productionDirectOrigin = 'https://backend-isolado-pmais-43b9c.goskip.app'
 for (const [configuredBase, normalizedBase] of [
   [previewGatewayBase, previewGatewayBase],
   [`${previewGatewayBase}/`, previewGatewayBase],
   [`${previewGatewayBase}/v1`, previewGatewayBase],
   [`${previewGatewayBase}/v1/`, previewGatewayBase],
+  [productionGatewayBase, productionGatewayBase],
+  [`${productionGatewayBase}/v1/`, productionGatewayBase],
   ['http://127.0.0.1:8090/', 'http://127.0.0.1:8090'],
   ['http://localhost:8090/v1', 'http://localhost:8090'],
 ]) {
@@ -287,37 +305,78 @@ assert.strictEqual(
   'https://agents.pmaisservicos.com.br/preview/nexo-hermes/v1/comercial/nexo/curadoria/conhecimento',
   'endpoint de Curadoria deve preservar exatamente o prefixo de deployment do Gateway',
 )
-assert.strictEqual(
-  routeGatewayBase(gatewayOrigin, previewAppOrigin),
-  previewGatewayBase,
-  'gate temporário deve rotear somente a Origin exata do Preview para o deployment Preview',
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(routeGatewayConfig(previewAppOrigin))),
+  {
+    gatewayBase: previewGatewayBase,
+    gatewayKey: 'preview-api-key',
+    gatewaySecret: 'preview-hmac-secret',
+    approvalSecret: 'preview-approval-secret',
+  },
+  'Origin exata de Preview deve selecionar somente URL e credenciais de Preview',
 )
-for (const origin of [
-  'https://backend-isolado-pmais-43b9c.goskip.app',
-  '',
-  'https://app-parceiro.example',
-  'https://backend-isolado-pmais-atacante--preview.goskip.app',
-]) {
-  assert.strictEqual(
-    routeGatewayBase(gatewayOrigin, origin),
-    gatewayOrigin,
-    `Origin não Preview deve preservar a base configurada: ${origin || '(ausente)'}`,
+for (const origin of [productionCustomOrigin, productionDirectOrigin]) {
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(routeGatewayConfig(origin))),
+    {
+      gatewayBase: productionGatewayBase,
+      gatewayKey: 'prod-api-key',
+      gatewaySecret: 'prod-hmac-secret',
+      approvalSecret: 'prod-approval-secret',
+    },
+    `Origin exata de Produção deve selecionar somente URL e credenciais de Produção: ${origin}`,
   )
 }
-assert.strictEqual(
-  routeGatewayBase(previewGatewayBase, previewAppOrigin),
-  previewGatewayBase,
-  'base já prefixada não pode duplicar o deployment Preview',
-)
+for (const origin of [
+  undefined,
+  null,
+  '',
+  'not-an-origin',
+  'https://app-parceiro.example',
+  'https://backend-isolado-pmais-atacante--preview.goskip.app',
+  'https://comercial.pmaisservicos.com.br.atacante.example',
+  'https://backend-isolado-pmais-43b9c.goskip.app.evil.example',
+  `${previewAppOrigin}/lookalike`,
+]) {
+  const secretsBefore = requestedEnvironmentSecrets.length
+  assert.strictEqual(
+    routeGatewayConfig(origin),
+    null,
+    `Origin ausente, inválida, estrangeira ou parecida deve falhar fechada: ${origin || '(ausente)'}`,
+  )
+  assert.strictEqual(
+    requestedEnvironmentSecrets.length,
+    secretsBefore,
+    'Origin desconhecida não pode sequer selecionar segredos de ambiente',
+  )
+}
+for (const [origin, urlSecret] of [
+  [previewAppOrigin, 'PMAIS_CURADORIA_PREVIEW_GATEWAY_URL'],
+  [productionCustomOrigin, 'PMAIS_CURADORIA_PROD_GATEWAY_URL'],
+]) {
+  const originalUrl = configuredSecrets[urlSecret]
+  configuredSecrets[urlSecret] = 'https://gateway.example.test/deployment/../escape'
+  assert.strictEqual(
+    routeGatewayConfig(origin),
+    null,
+    `URL selecionada deve passar pelo normalizador estrito: ${urlSecret}`,
+  )
+  configuredSecrets[urlSecret] = originalUrl
+}
 assert.match(
   processorCallback,
   /e\.request\.header\.get\('Origin'\)/,
   'processador deve ler Origin pelo header nativo do request PocketBase',
 )
-assert.match(
-  requestGatewayBaseRouter,
-  /Produção[\s\S]*remoção|remoção[\s\S]*Produção/,
-  'gate temporário deve documentar remoção/configuração separada antes de publicar em Produção',
+assert.doesNotMatch(
+  processorCallback,
+  /PMAIS_AGENT_GATEWAY_URL/,
+  'Curadoria não pode reutilizar o Agent Gateway compartilhado como fallback',
+)
+assert.doesNotMatch(
+  processorCallback,
+  /Gate temporário exclusivo de Preview/,
+  'gate temporário hardcoded de Preview deve ser removido',
 )
 
 const transitionPayloadBuilder = namedFunctionBlock(
