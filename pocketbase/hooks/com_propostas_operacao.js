@@ -6155,9 +6155,78 @@
       }
     }
 
-    var gatewayBase = String(secretValue('PMAIS_AGENT_GATEWAY_URL') || '').replace(/\/+$/, '')
-    var originMatch = gatewayBase.match(/^https?:\/\/[^/]+/i)
-    gatewayBase = originMatch ? originMatch[0] : ''
+    function nexoCuradoriaGatewayBase(value) {
+      var raw = String(value || '').trim()
+      if (!raw || /[\s?#\\]/.test(raw)) return ''
+      var match = raw.match(/^(https?):\/\/([^/]+)(\/.*)?$/i)
+      if (!match) return ''
+
+      var scheme = match[1].toLowerCase()
+      var authority = match[2]
+      if (!authority || authority.indexOf('@') >= 0) return ''
+
+      var host = ''
+      var port = ''
+      if (authority.charAt(0) === '[') {
+        var bracketEnd = authority.indexOf(']')
+        if (bracketEnd < 2) return ''
+        host = authority.slice(1, bracketEnd)
+        var bracketSuffix = authority.slice(bracketEnd + 1)
+        if (bracketSuffix) {
+          if (!/^:[0-9]+$/.test(bracketSuffix)) return ''
+          port = bracketSuffix.slice(1)
+        }
+        if (host.toLowerCase() !== '::1') return ''
+      } else {
+        if (authority.indexOf(':') !== authority.lastIndexOf(':')) return ''
+        var colon = authority.lastIndexOf(':')
+        if (colon >= 0) {
+          host = authority.slice(0, colon)
+          port = authority.slice(colon + 1)
+          if (!port) return ''
+        } else {
+          host = authority
+        }
+        if (!host || host.length > 253 || !/^[a-z0-9.-]+$/i.test(host) || host.indexOf('..') >= 0)
+          return ''
+        var labels = host.split('.')
+        for (var li = 0; li < labels.length; li++) {
+          if (
+            !labels[li] ||
+            labels[li].length > 63 ||
+            labels[li].charAt(0) === '-' ||
+            labels[li].charAt(labels[li].length - 1) === '-'
+          )
+            return ''
+        }
+      }
+      if (port) {
+        if (!/^[0-9]+$/.test(port)) return ''
+        var portNumber = Number(port)
+        if (!isFinite(portNumber) || portNumber < 1 || portNumber > 65535) return ''
+      }
+      var lowerHost = host.toLowerCase()
+      if (
+        scheme === 'http' &&
+        lowerHost !== 'localhost' &&
+        lowerHost !== '127.0.0.1' &&
+        lowerHost !== '::1'
+      )
+        return ''
+
+      var deploymentPath = match[3] || ''
+      if (deploymentPath.indexOf('//') >= 0) return ''
+      if (deploymentPath && !/^\/[a-z0-9._~!$&()*+,;=:@/-]*$/i.test(deploymentPath)) return ''
+      var segments = deploymentPath.split('/')
+      for (var si = 0; si < segments.length; si++) {
+        if (segments[si] === '.' || segments[si] === '..') return ''
+      }
+      deploymentPath = deploymentPath.replace(/\/+$/, '')
+      if (/\/v1$/i.test(deploymentPath)) deploymentPath = deploymentPath.slice(0, -3)
+      return scheme + '://' + authority + deploymentPath
+    }
+
+    var gatewayBase = nexoCuradoriaGatewayBase(secretValue('PMAIS_AGENT_GATEWAY_URL'))
     var gatewayKey = secretValue('PMAIS_CURADORIA_API_KEY')
     var gatewaySecret = secretValue('PMAIS_CURADORIA_HMAC_SECRET')
     var approvalSecret = secretValue('PMAIS_CURADORIA_APPROVAL_SECRET')
