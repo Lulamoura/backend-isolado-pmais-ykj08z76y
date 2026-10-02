@@ -56,8 +56,8 @@ assert.match(
 )
 assert.match(
   failClosedMigration,
-  /function addIfMissing[\s\S]+if \(!collection\.fields\.getByName\(name\)\)[\s\S]+collection\.fields\.add\(field\)/,
-  'migração fail-closed deve adicionar campos de forma idempotente quando getByName retorna null',
+  /function addOrValidate[\s\S]+var existing = collection\.fields\.getByName\(name\)[\s\S]+if \(!existing\)[\s\S]+collection\.fields\.add\(field\)[\s\S]+incompatible field/,
+  'migração fail-closed deve adicionar campos ausentes e rejeitar metadados incompatíveis',
 )
 assert.match(
   failClosedMigration,

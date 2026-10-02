@@ -1,5 +1,11 @@
 migrate(
   function (app) {
+    var decisoes = app.findCollectionByNameOrId('com_nexo_curadoria_decisoes')
+    decisoes.createRule = null
+    decisoes.updateRule = null
+    decisoes.deleteRule = null
+    app.save(decisoes)
+
     function sameFieldValue(left, right) {
       if (left === right) return true
       return (
@@ -27,32 +33,36 @@ migrate(
       }
     }
 
-    function addOrValidate(collection, name, field) {
-      var existing = collection.fields.getByName(name)
-      if (!existing) {
-        collection.fields.add(field)
-        return
-      }
-
-      if (existing.type() !== field.type()) {
-        throw new Error('incompatible field ' + collection.name + '.' + name + ': type')
-      }
-
-      var keys = ['required', 'max', 'min', 'maxSize', 'onlyInt']
-      for (var i = 0; i < keys.length; i++) {
-        var key = keys[i]
-        if (field[key] !== undefined && !sameFieldValue(existing[key], field[key])) {
-          throw new Error('incompatible field ' + collection.name + '.' + name + ': ' + key)
-        }
-      }
-    }
-
     function lockDown(collection) {
       collection.createRule = null
       collection.updateRule = null
       collection.deleteRule = null
       collection.listRule = null
       collection.viewRule = null
+    }
+
+    function addOrValidate(collection, field) {
+      var existing = collection.fields.getByName(field.name)
+      if (!existing) {
+        collection.fields.add(field)
+        return
+      }
+
+      if (existing.type() !== field.type()) {
+        throw new Error('incompatible field ' + collection.name + '.' + field.name + ': type')
+      }
+
+      var keys = ['required', 'max', 'min', 'maxSize', 'onlyInt']
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i]
+        if (field[key] !== undefined && !sameFieldValue(existing[key], field[key])) {
+          throw new Error('incompatible field ' + collection.name + '.' + field.name + ': ' + key)
+        }
+      }
+    }
+
+    function ensureFields(collection, fields) {
+      for (var i = 0; i < fields.length; i++) addOrValidate(collection, fields[i])
     }
 
     function indexName(definition) {
@@ -62,16 +72,19 @@ migrate(
       return match ? match[1] || match[2] || match[3] : null
     }
 
-    function setIndexes(collection, indexes) {
+    function withoutIndex(indexes, name) {
+      var out = []
+      for (var i = 0; i < (indexes || []).length; i++) {
+        if (indexName(indexes[i]) !== name) out.push(indexes[i])
+      }
+      return out
+    }
+
+    function setIndexes(collection, definitions) {
       var current = collection.indexes || []
-      for (var i = 0; i < indexes.length; i++) {
-        var targetName = indexName(indexes[i])
-        var next = []
-        for (var ci = 0; ci < current.length; ci++) {
-          if (indexName(current[ci]) !== targetName) next.push(current[ci])
-        }
-        next.push(indexes[i])
-        current = next
+      for (var i = 0; i < definitions.length; i++) {
+        current = withoutIndex(current, indexName(definitions[i]))
+        current.push(definitions[i])
       }
       collection.indexes = current
     }
@@ -135,6 +148,34 @@ migrate(
       }
     }
 
+    var eventos = app.findCollectionByNameOrId('com_nexo_aprendizado_eventos')
+    ensureFields(eventos, [
+      new TextField({ name: 'fonte_origem', required: false, max: 160 }),
+      new TextField({ name: 'evidencia_status', required: false, max: 80 }),
+      new BoolField({ name: 'whatsapp_evidencia', required: false }),
+      new TextField({ name: 'whatsapp_evidencia_hash', required: false, max: 160 }),
+      new DateField({ name: 'whatsapp_janela_inicio', required: false }),
+      new DateField({ name: 'whatsapp_janela_fim', required: false }),
+      new NumberField({ name: 'whatsapp_conversas', min: 0, onlyInt: true, required: false }),
+      new NumberField({ name: 'whatsapp_mensagens', min: 0, onlyInt: true, required: false }),
+      new TextField({ name: 'whatsapp_resumo_factual', required: false, max: 4000 }),
+      new BoolField({ name: 'conhecimento_oficial', required: false }),
+    ])
+    app.save(eventos)
+
+    var ledger = app.findCollectionByNameOrId('com_ledger_comercial')
+    ensureFields(ledger, [
+      new TextField({ name: 'payload_hash', required: false, max: 160 }),
+      new TextField({ name: 'negocio_id', required: false, max: 80 }),
+      new TextField({ name: 'responsavel_id', required: false, max: 80 }),
+      new TextField({ name: 'equipe_id', required: false, max: 80 }),
+    ])
+    ledger.indexes = withoutIndex(ledger.indexes, 'idx_com_ledger_comercial_audit')
+    setIndexes(ledger, [
+      "CREATE UNIQUE INDEX idx_com_ledger_comercial_audit_unique ON com_ledger_comercial (audit_id) WHERE audit_id != ''",
+    ])
+    app.save(ledger)
+
     var casos = collectionOrNew('com_nexo_curadoria_casos')
     preflightPopulated(
       casos,
@@ -163,185 +204,59 @@ migrate(
       ],
     )
     lockDown(casos)
-    addOrValidate(
-      casos,
-      'fingerprint',
+    ensureFields(casos, [
       new TextField({ name: 'fingerprint', required: true, max: 160 }),
-    )
-    addOrValidate(casos, 'revisao', new NumberField({ name: 'revisao', required: true, min: 1 }))
-    addOrValidate(casos, 'status', new TextField({ name: 'status', required: true, max: 80 }))
-    addOrValidate(
-      casos,
-      'fonte_principal',
+      new NumberField({ name: 'revisao', required: true, min: 1 }),
+      new TextField({ name: 'status', required: true, max: 80 }),
       new TextField({ name: 'fonte_principal', required: true, max: 80 }),
-    )
-    addOrValidate(
-      casos,
-      'fontes',
       new JSONField({ name: 'fontes', required: false, maxSize: 4000 }),
-    )
-    addOrValidate(
-      casos,
-      'escopo_tipo',
       new TextField({ name: 'escopo_tipo', required: true, max: 80 }),
-    )
-    addOrValidate(
-      casos,
-      'escopo_ref',
       new TextField({ name: 'escopo_ref', required: false, max: 160 }),
-    )
-    addOrValidate(
-      casos,
-      'empresa_nome',
       new TextField({ name: 'empresa_nome', required: false, max: 240 }),
-    )
-    addOrValidate(
-      casos,
-      'contato_nome',
       new TextField({ name: 'contato_nome', required: false, max: 240 }),
-    )
-    addOrValidate(
-      casos,
-      'negocio_numero',
       new TextField({ name: 'negocio_numero', required: false, max: 120 }),
-    )
-    addOrValidate(
-      casos,
-      'negocio_titulo',
       new TextField({ name: 'negocio_titulo', required: false, max: 300 }),
-    )
-    addOrValidate(
-      casos,
-      'responsavel_nome',
       new TextField({ name: 'responsavel_nome', required: false, max: 200 }),
-    )
-    addOrValidate(
-      casos,
-      'assunto_chave',
       new TextField({ name: 'assunto_chave', required: true, max: 160 }),
-    )
-    addOrValidate(
-      casos,
-      'recorrencia_chave',
       new TextField({ name: 'recorrencia_chave', required: true, max: 160 }),
-    )
-    addOrValidate(casos, 'titulo', new TextField({ name: 'titulo', required: true, max: 300 }))
-    addOrValidate(
-      casos,
-      'resumo_factual',
+      new TextField({ name: 'titulo', required: true, max: 300 }),
       new TextField({ name: 'resumo_factual', required: true, max: 4000 }),
-    )
-    addOrValidate(
-      casos,
-      'motivo_curadoria',
       new TextField({ name: 'motivo_curadoria', required: true, max: 2000 }),
-    )
-    addOrValidate(
-      casos,
-      'regra_candidata',
       new TextField({ name: 'regra_candidata', required: false, max: 4000 }),
-    )
-    addOrValidate(
-      casos,
-      'evidencia_contagem',
       new NumberField({ name: 'evidencia_contagem', required: true, min: 0 }),
-    )
-    addOrValidate(
-      casos,
-      'casos_independentes',
       new NumberField({ name: 'casos_independentes', required: true, min: 0 }),
-    )
-    addOrValidate(
-      casos,
-      'recorrencia_contagem',
       new NumberField({ name: 'recorrencia_contagem', required: true, min: 0 }),
-    )
-    addOrValidate(
-      casos,
-      'evidencia_hashes',
       new JSONField({ name: 'evidencia_hashes', required: false, maxSize: 12000 }),
-    )
-    addOrValidate(
-      casos,
-      'risco_classe',
       new TextField({ name: 'risco_classe', required: true, max: 80 }),
-    )
-    addOrValidate(casos, 'alcada', new TextField({ name: 'alcada', required: true, max: 80 }))
-    addOrValidate(
-      casos,
-      'sensivel_motivos',
+      new TextField({ name: 'alcada', required: true, max: 80 }),
       new JSONField({ name: 'sensivel_motivos', required: false, maxSize: 4000 }),
-    )
-    addOrValidate(casos, 'confianca', new TextField({ name: 'confianca', required: true, max: 40 }))
-    addOrValidate(
-      casos,
-      'human_review_required',
+      new TextField({ name: 'confianca', required: true, max: 40 }),
       new BoolField({ name: 'human_review_required', required: false }),
-    )
-    addOrValidate(
-      casos,
-      'automatic_promotion_allowed',
       new BoolField({ name: 'automatic_promotion_allowed', required: false }),
-    )
-    addOrValidate(
-      casos,
-      'entrevista_respostas',
       new JSONField({ name: 'entrevista_respostas', required: false, maxSize: 12000 }),
-    )
-    addOrValidate(
-      casos,
-      'entrevista_etapa',
       new NumberField({ name: 'entrevista_etapa', required: false, min: 0 }),
-    )
-    addOrValidate(
-      casos,
-      'decisao_observacao',
       new TextField({ name: 'decisao_observacao', required: false, max: 2400 }),
-    )
-    addOrValidate(
-      casos,
-      'validado_por',
       new TextField({ name: 'validado_por', required: false, max: 80 }),
-    )
-    addOrValidate(casos, 'decisao_em', new DateField({ name: 'decisao_em', required: false }))
-    addOrValidate(
-      casos,
-      'conhecimento_status',
+      new DateField({ name: 'decisao_em', required: false }),
       new TextField({ name: 'conhecimento_status', required: false, max: 80 }),
-    )
-    addOrValidate(
-      casos,
-      'conhecimento_audit_id',
       new TextField({ name: 'conhecimento_audit_id', required: false, max: 160 }),
-    )
-    addOrValidate(
-      casos,
-      'conhecimento_versao',
       new TextField({ name: 'conhecimento_versao', required: false, max: 160 }),
-    )
-    addOrValidate(
-      casos,
-      'created_by',
       new TextField({ name: 'created_by', required: false, max: 80 }),
-    )
-    addOrValidate(
-      casos,
-      'updated_by',
       new TextField({ name: 'updated_by', required: false, max: 80 }),
-    )
-    addOrValidate(casos, 'first_seen_at', new DateField({ name: 'first_seen_at', required: true }))
-    addOrValidate(casos, 'last_seen_at', new DateField({ name: 'last_seen_at', required: true }))
-    addOrValidate(
-      casos,
-      'next_review_at',
+      new DateField({ name: 'first_seen_at', required: true }),
+      new DateField({ name: 'last_seen_at', required: true }),
       new DateField({ name: 'next_review_at', required: false }),
-    )
-    addOrValidate(casos, 'approved_at', new DateField({ name: 'approved_at', required: false }))
-    addOrValidate(casos, 'withdrawn_at', new DateField({ name: 'withdrawn_at', required: false }))
+      new DateField({ name: 'approved_at', required: false }),
+      new DateField({ name: 'withdrawn_at', required: false }),
+      new TextField({ name: 'responsavel_id', required: false, max: 80 }),
+      new TextField({ name: 'equipe_id', required: false, max: 80 }),
+      new TextField({ name: 'negocio_id', required: false, max: 80 }),
+    ])
     setIndexes(casos, [
       'CREATE UNIQUE INDEX idx_com_nexo_curadoria_casos_fingerprint ON com_nexo_curadoria_casos (fingerprint)',
       'CREATE INDEX idx_com_nexo_curadoria_casos_fila ON com_nexo_curadoria_casos (status, alcada, last_seen_at)',
       'CREATE INDEX idx_com_nexo_curadoria_casos_escopo ON com_nexo_curadoria_casos (escopo_tipo, escopo_ref)',
+      'CREATE INDEX idx_com_nexo_curadoria_casos_autorizacao ON com_nexo_curadoria_casos (equipe_id, responsavel_id, negocio_id)',
     ])
     app.save(casos)
 
@@ -360,42 +275,16 @@ migrate(
       ],
     )
     lockDown(evidencias)
-    addOrValidate(
-      evidencias,
-      'caso_id',
+    ensureFields(evidencias, [
       new TextField({ name: 'caso_id', required: true, max: 80 }),
-    )
-    addOrValidate(
-      evidencias,
-      'fonte_tipo',
       new TextField({ name: 'fonte_tipo', required: true, max: 80 }),
-    )
-    addOrValidate(
-      evidencias,
-      'fonte_ref',
       new TextField({ name: 'fonte_ref', required: false, max: 200 }),
-    )
-    addOrValidate(
-      evidencias,
-      'evidencia_hash',
       new TextField({ name: 'evidencia_hash', required: true, max: 160 }),
-    )
-    addOrValidate(
-      evidencias,
-      'escopo_ref',
       new TextField({ name: 'escopo_ref', required: false, max: 160 }),
-    )
-    addOrValidate(
-      evidencias,
-      'resumo_factual',
       new TextField({ name: 'resumo_factual', required: true, max: 2400 }),
-    )
-    addOrValidate(
-      evidencias,
-      'metadados',
       new JSONField({ name: 'metadados', required: false, maxSize: 6000 }),
-    )
-    addOrValidate(evidencias, 'occurred_at', new DateField({ name: 'occurred_at', required: true }))
+      new DateField({ name: 'occurred_at', required: true }),
+    ])
     setIndexes(evidencias, [
       'CREATE UNIQUE INDEX idx_com_nexo_curadoria_evidencias_unica ON com_nexo_curadoria_evidencias (caso_id, evidencia_hash)',
       'CREATE INDEX idx_com_nexo_curadoria_evidencias_fonte ON com_nexo_curadoria_evidencias (fonte_tipo, occurred_at)',
@@ -417,42 +306,17 @@ migrate(
       ],
     )
     lockDown(transicoes)
-    addOrValidate(
-      transicoes,
-      'caso_id',
+    ensureFields(transicoes, [
       new TextField({ name: 'caso_id', required: true, max: 80 }),
-    )
-    addOrValidate(
-      transicoes,
-      'transicao_chave',
       new TextField({ name: 'transicao_chave', required: true, max: 200 }),
-    )
-    addOrValidate(
-      transicoes,
-      'status_anterior',
       new TextField({ name: 'status_anterior', required: false, max: 80 }),
-    )
-    addOrValidate(
-      transicoes,
-      'status_novo',
       new TextField({ name: 'status_novo', required: true, max: 80 }),
-    )
-    addOrValidate(
-      transicoes,
-      'ator_id',
       new TextField({ name: 'ator_id', required: false, max: 80 }),
-    )
-    addOrValidate(
-      transicoes,
-      'motivo',
       new TextField({ name: 'motivo', required: true, max: 2000 }),
-    )
-    addOrValidate(
-      transicoes,
-      'metadados',
       new JSONField({ name: 'metadados', required: false, maxSize: 6000 }),
-    )
-    addOrValidate(transicoes, 'ocorreu_em', new DateField({ name: 'ocorreu_em', required: true }))
+      new DateField({ name: 'ocorreu_em', required: true }),
+      new TextField({ name: 'command_hash', required: false, max: 160 }),
+    ])
     setIndexes(transicoes, [
       'CREATE UNIQUE INDEX idx_com_nexo_curadoria_transicoes_chave ON com_nexo_curadoria_transicoes (transicao_chave)',
       'CREATE INDEX idx_com_nexo_curadoria_transicoes_caso ON com_nexo_curadoria_transicoes (caso_id, ocorreu_em)',
@@ -478,63 +342,72 @@ migrate(
       ],
     )
     lockDown(outbox)
-    addOrValidate(outbox, 'caso_id', new TextField({ name: 'caso_id', required: true, max: 80 }))
-    addOrValidate(
-      outbox,
-      'decisao_id',
+    ensureFields(outbox, [
+      new TextField({ name: 'caso_id', required: true, max: 80 }),
       new TextField({ name: 'decisao_id', required: false, max: 80 }),
-    )
-    addOrValidate(outbox, 'acao', new TextField({ name: 'acao', required: true, max: 40 }))
-    addOrValidate(
-      outbox,
-      'idempotency_key',
+      new TextField({ name: 'acao', required: true, max: 40 }),
       new TextField({ name: 'idempotency_key', required: true, max: 200 }),
-    )
-    addOrValidate(outbox, 'status', new TextField({ name: 'status', required: true, max: 80 }))
-    addOrValidate(
-      outbox,
-      'tentativas',
+      new TextField({ name: 'status', required: true, max: 80 }),
       new NumberField({ name: 'tentativas', required: true, min: 0 }),
-    )
-    addOrValidate(
-      outbox,
-      'last_error',
       new TextField({ name: 'last_error', required: false, max: 2000 }),
-    )
-    addOrValidate(
-      outbox,
-      'payload_hash',
       new TextField({ name: 'payload_hash', required: true, max: 160 }),
-    )
-    addOrValidate(
-      outbox,
-      'payload_json',
       new JSONField({ name: 'payload_json', required: true, maxSize: 16000 }),
-    )
-    addOrValidate(
-      outbox,
-      'caso_revisao',
       new NumberField({ name: 'caso_revisao', required: true, min: 1 }),
-    )
-    addOrValidate(
-      outbox,
-      'audit_id',
       new TextField({ name: 'audit_id', required: false, max: 160 }),
-    )
-    addOrValidate(
-      outbox,
-      'target_version',
       new TextField({ name: 'target_version', required: false, max: 160 }),
-    )
-    addOrValidate(outbox, 'requested_at', new DateField({ name: 'requested_at', required: true }))
-    addOrValidate(outbox, 'processed_at', new DateField({ name: 'processed_at', required: false }))
+      new DateField({ name: 'requested_at', required: true }),
+      new DateField({ name: 'processed_at', required: false }),
+      new DateField({ name: 'next_attempt_at', required: false }),
+      new DateField({ name: 'last_attempt_at', required: false }),
+      new NumberField({ name: 'tentativas_ciclo', required: false, min: 0, onlyInt: true }),
+      new NumberField({ name: 'retry_count', required: false, min: 0, onlyInt: true }),
+      new TextField({ name: 'retry_requested_by', required: false, max: 80 }),
+      new TextField({ name: 'retry_reason', required: false, max: 1000 }),
+      new TextField({ name: 'superseded_by', required: false, max: 80 }),
+      new TextField({ name: 'claim_token', required: false, max: 160 }),
+      new DateField({ name: 'claimed_at', required: false }),
+      new DateField({ name: 'claim_expires_at', required: false }),
+    ])
     setIndexes(outbox, [
       'CREATE UNIQUE INDEX idx_com_nexo_curadoria_outbox_idempotency ON com_nexo_curadoria_outbox (idempotency_key)',
       'CREATE INDEX idx_com_nexo_curadoria_outbox_fila ON com_nexo_curadoria_outbox (status, requested_at)',
+      'CREATE INDEX idx_com_nexo_curadoria_outbox_caso_revisao ON com_nexo_curadoria_outbox (caso_id, caso_revisao, status)',
+      'CREATE INDEX idx_com_nexo_curadoria_outbox_retry ON com_nexo_curadoria_outbox (status, next_attempt_at, requested_at)',
+      'CREATE INDEX idx_com_nexo_curadoria_outbox_claim ON com_nexo_curadoria_outbox (status, claim_expires_at, requested_at)',
     ])
     app.save(outbox)
+
+    var auditoria = collectionOrNew('com_nexo_curadoria_outbox_auditoria')
+    preflightPopulated(
+      auditoria,
+      [
+        new TextField({ name: 'outbox_id', required: true, max: 80 }),
+        new NumberField({ name: 'retry_count', required: true, min: 1, onlyInt: true }),
+        new TextField({ name: 'ator_id', required: true, max: 80 }),
+        new TextField({ name: 'motivo', required: true, max: 1000 }),
+        new TextField({ name: 'status_anterior', required: true, max: 80 }),
+        new DateField({ name: 'requested_at', required: true }),
+      ],
+      [
+        'CREATE UNIQUE INDEX idx_com_nexo_curadoria_outbox_auditoria_retry ON com_nexo_curadoria_outbox_auditoria (outbox_id, retry_count)',
+      ],
+    )
+    lockDown(auditoria)
+    ensureFields(auditoria, [
+      new TextField({ name: 'outbox_id', required: true, max: 80 }),
+      new NumberField({ name: 'retry_count', required: true, min: 1, onlyInt: true }),
+      new TextField({ name: 'ator_id', required: true, max: 80 }),
+      new TextField({ name: 'motivo', required: true, max: 1000 }),
+      new TextField({ name: 'status_anterior', required: true, max: 80 }),
+      new DateField({ name: 'requested_at', required: true }),
+    ])
+    setIndexes(auditoria, [
+      'CREATE UNIQUE INDEX idx_com_nexo_curadoria_outbox_auditoria_retry ON com_nexo_curadoria_outbox_auditoria (outbox_id, retry_count)',
+      'CREATE INDEX idx_com_nexo_curadoria_outbox_auditoria_data ON com_nexo_curadoria_outbox_auditoria (requested_at)',
+    ])
+    app.save(auditoria)
   },
   function (_) {
-    // Intentionally non-destructive: collections may predate this migration and contain records.
+    // Intentionally non-destructive: recovery only converges schema, ACLs, and indexes.
   },
 )
