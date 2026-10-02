@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 
 const authState = vi.hoisted(() => ({
   user: { id: 'u1', name: 'Operadora Teste', ativo_comercial: true },
@@ -27,6 +28,14 @@ vi.mock('@/services/nexo-central', () => ({
 }))
 
 import NexoAssistente from '@/pages/NexoAssistente'
+
+function renderNexoAssistente() {
+  return render(
+    <MemoryRouter>
+      <NexoAssistente />
+    </MemoryRouter>,
+  )
+}
 
 const frentes = [
   'Recomendações do dia',
@@ -87,7 +96,7 @@ describe('NexoAssistente', () => {
   })
 
   it('exibe a Central operacional do Nexo com as seis frentes aprovadas', () => {
-    render(<NexoAssistente />)
+    renderNexoAssistente()
 
     expect(screen.getByRole('heading', { name: /Assistente Nexo/i })).toBeInTheDocument()
     expect(screen.getByText(/contexto real/i)).toBeInTheDocument()
@@ -98,7 +107,7 @@ describe('NexoAssistente', () => {
 
   it('troca a leitura operacional conforme a frente escolhida', async () => {
     const user = userEvent.setup()
-    render(<NexoAssistente />)
+    renderNexoAssistente()
 
     expect(screen.getByText(/Consolida o que merece atenção hoje/i)).toBeInTheDocument()
 
@@ -111,7 +120,7 @@ describe('NexoAssistente', () => {
 
   it('permite perfil geral filtrar análise por responsável e processar com Nexo', async () => {
     const user = userEvent.setup()
-    render(<NexoAssistente />)
+    renderNexoAssistente()
 
     await waitFor(() => expect(listarResponsaveisCentralNexo).toHaveBeenCalled())
     await user.selectOptions(screen.getByLabelText(/Filtrar por responsável/i), 'u2')
@@ -132,10 +141,14 @@ describe('NexoAssistente', () => {
     expect(screen.queryByText(/modelo: openai_chat/i)).not.toBeInTheDocument()
     expect(screen.getAllByText(/Hospital Alpha/i).length).toBeGreaterThan(0)
     expect(screen.getByText(/ID do negócio: 123/i)).toBeInTheDocument()
-    expect(screen.getByText(/Cliente: Hospital Alpha/i)).toBeInTheDocument()
-    expect(screen.getByText(/Contato: Brenda Cliente/i)).toBeInTheDocument()
-    expect(screen.getByText(/Responsável interno: Viviane Marculino/i)).toBeInTheDocument()
-    expect(screen.getByText(/Detalhamento da proposta: PROP-123/i)).toBeInTheDocument()
+    expect(screen.getByText('Cliente:').parentElement).toHaveTextContent('Cliente: Hospital Alpha')
+    expect(screen.getByText('Contato:').parentElement).toHaveTextContent('Contato: Brenda Cliente')
+    expect(screen.getByText('Responsável interno:').parentElement).toHaveTextContent(
+      'Responsável interno: Viviane Marculino',
+    )
+    expect(screen.getByText('Detalhamento da proposta:').parentElement).toHaveTextContent(
+      'Detalhamento da proposta: PROP-123',
+    )
     expect(screen.getByText(/15\/09\/2026/i)).toBeInTheDocument()
     expect(screen.queryByText(/2026-09-15/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Cliente: Hospital Alpha\. Contato:/i)).not.toBeInTheDocument()
@@ -144,7 +157,7 @@ describe('NexoAssistente', () => {
   it('restringe perfil comum aos próprios negócios e não mostra filtro de responsável', async () => {
     const user = userEvent.setup()
     perfilState.perfilSlug = 'operador-comercial'
-    render(<NexoAssistente />)
+    renderNexoAssistente()
 
     expect(screen.queryByLabelText(/Filtrar por responsável/i)).not.toBeInTheDocument()
     expect(screen.getByText(/Escopo da análise: seus negócios/i)).toBeInTheDocument()
@@ -161,7 +174,7 @@ describe('NexoAssistente', () => {
   })
 
   it('mantém aviso discreto sem card dedicado de escopo seguro', async () => {
-    const { container } = render(<NexoAssistente />)
+    const { container } = renderNexoAssistente()
 
     await waitFor(() => expect(listarResponsaveisCentralNexo).toHaveBeenCalled())
     expect(screen.queryByText(/Escopo seguro da análise/i)).not.toBeInTheDocument()

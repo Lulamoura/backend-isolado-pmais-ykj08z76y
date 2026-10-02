@@ -37,8 +37,17 @@ assert('redige mediaKey', hook.includes("'mediakey'"))
 assert('não imprime payload no log', !/console\.log|print\(/.test(hook))
 assert('persiste evento sanitizado', hook.includes('payload_sanitizado'))
 assert('deduplica evento por idempotency_key', hook.includes('idempotencyKey'))
+assert(
+  'replay externo com payload divergente falha fechado',
+  hook.includes('IDEMPOTENCY_PAYLOAD_CONFLICT') &&
+    /existing[\s\S]{0,300}payload_hash[\s\S]{0,300}data\.payloadHash/.test(hook),
+)
 assert('deduplica mensagem por uazapi-message', hook.includes('uazapi-message'))
 assert('preserva fromMe', hook.includes('fromMe'))
+assert(
+  'direção ausente permanece desconhecida em vez de virar cliente',
+  hook.includes('fromMeKnown') && hook.includes('direcao_desconhecida'),
+)
 assert('preserva isGroup e marca grupo ignorado', hook.includes('ignorado_grupo'))
 assert(
   'classifica áudio por AudioMessage/mimetype',
@@ -50,6 +59,12 @@ assert(
   hook.includes("download_status', data.isGroup ? 'ignorada_grupo' : 'pendente'"),
 )
 assert('não permite envio automático', hook.includes('automatic_send_allowed: false'))
+assert(
+  'referência comercial nunca expõe ID técnico como fallback',
+  !hook.includes("(negocio.getString('titulo') || ids[i]) + ' (' + ids[i] + ')'") &&
+    !hook.includes('var label = numero || titulo || ids[i]') &&
+    !hook.includes('itens.push(ids[i])'),
+)
 
 for (const name of ['com_whatsapp_eventos', 'com_whatsapp_mensagens', 'com_whatsapp_midias']) {
   assert(`migration cria ${name}`, migration.includes(`'${name}'`))

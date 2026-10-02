@@ -3,10 +3,15 @@ const assert = require('node:assert/strict')
 
 const hookPath = 'pocketbase/hooks/com_propostas_operacao.js'
 const migrationPath = 'pocketbase/migrations/202609190900_nexo_aprendizado_eventos.js'
+const provenanceMigrationPath =
+  'pocketbase/migrations/202610012100_nexo_aprendizado_whatsapp_proveniencia.js'
 const packagePath = 'package.json'
 
 const hook = fs.readFileSync(hookPath, 'utf8')
 const migration = fs.existsSync(migrationPath) ? fs.readFileSync(migrationPath, 'utf8') : ''
+const provenanceMigration = fs.existsSync(provenanceMigrationPath)
+  ? fs.readFileSync(provenanceMigrationPath, 'utf8')
+  : ''
 const pkg = fs.readFileSync(packagePath, 'utf8')
 
 assert.ok(migration, 'deve existir migração da coleção com_nexo_aprendizado_eventos')
@@ -55,6 +60,25 @@ assert.match(
 assert.match(migration, /crm_write_allowed/, 'evento deve registrar escrita CRM bloqueada')
 assert.match(migration, /audit_id/, 'evento deve guardar audit_id correlacionável')
 assert.match(migration, /created_at/, 'evento deve guardar timestamp de captura')
+assert.ok(provenanceMigration, 'deve existir migração de proveniência WhatsApp do aprendizado')
+for (const field of [
+  'fonte_origem',
+  'evidencia_status',
+  'whatsapp_evidencia',
+  'whatsapp_evidencia_hash',
+  'whatsapp_janela_inicio',
+  'whatsapp_janela_fim',
+  'whatsapp_conversas',
+  'whatsapp_mensagens',
+  'whatsapp_resumo_factual',
+  'conhecimento_oficial',
+]) {
+  assert.match(
+    provenanceMigration,
+    new RegExp(`name: '${field}'`),
+    `migração deve materializar o campo ${field}`,
+  )
+}
 
 assert.match(
   hook,
@@ -83,6 +107,21 @@ assert.match(
 )
 assert.match(hook, /contexto_resumo/, 'hook deve persistir resumo sanitizado do contexto')
 assert.match(hook, /resposta_resumo/, 'hook deve persistir resumo sanitizado da resposta')
+assert.match(
+  hook,
+  /fonte_origem[\s\S]{0,240}whatsapp_uazapi/,
+  'evento deve registrar estruturalmente a origem WhatsApp quando houver evidência verificada',
+)
+assert.match(
+  hook,
+  /whatsapp_evidencia_hash/,
+  'evento deve persistir hash da janela de evidências sem payload bruto',
+)
+assert.match(
+  hook,
+  /conhecimento_oficial[\s\S]{0,120}false/,
+  'captura de aprendizado não pode nascer como conhecimento oficial',
+)
 assert.match(
   hook,
   /function\s+nexoBooleanoCuradoria/,

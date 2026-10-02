@@ -9,6 +9,52 @@ vi.mock('@/hooks/use-auth', () => ({
 
 vi.mock('@/hooks/use-dashboard', () => ({ useDashboardResumo }))
 
+vi.mock('@/components/ui/select', async () => {
+  const React = await import('react')
+  const SelectTrigger = () => null
+  const SelectContent = () => null
+  const SelectItem = () => null
+  const SelectValue = () => null
+
+  function Select({ value, onValueChange, children }: any) {
+    let triggerProps: Record<string, any> = {}
+    const options: Array<{ value: string; label: string }> = []
+
+    function visit(node: any) {
+      React.Children.forEach(node, (child) => {
+        if (!React.isValidElement(child)) return
+        if (child.type === SelectTrigger) triggerProps = child.props as Record<string, any>
+        if (child.type === SelectItem) {
+          const props = child.props as { value: string; children: React.ReactNode }
+          options.push({
+            value: props.value,
+            label: React.Children.toArray(props.children).join(''),
+          })
+        }
+        visit((child.props as { children?: React.ReactNode }).children)
+      })
+    }
+
+    visit(children)
+    return (
+      <select
+        id={triggerProps.id}
+        aria-label={triggerProps['aria-label']}
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    )
+  }
+
+  return { Select, SelectTrigger, SelectContent, SelectItem, SelectValue }
+})
+
 import Index, { createDefaultDashboardPeriod } from '@/pages/Index'
 
 const dashboardResponse = {
@@ -162,12 +208,15 @@ describe('Dashboard V1', () => {
   it('aplica e limpa filtros de equipe, responsável, situação e negócios inativos', async () => {
     render(<Index />)
 
-    fireEvent.click(await screen.findByRole('combobox', { name: 'Equipe' }))
-    fireEvent.click(await screen.findByRole('option', { name: 'Equipe Recife' }))
-    fireEvent.click(screen.getByRole('combobox', { name: 'Responsável' }))
-    fireEvent.click(await screen.findByRole('option', { name: 'Bruno Inativo (inativo)' }))
-    fireEvent.click(screen.getByRole('combobox', { name: 'Situação' }))
-    fireEvent.click(await screen.findByRole('option', { name: 'Aguardando OE' }))
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Equipe' }), {
+      target: { value: 'team1' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Responsável' }), {
+      target: { value: 'user2' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Situação' }), {
+      target: { value: 'aguardando_oe' },
+    })
     fireEvent.click(screen.getByRole('switch', { name: 'Incluir negócios inativos' }))
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }))
 
@@ -190,7 +239,7 @@ describe('Dashboard V1', () => {
   it('usa opções de responsáveis devolvidas pelo mesmo escopo do dashboard', async () => {
     render(<Index />)
 
-    fireEvent.click(await screen.findByRole('combobox', { name: 'Responsável' }))
+    expect(await screen.findByRole('combobox', { name: 'Responsável' })).toBeInTheDocument()
     expect(await screen.findByRole('option', { name: 'Ana Gestora' })).toBeInTheDocument()
     expect(
       await screen.findByRole('option', { name: 'Bruno Inativo (inativo)' }),
@@ -214,7 +263,7 @@ describe('Dashboard V1', () => {
 
     const indicadores = screen.getByLabelText('Indicadores comerciais')
     const titulos = Array.from(indicadores.children).map(
-      (card) => card.querySelector('.tracking-tight')?.textContent,
+      (card) => card.querySelector('p.uppercase')?.textContent,
     )
 
     expect(titulos).toEqual([

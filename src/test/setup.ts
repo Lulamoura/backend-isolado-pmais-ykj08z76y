@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom/vitest'
 
+Object.defineProperty(window, 'PointerEvent', {
+  configurable: true,
+  writable: true,
+  value: MouseEvent,
+})
+
 Object.defineProperty(globalThis, 'ResizeObserver', {
   configurable: true,
   writable: true,

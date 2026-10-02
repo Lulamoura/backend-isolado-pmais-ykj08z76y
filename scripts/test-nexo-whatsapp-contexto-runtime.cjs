@@ -207,14 +207,23 @@ const actorAdmin = new MockRecord('admin-user', {
   ativo_comercial: true,
   perfil_id: 'perfil-admin',
 })
-const vinculoDireto = new MockRecord('link-direto', {
-  status: 'vinculado',
+const vinculoAutomatico = new MockRecord('link-automatico', {
+  status: 'vinculado_automatico',
   negocio_id: negocio.id,
   negocio_ids: [],
   provider: 'uazapi',
   instance_name: 'operadora-a',
   owner: 'owner-a',
   chat_id: 'chat-a',
+})
+const vinculoManual = new MockRecord('link-manual', {
+  status: 'vinculado_manual',
+  negocio_id: negocio.id,
+  negocio_ids: [],
+  provider: 'uazapi',
+  instance_name: 'operadora-c',
+  owner: 'owner-c',
+  chat_id: 'chat-c',
 })
 const vinculoMultiplo = new MockRecord('link-multiplo', {
   status: 'vinculado_multiplo',
@@ -225,20 +234,45 @@ const vinculoMultiplo = new MockRecord('link-multiplo', {
   owner: 'owner-b',
   chat_id: 'chat-b',
 })
+const vinculoPendente = new MockRecord('link-pendente', {
+  status: 'pendente_confirmacao',
+  negocio_id: negocio.id,
+  negocio_ids: [],
+  provider: 'uazapi',
+  instance_name: 'operadora-d',
+  owner: 'owner-d',
+  chat_id: 'chat-d',
+})
 const mensagemAntiga = new MockRecord('mensagem-antiga', {
-  direction: 'saida',
+  direcao: 'enviada_operadora',
   message_type: 'text',
-  body_text: 'Enviei a proposta para sua validação.',
+  texto: 'Enviei a proposta para sua validação.',
   message_at: '2026-09-30T12:00:00Z',
   chat_id: 'chat-a',
   sender_id: 'nao-expor',
 })
 const mensagemRecente = new MockRecord('mensagem-recente', {
-  direction: 'entrada',
+  direcao: 'recebida',
   message_type: 'text',
-  body_text: 'Vou validar com o RH e retorno até sexta-feira.',
+  texto: 'Vou validar com o RH e retorno até sexta-feira.',
   message_at: '2026-10-01T12:00:00Z',
   chat_id: 'chat-b',
+  sender_id: 'nao-expor',
+})
+const mensagemManual = new MockRecord('mensagem-manual', {
+  direcao: 'recebida',
+  message_type: 'text',
+  texto: 'A decisão manual deve continuar disponível para o Nexo.',
+  message_at: '2026-10-01T11:00:00Z',
+  chat_id: 'chat-c',
+  sender_id: 'nao-expor',
+})
+const mensagemDirecaoDesconhecida = new MockRecord('mensagem-sem-direcao', {
+  direcao: 'direcao_desconhecida',
+  message_type: 'text',
+  texto: 'Mensagem importada sem direção confiável.',
+  message_at: '2026-10-01T10:00:00Z',
+  chat_id: 'chat-a',
   sender_id: 'nao-expor',
 })
 const filtrosMensagens = []
@@ -274,12 +308,18 @@ app.findFirstRecordByData = () => {
 app.findRecordsByFilter = (collection, filter, sort) => {
   if (collection === 'com_whatsapp_vinculos') {
     assert.equal(sort, '-last_message_at,-created,-id')
-    return filter.includes('negocio_ids ~') ? [vinculoMultiplo] : [vinculoDireto]
+    return filter.includes('negocio_ids ~')
+      ? [vinculoMultiplo]
+      : [vinculoAutomatico, vinculoManual, vinculoPendente]
   }
   if (collection === 'com_whatsapp_mensagens') {
     filtrosMensagens.push(filter)
     if (!incluirMensagens) return []
-    return filter.includes("chat_id = 'chat-b'") ? [mensagemRecente] : [mensagemAntiga]
+    if (filter.includes("chat_id = 'chat-b'")) return [mensagemRecente]
+    if (filter.includes("chat_id = 'chat-c'")) return [mensagemManual]
+    if (filter.includes("chat_id = 'chat-d'"))
+      throw new Error('vínculo pendente não pode liberar mensagens')
+    return [mensagemAntiga, mensagemDirecaoDesconhecida]
   }
   if (collection === 'com_proposta_versoes') return []
   return []
@@ -288,11 +328,22 @@ app.findRecordsByFilter = (collection, filter, sort) => {
 const contextoAutorizado = route.handler({ ...event, auth: actorAdmin })
 assert.equal(contextoAutorizado.status, 200)
 assert.equal(contextoAutorizado.body.whatsapp_contexto.status, 'disponivel')
-assert.equal(contextoAutorizado.body.whatsapp_contexto.conversas_vinculadas, 2)
-assert.equal(contextoAutorizado.body.whatsapp_contexto.mensagens_recentes_consideradas, 2)
+assert.equal(contextoAutorizado.body.whatsapp_contexto.conversas_vinculadas, 3)
+assert.equal(contextoAutorizado.body.whatsapp_contexto.mensagens_recentes_consideradas, 4)
 assert.equal(
   contextoAutorizado.body.whatsapp_contexto.mensagens_recentes[0].texto,
   'Vou validar com o RH e retorno até sexta-feira.',
+)
+assert.deepEqual(
+  Array.from(
+    new Set(
+      contextoAutorizado.body.whatsapp_contexto.mensagens_recentes.map(
+        (mensagem) => mensagem.direcao,
+      ),
+    ),
+  ).sort(),
+  ['cliente', 'desconhecida', 'equipe_comercial'],
+  'direção real da captura deve ser traduzida para o contrato operacional do Nexo',
 )
 assert.ok(filtrosMensagens.every((filter) => filter.includes('is_group = false')))
 const serializado = JSON.stringify(contextoAutorizado.body.whatsapp_contexto)
@@ -300,6 +351,7 @@ for (const technical of ['chat_id', 'sender_id', 'message_id', 'owner', 'instanc
   assert.equal(serializado.includes(technical), false, `não deve expor ${technical}`)
 
 let gatewayPayload = null
+const savedRecords = []
 context.Record = class Record {
   constructor(collection) {
     this.collection = collection
@@ -309,14 +361,17 @@ context.Record = class Record {
     this.fields[name] = value
   }
 }
-app.findCollectionByNameOrId = () => ({
+app.findCollectionByNameOrId = (name) => ({
+  name,
   fields: {
     getByName() {
       return { required: false }
     },
   },
 })
-app.save = () => {}
+app.save = (record) => {
+  savedRecords.push(record)
+}
 context.$security.hs256 = () => 'assinatura-de-teste'
 context.$secrets.get = (name) => {
   if (name === 'PMAIS_AGENT_GATEWAY_URL') return 'https://gateway.example.invalid'
@@ -356,6 +411,12 @@ context.$http.send = (options) => {
   return {
     statusCode: 200,
     json: {
+      ok: true,
+      contract_version: 'pmais_agent_gateway_nexo_ajuda_v1',
+      provider: 'pmais_agent_gateway',
+      nexo_provider: 'nexo_hermes',
+      fallback: false,
+      modelo: 'gpt-5.6-sol',
       resposta_curta: 'Leitura breve: contexto verificado no servidor.',
       diagnostico: 'ok',
       risco_principal: '',
@@ -412,6 +473,12 @@ assert.equal(
 )
 const mensagensGateway = gatewayPayload.contexto.whatsapp_contexto.mensagens_recentes
 assert.equal(
+  mensagensGateway.find((item) => item.texto === 'Mensagem importada sem direção confiável.')
+    ?.direcao,
+  'desconhecida',
+  'os dois contextos governados devem preservar direção desconhecida sem inferir cliente',
+)
+assert.equal(
   mensagensGateway.some((item) => item.texto.includes('ADULTERADO')),
   false,
 )
@@ -427,6 +494,29 @@ assert.equal(gatewayPayload.contexto.notas_followups[0].texto, 'NOTA VERIFICADA 
 assert.equal(
   ajudaComContextoAdulterado.body.analise_whatsapp.resumo_conversa,
   'Resumo factual devolvido pelo gateway',
+)
+const eventoAprendizadoWhatsapp = savedRecords.find(
+  (record) => record.collection?.name === 'com_nexo_aprendizado_eventos',
+)
+assert.ok(eventoAprendizadoWhatsapp, 'ajuda deve persistir evento de aprendizado governado')
+assert.equal(eventoAprendizadoWhatsapp.fields.fonte_origem, 'app_comercial+whatsapp_uazapi')
+assert.equal(eventoAprendizadoWhatsapp.fields.evidencia_status, 'disponivel')
+assert.equal(eventoAprendizadoWhatsapp.fields.whatsapp_evidencia, true)
+assert.equal(eventoAprendizadoWhatsapp.fields.whatsapp_conversas, 3)
+assert.equal(eventoAprendizadoWhatsapp.fields.whatsapp_mensagens, 4)
+assert.ok(
+  String(eventoAprendizadoWhatsapp.fields.whatsapp_evidencia_hash || '').length > 0,
+  'evento deve guardar hash da janela de mensagens, sem payload bruto',
+)
+assert.equal(
+  eventoAprendizadoWhatsapp.fields.whatsapp_resumo_factual,
+  'Resumo factual devolvido pelo gateway',
+)
+assert.equal(eventoAprendizadoWhatsapp.fields.conhecimento_oficial, false)
+assert.equal(
+  JSON.stringify(gatewayPayload).includes('whatsapp_evidencia_hash'),
+  false,
+  'proveniência técnica não deve ser enviada ao modelo',
 )
 
 incluirMensagens = false
