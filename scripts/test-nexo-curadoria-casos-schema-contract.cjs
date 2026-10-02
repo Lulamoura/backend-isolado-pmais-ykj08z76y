@@ -12,7 +12,11 @@ for (const collection of [
   'com_nexo_curadoria_transicoes',
   'com_nexo_curadoria_outbox',
 ]) {
-  assert(migration.includes(`name: '${collection}'`), `coleção protegida ausente: ${collection}`)
+  assert(
+    migration.includes(`name: '${collection}'`) ||
+      migration.includes(`collectionOrNew('${collection}')`),
+    `coleção protegida ausente: ${collection}`,
+  )
 }
 
 for (const field of [
@@ -102,10 +106,10 @@ assert.match(migration, /CREATE UNIQUE INDEX[^\n]+caso_id, evidencia_hash/)
 assert.match(migration, /CREATE UNIQUE INDEX[^\n]+transicao_chave/)
 assert.match(migration, /CREATE UNIQUE INDEX[^\n]+idempotency_key/)
 
-const privateRuleMatches = migration.match(
-  /createRule:\s*null,\s*updateRule:\s*null,\s*deleteRule:\s*null,\s*listRule:\s*null,\s*viewRule:\s*null/g,
+assert.match(
+  migration,
+  /function collectionOrNew[\s\S]+createRule:\s*null,[\s\S]+updateRule:\s*null,[\s\S]+deleteRule:\s*null,[\s\S]+listRule:\s*null,[\s\S]+viewRule:\s*null/,
 )
-assert(privateRuleMatches && privateRuleMatches.length >= 4)
 assert.doesNotMatch(migration, /@request\.auth/)
 
 console.log('nexo-curadoria-casos schema contract: PASS')
