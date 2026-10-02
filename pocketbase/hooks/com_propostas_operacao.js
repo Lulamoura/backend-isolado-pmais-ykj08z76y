@@ -5048,7 +5048,7 @@
         var page = app.findRecordsByFilter(
           collectionName,
           "id != ''",
-          '-updated,-id',
+          '-id',
           limit,
           offset,
         )
@@ -5329,7 +5329,7 @@
         var page = app.findRecordsByFilter(
           collectionName,
           "id != ''",
-          '-updated,-id',
+          '-id',
           limit,
           offset,
         )
@@ -5886,7 +5886,7 @@
         var page = app.findRecordsByFilter(
           collectionName,
           "id != ''",
-          '-updated,-id',
+          '-id',
           limit,
           offset,
         )
