@@ -26,10 +26,10 @@ const casoBase = {
   assunto_chave: 'preferencia_comunicacao',
   titulo: 'Preferência recorrente de comunicação',
   resumo_factual: 'O cliente prefere receber resumos objetivos antes das reuniões.',
-  motivo_curadoria: 'O padrão apareceu em dois casos independentes.',
+  motivo_curadoria: 'O padrão apareceu em três casos independentes.',
   regra_candidata: null,
   evidencia_contagem: 3,
-  recorrencia_contagem: 2,
+  recorrencia_contagem: 3,
   risco_classe: 'medio',
   alcada: 'gestao_comercial',
   sensivel_motivos: [],
@@ -77,6 +77,7 @@ const resposta = {
         id: 'technical-history-id',
         status: 'rejeitado',
         titulo: 'Sinal não confirmado',
+        reabertura_elegivel: false,
       },
     ],
   },
@@ -108,6 +109,12 @@ describe('Curadoria Comercial Unificada', () => {
     const user = userEvent.setup()
     render(<NexoCuradoriaComercialUnificada />)
 
+    expect(
+      await screen.findByText(/Assuntos comuns só entram após três casos independentes/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/matérias sensíveis seguem imediatamente para decisão/i),
+    ).toBeInTheDocument()
     expect(await screen.findByText('Preferência recorrente de comunicação')).toBeInTheDocument()
     expect(screen.getByText('Cliente Horizonte')).toBeInTheDocument()
     expect(screen.getByText(/OE-501/)).toBeInTheDocument()
@@ -123,6 +130,7 @@ describe('Curadoria Comercial Unificada', () => {
 
     await user.click(screen.getByRole('tab', { name: /Histórico/ }))
     expect(screen.getByText('Sinal não confirmado')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reabrir análise' })).not.toBeInTheDocument()
   })
 
   it('salva a entrevista guiada como rascunho com controle de revisão', async () => {

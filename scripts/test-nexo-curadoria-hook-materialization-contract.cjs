@@ -1,5 +1,6 @@
 const assert = require('assert')
 const fs = require('fs')
+const vm = require('vm')
 const { parseSync } = require('oxc-parser')
 
 const establishedHook = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
@@ -75,5 +76,359 @@ for (const route of routes) {
     )
   }
 }
+
+assert.equal(
+  occurrences(establishedHook, 'function nexoCuradoriaCasosPerfil(e)'),
+  4,
+  'as quatro rotas autenticadas devem materializar o helper de autorização localmente',
+)
+assert.equal(
+  occurrences(establishedHook, "$app.findRecordById('users', authActorId)"),
+  4,
+  'cada helper local deve validar o ator pelo registro canônico em users',
+)
+assert.equal(
+  occurrences(establishedHook, 'actor.collection'),
+  0,
+  'autorização não pode depender da introspecção de collection do auth record',
+)
+
+const listCallback = callbackBlock(establishedHook, '/backend/v1/nexo/curadoria/casos/listar')
+const transitionCallback = callbackBlock(
+  establishedHook,
+  '/backend/v1/nexo/curadoria/casos/{id}/transicionar',
+)
+const processorCallback = callbackBlock(
+  establishedHook,
+  '/backend/v1/nexo/curadoria/outbox/processar',
+)
+
+function localCanonicalHelper(callback) {
+  const start = callback.indexOf('function nexoCuradoriaJsonCanonico(value)')
+  const end = callback.indexOf('\n\n    function ', start + 1)
+  assert(start >= 0 && end > start, 'helper canônico local deve ter limites reconhecíveis')
+  return callback.slice(start, end)
+}
+
+function localArrayHelper(callback) {
+  const start = callback.indexOf('function nexoCuradoriaCasosArray(record, field)')
+  const end = callback.indexOf('\n\n    function ', start + 1)
+  assert(start >= 0 && end > start, 'helper de arrays local deve ter limites reconhecíveis')
+  return callback.slice(start, end)
+}
+
+const listArrayHelper = localArrayHelper(listCallback)
+const transitionArrayHelper = localArrayHelper(transitionCallback)
+assert.strictEqual(
+  listArrayHelper,
+  transitionArrayHelper,
+  'listagem e transição devem materializar helpers de arrays locais idênticos',
+)
+for (const [route, helper] of [
+  ['/backend/v1/nexo/curadoria/casos/listar', listArrayHelper],
+  ['/backend/v1/nexo/curadoria/casos/{id}/transicionar', transitionArrayHelper],
+]) {
+  assert.match(
+    helper,
+    /var originalRaw = \[\][\s\S]*var byteBuffer = originalRaw && typeof originalRaw === 'object' && originalRaw\.length > 0/,
+    `callback de ${route} deve exigir buffer não vazio antes de decodificar JSONRaw`,
+  )
+  assert.match(
+    helper,
+    /for \(var i = 0; i < originalRaw\.length; i\+\+\)[\s\S]*typeof originalRaw\[i\] !== 'number'[\s\S]*originalRaw\[i\] < 0[\s\S]*originalRaw\[i\] > 255[\s\S]*Math\.floor\(originalRaw\[i\]\) !== originalRaw\[i\]/,
+    `callback de ${route} deve aceitar como JSONRaw apenas bytes inteiros entre 0 e 255`,
+  )
+  assert.match(
+    helper,
+    /var decodedRaw[\s\S]*if \(byteBuffer\)[\s\S]*decodedRaw = JSON\.parse\(String\(originalRaw\)\)[\s\S]*if \(Array\.isArray\(decodedRaw\)\) return decodedRaw/,
+    `callback de ${route} deve adotar JSONRaw somente quando decodificar um array`,
+  )
+  assert.match(
+    helper,
+    /if \(Array\.isArray\(originalRaw\)\) return originalRaw[\s\S]*if \(typeof originalRaw === 'string'\)/,
+    `callback de ${route} deve preservar o array original quando a ponte não decodifica um array`,
+  )
+  assert.doesNotMatch(
+    helper,
+    /originalRaw\s*=\s*JSON\.parse/,
+    `callback de ${route} não pode sobrescrever o valor original durante tentativa de decode`,
+  )
+  assert.doesNotMatch(
+    helper,
+    /String\(raw\)\.charAt\(0\)/,
+    `callback de ${route} não pode inferir JSONRaw pelo primeiro caractere serializado`,
+  )
+}
+for (const [route, callback] of [
+  ['/backend/v1/nexo/curadoria/casos/{id}/transicionar', transitionCallback],
+  ['/backend/v1/nexo/curadoria/outbox/processar', processorCallback],
+]) {
+  assert.match(
+    callback,
+    /function nexoCuradoriaJsonCanonico\(value\)[\s\S]*Object\.keys\(value\)\.sort\(\)/,
+    `callback de ${route} deve materializar serialização JSON canônica recursiva local`,
+  )
+}
+assert.strictEqual(
+  localCanonicalHelper(transitionCallback),
+  localCanonicalHelper(processorCallback),
+  'transição e processador devem usar helpers canônicos locais idênticos',
+)
+assert.match(
+  processorCallback,
+  /var payloadByteBuffer = Array\.isArray\(payload\) && payload\.length > 0[\s\S]*for \(var pbi = 0; pbi < payload\.length; pbi\+\+\)[\s\S]*typeof payload\[pbi\] !== 'number'[\s\S]*payload\[pbi\] < 0[\s\S]*payload\[pbi\] > 255[\s\S]*Math\.floor\(payload\[pbi\]\) !== payload\[pbi\]/,
+  'processador deve qualificar JSONRaw como buffer não vazio de bytes inteiros',
+)
+assert.match(
+  processorCallback,
+  /if \(payloadByteBuffer\)[\s\S]*decodedPayload = JSON\.parse\(String\(payload\)\)[\s\S]*decodedPayload\s*&&\s*typeof decodedPayload === 'object'\s*&&\s*!Array\.isArray\(decodedPayload\)[\s\S]*payload = decodedPayload[\s\S]*Array\.isArray\(payload\)[\s\S]*PAYLOAD_INVALIDO/,
+  'processador deve adotar somente objeto JSONRaw decodificado e rejeitar arrays restantes',
+)
+assert.doesNotMatch(
+  processorCallback,
+  /String\(payload\)\.charAt\(0\)/,
+  'processador não pode confiar em prefixo serializado para identificar JSONRaw',
+)
+assert.match(
+  transitionCallback,
+  /payloadSerializado\s*=\s*nexoCuradoriaJsonCanonico\(payloadConhecimento\)/,
+  'transição deve persistir hash dos bytes canônicos do payload',
+)
+assert.match(
+  processorCallback,
+  /payloadBody\s*=\s*nexoCuradoriaJsonCanonico\(payload\)/,
+  'processador deve enviar e recalcular hash dos mesmos bytes canônicos',
+)
+
+function namedFunctionBlock(callback, name) {
+  const start = callback.indexOf(`function ${name}(`)
+  assert(start >= 0, `helper local ${name} deve existir`)
+  const bodyStart = callback.indexOf('{', start)
+  let depth = 0
+  let quote = ''
+  let escaped = false
+  for (let index = bodyStart; index < callback.length; index += 1) {
+    const character = callback[index]
+    if (quote) {
+      if (escaped) escaped = false
+      else if (character === '\\') escaped = true
+      else if (character === quote) quote = ''
+      continue
+    }
+    if (character === "'" || character === '"' || character === '`') {
+      quote = character
+      continue
+    }
+    if (character === '{') depth += 1
+    if (character === '}') {
+      depth -= 1
+      if (depth === 0) return callback.slice(start, index + 1)
+    }
+  }
+  assert.fail(`helper local ${name} deve ter bloco balanceado`)
+}
+
+const gatewayBaseNormalizer = namedFunctionBlock(processorCallback, 'nexoCuradoriaGatewayBase')
+const gatewayNormalizerContext = {}
+vm.createContext(gatewayNormalizerContext)
+vm.runInContext(
+  `${gatewayBaseNormalizer}; this.normalizeGatewayBase = nexoCuradoriaGatewayBase`,
+  gatewayNormalizerContext,
+)
+const normalizeGatewayBase = gatewayNormalizerContext.normalizeGatewayBase
+const gatewayEnvironmentRouter = namedFunctionBlock(processorCallback, 'nexoCuradoriaGatewayConfig')
+const configuredSecrets = {
+  PMAIS_CURADORIA_PREVIEW_GATEWAY_URL:
+    'https://agents.pmaisservicos.com.br/preview/nexo-hermes/v1/',
+  PMAIS_CURADORIA_API_KEY: 'preview-api-key',
+  PMAIS_CURADORIA_HMAC_SECRET: 'preview-hmac-secret',
+  PMAIS_CURADORIA_APPROVAL_SECRET: 'preview-approval-secret',
+  PMAIS_CURADORIA_PROD_GATEWAY_URL: 'https://agents.pmaisservicos.com.br/producao/nexo-hermes/v1',
+  PMAIS_CURADORIA_PROD_API_KEY: 'prod-api-key',
+  PMAIS_CURADORIA_PROD_HMAC_SECRET: 'prod-hmac-secret',
+  PMAIS_CURADORIA_PROD_APPROVAL_SECRET: 'prod-approval-secret',
+}
+const requestedEnvironmentSecrets = []
+const gatewayRouterContext = {
+  secretValue(name) {
+    requestedEnvironmentSecrets.push(name)
+    return configuredSecrets[name] || ''
+  },
+}
+vm.createContext(gatewayRouterContext)
+vm.runInContext(
+  `${gatewayBaseNormalizer}; ${gatewayEnvironmentRouter}; this.routeGatewayConfig = nexoCuradoriaGatewayConfig`,
+  gatewayRouterContext,
+)
+const routeGatewayConfig = gatewayRouterContext.routeGatewayConfig
+const previewGatewayBase = 'https://agents.pmaisservicos.com.br/preview/nexo-hermes'
+const productionGatewayBase = 'https://agents.pmaisservicos.com.br/producao/nexo-hermes'
+const previewAppOrigin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
+const productionCustomOrigin = 'https://comercial.pmaisservicos.com.br'
+const productionDirectOrigin = 'https://backend-isolado-pmais-43b9c.goskip.app'
+for (const [configuredBase, normalizedBase] of [
+  [previewGatewayBase, previewGatewayBase],
+  [`${previewGatewayBase}/`, previewGatewayBase],
+  [`${previewGatewayBase}/v1`, previewGatewayBase],
+  [`${previewGatewayBase}/v1/`, previewGatewayBase],
+  [productionGatewayBase, productionGatewayBase],
+  [`${productionGatewayBase}/v1/`, productionGatewayBase],
+  ['http://127.0.0.1:8090/', 'http://127.0.0.1:8090'],
+  ['http://localhost:8090/v1', 'http://localhost:8090'],
+]) {
+  assert.strictEqual(
+    normalizeGatewayBase(configuredBase),
+    normalizedBase,
+    `base segura deve ser normalizada sem perder prefixo: ${configuredBase}`,
+  )
+}
+for (const malformedBase of [
+  'gateway.example.test/preview/nexo-hermes',
+  'ftp://gateway.example.test/preview/nexo-hermes',
+  'http://gateway.example.test/preview/nexo-hermes',
+  'https:///preview/nexo-hermes',
+  'https://gateway.example.test/preview/nexo-hermes?tenant=pmais',
+  'https://gateway.example.test/preview/nexo-hermes#fragment',
+  'https://gateway.example.test/preview/../nexo-hermes',
+  'https://gateway.example.test/preview/%2e%2e/nexo-hermes',
+  'https://gateway.example.test:12.5/preview/nexo-hermes',
+  'https://[:::]/preview/nexo-hermes',
+]) {
+  assert.strictEqual(
+    normalizeGatewayBase(malformedBase),
+    '',
+    `base insegura deve falhar fechada: ${malformedBase}`,
+  )
+}
+assert.strictEqual(
+  `${normalizeGatewayBase(previewGatewayBase)}/v1/comercial/nexo/curadoria/conhecimento`,
+  'https://agents.pmaisservicos.com.br/preview/nexo-hermes/v1/comercial/nexo/curadoria/conhecimento',
+  'endpoint de Curadoria deve preservar exatamente o prefixo de deployment do Gateway',
+)
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(routeGatewayConfig(previewAppOrigin))),
+  {
+    gatewayBase: previewGatewayBase,
+    gatewayKey: 'preview-api-key',
+    gatewaySecret: 'preview-hmac-secret',
+    approvalSecret: 'preview-approval-secret',
+  },
+  'Origin exata de Preview deve selecionar somente URL e credenciais de Preview',
+)
+for (const origin of [productionCustomOrigin, productionDirectOrigin]) {
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(routeGatewayConfig(origin))),
+    {
+      gatewayBase: productionGatewayBase,
+      gatewayKey: 'prod-api-key',
+      gatewaySecret: 'prod-hmac-secret',
+      approvalSecret: 'prod-approval-secret',
+    },
+    `Origin exata de Produção deve selecionar somente URL e credenciais de Produção: ${origin}`,
+  )
+}
+for (const origin of [
+  undefined,
+  null,
+  '',
+  'not-an-origin',
+  'https://app-parceiro.example',
+  'https://backend-isolado-pmais-atacante--preview.goskip.app',
+  'https://comercial.pmaisservicos.com.br.atacante.example',
+  'https://backend-isolado-pmais-43b9c.goskip.app.evil.example',
+  `${previewAppOrigin}/lookalike`,
+]) {
+  const secretsBefore = requestedEnvironmentSecrets.length
+  assert.strictEqual(
+    routeGatewayConfig(origin),
+    null,
+    `Origin ausente, inválida, estrangeira ou parecida deve falhar fechada: ${origin || '(ausente)'}`,
+  )
+  assert.strictEqual(
+    requestedEnvironmentSecrets.length,
+    secretsBefore,
+    'Origin desconhecida não pode sequer selecionar segredos de ambiente',
+  )
+}
+for (const [origin, urlSecret] of [
+  [previewAppOrigin, 'PMAIS_CURADORIA_PREVIEW_GATEWAY_URL'],
+  [productionCustomOrigin, 'PMAIS_CURADORIA_PROD_GATEWAY_URL'],
+]) {
+  const originalUrl = configuredSecrets[urlSecret]
+  configuredSecrets[urlSecret] = 'https://gateway.example.test/deployment/../escape'
+  assert.strictEqual(
+    routeGatewayConfig(origin),
+    null,
+    `URL selecionada deve passar pelo normalizador estrito: ${urlSecret}`,
+  )
+  configuredSecrets[urlSecret] = originalUrl
+}
+assert.match(
+  processorCallback,
+  /e\.request\.header\.get\('Origin'\)/,
+  'processador deve ler Origin pelo header nativo do request PocketBase',
+)
+assert.doesNotMatch(
+  processorCallback,
+  /PMAIS_AGENT_GATEWAY_URL/,
+  'Curadoria não pode reutilizar o Agent Gateway compartilhado como fallback',
+)
+assert.doesNotMatch(
+  processorCallback,
+  /Gate temporário exclusivo de Preview/,
+  'gate temporário hardcoded de Preview deve ser removido',
+)
+
+const transitionPayloadBuilder = namedFunctionBlock(
+  transitionCallback,
+  'nexoCuradoriaPayloadConhecimento',
+)
+const processorPayloadBuilder = namedFunctionBlock(
+  processorCallback,
+  'nexoCuradoriaPayloadConhecimento',
+)
+function normalizeFunctionSource(source) {
+  return source.replace(/\s+/g, '').replace(/,\)/g, ')')
+}
+assert.strictEqual(
+  normalizeFunctionSource(transitionPayloadBuilder),
+  normalizeFunctionSource(processorPayloadBuilder),
+  'criação e processamento devem reconstruir o payload com helper local idêntico',
+)
+assert.match(
+  processorCallback,
+  /decisaoIdAutoritativa[\s\S]*findRecordById\([\s\S]*com_nexo_curadoria_transicoes[\s\S]*metadadosTransicao[\s\S]*revisaoAnteriorTransicao !== revisaoAutoritativa - 1[\s\S]*revisaoNovaTransicao !== revisaoAutoritativa[\s\S]*vinculoAcaoValido/,
+  'processador deve validar vínculo, ação e revisões da transição autoritativa',
+)
+assert.match(
+  processorCallback,
+  /payloadAutoritativoBody = nexoCuradoriaJsonCanonico\(payloadAutoritativo\)[\s\S]*payloadBody = nexoCuradoriaJsonCanonico\(payload\)[\s\S]*payloadBody !== payloadAutoritativoBody[\s\S]*PAYLOAD_INVALIDO/,
+  'processador deve exigir igualdade canônica exata com o payload reconstruído',
+)
+assert.match(
+  processorCallback,
+  /status[^\n]*!== 'processando'[\s\S]*claim_token[^\n]*!== claimToken[\s\S]*payloadHashLegado = String\(\$security\.sha256\(JSON\.stringify\(payloadAutoritativo\)\)\)[\s\S]*payloadHashPersistido !== payloadHashLegado[\s\S]*PAYLOAD_HASH_DIVERGENTE[\s\S]*set\('payload_hash', payloadHash\)[\s\S]*tx\.save\(atualPreHttp\)/,
+  'reparo legado deve ocorrer dentro do claim vigente e aceitar somente o hash pré-canônico esperado',
+)
+assert.match(
+  transitionCallback,
+  /runInTransaction\(function \(tx\)[\s\S]*findRecordsByFilter\([\s\S]*com_nexo_curadoria_outbox[\s\S]*caso_id[\s\S]*status = 'processando'[\s\S]*claim_token[\s\S]*claim_expires_at[\s\S]*PUBLICACAO_EM_ANDAMENTO[\s\S]*caso\.set\('status'/,
+  'transição deve cercar o caso contra claim processando vigente antes de qualquer mudança de estado',
+)
+assert.match(
+  processorCallback,
+  /status[^\n]*!== 'processando'[\s\S]*claim_token[^\n]*!== claimToken[\s\S]*idempotencyKeyAutoritativa = String\([\s\S]*\[\s*'curadoria-outbox-v1',\s*casoIdAutoritativo,\s*String\(revisaoAutoritativa\),\s*acaoAutoritativa,?\s*\]\.join\('\|'\)[\s\S]*idempotency_key'[\s\S]*!==[\s\S]*idempotencyKeyAutoritativa[\s\S]*IDEMPOTENCY_KEY_INVALIDA/,
+  'processador deve validar a chave de idempotência autoritativa dentro do claim antes do HTTP',
+)
+assert(
+  processorCallback.indexOf('payloadBody !== payloadAutoritativoBody') <
+    processorCallback.indexOf('var signature = $security.hs256'),
+  'validação autoritativa deve ocorrer antes de assinar o transporte',
+)
+assert(
+  processorCallback.indexOf("set('payload_hash', payloadHash)") <
+    processorCallback.indexOf('var response = $http.send'),
+  'reparo legado deve persistir o hash canônico antes do HTTP',
+)
 
 console.log('Curadoria hook materialization contract: PASS')

@@ -8,6 +8,7 @@ const MIGRATIONS = {
   hardening: 'pocketbase/migrations/202610012300_nexo_curadoria_review_hardening.js',
   failClosed: 'pocketbase/migrations/202610012330_nexo_curadoria_fail_closed.js',
   repair: 'pocketbase/migrations/202610012340_nexo_curadoria_schema_recovery.js',
+  zeroAttempt: 'pocketbase/migrations/202610012350_nexo_curadoria_outbox_zero_attempt.js',
 }
 
 class Fields {
@@ -679,6 +680,70 @@ for (const incompatible of [
       'i',
     ),
     `${incompatible.file} deve falhar fechado para metadados incompatíveis`,
+  )
+}
+
+const zeroAttempt = loadMigration(MIGRATIONS.zeroAttempt, [
+  seededCollection('com_nexo_curadoria_outbox', {
+    fields: [field('number', { name: 'tentativas', required: true, min: 0 })],
+    records: [{ id: 'outbox-existing', tentativas: 0, preserved: true }],
+  }),
+])
+assert.doesNotThrow(
+  () => zeroAttempt.up(zeroAttempt.app),
+  'zero-attempt up deve aceitar required=true',
+)
+assertField(zeroAttempt.collections.get('com_nexo_curadoria_outbox'), 'tentativas', {
+  type: 'number',
+  required: false,
+  min: 0,
+})
+assert.doesNotThrow(
+  () => zeroAttempt.up(zeroAttempt.app),
+  'zero-attempt up deve ser idempotente com required=false',
+)
+assertRollbackPreserves(zeroAttempt, ['com_nexo_curadoria_outbox'])
+
+for (const incompatibleZeroAttempt of [
+  {
+    label: 'coleção ausente',
+    collections: [],
+    pattern: /incompatible collection com_nexo_curadoria_outbox: missing/i,
+  },
+  {
+    label: 'tipo de coleção incompatível',
+    collections: [Object.assign(seededCollection('com_nexo_curadoria_outbox'), { type: 'view' })],
+    pattern: /incompatible collection com_nexo_curadoria_outbox: type/i,
+  },
+  {
+    label: 'campo ausente',
+    collections: [seededCollection('com_nexo_curadoria_outbox')],
+    pattern: /incompatible field com_nexo_curadoria_outbox\.tentativas: missing/i,
+  },
+  {
+    label: 'tipo de campo incompatível',
+    collections: [
+      seededCollection('com_nexo_curadoria_outbox', {
+        fields: [field('text', { name: 'tentativas', required: true, min: 0 })],
+      }),
+    ],
+    pattern: /incompatible field com_nexo_curadoria_outbox\.tentativas: type/i,
+  },
+  {
+    label: 'mínimo incompatível',
+    collections: [
+      seededCollection('com_nexo_curadoria_outbox', {
+        fields: [field('number', { name: 'tentativas', required: true, min: 1 })],
+      }),
+    ],
+    pattern: /incompatible field com_nexo_curadoria_outbox\.tentativas: min/i,
+  },
+]) {
+  const runtime = loadMigration(MIGRATIONS.zeroAttempt, incompatibleZeroAttempt.collections)
+  assert.throws(
+    () => runtime.up(runtime.app),
+    incompatibleZeroAttempt.pattern,
+    `zero-attempt deve falhar fechado para ${incompatibleZeroAttempt.label}`,
   )
 }
 

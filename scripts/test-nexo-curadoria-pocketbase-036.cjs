@@ -16,6 +16,7 @@ const sourceMigrations = [
   '202610012300_nexo_curadoria_review_hardening.js',
   '202610012330_nexo_curadoria_fail_closed.js',
   '202610012340_nexo_curadoria_schema_recovery.js',
+  '202610012350_nexo_curadoria_outbox_zero_attempt.js',
 ]
 
 function assertIsolatedAclMigrationSource() {
@@ -177,6 +178,10 @@ function verificationMigration(label, expectedCuradoriaCount) {
     var decisions = app.findCollectionByNameOrId('com_nexo_curadoria_decisoes')
     assert(decisions.createRule === null && decisions.updateRule === null && decisions.deleteRule === null, 'decisions mutation rules are not closed')
     assert(app.findCollectionByNameOrId('com_nexo_curadoria_casos').fields.getByName('fingerprint').type() === 'text', 'PocketBase field type() mismatch')
+    var tentativas = app.findCollectionByNameOrId('com_nexo_curadoria_outbox').fields.getByName('tentativas')
+    assert(tentativas.type() === 'number', 'outbox tentativas type changed')
+    assert(String(tentativas.min) === String(new NumberField({ name: 'tentativas', min: 0 }).min), 'outbox tentativas min changed')
+    assert(tentativas.required === false, 'outbox tentativas must accept the initial zero value')
     assert(app.countRecords('com_nexo_aprendizado_eventos') === 1, 'event record count changed')
     assert(app.countRecords('com_ledger_comercial') === 1, 'ledger record count changed')
     assert(app.countRecords('com_nexo_curadoria_decisoes') === 1, 'decision record count changed')
@@ -199,7 +204,8 @@ function runFreshChain() {
   writeMigration(migrations, '202610012310_seed_audit_record.js', seedAuditRecord)
   copyMigration(migrations, sourceMigrations[4])
   copyMigration(migrations, sourceMigrations[5])
-  writeMigration(migrations, '202610012350_verify.js', verificationMigration('fresh chain', 1))
+  copyMigration(migrations, sourceMigrations[6])
+  writeMigration(migrations, '202610012360_verify.js', verificationMigration('fresh chain', 1))
 
   runMigrate('fresh chain', data, migrations, ['up'])
   runMigrate('fresh recovery down', data, migrations, ['down', '2'])
@@ -245,7 +251,8 @@ function runLiveRecovery() {
   runMigrate('live setup', data, migrations, ['up'])
   copyMigration(migrations, sourceMigrations[1])
   copyMigration(migrations, sourceMigrations[5])
-  writeMigration(migrations, '202610012350_verify.js', verificationMigration('live recovery', 0))
+  copyMigration(migrations, sourceMigrations[6])
+  writeMigration(migrations, '202610012360_verify.js', verificationMigration('live recovery', 0))
 
   runMigrate('known live partial recovery', data, migrations, ['up'])
   runMigrate('live recovery down', data, migrations, ['down', '2'])

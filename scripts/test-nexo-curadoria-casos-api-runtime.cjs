@@ -26,6 +26,36 @@ class MockRecord {
   }
 }
 
+function jsonRawArray(value) {
+  const json = JSON.stringify(value)
+  const raw = Array.from(Buffer.from(json))
+  Object.defineProperty(raw, 'toString', { value: () => json, enumerable: false })
+  return raw
+}
+
+function canonicalJson(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) {
+    return `[${value
+      .map((item) => {
+        const serialized = canonicalJson(item)
+        return serialized === undefined ? 'null' : serialized
+      })
+      .join(',')}]`
+  }
+  return `{${Object.keys(value)
+    .sort()
+    .flatMap((key) => {
+      const serialized = canonicalJson(value[key])
+      return serialized === undefined ? [] : [`${JSON.stringify(key)}:${serialized}`]
+    })
+    .join(',')}}`
+}
+
+function authoritativeOutboxKey(caseId, caseRevision, action) {
+  return `hash:${['curadoria-outbox-v1', caseId, String(caseRevision), action].join('|')}`
+}
+
 const managerProfile = new MockRecord('com_perfis', 'profile-manager', {
   ativo: true,
   slug: 'gestor-comercial',
@@ -51,6 +81,12 @@ const manager = new MockRecord('users', 'manager-1', {
   perfil_id: managerProfile.id,
   equipe_id: 'team-1',
 })
+const managerWithoutCollectionName = new MockRecord('', 'manager-1', {
+  ativo_comercial: true,
+  perfil_id: superadminProfile.id,
+  equipe_id: 'team-9',
+})
+managerWithoutCollectionName.collection = () => ({ name: '' })
 const executive = new MockRecord('users', 'executive-1', {
   ativo_comercial: true,
   perfil_id: executiveProfile.id,
@@ -59,6 +95,11 @@ const superadmin = new MockRecord('users', 'superadmin-1', {
   ativo_comercial: true,
   perfil_id: superadminProfile.id,
 })
+const superadminWithoutCollectionName = new MockRecord('', 'superadmin-1', {
+  ativo_comercial: true,
+  perfil_id: 'profile-from-auth-must-not-be-trusted',
+})
+superadminWithoutCollectionName.collection = () => ({ name: '' })
 const approver = new MockRecord('users', 'approver-1', {
   ativo_comercial: true,
   perfil_id: approverProfile.id,
@@ -86,7 +127,7 @@ const cases = [
     revisao: 1,
     status: 'aberto_curadoria',
     fonte_principal: 'whatsapp_uazapi',
-    fontes: ['whatsapp_uazapi', 'nexo_app'],
+    fontes: jsonRawArray(['whatsapp_uazapi', 'nexo_app']),
     empresa_nome: 'Cliente A',
     contato_nome: 'Contato A',
     negocio_numero: 'OE-501',
@@ -104,7 +145,7 @@ const cases = [
     evidencia_hashes: ['internal-hash-1'],
     risco_classe: 'medio',
     alcada: 'gestao_comercial',
-    sensivel_motivos: [],
+    sensivel_motivos: jsonRawArray([]),
     confianca: 'media',
     human_review_required: true,
     automatic_promotion_allowed: false,
@@ -265,6 +306,15 @@ const transitions = []
 const outbox = []
 let nextId = 1
 const collections = {
+  users: [
+    manager,
+    executive,
+    superadmin,
+    approver,
+    inactiveUser,
+    inactiveProfileUser,
+    missingProfileUser,
+  ],
   com_perfis: profiles,
   com_nexo_curadoria_casos: cases,
   com_nexo_curadoria_transicoes: transitions,
@@ -278,7 +328,7 @@ const collections = {
       substituto_principal_id: 'manager-1',
       substituto_reserva_id: '',
       tipo_cobertura: 'por_negocios',
-      negocios_cobertos: ['business-777'],
+      negocios_cobertos: jsonRawArray(['business-777']),
       data_inicio: '2026-01-01',
       data_fim: '2027-01-01',
       cancelada_em: '',
@@ -325,8 +375,18 @@ function RecordCtor(collection) {
 
 const routes = {}
 const gatewayCalls = []
+const previewGatewayBase = 'https://agents.pmaisservicos.com.br/preview/nexo-hermes'
+const productionGatewayBase = 'https://agents.pmaisservicos.com.br/producao/nexo-hermes'
+const expectedPreviewGatewayUrl = `${previewGatewayBase}/v1/comercial/nexo/curadoria/conhecimento`
+const expectedProductionGatewayUrl = `${productionGatewayBase}/v1/comercial/nexo/curadoria/conhecimento`
+const previewAppOrigin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
+const productionCustomOrigin = 'https://comercial.pmaisservicos.com.br'
+const productionDirectOrigin = 'https://backend-isolado-pmais-43b9c.goskip.app'
+let configuredPreviewGatewayBase = previewGatewayBase
+let configuredProductionGatewayBase = productionGatewayBase
 let gatewayMode = 'success'
 let concurrentOutboxResult = null
+let concurrentTransitionResult = null
 const requestedSecrets = []
 const context = {
   console,
@@ -345,13 +405,12 @@ const context = {
         concurrentOutboxResult = invokeOutbox(superadmin)
       }
       if (gatewayMode === 'supersede_during_http') {
-        const current = outbox.find(
-          (row) =>
-            row.getString('status') === 'processando' &&
-            row.get('payload_json')?.knowledge_ref === payload.knowledge_ref,
-        )
-        current.set('status', 'supersedido')
-        current.set('superseded_by', 'nova-revisao-durante-http')
+        gatewayMode = 'success'
+        concurrentTransitionResult = invokeTransition(superadmin, 'case-management', {
+          acao: 'retirar',
+          expected_revision: 3,
+          decisao_observacao: 'Retirada concorrente durante publicação.',
+        })
       }
       if (gatewayMode === 'revision_during_http') {
         const currentCase = cases.find((row) => row.id === 'case-management')
@@ -407,10 +466,14 @@ const context = {
   $secrets: {
     get: (name) => {
       requestedSecrets.push(name)
-      if (name === 'PMAIS_AGENT_GATEWAY_URL') return 'https://gateway.example.test'
-      if (name === 'PMAIS_CURADORIA_API_KEY') return 'protected-api-key'
-      if (name === 'PMAIS_CURADORIA_HMAC_SECRET') return 'protected-hmac-secret'
-      if (name === 'PMAIS_CURADORIA_APPROVAL_SECRET') return 'protected-approval-secret'
+      if (name === 'PMAIS_CURADORIA_PREVIEW_GATEWAY_URL') return configuredPreviewGatewayBase
+      if (name === 'PMAIS_CURADORIA_API_KEY') return 'protected-preview-api-key'
+      if (name === 'PMAIS_CURADORIA_HMAC_SECRET') return 'protected-preview-hmac-secret'
+      if (name === 'PMAIS_CURADORIA_APPROVAL_SECRET') return 'protected-preview-approval-secret'
+      if (name === 'PMAIS_CURADORIA_PROD_GATEWAY_URL') return configuredProductionGatewayBase
+      if (name === 'PMAIS_CURADORIA_PROD_API_KEY') return 'protected-prod-api-key'
+      if (name === 'PMAIS_CURADORIA_PROD_HMAC_SECRET') return 'protected-prod-hmac-secret'
+      if (name === 'PMAIS_CURADORIA_PROD_APPROVAL_SECRET') return 'protected-prod-approval-secret'
       return ''
     },
   },
@@ -471,10 +534,16 @@ function invokeTransition(auth, id, body) {
   return response
 }
 
-function invokeOutbox(auth) {
+function invokeOutbox(auth, origin) {
   let response = null
+  const effectiveOrigin = arguments.length >= 2 ? origin : previewAppOrigin
   const e = {
     auth,
+    request: {
+      header: {
+        get: (name) => (name === 'Origin' ? effectiveOrigin || '' : ''),
+      },
+    },
     requestInfo: () => ({ body: { limite: 10 } }),
     json(status, payload) {
       response = { status, payload }
@@ -508,6 +577,51 @@ function invokeRetry(auth, id, body) {
   return response
 }
 
+for (const malformedGatewayBase of [
+  'gateway.example.test/preview/nexo-hermes',
+  'ftp://gateway.example.test/preview/nexo-hermes',
+  'http://gateway.example.test/preview/nexo-hermes',
+  'https:///preview/nexo-hermes',
+  'https://gateway.example.test/preview/nexo-hermes?tenant=pmais',
+  'https://gateway.example.test/preview/nexo-hermes#fragment',
+  'https://gateway.example.test/preview/../nexo-hermes',
+]) {
+  for (const environment of ['preview', 'production']) {
+    if (environment === 'preview') configuredPreviewGatewayBase = malformedGatewayBase
+    else configuredProductionGatewayBase = malformedGatewayBase
+    const callsBeforeMalformedBase = gatewayCalls.length
+    const malformedBaseResult = invokeOutbox(
+      superadmin,
+      environment === 'preview' ? previewAppOrigin : productionCustomOrigin,
+    )
+    assert.equal(malformedBaseResult.status, 503)
+    assert.equal(malformedBaseResult.payload.error, 'GATEWAY_NAO_CONFIGURADO')
+    assert.equal(
+      gatewayCalls.length,
+      callsBeforeMalformedBase,
+      `base ${environment} malformada não pode chamar Gateway: ${malformedGatewayBase}`,
+    )
+    configuredPreviewGatewayBase = previewGatewayBase
+    configuredProductionGatewayBase = productionGatewayBase
+  }
+}
+
+const liveJsvmSuperadminList = invokeList(superadminWithoutCollectionName)
+assert.equal(
+  liveJsvmSuperadminList.status,
+  200,
+  'auth sem collection name deve ser validado pelo registro canônico ativo em users',
+)
+const canonicalManagerList = invokeList(managerWithoutCollectionName)
+assert.equal(canonicalManagerList.status, 200)
+assert.equal(
+  canonicalManagerList.payload.visoes.para_tratar.some(
+    (item) => item.titulo === 'Caso fora do escopo',
+  ),
+  false,
+  'escopo deve usar o users canônico, nunca perfil ou equipe vindos do auth record',
+)
+
 const managerList = invokeList(manager)
 assert.equal(managerList.status, 200)
 assert.equal(managerList.payload.visoes.para_tratar.length, 2)
@@ -522,6 +636,73 @@ assert.equal(
 assert.equal(managerList.payload.visoes.aguardando_decisao.length, 0)
 assert.equal('fingerprint' in managerList.payload.visoes.para_tratar[0], false)
 assert.equal('evidencia_hashes' in managerList.payload.visoes.para_tratar[0], false)
+assert.deepEqual(
+  managerList.payload.visoes.para_tratar.find((item) => item.id === 'case-management').fontes,
+  ['whatsapp_uazapi', 'nexo_app'],
+  'listagem deve decodificar JSONRaw como fontes de negócio, não bytes',
+)
+
+const caseManagement = cases.find((item) => item.id === 'case-management')
+const nativeSources = ['[Confidencial] resposta', 'segunda']
+caseManagement.set('fontes', nativeSources)
+const nativeArrayList = invokeList(manager)
+const nativeArrayCase = nativeArrayList.payload.visoes.para_tratar.find(
+  (item) => item.id === 'case-management',
+)
+assert.strictEqual(
+  nativeArrayCase.fontes,
+  nativeSources,
+  'listagem deve devolver a mesma instância do array nativo',
+)
+assert.deepEqual(
+  nativeArrayCase.fontes,
+  ['[Confidencial] resposta', 'segunda'],
+  'listagem deve preservar array nativo cujo primeiro texto começa com colchete',
+)
+
+const emptyNativeSources = []
+caseManagement.set('fontes', emptyNativeSources)
+caseManagement.set('sensivel_motivos', null)
+caseManagement.set('entrevista_respostas', '[malformed')
+const fallbackArrayList = invokeList(manager)
+const fallbackArrayCase = fallbackArrayList.payload.visoes.para_tratar.find(
+  (item) => item.id === 'case-management',
+)
+assert.strictEqual(
+  fallbackArrayCase.fontes,
+  emptyNativeSources,
+  'array nativo vazio deve preservar a mesma instância',
+)
+assert.deepEqual(fallbackArrayCase.fontes, [], 'array nativo vazio deve permanecer vazio')
+assert.deepEqual(fallbackArrayCase.sensivel_motivos, [], 'valor nulo deve resultar em array vazio')
+assert.deepEqual(
+  fallbackArrayCase.entrevista_respostas,
+  [],
+  'string JSON malformada deve resultar em array vazio',
+)
+
+caseManagement.set('fontes', '["string-json"]')
+caseManagement.set('sensivel_motivos', '{"nao":"array"}')
+caseManagement.set('entrevista_respostas', 'null')
+const stringJsonList = invokeList(manager)
+const stringJsonCase = stringJsonList.payload.visoes.para_tratar.find(
+  (item) => item.id === 'case-management',
+)
+assert.deepEqual(stringJsonCase.fontes, ['string-json'], 'string JSON de array deve ser aceita')
+assert.deepEqual(
+  stringJsonCase.sensivel_motivos,
+  [],
+  'string JSON de objeto deve resultar em array vazio',
+)
+assert.deepEqual(
+  stringJsonCase.entrevista_respostas,
+  [],
+  'string JSON nula deve resultar em array vazio',
+)
+
+caseManagement.set('fontes', jsonRawArray(['whatsapp_uazapi', 'nexo_app']))
+caseManagement.set('sensivel_motivos', jsonRawArray([]))
+caseManagement.set('entrevista_respostas', null)
 
 const executiveList = invokeList(executive)
 assert.equal(executiveList.status, 200)
@@ -617,6 +798,8 @@ const stale = invokeTransition(manager, 'case-management', {
 })
 assert.equal(stale.status, 409)
 
+const transitionNativeSources = ['["x"]']
+caseManagement.set('fontes', transitionNativeSources)
 const approved = invokeTransition(manager, 'case-management', {
   acao: 'aprovar',
   expected_revision: 2,
@@ -640,6 +823,97 @@ assert.equal(outbox[0].get('payload_json').approval.authority, 'curadoria_conhec
 assert.equal(outbox[0].get('payload_json').approval.app_id, 'pmais_comercial')
 assert.equal('human_reviewed' in outbox[0].get('payload_json'), false)
 assert.equal('evidence_count' in outbox[0].get('payload_json'), false)
+assert.strictEqual(
+  outbox[0].get('payload_json').sources,
+  transitionNativeSources,
+  'transição deve devolver a mesma instância do array nativo',
+)
+assert.deepEqual(
+  outbox[0].get('payload_json').sources,
+  ['["x"]'],
+  'transição não pode reinterpretar conteúdo de array nativo como JSON serializado',
+)
+assert.equal(
+  outbox[0].getString('payload_hash'),
+  `hash:${canonicalJson(outbox[0].get('payload_json'))}`,
+  'hash persistido deve cobrir o payload canônico recursivo',
+)
+
+const routingOutboxSnapshot = { ...outbox[0].values }
+const routingCaseSnapshot = { ...caseManagement.values }
+const routingCallsStart = gatewayCalls.length
+function assertCuradoriaGatewayRoute(origin, expectedUrl, credentials, label) {
+  outbox[0].values = { ...routingOutboxSnapshot }
+  caseManagement.values = { ...routingCaseSnapshot }
+  gatewayMode = 'success'
+  const result = invokeOutbox(superadmin, origin)
+  assert.equal(result.payload.processados, 1, `${label}: outbox deve processar`)
+  const call = gatewayCalls[gatewayCalls.length - 1]
+  assert.equal(call.url, expectedUrl, label)
+  assert.equal(call.headers['x-pmais-api-key'], credentials.apiKey, `${label}: API key incorreta`)
+  assert.equal(
+    call.headers['x-pmais-signature'],
+    `signature:${credentials.hmacSecret}:${call.headers['x-pmais-timestamp']}.${call.body}`,
+    `${label}: HMAC de transporte deve usar o segredo do ambiente`,
+  )
+  const payload = JSON.parse(call.body)
+  assert.equal(
+    call.headers['x-pmais-approval-signature'],
+    `signature:${credentials.approvalSecret}:${canonicalJson(payload.approval)}.${call.headers['x-pmais-payload-hash']}`,
+    `${label}: assinatura de aprovação deve usar o segredo do ambiente`,
+  )
+}
+
+assertCuradoriaGatewayRoute(
+  previewAppOrigin,
+  expectedPreviewGatewayUrl,
+  {
+    apiKey: 'protected-preview-api-key',
+    hmacSecret: 'protected-preview-hmac-secret',
+    approvalSecret: 'protected-preview-approval-secret',
+  },
+  'Origin exata do app Preview deve usar URL e credenciais de Preview',
+)
+for (const [origin, label] of [
+  [productionCustomOrigin, 'Origin custom de Produção'],
+  [productionDirectOrigin, 'Origin direta de Produção'],
+]) {
+  assertCuradoriaGatewayRoute(
+    origin,
+    expectedProductionGatewayUrl,
+    {
+      apiKey: 'protected-prod-api-key',
+      hmacSecret: 'protected-prod-hmac-secret',
+      approvalSecret: 'protected-prod-approval-secret',
+    },
+    `${label} deve usar URL e credenciais de Produção`,
+  )
+}
+for (const [origin, label] of [
+  [undefined, 'Origin ausente'],
+  [null, 'Origin nula'],
+  ['not-an-origin', 'Origin malformada'],
+  ['https://app-parceiro.example', 'Origin estrangeira'],
+  [
+    'https://backend-isolado-pmais-atacante--preview.goskip.app',
+    'domínio arbitrário com --preview',
+  ],
+  ['https://comercial.pmaisservicos.com.br.evil.example', 'lookalike da Origin custom'],
+  ['https://backend-isolado-pmais-43b9c.goskip.app.evil.example', 'lookalike da Origin direta'],
+  [`${previewAppOrigin}/lookalike`, 'lookalike com prefixo exato de Preview'],
+]) {
+  outbox[0].values = { ...routingOutboxSnapshot }
+  caseManagement.values = { ...routingCaseSnapshot }
+  const callsBefore = gatewayCalls.length
+  const result = invokeOutbox(superadmin, origin)
+  assert.equal(result.status, 503, label)
+  assert.equal(result.payload.error, 'GATEWAY_NAO_CONFIGURADO', label)
+  assert.equal(gatewayCalls.length, callsBefore, `${label} não pode chamar o Gateway`)
+}
+outbox[0].values = routingOutboxSnapshot
+caseManagement.values = routingCaseSnapshot
+gatewayCalls.splice(routingCallsStart)
+gatewayMode = 'success'
 
 const approvedReplay = invokeTransition(manager, 'case-management', {
   acao: 'aprovar',
@@ -667,6 +941,24 @@ assert(
   'transição deve persistir o hash canônico do comando',
 )
 
+gatewayMode = 'supersede_during_http'
+const callsBeforeTransitionFence = gatewayCalls.length
+const publishedWithTransitionFence = invokeOutbox(superadmin)
+assert.equal(concurrentTransitionResult.status, 409)
+assert.equal(concurrentTransitionResult.payload.error, 'PUBLICACAO_EM_ANDAMENTO')
+assert.equal(publishedWithTransitionFence.payload.processados, 1)
+assert.equal(publishedWithTransitionFence.payload.invalidados, 0)
+assert.equal(outbox[0].getString('status'), 'processado')
+assert.equal(outbox[0].getString('superseded_by'), '')
+assert.equal(cases[0].getInt('revisao'), 3)
+assert.equal(cases[0].getString('status'), 'aprovado')
+assert.equal(cases[0].getString('conhecimento_status'), 'ativo')
+assert.equal(gatewayCalls.length, callsBeforeTransitionFence + 1)
+assert.equal(gatewayCalls[0].url, expectedPreviewGatewayUrl)
+
+outbox[0].set('status', 'processando')
+outbox[0].set('claim_token', 'claim-expirado')
+outbox[0].set('claim_expires_at', '2020-01-01T00:00:00.000Z')
 const withdrawn = invokeTransition(manager, 'case-management', {
   acao: 'retirar',
   expected_revision: 3,
@@ -698,33 +990,33 @@ assert.equal(rejected.payload.caso.revisao, 2)
 assert(transitions.length >= 3)
 
 assert.equal(invokeOutbox(manager).status, 403)
+configuredPreviewGatewayBase = `${previewGatewayBase}/`
 gatewayMode = 'concurrent'
 const processed = invokeOutbox(superadmin)
 assert.equal(processed.status, 200)
 assert.equal(processed.payload.processados, 1)
 assert.equal(processed.payload.falhas, 0)
 assert.equal(concurrentOutboxResult.payload.processados, 0)
-assert.equal(gatewayCalls.length, 1)
-assert(gatewayCalls.every((call) => call.url.endsWith('/v1/comercial/nexo/curadoria/conhecimento')))
-assert.equal(gatewayCalls[0].headers['x-pmais-api-key'], 'protected-api-key')
+assert.equal(gatewayCalls.length, 2)
+assert.equal(gatewayCalls[1].url, expectedPreviewGatewayUrl)
+configuredPreviewGatewayBase = previewGatewayBase
+assert.equal(gatewayCalls[0].headers['x-pmais-api-key'], 'protected-preview-api-key')
 assert.equal('x-api-key' in gatewayCalls[0].headers, false)
 assert(gatewayCalls[0].headers['x-pmais-approval-signature'])
 const gatewayPayload = JSON.parse(gatewayCalls[0].body)
-const approvalCanonical = JSON.stringify({
-  action: gatewayPayload.approval.action,
-  actor_id: gatewayPayload.approval.actor_id,
-  actor_profile: gatewayPayload.approval.actor_profile,
-  app_id: gatewayPayload.approval.app_id,
-  approval_id: gatewayPayload.approval.approval_id,
-  authority: gatewayPayload.approval.authority,
-  case_ref: gatewayPayload.approval.case_ref,
-  case_revision: gatewayPayload.approval.case_revision,
-})
+assert.equal(gatewayCalls[0].body, canonicalJson(gatewayPayload))
+assert.equal(
+  gatewayCalls[0].headers['x-pmais-payload-hash'],
+  `hash:${gatewayCalls[0].body}`,
+  'hash transportado deve cobrir os bytes canônicos exatos enviados',
+)
+const approvalCanonical = canonicalJson(gatewayPayload.approval)
 assert.equal(
   gatewayCalls[0].headers['x-pmais-approval-signature'],
-  `signature:protected-approval-secret:${approvalCanonical}.${gatewayCalls[0].headers['x-pmais-payload-hash']}`,
+  `signature:protected-preview-approval-secret:${approvalCanonical}.${gatewayCalls[0].headers['x-pmais-payload-hash']}`,
   'assinatura da aprovação deve usar o JSON canônico ordenado exigido pelo Gateway',
 )
+assert.equal(requestedSecrets.includes('PMAIS_AGENT_GATEWAY_URL'), false)
 assert.equal(requestedSecrets.includes('PMAIS_AGENT_GATEWAY_API_KEY'), false)
 assert.equal(requestedSecrets.includes('PMAIS_AGENT_GATEWAY_HMAC_SECRET'), false)
 assert.equal(outbox[0].getString('status'), 'supersedido')
@@ -732,15 +1024,173 @@ assert.equal(outbox[1].getString('status'), 'processado')
 assert.equal(cases[0].getString('conhecimento_status'), 'retirado')
 assert.equal(cases[0].getString('conhecimento_versao'), 'version-4')
 
-outbox[1].set('status', 'pendente')
-outbox[1].set('next_attempt_at', null)
-gatewayMode = 'supersede_during_http'
-const supersededDuringHttp = invokeOutbox(superadmin)
-assert.equal(supersededDuringHttp.payload.processados, 0)
-assert.equal(outbox[1].getString('status'), 'supersedido')
-assert.equal(cases[0].getString('conhecimento_status'), 'retirado')
+const mismatchedIdempotencyOutbox = new MockRecord(
+  'com_nexo_curadoria_outbox',
+  'outbox-idempotency-mismatch',
+  {
+    ...outbox[1].values,
+    idempotency_key: 'chave-adulterada',
+    status: 'pendente',
+    claim_token: '',
+    claim_expires_at: null,
+    superseded_by: '',
+    tentativas: 0,
+    tentativas_ciclo: 0,
+    requested_at: '2026-10-01T17:00:00.000Z',
+  },
+)
+outbox.push(mismatchedIdempotencyOutbox)
+const callsBeforeMismatchedIdempotency = gatewayCalls.length
+const mismatchedIdempotencyResult = invokeOutbox(superadmin)
+assert.equal(mismatchedIdempotencyResult.payload.processados, 0)
+assert.equal(mismatchedIdempotencyResult.payload.falhas, 1)
+assert.equal(mismatchedIdempotencyOutbox.getString('status'), 'erro')
+assert.equal(mismatchedIdempotencyOutbox.getString('last_error'), 'IDEMPOTENCY_KEY_INVALIDA')
+assert.equal(gatewayCalls.length, callsBeforeMismatchedIdempotency)
+mismatchedIdempotencyOutbox.set('status', 'falha_permanente')
+
+function assertCorruptPayloadRejected(label, mutate) {
+  const payload = JSON.parse(JSON.stringify(outbox[1].get('payload_json')))
+  mutate(payload)
+  const payloadBody = canonicalJson(payload)
+  const invalidOutbox = new MockRecord('com_nexo_curadoria_outbox', `strict-invalid-${label}`, {
+    caso_id: outbox[1].getString('caso_id'),
+    decisao_id: outbox[1].getString('decisao_id'),
+    caso_revisao: outbox[1].getInt('caso_revisao'),
+    acao: outbox[1].getString('acao'),
+    idempotency_key: authoritativeOutboxKey(
+      outbox[1].getString('caso_id'),
+      outbox[1].getInt('caso_revisao'),
+      outbox[1].getString('acao'),
+    ),
+    status: 'pendente',
+    claim_token: '',
+    superseded_by: '',
+    tentativas: 0,
+    tentativas_ciclo: 0,
+    payload_json: payload,
+    payload_hash: `hash:${payloadBody}`,
+    requested_at: '2026-10-01T17:30:00.000Z',
+  })
+  outbox.push(invalidOutbox)
+  const callsBefore = gatewayCalls.length
+  const result = invokeOutbox(superadmin)
+  assert.equal(result.payload.processados, 0, `${label} não pode ser processado`)
+  assert.equal(result.payload.falhas, 1, `${label} deve falhar fechado`)
+  assert.equal(invalidOutbox.getString('status'), 'erro')
+  assert.equal(invalidOutbox.getString('last_error'), 'PAYLOAD_INVALIDO')
+  assert.equal(gatewayCalls.length, callsBefore, `${label} não pode chamar o Gateway`)
+  invalidOutbox.set('status', 'falha_permanente')
+}
+
+const corruptPayloadCases = [
+  ['action-outbox', (payload) => (payload.action = 'publicar')],
+  ['case-revision', (payload) => (payload.case_revision += 1)],
+  ['approval-action', (payload) => (payload.approval.action = 'publicar')],
+  ['approval-ref', (payload) => (payload.approval.case_ref = 'outro-conhecimento')],
+  ['approval-revision', (payload) => (payload.approval.case_revision += 1)],
+  ['actor-profile', (payload) => (payload.approval.actor_profile = 'administrador')],
+  ['authority', (payload) => (payload.approval.authority = 'autoridade_inventada')],
+  ['app-id', (payload) => (payload.approval.app_id = 'outro_app')],
+  ['approval-id', (payload) => (payload.approval.approval_id = 'outra-transicao')],
+  ['actor-id', (payload) => (payload.approval.actor_id = 'ator-nao-hash')],
+  ['schema-version', (payload) => (payload.schema_version = 'schema_desconhecido')],
+  ['extra-field', (payload) => (payload.campo_inesperado = true)],
+  ['missing-field', (payload) => delete payload.risk],
+  ['sources-type', (payload) => (payload.sources = 'whatsapp_uazapi')],
+  ['negative-count', (payload) => (payload.independent_cases = -1)],
+  ['fractional-count', (payload) => (payload.independent_businesses = 1.5)],
+  ['confidence-range', (payload) => (payload.confidence = 1.1)],
+  ['title-type', (payload) => (payload.title = { text: 'não permitido' })],
+]
+for (const [label, mutate] of corruptPayloadCases) assertCorruptPayloadRejected(label, mutate)
+
+const arbitraryHashPayload = JSON.parse(JSON.stringify(outbox[1].get('payload_json')))
+const arbitraryHashOutbox = new MockRecord(
+  'com_nexo_curadoria_outbox',
+  'legacy-mismatch-arbitrary-hash',
+  {
+    caso_id: outbox[1].getString('caso_id'),
+    decisao_id: outbox[1].getString('decisao_id'),
+    caso_revisao: outbox[1].getInt('caso_revisao'),
+    acao: outbox[1].getString('acao'),
+    idempotency_key: authoritativeOutboxKey(
+      outbox[1].getString('caso_id'),
+      outbox[1].getInt('caso_revisao'),
+      outbox[1].getString('acao'),
+    ),
+    status: 'erro',
+    claim_token: '',
+    superseded_by: '',
+    tentativas: 0,
+    tentativas_ciclo: 0,
+    payload_json: arbitraryHashPayload,
+    payload_hash: 'hash-arbitrario-nao-legado',
+    requested_at: '2026-10-01T17:45:00.000Z',
+  },
+)
+outbox.push(arbitraryHashOutbox)
+const callsBeforeArbitraryHash = gatewayCalls.length
+const arbitraryHashResult = invokeOutbox(superadmin)
+assert.equal(arbitraryHashResult.payload.processados, 0)
+assert.equal(arbitraryHashResult.payload.falhas, 1)
+assert.equal(arbitraryHashOutbox.getString('status'), 'erro')
+assert.equal(arbitraryHashOutbox.getString('last_error'), 'PAYLOAD_HASH_DIVERGENTE')
+assert.equal(arbitraryHashOutbox.getString('payload_hash'), 'hash-arbitrario-nao-legado')
+assert.equal(gatewayCalls.length, callsBeforeArbitraryHash)
+arbitraryHashOutbox.set('status', 'falha_permanente')
+
+const validLinkedTransition = transitions.find(
+  (transition) => transition.id === outbox[1].getString('decisao_id'),
+)
+const mismatchedTransition = new MockRecord(
+  'com_nexo_curadoria_transicoes',
+  'transition-mismatched-case',
+  {
+    ...validLinkedTransition.values,
+    caso_id: 'case-sensitive',
+  },
+)
+transitions.push(mismatchedTransition)
+const mismatchedLinkPayload = JSON.parse(JSON.stringify(outbox[1].get('payload_json')))
+const mismatchedLinkLegacyHash = `hash:${JSON.stringify(mismatchedLinkPayload)}`
+const mismatchedLinkOutbox = new MockRecord(
+  'com_nexo_curadoria_outbox',
+  'legacy-mismatched-transition-link',
+  {
+    caso_id: outbox[1].getString('caso_id'),
+    decisao_id: mismatchedTransition.id,
+    caso_revisao: outbox[1].getInt('caso_revisao'),
+    acao: outbox[1].getString('acao'),
+    idempotency_key: authoritativeOutboxKey(
+      outbox[1].getString('caso_id'),
+      outbox[1].getInt('caso_revisao'),
+      outbox[1].getString('acao'),
+    ),
+    status: 'pendente',
+    claim_token: '',
+    superseded_by: '',
+    tentativas: 0,
+    tentativas_ciclo: 0,
+    payload_json: mismatchedLinkPayload,
+    payload_hash: mismatchedLinkLegacyHash,
+    requested_at: '2026-10-01T17:50:00.000Z',
+  },
+)
+outbox.push(mismatchedLinkOutbox)
+const callsBeforeMismatchedLink = gatewayCalls.length
+const mismatchedLinkResult = invokeOutbox(superadmin)
+assert.equal(mismatchedLinkResult.payload.processados, 0)
+assert.equal(mismatchedLinkResult.payload.falhas, 1)
+assert.equal(mismatchedLinkOutbox.getString('status'), 'erro')
+assert.equal(mismatchedLinkOutbox.getString('last_error'), 'PAYLOAD_INVALIDO')
+assert.equal(mismatchedLinkOutbox.getString('payload_hash'), mismatchedLinkLegacyHash)
+assert.equal(gatewayCalls.length, callsBeforeMismatchedLink)
+mismatchedLinkOutbox.set('status', 'falha_permanente')
 
 outbox[1].set('status', 'pendente')
+outbox[1].set('claim_token', '')
+outbox[1].set('claim_expires_at', null)
 outbox[1].set('superseded_by', '')
 outbox[1].set('tentativas', 0)
 outbox[1].set('tentativas_ciclo', 0)
@@ -770,9 +1220,14 @@ assert.equal(
   'Gateway restabelecido e incidente registrado.',
 )
 gatewayMode = 'success'
+configuredPreviewGatewayBase = `${previewGatewayBase}/v1`
+const callsBeforeV1BaseRecovery = gatewayCalls.length
 const recovered = invokeOutbox(superadmin)
 assert.equal(recovered.payload.processados, 1)
 assert.equal(recovered.payload.pendentes_restantes, 0)
+assert.equal(gatewayCalls.length, callsBeforeV1BaseRecovery + 1)
+assert.equal(gatewayCalls[gatewayCalls.length - 1].url, expectedPreviewGatewayUrl)
+configuredPreviewGatewayBase = previewGatewayBase
 
 outbox[1].set('status', 'pendente')
 outbox[1].set('next_attempt_at', null)
@@ -810,7 +1265,7 @@ const stalePayload = {
     app_id: 'pmais_comercial',
   },
 }
-const stalePayloadBody = JSON.stringify(stalePayload)
+const stalePayloadBody = canonicalJson(stalePayload)
 const staleOutbox = new MockRecord('com_nexo_curadoria_outbox', 'outbox-stale', {
   caso_id: 'case-management',
   caso_revisao: 3,
@@ -831,17 +1286,13 @@ assert.equal(staleOutbox.getString('status'), 'invalidado')
 assert.equal(gatewayCalls.length, callsBeforeStale)
 
 const leasePayload = JSON.parse(JSON.stringify(outbox[1].get('payload_json')))
-leasePayload.knowledge_ref = 'lease-recovery'
-leasePayload.case_revision = 4
-leasePayload.approval.approval_id = 'lease-recovery-approval'
-leasePayload.approval.case_ref = 'lease-recovery'
-leasePayload.approval.case_revision = 4
-const leasePayloadBody = JSON.stringify(leasePayload)
+const leasePayloadBody = canonicalJson(leasePayload)
 const expiredLeaseOutbox = new MockRecord('com_nexo_curadoria_outbox', 'outbox-expired-lease', {
   caso_id: 'case-management',
+  decisao_id: outbox[1].getString('decisao_id'),
   caso_revisao: 4,
   acao: leasePayload.action,
-  idempotency_key: 'expired-lease-idempotency',
+  idempotency_key: authoritativeOutboxKey('case-management', 4, leasePayload.action),
   status: 'processando',
   claim_token: 'abandoned-claim',
   claim_expires_at: '2020-01-01T00:00:00.000Z',
@@ -859,17 +1310,13 @@ assert.equal(expiredLeaseOutbox.getString('status'), 'processado')
 assert.notEqual(expiredLeaseOutbox.getString('claim_token'), 'abandoned-claim')
 
 const revisionPayload = JSON.parse(JSON.stringify(outbox[1].get('payload_json')))
-revisionPayload.knowledge_ref = 'revision-race'
-revisionPayload.case_revision = 4
-revisionPayload.approval.approval_id = 'revision-race-approval'
-revisionPayload.approval.case_ref = 'revision-race'
-revisionPayload.approval.case_revision = 4
-const revisionPayloadBody = JSON.stringify(revisionPayload)
+const revisionPayloadBody = canonicalJson(revisionPayload)
 const revisionRaceOutbox = new MockRecord('com_nexo_curadoria_outbox', 'outbox-revision-race', {
   caso_id: 'case-management',
+  decisao_id: outbox[1].getString('decisao_id'),
   caso_revisao: 4,
   acao: revisionPayload.action,
-  idempotency_key: 'revision-race-idempotency',
+  idempotency_key: authoritativeOutboxKey('case-management', 4, revisionPayload.action),
   status: 'pendente',
   tentativas: 0,
   tentativas_ciclo: 0,
@@ -891,7 +1338,7 @@ preHttpPayload.case_revision = 1
 preHttpPayload.approval.approval_id = 'pre-http-race-approval'
 preHttpPayload.approval.case_ref = 'pre-http-race'
 preHttpPayload.approval.case_revision = 1
-const preHttpPayloadBody = JSON.stringify(preHttpPayload)
+const preHttpPayloadBody = canonicalJson(preHttpPayload)
 const preHttpRaceOutbox = new MockRecord('com_nexo_curadoria_outbox', 'outbox-pre-http-race', {
   caso_id: 'case-management',
   caso_revisao: 1,
@@ -914,5 +1361,70 @@ assert.equal(preHttpRace.payload.processados, 0)
 assert.equal(preHttpRaceOutbox.getString('status'), 'supersedido')
 assert.equal(preHttpRaceOutbox.getString('superseded_by'), 'interleaving-before-http')
 assert.equal(gatewayCalls.length, callsBeforePreHttpRace)
+
+function bridgeBytes(serialized) {
+  const raw = Array.from(Buffer.from(serialized))
+  Object.defineProperty(raw, 'toString', { value: () => serialized, enumerable: false })
+  return raw
+}
+
+function assertInvalidPayloadRejected(payload, payloadHash, label) {
+  const invalidOutbox = new MockRecord('com_nexo_curadoria_outbox', `outbox-invalid-${label}`, {
+    caso_id: 'case-management',
+    caso_revisao: caseManagement.getInt('revisao'),
+    acao: 'publicar',
+    idempotency_key: authoritativeOutboxKey(
+      'case-management',
+      caseManagement.getInt('revisao'),
+      'publicar',
+    ),
+    status: 'pendente',
+    claim_token: '',
+    superseded_by: '',
+    tentativas: 0,
+    tentativas_ciclo: 0,
+    payload_json: payload,
+    payload_hash: payloadHash,
+    requested_at: '2026-10-01T22:00:00.000Z',
+  })
+  outbox.push(invalidOutbox)
+  const callsBefore = gatewayCalls.length
+  const result = invokeOutbox(superadmin)
+  assert.equal(result.payload.processados, 0, `${label} não pode ser processado`)
+  assert.equal(result.payload.falhas, 1, `${label} deve falhar fechado`)
+  assert.equal(invalidOutbox.getString('status'), 'erro')
+  assert.equal(invalidOutbox.getString('last_error'), 'PAYLOAD_INVALIDO')
+  assert.equal(gatewayCalls.length, callsBefore, `${label} não pode chamar o Gateway`)
+  invalidOutbox.set('status', 'falha_permanente')
+}
+
+const objectShapedPayload = {
+  action: 'publicar',
+  approval: {
+    action: 'publicar',
+    actor_id: 'native-array-actor',
+    actor_profile: 'curadoria',
+    app_id: 'pmais_comercial',
+    approval_id: 'native-array-approval',
+    authority: 'curadoria_conhecimento_comercial',
+    case_ref: 'native-array-case-ref',
+    case_revision: caseManagement.getInt('revisao'),
+  },
+  case_revision: caseManagement.getInt('revisao'),
+  knowledge_ref: 'native-array-case-ref',
+  schema_version: 'pmais_nexo_curadoria_conhecimento_v1',
+}
+const objectShapedBody = canonicalJson(objectShapedPayload)
+assertInvalidPayloadRejected(
+  [objectShapedBody],
+  `hash:${objectShapedBody}`,
+  'native-single-string-array',
+)
+assertInvalidPayloadRejected(bridgeBytes('{malformed'), 'unused-malformed-hash', 'malformed-bridge')
+assertInvalidPayloadRejected(
+  bridgeBytes('["wrong-type"]'),
+  'unused-wrong-type-hash',
+  'wrong-type-bridge',
+)
 
 console.log('nexo-curadoria-casos-api runtime: PASS')

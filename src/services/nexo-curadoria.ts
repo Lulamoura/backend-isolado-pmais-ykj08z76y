@@ -134,6 +134,7 @@ export interface CasoCuradoriaComercial {
   entrevista_etapa: number
   decisao_observacao?: string | null
   conhecimento_status: string
+  reabertura_elegivel?: boolean
   last_seen_at?: string | null
   decisao_em?: string | null
 }
