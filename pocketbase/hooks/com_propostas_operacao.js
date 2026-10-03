@@ -4134,6 +4134,7 @@
 
   routerAdd('POST', '/backend/v1/nexo/curadoria/casos/consolidar', function (e) {
     var CONFIRMACAO_APLICACAO = 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL'
+    var MIN_RECORRENCIAS_COMUNS = 3
 
     function texto(record, field) {
       if (!record) return ''
@@ -4272,15 +4273,38 @@
       }
     }
 
-    function deveReabrir(caso, novasEvidencias) {
-      if (!novasEvidencias) return false
-      var status = texto(caso, 'status')
+    function revisaoVencida(caso) {
+      var nextReviewAt = texto(caso, 'next_review_at')
+      if (!nextReviewAt) return false
+      var nextReviewMs = new Date(nextReviewAt).getTime()
+      return isFinite(nextReviewMs) && nextReviewMs <= new Date().getTime()
+    }
+
+    function evidenciaExigeRevisao(record) {
+      var revisaoStatus = normalizar(texto(record, 'revisao_status')).replace(/\s+/g, '_')
       return (
+        revisaoStatus === 'contradicao_material' ||
+        revisaoStatus === 'mudanca_material' ||
+        revisaoStatus === 'revisao_necessaria' ||
+        revisaoStatus === 'reabrir' ||
+        revisaoStatus === 'vencida'
+      )
+    }
+
+    function deveReabrir(caso, novasEvidencias) {
+      var status = texto(caso, 'status')
+      var encerrado =
         status === 'aprovado' ||
         status === 'rejeitado' ||
         status === 'retirado' ||
         status === 'sem_acao'
-      )
+      if (!encerrado) return false
+      if (revisaoVencida(caso)) return true
+      if (!novasEvidencias || !novasEvidencias.length) return false
+      for (var i = 0; i < novasEvidencias.length; i++) {
+        if (novasEvidencias[i].revisao_material) return true
+      }
+      return false
     }
 
     function tituloAssunto(assunto) {
@@ -4337,29 +4361,62 @@
       var analise = assuntoELimites(ledger)
       var destinoOrigem = texto(ledger, 'destino_sugerido')
       var risco = normalizar(texto(ledger, 'risco'))
-      var confianca = normalizar(texto(ledger, 'confianca'))
-      var escopoRef = texto(ledger, 'negocio_ref') || texto(ledger, 'empresa_nome')
+      var sensivel = analise.sensiveis.length > 0
+      var negocioId = texto(ledger, 'negocio_id')
+      var negocioRef = texto(ledger, 'negocio_ref')
+      var empresaNome = texto(ledger, 'empresa_nome')
+      var evidenciaRef = texto(ledger, 'evidencia_ref') || ledger.id
+      var escopoOriginal = negocioRef || empresaNome
+      var escopoIndependente = negocioId
+        ? 'negocio_id|' + normalizar(negocioId)
+        : negocioRef
+          ? 'negocio_ref|' + normalizar(negocioRef)
+          : empresaNome
+            ? 'empresa|' + normalizar(empresaNome)
+            : ''
       var elegivel =
-        analise.sensiveis.length > 0 ||
+        sensivel ||
         destinoOrigem === 'curadoria' ||
         risco === 'medio' ||
-        confianca === 'baixa' ||
-        (texto(ledger, 'promocao_modo') === 'promover_baixo_risco' && !!escopoRef)
-      if (!elegivel || !escopoRef) continue
+        (texto(ledger, 'promocao_modo') === 'promover_baixo_risco' && !!escopoIndependente)
+      if (!elegivel) continue
 
-      var escopoTipo = texto(ledger, 'negocio_ref') ? 'negocio' : 'empresa'
+      var equipeId = texto(ledger, 'equipe_id')
+      if (!sensivel && (!equipeId || !escopoIndependente)) continue
+      if (sensivel && !escopoIndependente)
+        escopoIndependente = 'evidencia|' + normalizar(evidenciaRef)
+      var agrupamentoRef = equipeId || 'direcao'
+      var escopoTipo = sensivel
+        ? negocioRef
+          ? 'negocio'
+          : empresaNome
+            ? 'empresa'
+            : 'evidencia'
+        : 'equipe'
+      var escopoRef = sensivel ? escopoOriginal || evidenciaRef : agrupamentoRef
       var recorrenciaChave = String(
-        $security.sha256(['curadoria-recorrencia-v1', analise.assunto].join('|')),
+        $security.sha256(['curadoria-recorrencia-v2', agrupamentoRef, analise.assunto].join('|')),
       )
       var fingerprint = String(
-        $security.sha256(['curadoria-caso-v1', escopoTipo, escopoRef, analise.assunto].join('|')),
+        $security.sha256(
+          [
+            sensivel && escopoTipo !== 'evidencia'
+              ? 'curadoria-caso-v1'
+              : sensivel
+                ? 'curadoria-caso-sensivel-sem-vinculo-v1'
+                : 'curadoria-padrao-v2',
+            escopoTipo,
+            escopoRef,
+            analise.assunto,
+          ].join('|'),
+        ),
       )
       var evidenciaHash = String(
         $security.sha256(
           [
             'curadoria-evidencia-v1',
             texto(ledger, 'fonte'),
-            texto(ledger, 'evidencia_ref') || ledger.id,
+            evidenciaRef,
             texto(ledger, 'occurred_at'),
             limparTexto(texto(ledger, 'fato'), 2400),
           ].join('|'),
@@ -4372,14 +4429,14 @@
           assunto_chave: analise.assunto,
           escopo_tipo: escopoTipo,
           escopo_ref: escopoRef,
-          empresa_nome: texto(ledger, 'empresa_nome'),
-          contato_nome: texto(ledger, 'contato_nome'),
-          negocio_numero: texto(ledger, 'negocio_ref'),
+          empresa_nome: sensivel ? texto(ledger, 'empresa_nome') : '',
+          contato_nome: sensivel ? texto(ledger, 'contato_nome') : '',
+          negocio_numero: sensivel ? texto(ledger, 'negocio_ref') : '',
           negocio_titulo: '',
-          responsavel_nome: texto(ledger, 'responsavel'),
-          responsavel_id: texto(ledger, 'responsavel_id'),
-          equipe_id: texto(ledger, 'equipe_id'),
-          negocio_id: texto(ledger, 'negocio_id'),
+          responsavel_nome: sensivel ? texto(ledger, 'responsavel') : '',
+          responsavel_id: sensivel ? texto(ledger, 'responsavel_id') : '',
+          equipe_id: equipeId,
+          negocio_id: sensivel ? texto(ledger, 'negocio_id') : '',
           fontes: [],
           sensiveis: [],
           evidencias: [],
@@ -4396,9 +4453,10 @@
       grupo.evidencias.push({
         hash: evidenciaHash,
         fonte_tipo: texto(ledger, 'fonte') || 'comercial',
-        fonte_ref: texto(ledger, 'evidencia_ref') || ledger.id,
+        fonte_ref: evidenciaRef,
         resumo_factual: resumo,
         occurred_at: texto(ledger, 'occurred_at') || texto(ledger, 'created'),
+        revisao_material: evidenciaExigeRevisao(ledger),
       })
       var momento = texto(ledger, 'occurred_at') || texto(ledger, 'created')
       if (momento && (!grupo.first_seen_at || momento < grupo.first_seen_at))
@@ -4406,7 +4464,7 @@
       if (momento && (!grupo.last_seen_at || momento > grupo.last_seen_at))
         grupo.last_seen_at = momento
       if (!escoposPorRecorrencia[recorrenciaChave]) escoposPorRecorrencia[recorrenciaChave] = {}
-      escoposPorRecorrencia[recorrenciaChave][escopoTipo + '|' + escopoRef] = true
+      escoposPorRecorrencia[recorrenciaChave][escopoIndependente] = true
     }
 
     var listaGrupos = []
@@ -4426,6 +4484,8 @@
       itemGrupo.recorrencia_contagem = Object.keys(
         escoposPorRecorrencia[itemGrupo.recorrencia_chave] || {},
       ).length
+      if (!itemGrupo.sensiveis.length && itemGrupo.recorrencia_contagem < MIN_RECORRENCIAS_COMUNS)
+        continue
       listaGrupos.push(itemGrupo)
     }
     listaGrupos.sort(function (a, b) {
@@ -4465,13 +4525,14 @@
           result.evidencias_novas += grupo.evidencias.length
           continue
         }
-        var novas = 0
+        var novas = []
         for (var gei = 0; gei < grupo.evidencias.length; gei++) {
-          if (!estado.evidencias_existentes[caso.id + '|' + grupo.evidencias[gei].hash]) novas++
+          if (!estado.evidencias_existentes[caso.id + '|' + grupo.evidencias[gei].hash])
+            novas.push(grupo.evidencias[gei])
         }
         var recorrenciaMudou = numero(caso, 'recorrencia_contagem') !== grupo.recorrencia_contagem
-        if (novas || recorrenciaMudou || deveReabrir(caso, novas)) result.casos_atualizados++
-        result.evidencias_novas += novas
+        if (novas.length || recorrenciaMudou || deveReabrir(caso, novas)) result.casos_atualizados++
+        result.evidencias_novas += novas.length
       }
       return result
     }
@@ -4565,8 +4626,8 @@
           }
           var reabertura = null
           var recorrenciaMudou = numero(caso, 'recorrencia_contagem') !== grupo.recorrencia_contagem
-          var reabrirCaso = !novoCaso && deveReabrir(caso, novasEvidencias.length)
-          if (!novoCaso && (novasEvidencias.length || recorrenciaMudou)) {
+          var reabrirCaso = !novoCaso && deveReabrir(caso, novasEvidencias)
+          if (!novoCaso && (novasEvidencias.length || recorrenciaMudou || reabrirCaso)) {
             var hashes = arrayUnico(
               lerArray(caso, 'evidencia_hashes').concat(
                 novasEvidencias.map(function (ev) {
@@ -4595,8 +4656,17 @@
                   : 'baixa',
             )
             var statusAnterior = texto(caso, 'status')
-            var novaRevisao = numero(caso, 'revisao') + 1
-            caso.set('revisao', novaRevisao)
+            var revisaoAtual = numero(caso, 'revisao')
+            var casoEmRevisao =
+              statusAnterior === 'aberto_curadoria' ||
+              statusAnterior === 'em_entrevista' ||
+              statusAnterior === 'aguardando_gestao' ||
+              statusAnterior === 'aguardando_direcao'
+            var novaRevisao = revisaoAtual
+            if (reabrirCaso || casoEmRevisao) {
+              novaRevisao = revisaoAtual + 1
+              caso.set('revisao', novaRevisao)
+            }
             if (reabrirCaso) {
               var statusReaberto = grupo.sensiveis.length
                 ? 'aguardando_direcao'
@@ -5074,6 +5144,15 @@
       }
     }
 
+    function nexoCuradoriaReaberturaElegivel(record) {
+      var status = nexoCuradoriaCasosTexto(record, 'status')
+      if (status !== 'rejeitado' && status !== 'retirado' && status !== 'sem_acao') return false
+      var nextReviewAt = nexoCuradoriaCasosTexto(record, 'next_review_at')
+      if (!nextReviewAt) return false
+      var nextReviewMs = new Date(nextReviewAt).getTime()
+      return isFinite(nextReviewMs) && nextReviewMs <= new Date().getTime()
+    }
+
     function nexoCuradoriaCasoResposta(record) {
       return {
         id: record.id,
@@ -5104,6 +5183,7 @@
         decisao_observacao: nexoCuradoriaCasosTexto(record, 'decisao_observacao') || null,
         conhecimento_status:
           nexoCuradoriaCasosTexto(record, 'conhecimento_status') || 'nao_publicado',
+        reabertura_elegivel: nexoCuradoriaReaberturaElegivel(record),
         last_seen_at: nexoCuradoriaCasosTexto(record, 'last_seen_at') || null,
         decisao_em: nexoCuradoriaCasosTexto(record, 'decisao_em') || null,
       }
@@ -5390,6 +5470,15 @@
       }
     }
 
+    function nexoCuradoriaReaberturaElegivel(record) {
+      var status = nexoCuradoriaCasosTexto(record, 'status')
+      if (status !== 'rejeitado' && status !== 'retirado' && status !== 'sem_acao') return false
+      var nextReviewAt = nexoCuradoriaCasosTexto(record, 'next_review_at')
+      if (!nextReviewAt) return false
+      var nextReviewMs = new Date(nextReviewAt).getTime()
+      return isFinite(nextReviewMs) && nextReviewMs <= new Date().getTime()
+    }
+
     function nexoCuradoriaCasoResposta(record) {
       return {
         id: record.id,
@@ -5420,6 +5509,7 @@
         decisao_observacao: nexoCuradoriaCasosTexto(record, 'decisao_observacao') || null,
         conhecimento_status:
           nexoCuradoriaCasosTexto(record, 'conhecimento_status') || 'nao_publicado',
+        reabertura_elegivel: nexoCuradoriaReaberturaElegivel(record),
         last_seen_at: nexoCuradoriaCasosTexto(record, 'last_seen_at') || null,
         decisao_em: nexoCuradoriaCasosTexto(record, 'decisao_em') || null,
       }
@@ -5638,6 +5728,7 @@
             statusAnterior !== 'sem_acao'
           )
             throw new Error('TRANSICAO_NAO_PERMITIDA')
+          if (!nexoCuradoriaReaberturaElegivel(caso)) throw new Error('REABERTURA_NAO_ELEGIVEL')
           statusNovo = alcada === 'direcao' ? 'aguardando_direcao' : 'aberto_curadoria'
           caso.set('next_review_at', null)
         }
@@ -5794,6 +5885,8 @@
         return e.json(400, { ok: false, error: 'REGRA_OBRIGATORIA' })
       if (message.indexOf('TRANSICAO_NAO_PERMITIDA') !== -1)
         return e.json(409, { ok: false, error: 'TRANSICAO_NAO_PERMITIDA' })
+      if (message.indexOf('REABERTURA_NAO_ELEGIVEL') !== -1)
+        return e.json(409, { ok: false, error: 'REABERTURA_NAO_ELEGIVEL' })
       return e.json(500, { ok: false, error: 'FALHA_TRANSICAO_CURADORIA' })
     }
 

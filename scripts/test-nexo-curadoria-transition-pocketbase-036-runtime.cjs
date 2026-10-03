@@ -25,6 +25,8 @@ fs.mkdirSync(emptyHooksDirectory, { recursive: true })
 const email = 'curadoria-transition@example.test'
 const password = 'test-password-12345'
 const caseId = 'case00000000001'
+const futureReviewCaseId = 'case00000000002'
+const dueReviewCaseId = 'case00000000003'
 const fixMigration = '202610012350_nexo_curadoria_outbox_zero_attempt.js'
 const sourceMigrations = [
   '202610012100_nexo_aprendizado_whatsapp_proveniencia.js',
@@ -108,6 +110,36 @@ const seedCaseMigration = `migrate(
     caso.set('first_seen_at', '2026-10-01 12:00:00.000Z')
     caso.set('last_seen_at', '2026-10-01 12:00:00.000Z')
     app.save(caso)
+
+    function seedRejected(id, nextReviewAt) {
+      var rejected = new Record(app.findCollectionByNameOrId('com_nexo_curadoria_casos'))
+      rejected.id = id
+      rejected.set('fingerprint', 'pb036-reopen-' + id)
+      rejected.set('revisao', 1)
+      rejected.set('status', 'rejeitado')
+      rejected.set('fonte_principal', 'nexo_app')
+      rejected.set('fontes', ['nexo_app'])
+      rejected.set('escopo_tipo', 'equipe')
+      rejected.set('assunto_chave', 'rotina_comercial')
+      rejected.set('recorrencia_chave', 'pb036-reopen')
+      rejected.set('titulo', 'Caso rejeitado para validar reabertura')
+      rejected.set('resumo_factual', 'Caso real para validar o vencimento da revisão.')
+      rejected.set('motivo_curadoria', 'Reabertura somente após vencimento governado.')
+      rejected.set('evidencia_contagem', 3)
+      rejected.set('casos_independentes', 3)
+      rejected.set('recorrencia_contagem', 3)
+      rejected.set('risco_classe', 'baixo')
+      rejected.set('alcada', 'gestao_comercial')
+      rejected.set('confianca', 'alta')
+      rejected.set('human_review_required', true)
+      rejected.set('automatic_promotion_allowed', false)
+      rejected.set('next_review_at', nextReviewAt)
+      rejected.set('first_seen_at', '2026-10-01 12:00:00.000Z')
+      rejected.set('last_seen_at', '2026-10-01 12:00:00.000Z')
+      app.save(rejected)
+    }
+    seedRejected('${futureReviewCaseId}', '2030-10-01 12:00:00.000Z')
+    seedRejected('${dueReviewCaseId}', '2020-10-01 12:00:00.000Z')
   },
   function (_) {},
 )
@@ -363,6 +395,29 @@ async function main() {
         outbox: { status: 'pendente', tentativas: 0, caso_revisao: 2 },
       },
     })
+
+    const reopenCommand = {
+      acao: 'reabrir',
+      expected_revision: 1,
+      decisao_observacao: 'Reabertura testada pelo vencimento governado.',
+    }
+    const futureReopen = await request(
+      `${baseUrl}/backend/v1/nexo/curadoria/casos/${futureReviewCaseId}/transicionar`,
+      options,
+      reopenCommand,
+    )
+    assert.strictEqual(futureReopen.status, 409)
+    assert.strictEqual(futureReopen.body.error, 'REABERTURA_NAO_ELEGIVEL')
+
+    const dueReopen = await request(
+      `${baseUrl}/backend/v1/nexo/curadoria/casos/${dueReviewCaseId}/transicionar`,
+      options,
+      reopenCommand,
+    )
+    assert.strictEqual(dueReopen.status, 200)
+    assert.strictEqual(dueReopen.body.caso.status, 'aberto_curadoria')
+    assert.strictEqual(dueReopen.body.caso.revisao, 2)
+    assert.strictEqual(dueReopen.body.caso.reabertura_elegivel, false)
 
     console.log(
       'PocketBase 0.36 Curadoria transition runtime: PASS required=false approval=200 revision=2 status=aprovado knowledge=pendente_publicacao transitions=1 outbox=1 attempts=0 replay=true',

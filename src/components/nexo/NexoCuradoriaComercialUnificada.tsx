@@ -259,7 +259,7 @@ function CasoCard({
               Retirar orientação
             </Button>
           )}
-          {visao === 'historico' && (
+          {visao === 'historico' && caso.reabertura_elegivel && (
             <Button
               size="sm"
               variant="outline"
@@ -424,9 +424,10 @@ export default function NexoCuradoriaComercialUnificada({
               Curadoria Comercial
             </h2>
             <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-600">
-              Casos formados a partir de WhatsApp, negócios, propostas, follow-ups, reuniões,
-              ActiveCampaign e demais evidências comerciais. Nenhuma conversa isolada vira
-              orientação oficial sem revisão humana.
+              O Nexo elimina duplicidades e reúne evidências de WhatsApp, negócios, propostas,
+              follow-ups, reuniões e ActiveCampaign. Assuntos comuns só entram após três casos
+              independentes; matérias sensíveis seguem imediatamente para decisão. Nenhuma evidência
+              vira orientação oficial sem revisão humana.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => void carregar()} disabled={carregando}>
