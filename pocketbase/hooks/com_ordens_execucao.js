@@ -104,7 +104,7 @@
         bloqueado = perfil === 'negociacao-propria',
         negocios = $app.findRecordsByFilter(
           'com_negocios',
-          "resultado='ganho' && inativo=false",
+          "resultado='ganho' && inativo=false && (oe_numero='' || oe_data_envio='' || oe_responsavel_envio_id='')",
           '-fechamento_data,-updated',
           200,
           0,

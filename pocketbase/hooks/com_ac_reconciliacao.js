@@ -102,7 +102,7 @@ routerAdd(
       var sourceVersion = version(modified)
       events.push({
         schema_version: '1',
-        context_revision: entityType === 'business' ? '8' : '1',
+        context_revision: entityType === 'business' ? '9' : '1',
         event_id:
           'ac:' +
           entityType +
@@ -110,7 +110,7 @@ routerAdd(
           entityId +
           ':' +
           sourceVersion +
-          (entityType === 'business' ? ':ctx8' : ''),
+          (entityType === 'business' ? ':ctx9' : ''),
         source: 'activecampaign',
         entity_type: entityType,
         entity_id: String(entityId),
@@ -606,7 +606,7 @@ routerAdd(
         // Prospects entram na fila compartilhada e só recebem responsável
         // quando uma operadora assume a qualificação. O proprietário técnico
         // do ActiveCampaign não deve bloquear essa entrada.
-        if (ev.links.owner_code && acExigeResponsavelComercial(eventStageForOwner)) {
+        if (ev.links.owner_code) {
           try {
             var validationOwnerCode = canonicalOwnerCode(ev.links.owner_code)
             $app.findFirstRecordByFilter(
@@ -965,8 +965,7 @@ routerAdd(
                 "'",
             )
             var owner = null
-            var executionStageForOwner = String(ev.data.stage || '')
-            if (ev.links.owner_code && acExigeResponsavelComercial(executionStageForOwner)) {
+            if (ev.links.owner_code) {
               var executionOwnerCode = canonicalOwnerCode(ev.links.owner_code)
               owner = tx.findFirstRecordByFilter(
                 'com_vinculos_externos',
@@ -991,7 +990,8 @@ routerAdd(
             target.set('titulo', ev.data.title || 'Negocio importado')
             target.set('empresa_id', company ? company.getString('record_id') : '')
             target.set('contato_principal_id', contact.getString('record_id'))
-            target.set('responsavel_id', owner ? owner.getString('record_id') : '')
+            if (owner) target.set('responsavel_id', owner.getString('record_id'))
+            else if (dealStatus === '0') target.set('responsavel_id', '')
             target.set('valor', Math.round(Number(ev.data.value_cents || 0)))
             target.set('origem_canal', 'activecampaign')
             target.set('crm_created_at', ev.data.crm_created_at || '')
