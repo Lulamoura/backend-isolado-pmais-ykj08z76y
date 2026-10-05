@@ -29,6 +29,12 @@ class MockRecord {
   }
 }
 
+function byteCandidate(serialized) {
+  const raw = Array.from(Buffer.from(serialized))
+  Object.defineProperty(raw, 'toString', { value: () => serialized, enumerable: false })
+  return raw
+}
+
 const profile = new MockRecord('com_perfis', 'profile-admin', {
   ativo: true,
   slug: 'superadministrador',
@@ -51,6 +57,7 @@ const ledger = [
     fonte: 'whatsapp_uazapi',
     canal: 'WhatsApp Comercial',
     empresa_nome: 'Cliente A',
+    negocio_id: 'negocio-201',
     negocio_ref: 'OE-201',
     responsavel: 'Equipe 1',
     equipe_id: 'equipe-comercial',
@@ -320,6 +327,67 @@ assert.equal(sensitiveCase.getString('status'), 'aguardando_direcao')
 assert.equal(sensitiveCase.getString('alcada'), 'direcao')
 assert.equal(sensitiveCase.getBool('automatic_promotion_allowed'), false)
 
+const legacyPreferenceCase = new MockRecord('com_nexo_curadoria_casos', 'legacy-preference-case', {
+  fingerprint: 'hash:curadoria-caso-v1|negocio|OE-201|preferencia_comunicacao',
+  revisao: 1,
+  status: 'aberto_curadoria',
+  escopo_tipo: 'negocio',
+  escopo_ref: 'OE-201',
+  empresa_nome: 'Cliente A',
+  negocio_numero: 'OE-201',
+  equipe_id: 'equipe-comercial',
+  assunto_chave: 'preferencia_comunicacao',
+  fontes: byteCandidate('["activecampaign"]'),
+  evidencia_hashes: byteCandidate('["hash:legacy-evidence"]'),
+  human_review_required: true,
+  automatic_promotion_allowed: false,
+  conhecimento_status: 'nao_publicado',
+})
+collections.com_nexo_curadoria_casos.push(legacyPreferenceCase)
+
+for (const [suffix, negocioRef] of [
+  ['A', 'OE-L1'],
+  ['B', 'OE-L2'],
+  ['C', 'OE-L3'],
+]) {
+  ledger.push(
+    new MockRecord('com_ledger_comercial', `ledger-legacy-ambiguous-${suffix}`, {
+      fonte: 'activecampaign',
+      canal: 'ActiveCampaign',
+      empresa_nome: `Cliente legado ${suffix}`,
+      negocio_ref: negocioRef,
+      equipe_id: 'equipe-legada',
+      tipo_evento: 'objecao_comercial',
+      fato: 'Cliente apresentou objeção comercial recorrente.',
+      evidencia_ref: `event-legacy-ambiguous-${suffix}`,
+      destino_sugerido: 'curadoria',
+      risco: 'baixo',
+      confianca: 'alta',
+      occurred_at: `2026-10-02 0${suffix.charCodeAt(0) - 64}:00:00.000Z`,
+      status: 'novo',
+    }),
+  )
+}
+for (const [id, negocioRef] of [
+  ['legacy-ambiguous-1', 'OE-L1'],
+  ['legacy-ambiguous-2', 'OE-L2'],
+]) {
+  collections.com_nexo_curadoria_casos.push(
+    new MockRecord('com_nexo_curadoria_casos', id, {
+      fingerprint: `hash:curadoria-caso-v1|negocio|${negocioRef}|objecao_comercial`,
+      revisao: 1,
+      status: 'aberto_curadoria',
+      escopo_tipo: 'negocio',
+      escopo_ref: negocioRef,
+      equipe_id: 'equipe-legada',
+      assunto_chave: 'objecao_comercial',
+      fontes: [],
+      evidencia_hashes: [],
+      conhecimento_status: 'nao_publicado',
+    }),
+  )
+}
+
 const thirdPreference = new MockRecord('com_ledger_comercial', 'ledger-5', {
   fonte: 'activecampaign',
   canal: 'ActiveCampaign',
@@ -342,18 +410,40 @@ const recurrenceApply = invoke({
   confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
 })
 assert.equal(recurrenceApply.status, 200)
-assert.equal(recurrenceApply.payload.casos_criados, 1)
-assert.equal(recurrenceApply.payload.casos_atualizados, 0)
+assert.equal(recurrenceApply.payload.casos_criados, 0, 'caso legado deve ser reaproveitado')
+assert.equal(recurrenceApply.payload.casos_atualizados, 1)
 assert.equal(recurrenceApply.payload.evidencias_criadas, 4)
+assert.equal(
+  recurrenceApply.payload.casos_legados_ambiguos,
+  1,
+  'múltiplos legados devem falhar fechados sem criar novo caso',
+)
+assert.equal(
+  collections.com_nexo_curadoria_casos.some(
+    (item) =>
+      item.getString('fingerprint') ===
+      'hash:curadoria-padrao-v2|equipe|equipe-legada|objecao_comercial',
+  ),
+  false,
+  'grupo legado ambíguo não deve gerar terceiro caso',
+)
 
 const preferenceCases = collections.com_nexo_curadoria_casos.filter(
   (item) => item.getString('assunto_chave') === 'preferencia_comunicacao',
 )
-assert.equal(preferenceCases.length, 1, 'um padrão recorrente deve gerar um único caso consolidado')
+assert.equal(preferenceCases.length, 1, 'caso legado não pode coexistir com duplicata por equipe')
 const preferenceCase = preferenceCases[0]
+assert.equal(preferenceCase.id, legacyPreferenceCase.id)
+assert.equal(
+  preferenceCase.getString('fingerprint'),
+  'hash:curadoria-caso-v1|negocio|OE-201|preferencia_comunicacao',
+  'fingerprint legado publicado deve permanecer estável',
+)
 assert.equal(preferenceCase.getInt('recorrencia_contagem'), 3)
-assert.equal(preferenceCase.getInt('evidencia_contagem'), 4)
-assert.equal(preferenceCase.getString('escopo_tipo'), 'equipe')
+assert.equal(preferenceCase.getInt('evidencia_contagem'), 5)
+assert(preferenceCase.get('fontes').includes('activecampaign'))
+assert(preferenceCase.get('evidencia_hashes').includes('hash:legacy-evidence'))
+assert.equal(preferenceCase.getString('escopo_tipo'), 'negocio')
 assert.equal(preferenceCase.getString('equipe_id'), 'equipe-comercial')
 assert.equal(preferenceCase.getBool('human_review_required'), true)
 assert.equal(preferenceCase.getBool('automatic_promotion_allowed'), false)
@@ -458,7 +548,21 @@ assert.equal(sensitiveCase.getInt('revisao'), 2)
 assert.equal(sensitiveCase.getString('conhecimento_status'), 'revisao_necessaria')
 assert.equal(sensitiveCase.getString('validado_por'), 'director-1')
 assert.equal(sensitiveCase.getString('approved_at'), '2026-10-01 00:00:00.000Z')
+const contradictionTransition = collections.com_nexo_curadoria_transicoes.find(
+  (item) =>
+    item.getString('caso_id') === sensitiveCase.id &&
+    item.getString('status_anterior') === 'aprovado',
+)
+assert(contradictionTransition, 'reabertura material deve ser auditada')
+assert.match(contradictionTransition.getString('motivo'), /materialidade estruturada/i)
+assert.equal(contradictionTransition.get('metadados').gatilho, 'materialidade_estruturada')
+const contradictionEvidence = collections.com_nexo_curadoria_evidencias.find(
+  (item) => item.getString('fonte_ref') === 'event-7',
+)
+assert(contradictionEvidence, 'evidência material deve ser preservada')
+assert.equal(contradictionEvidence.get('metadados').revisao_material, true)
 
+const preferenceRevisionBeforeReview = preferenceCase.getInt('revisao')
 preferenceCase.set('status', 'aprovado')
 preferenceCase.set('conhecimento_status', 'ativo')
 preferenceCase.set('validado_por', 'manager-1')
@@ -474,8 +578,16 @@ assert.equal(reopenedByReviewDate.payload.casos_atualizados, 1)
 assert.equal(reopenedByReviewDate.payload.evidencias_criadas, 0)
 assert.equal(reopenedByReviewDate.payload.transicoes_criadas, 1)
 assert.equal(preferenceCase.getString('status'), 'aberto_curadoria')
-assert.equal(preferenceCase.getInt('revisao'), 2)
+assert.equal(preferenceCase.getInt('revisao'), preferenceRevisionBeforeReview + 1)
 assert.equal(preferenceCase.getString('conhecimento_status'), 'revisao_necessaria')
+const reviewDateTransition = collections.com_nexo_curadoria_transicoes.find(
+  (item) =>
+    item.getString('caso_id') === preferenceCase.id &&
+    item.getString('status_anterior') === 'aprovado',
+)
+assert(reviewDateTransition, 'reabertura por revisão vencida deve ser auditada')
+assert.match(reviewDateTransition.getString('motivo'), /revisão programada vencida/i)
+assert.equal(reviewDateTransition.get('metadados').gatilho, 'revisao_vencida')
 
 const secondApply = invoke({
   dry_run: false,
