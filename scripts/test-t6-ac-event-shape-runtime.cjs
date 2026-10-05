@@ -50,32 +50,28 @@ function responseEvent(body, headers = {}) {
   }
 }
 
-const webhook = loadRoute(
-  'pocketbase/hooks/ac_webhook.js',
-  '/backend/v1/integracao/ac/webhook',
-  {
-    $apis: { bodyLimit: () => function bodyLimit() {} },
-    $secrets: { get: () => 'test-secret' },
-    $security: {
-      hs256: () => signature,
-      sha256: (value) => `hash:${value}`,
-    },
-    $app: {
-      findFirstRecordByData(collection) {
-        if (collection === 'com_parametros') {
-          return {
-            getBool: () => true,
-            getString: () => 'true',
-          }
-        }
-        return {
-          getString: () => JSON.stringify({ record_id: 'existing-record' }),
-        }
-      },
-    },
-    toString: (value) => String(value),
+const webhook = loadRoute('pocketbase/hooks/ac_webhook.js', '/backend/v1/integracao/ac/webhook', {
+  $apis: { bodyLimit: () => function bodyLimit() {} },
+  $secrets: { get: () => 'test-secret' },
+  $security: {
+    hs256: () => signature,
+    sha256: (value) => `hash:${value}`,
   },
-)
+  $app: {
+    findFirstRecordByData(collection) {
+      if (collection === 'com_parametros') {
+        return {
+          getBool: () => true,
+          getString: () => 'true',
+        }
+      }
+      return {
+        getString: () => JSON.stringify({ record_id: 'existing-record' }),
+      }
+    },
+  },
+  toString: (value) => String(value),
+})
 
 function webhookPayload(data) {
   const now = new Date().toISOString()
@@ -181,4 +177,6 @@ assert.deepEqual(malformedLinks, {
   payload: { error: 'EVENTO_SINTETICO_INVALIDO', field: 'links', index: 0 },
 })
 
-process.stdout.write('PASS signed webhook and synthetic reconciliation validate event object shapes\n')
+process.stdout.write(
+  'PASS signed webhook and synthetic reconciliation validate event object shapes\n',
+)
