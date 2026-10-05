@@ -250,6 +250,20 @@ const checks = [
       reconciliationHook.includes('(isOpenScope || isKnownTerminal)'),
   ],
   [
+    'terminal conhecido mantém o responsável comercial informado no CRM',
+    reconciliationHook.includes('if (ev.links.owner_code) {') &&
+      reconciliationHook.includes("target.set('responsavel_id', owner.getString('record_id'))") &&
+      !reconciliationHook.includes(
+        "target.set('responsavel_id', owner ? owner.getString('record_id') : '')",
+      ),
+  ],
+  [
+    'fila de OE consulta somente ganhos que ainda aguardam referência',
+    oeHook.includes(
+      "resultado='ganho' && inativo=false && (oe_numero='' || oe_data_envio='' || oe_responsavel_envio_id='')",
+    ),
+  ],
+  [
     'reconciliação não usa proprietário técnico do AC como responsável comercial',
     reconciliationHook.includes("owner_code: canonicalOwnerCode(customFields['Responsável'])") &&
       !reconciliationHook.includes(
@@ -335,11 +349,11 @@ const checks = [
       reconciliationHook.includes("owner_code: canonicalOwnerCode(customFields['Responsável'])"),
   ],
   [
-    'mudança de responsável comercial invalida replay ctx7',
-    nativeRelay.includes("context_revision: type === 'business' ? '8' : '1'") &&
-      nativeRelay.includes("type === 'business' ? ':ctx8' : ''") &&
-      reconciliationHook.includes("context_revision: entityType === 'business' ? '8' : '1'") &&
-      reconciliationHook.includes("entityType === 'business' ? ':ctx8' : ''"),
+    'mudança de responsável comercial invalida replay anterior',
+    nativeRelay.includes("context_revision: type === 'business' ? '9' : '1'") &&
+      nativeRelay.includes("type === 'business' ? ':ctx9' : ''") &&
+      reconciliationHook.includes("context_revision: entityType === 'business' ? '9' : '1'") &&
+      reconciliationHook.includes("entityType === 'business' ? ':ctx9' : ''"),
   ],
   [
     'negócios AC usam etapa durante negociação e distinguem desqualificação de perda',
@@ -363,12 +377,7 @@ const checks = [
       reconciliationHook.includes(
         'if (acExigeResponsavelComercial(eventStageForOwner) && !ev.links.owner_code)',
       ) &&
-      reconciliationHook.includes(
-        'if (ev.links.owner_code && acExigeResponsavelComercial(eventStageForOwner))',
-      ) &&
-      reconciliationHook.includes(
-        'if (ev.links.owner_code && acExigeResponsavelComercial(executionStageForOwner))',
-      ) &&
+      (reconciliationHook.match(/if \(ev\.links\.owner_code\) \{/g) || []).length >= 2 &&
       !reconciliationHook.includes('(!eventIsProspect && !ev.links.owner_code)'),
   ],
   [

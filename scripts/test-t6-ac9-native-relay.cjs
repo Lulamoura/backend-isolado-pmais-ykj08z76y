@@ -76,10 +76,10 @@ const checks = [
   ],
   [
     'novo contexto comercial reprocessa negócios já sincronizados sem duplicação',
-    relay.includes("context_revision: type === 'business' ? '8' : '1'") &&
-      relay.includes("type === 'business' ? ':ctx8' : ''") &&
-      reconciler.includes("context_revision: entityType === 'business' ? '8' : '1'") &&
-      reconciler.includes("entityType === 'business' ? ':ctx8' : ''"),
+    relay.includes("context_revision: type === 'business' ? '9' : '1'") &&
+      relay.includes("type === 'business' ? ':ctx9' : ''") &&
+      reconciler.includes("context_revision: entityType === 'business' ? '9' : '1'") &&
+      reconciler.includes("entityType === 'business' ? ':ctx9' : ''"),
   ],
   [
     'relay e reconciliação transportam Data de Recuperação Comercial para agenda',
