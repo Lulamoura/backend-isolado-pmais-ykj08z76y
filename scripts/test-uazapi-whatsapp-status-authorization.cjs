@@ -106,7 +106,7 @@ function executar(
     inativo: false,
     necessidade: 'Serviço protegido',
     etapa: 'negociacao',
-    valor: 100,
+    valor: 2158446,
     updated: '2026-09-30 19:00:00.000Z',
   })
   const evento = new MockRecord('evento-1', {
@@ -305,7 +305,7 @@ assert(
 )
 assert(candidato.numero_comercial === '4901', 'candidato informa o número humano do negócio')
 assert(candidato.cliente === 'Empresa Protegida', 'candidato informa o cliente')
-assert(candidato.valor === 100, 'candidato informa o valor')
+assert(candidato.valor === 21584.46, 'candidato converte centavos para reais')
 assert(candidato.responsavel === 'Cristiane PMais', 'candidato informa o responsável')
 assert(
   resposta.body.qualidade_base === null,
