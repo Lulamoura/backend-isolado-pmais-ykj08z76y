@@ -231,6 +231,18 @@ const checks = [
       reconciliationHook.includes("customFields['Modalidade']"),
   ],
   [
+    'negócio aberto qualificado sem modalidade não entra no aplicativo',
+    nativeRelay.includes("error: 'MODALIDADE_AC_AUSENTE'") &&
+      nativeRelay.includes("String(deal.status) === '0'") &&
+      nativeRelay.includes("canonicalStage !== 'prospects'") &&
+      webhook.includes("error: 'MODALIDADE_AC_AUSENTE'") &&
+      webhook.includes("String(event.data.status) === '0'") &&
+      webhook.includes("!String(event.data.modality || '').trim()") &&
+      reconciliationHook.includes(
+        'Modalidade obrigatória ausente no ActiveCampaign. Corrija o negócio antes de importá-lo para o Aplicativo Comercial.',
+      ),
+  ],
+  [
     'incremental acompanha terminal somente de negócio conhecido',
     reconciliationHook.includes('isKnownTerminal') &&
       reconciliationHook.includes("external_type='business'") &&

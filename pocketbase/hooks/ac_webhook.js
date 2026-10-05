@@ -78,6 +78,7 @@ routerAdd(
       ]
       for (var i = 0; i < required.length; i++)
         if (event[required[i]] === undefined || event[required[i]] === '') return required[i]
+      if (!event.data || typeof event.data !== 'object' || Array.isArray(event.data)) return 'data'
       if (event.schema_version !== '1' || event.source !== 'activecampaign') return 'contract'
       if (['company', 'contact', 'business'].indexOf(event.entity_type) === -1) return 'entity_type'
       if (['upsert', 'archive'].indexOf(event.action) === -1) return 'action'
@@ -109,6 +110,14 @@ routerAdd(
     if (invalid) return e.json(400, { error: 'ENVELOPE_INVALIDO', field: invalid })
     if ((e.request.header.get('X-Correlation-Id') || '') !== event.correlation_id)
       return e.json(400, { error: 'CORRELACAO_DIVERGENTE' })
+    if (
+      event.entity_type === 'business' &&
+      event.action === 'upsert' &&
+      String(event.data.status) === '0' &&
+      (event.data.stage === 'producao_proposta' || event.data.stage === 'negociacao') &&
+      !String(event.data.modality || '').trim()
+    )
+      return e.json(422, { error: 'MODALIDADE_AC_AUSENTE' })
 
     var eventHash = $security.sha256(canonical(event))
     var idempotencyKey = $security.sha256('activecampaign|' + event.event_id)

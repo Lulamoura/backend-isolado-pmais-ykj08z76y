@@ -159,14 +159,36 @@ routerAdd(
         )
           throw new Error('LOTE_SINTETICO_INVALIDO')
         for (var se = 0; se < syntheticEvents.length; se++) {
+          var syntheticEvent = syntheticEvents[se]
           if (
-            String(syntheticEvents[se].event_id || '').indexOf('test:') !== 0 ||
-            String(syntheticEvents[se].correlation_id || '').indexOf('t6-ac8-') !== 0 ||
-            JSON.stringify(syntheticEvents[se]).indexOf('[TESTE]') === -1
+            !syntheticEvent.data ||
+            typeof syntheticEvent.data !== 'object' ||
+            Array.isArray(syntheticEvent.data)
+          )
+            return e.json(400, {
+              error: 'EVENTO_SINTETICO_INVALIDO',
+              field: 'data',
+              index: se,
+            })
+          if (
+            syntheticEvent.entity_type === 'business' &&
+            (!syntheticEvent.links ||
+              typeof syntheticEvent.links !== 'object' ||
+              Array.isArray(syntheticEvent.links))
+          )
+            return e.json(400, {
+              error: 'EVENTO_SINTETICO_INVALIDO',
+              field: 'links',
+              index: se,
+            })
+          if (
+            String(syntheticEvent.event_id || '').indexOf('test:') !== 0 ||
+            String(syntheticEvent.correlation_id || '').indexOf('t6-ac8-') !== 0 ||
+            JSON.stringify(syntheticEvent).indexOf('[TESTE]') === -1
           )
             throw new Error('EVENTO_SINTETICO_FORA_DO_ESCOPO')
-          events.push(syntheticEvents[se])
-          version(syntheticEvents[se].source_version)
+          events.push(syntheticEvent)
+          version(syntheticEvent.source_version)
         }
       }
       var stageCanonicalById = {}
@@ -531,6 +553,16 @@ routerAdd(
           kind = 'error'
           setPendingIssue(
             'Campos personalizados do ActiveCampaign indisponíveis para este negócio.',
+          )
+        }
+        if (
+          String(ev.data.status) === '0' &&
+          acExigeResponsavelComercial(eventStageForOwner) &&
+          !String(ev.data.modality || '').trim()
+        ) {
+          kind = 'error'
+          setPendingIssue(
+            'Modalidade obrigatória ausente no ActiveCampaign. Corrija o negócio antes de importá-lo para o Aplicativo Comercial.',
           )
         }
         if (!ev.links.contact_id) {

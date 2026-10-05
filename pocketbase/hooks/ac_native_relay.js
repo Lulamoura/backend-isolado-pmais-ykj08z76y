@@ -303,6 +303,9 @@ routerAdd(
     var ownerCode = canonicalOwnerCode(customByLabel['Responsável'])
     if (canonicalStage !== 'prospects' && !ownerCode)
       return e.json(422, { error: 'RESPONSAVEL_COMERCIAL_AUSENTE' })
+    var modalityValue = clean(customByLabel['Modalidade'], 120)
+    if (String(deal.status) === '0' && canonicalStage !== 'prospects' && !modalityValue)
+      return e.json(422, { error: 'MODALIDADE_AC_AUSENTE' })
     var stageEnteredAt = ''
     if (canonicalStage === 'prospects') stageEnteredAt = deal.cdate || ''
     if (canonicalStage === 'producao_proposta' && eventType === 'deal_add')
@@ -347,7 +350,7 @@ routerAdd(
         value_cents: Number(deal.value || 0),
         stage: canonicalStage,
         status: String(deal.status || '0'),
-        modality: customByLabel['Modalidade'] || '',
+        modality: modalityValue,
         next_action_at: customByLabel['Data de Ação'] || deal.nextdate || '',
         crm_created_at: deal.cdate || '',
         crm_updated_at: deal.mdate || deal.cdate || '',
