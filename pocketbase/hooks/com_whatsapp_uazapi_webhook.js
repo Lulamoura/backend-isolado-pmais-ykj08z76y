@@ -1216,7 +1216,7 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
             'name',
           ]),
           etapa: negocio.getString('etapa') || '',
-          valor: negocio.getFloat('valor') || 0,
+          valor: (negocio.getFloat('valor') || 0) / 100,
           atualizado_em: safeDate(negocio, 'updated'),
         })
       }
