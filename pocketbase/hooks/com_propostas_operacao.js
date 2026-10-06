@@ -1442,14 +1442,14 @@
           var porNegocio = app.findRecordsByFilter(
             'com_whatsapp_vinculos',
             "negocio_id = '" + idSeguro + "'",
-            '-last_message_at,-created,-id',
+            '-last_message_at,-id',
             101,
             0,
           )
           var porLista = app.findRecordsByFilter(
             'com_whatsapp_vinculos',
             "negocio_ids ~ '" + idSeguro + "'",
-            '-last_message_at,-created,-id',
+            '-last_message_at,-id',
             101,
             0,
           )
@@ -1499,7 +1499,7 @@
             var recentes = app.findRecordsByFilter(
               'com_whatsapp_mensagens',
               filtro,
-              '-message_at,-received_at,-created,-id',
+              '-message_at,-received_at,-id',
               20,
               0,
             )
@@ -1942,14 +1942,14 @@
           var diretos = app.findRecordsByFilter(
             'com_whatsapp_vinculos',
             "negocio_id = '" + idSeguro + "'",
-            '-last_message_at,-created,-id',
+            '-last_message_at,-id',
             101,
             0,
           )
           var multiplos = app.findRecordsByFilter(
             'com_whatsapp_vinculos',
             "negocio_ids ~ '" + idSeguro + "'",
-            '-last_message_at,-created,-id',
+            '-last_message_at,-id',
             101,
             0,
           )
@@ -1998,7 +1998,7 @@
             var recentes = app.findRecordsByFilter(
               'com_whatsapp_mensagens',
               filtro,
-              '-message_at,-received_at,-created,-id',
+              '-message_at,-received_at,-id',
               20,
               0,
             )
