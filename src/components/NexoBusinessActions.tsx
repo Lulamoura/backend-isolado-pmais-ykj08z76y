@@ -78,95 +78,6 @@ function CampoTexto({ titulo, texto }: { titulo: string; texto?: string | null }
   )
 }
 
-function ListaAnalise({ titulo, itens }: { titulo: string; itens?: string[] }) {
-  if (!itens?.length) return null
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{titulo}</p>
-      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-800">
-        {itens.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-function AnaliseWhatsapp({ ajuda }: { ajuda: NexoAjudaComercial }) {
-  const analise = ajuda.analise_whatsapp
-  if (!analise || analise.status_contexto !== 'disponivel') return null
-  const temFatos = Boolean(
-    analise.resumo_conversa ||
-    analise.pendencias_compromissos?.length ||
-    analise.prazos_proximas_acoes?.length ||
-    analise.objecoes_duvidas?.length,
-  )
-  const temComparacao = Boolean(analise.divergencias_crm?.length)
-  const temSugestao = Boolean(
-    analise.sinais_risco?.length || analise.proximo_passo_recomendado || analise.rascunho_follow_up,
-  )
-  if (!temFatos && !temComparacao && !temSugestao) return null
-  return (
-    <div className="grid gap-3">
-      {temFatos ? (
-        <section className="rounded-md border bg-white p-4 text-sm">
-          <p className="font-semibold text-slate-950">Fatos observados na conversa</p>
-          {analise.resumo_conversa ? (
-            <p className="mt-2 text-slate-800">{analise.resumo_conversa}</p>
-          ) : null}
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <ListaAnalise
-              titulo="Pendências e compromissos"
-              itens={analise.pendencias_compromissos}
-            />
-            <ListaAnalise titulo="Prazos e próximas ações" itens={analise.prazos_proximas_acoes} />
-            <ListaAnalise titulo="Objeções e dúvidas" itens={analise.objecoes_duvidas} />
-          </div>
-        </section>
-      ) : null}
-      {temComparacao ? (
-        <section className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm">
-          <p className="font-semibold text-amber-950">Comparação com o CRM</p>
-          <ListaAnalise titulo="Divergências encontradas" itens={analise.divergencias_crm} />
-        </section>
-      ) : null}
-      {temSugestao ? (
-        <section className="rounded-md border border-violet-200 bg-violet-50/50 p-4 text-sm">
-          <p className="font-semibold text-violet-950">Sugestão do Nexo</p>
-          <div className="mt-3 space-y-3">
-            <ListaAnalise
-              titulo="Sinais de risco — inferência do Nexo"
-              itens={analise.sinais_risco}
-            />
-            {analise.proximo_passo_recomendado ? (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Próximo passo recomendado
-                </p>
-                <p className="mt-1 text-slate-800">{analise.proximo_passo_recomendado}</p>
-              </div>
-            ) : null}
-            {analise.rascunho_follow_up ? (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Rascunho para revisão humana
-                </p>
-                <p className="mt-1 whitespace-pre-wrap rounded-md border bg-white p-3 text-slate-800">
-                  {analise.rascunho_follow_up}
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-      <p className="text-xs text-muted-foreground">
-        A conversa permanece evidência deste negócio. Nenhum conteúdo foi promovido automaticamente
-        a conhecimento comercial.
-      </p>
-    </div>
-  )
-}
-
 function AjudaResposta({ ajuda }: { ajuda: NexoAjudaComercial }) {
   const auditoria = ajuda.auditoria_geracao
   const fallback = Boolean(auditoria?.fallback ?? ajuda.fallback)
@@ -203,7 +114,6 @@ function AjudaResposta({ ajuda }: { ajuda: NexoAjudaComercial }) {
           ))}
         </div>
       </section>
-      <AnaliseWhatsapp ajuda={ajuda} />
       {fallback ? (
         <p className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white">
           Falha de acionamento de modelo - Avisar administrador do sistema.
@@ -236,42 +146,6 @@ function resumoUltimoFollowUp(contexto: NexoContextoNegocio) {
   if (!notas.length) return 'Nenhum follow-up registrado no contexto do Nexo.'
   const ultimo = notaTexto(ultimoFollowUp(notas))
   return `${notas.length} registro${notas.length > 1 ? 's' : ''} de follow-up. Último registro: ${ultimo}`
-}
-
-function ContextoWhatsapp({ contexto }: { contexto: NexoContextoNegocio }) {
-  const whatsapp = contexto.whatsapp_contexto
-  if (!whatsapp) return null
-  if (whatsapp.status !== 'disponivel' && whatsapp.status !== 'sem_conversa_vinculada') return null
-  if (whatsapp.status === 'sem_conversa_vinculada') {
-    return (
-      <section className="rounded-md border bg-slate-50 p-3 text-sm">
-        <p className="font-semibold text-slate-950">Contexto do WhatsApp Comercial</p>
-        <p className="mt-2 text-slate-700">Nenhuma conversa vinculada a este negócio.</p>
-      </section>
-    )
-  }
-  const maisRecente = whatsapp.mensagens_recentes?.[0]
-  return (
-    <section className="rounded-md border border-emerald-200 bg-emerald-50/40 p-3 text-sm">
-      <p className="font-semibold text-slate-950">Contexto do WhatsApp Comercial</p>
-      <p className="mt-2 text-slate-700">
-        {whatsapp.mensagens_recentes_consideradas} mensagens recentes consideradas em{' '}
-        {whatsapp.conversas_vinculadas} conversa{whatsapp.conversas_vinculadas === 1 ? '' : 's'}
-        {whatsapp.ultima_interacao
-          ? ` · última interação em ${formatDate(whatsapp.ultima_interacao)}`
-          : ''}
-        .
-      </p>
-      {maisRecente?.texto ? (
-        <p className="mt-2 line-clamp-3 text-xs text-slate-600">
-          Trecho mais recente: {maisRecente.texto}
-        </p>
-      ) : null}
-      <p className="mt-2 text-xs text-muted-foreground">
-        O Nexo usa esse contexto somente para análise e sugestões sujeitas à revisão humana.
-      </p>
-    </section>
-  )
 }
 
 export function NexoBusinessActions({
@@ -420,17 +294,14 @@ export function NexoBusinessActions({
               {ajuda ? (
                 <AjudaResposta ajuda={ajuda} />
               ) : (
-                <div className="space-y-3">
-                  <ContextoWhatsapp contexto={contexto} />
-                  <section className="rounded-md border bg-slate-50 p-3 text-sm">
-                    <p className="font-semibold text-slate-950">Resumo do histórico disponível</p>
-                    <p className="mt-2 text-slate-700">{resumoUltimoFollowUp(contexto)}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      O histórico completo continua no botão Notas. Clique em Gerar ajuda do Nexo
-                      para receber uma análise específica deste negócio.
-                    </p>
-                  </section>
-                </div>
+                <section className="rounded-md border bg-slate-50 p-3 text-sm">
+                  <p className="font-semibold text-slate-950">Resumo do histórico disponível</p>
+                  <p className="mt-2 text-slate-700">{resumoUltimoFollowUp(contexto)}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    O histórico completo continua no botão Notas. Clique em Gerar ajuda do Nexo para
+                    receber uma análise específica deste negócio.
+                  </p>
+                </section>
               )}
             </div>
           ) : (
