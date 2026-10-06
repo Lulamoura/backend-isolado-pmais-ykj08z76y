@@ -133,11 +133,11 @@ describe('NexoBusinessActions', () => {
 
     await waitFor(() => expect(obterContextoNexoNegocio).toHaveBeenCalledWith('4792'))
     await screen.findByText('Escolha a ajuda do Nexo')
-    expect(screen.getByText('Contexto do WhatsApp Comercial')).toBeInTheDocument()
-    expect(screen.getByText(/3 mensagens recentes consideradas/)).toBeInTheDocument()
+    expect(screen.queryByText('Contexto do WhatsApp Comercial')).not.toBeInTheDocument()
+    expect(screen.queryByText(/3 mensagens recentes consideradas/)).not.toBeInTheDocument()
     expect(
-      screen.getByText(/Vou validar internamente e retorno até sexta-feira/),
-    ).toBeInTheDocument()
+      screen.queryByText(/Vou validar internamente e retorno até sexta-feira/),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText(/chat_id|message_id|sender_id/)).not.toBeInTheDocument()
     expect(screen.queryByText('Sem envio automático')).not.toBeInTheDocument()
     expect(screen.getByText('Sugerir próximo follow-up')).toBeInTheDocument()
@@ -154,20 +154,25 @@ describe('NexoBusinessActions', () => {
         /Sugestão de follow-up: Olá, Brenda. Conseguiu algum retorno da análise do RH\?/,
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText('Fatos observados na conversa')).toBeInTheDocument()
+    expect(screen.queryByText('Fatos observados na conversa')).not.toBeInTheDocument()
     expect(
-      screen.getByText('O cliente informou que validará a proposta com o RH.'),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Pendências e compromissos')).toBeInTheDocument()
-    expect(screen.getByText('Retorno prometido até sexta-feira.')).toBeInTheDocument()
-    expect(screen.getByText('Comparação com o CRM')).toBeInTheDocument()
-    expect(screen.getByText('Conversa: sexta-feira; CRM: 10/10/2026.')).toBeInTheDocument()
-    expect(screen.getByText('Sugestão do Nexo')).toBeInTheDocument()
-    expect(screen.getByText('Aguardar até sexta-feira e revisar o follow-up.')).toBeInTheDocument()
-    expect(screen.getByText('Rascunho para revisão humana')).toBeInTheDocument()
+      screen.queryByText('O cliente informou que validará a proposta com o RH.'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Pendências e compromissos')).not.toBeInTheDocument()
+    expect(screen.queryByText('Retorno prometido até sexta-feira.')).not.toBeInTheDocument()
     expect(
-      screen.getByText('Olá, Brenda. Conseguiu concluir a validação com o RH?'),
-    ).toBeInTheDocument()
+      screen.queryByText('Nenhuma objeção explícita na conversa recente.'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Comparação com o CRM')).not.toBeInTheDocument()
+    expect(screen.queryByText('Conversa: sexta-feira; CRM: 10/10/2026.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sugestão do Nexo')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Aguardar até sexta-feira e revisar o follow-up.'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Rascunho para revisão humana')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Olá, Brenda. Conseguiu concluir a validação com o RH?'),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText('Perguntas críticas')).not.toBeInTheDocument()
     expect(screen.queryByText('Riscos percebidos')).not.toBeInTheDocument()
     expect(screen.queryByText('Diagnóstico comercial')).not.toBeInTheDocument()
@@ -228,7 +233,7 @@ describe('NexoBusinessActions', () => {
     expect(screen.queryByText(/0 mensagens recentes consideradas/)).not.toBeInTheDocument()
   })
 
-  it('distingue ausência de conversa vinculada de falha da fonte', async () => {
+  it('mantém transparente a ausência de conversa vinculada', async () => {
     obterContextoNexoNegocio.mockResolvedValue({
       ...contexto,
       whatsapp_contexto: {
@@ -246,9 +251,9 @@ describe('NexoBusinessActions', () => {
 
     await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
 
-    expect(
-      await screen.findByText('Nenhuma conversa vinculada a este negócio.'),
-    ).toBeInTheDocument()
+    await screen.findByText('Escolha a ajuda do Nexo')
+    expect(screen.queryByText('Nenhuma conversa vinculada a este negócio.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Contexto do WhatsApp Comercial')).not.toBeInTheDocument()
     expect(screen.queryByText('Contexto temporariamente indisponível.')).not.toBeInTheDocument()
   })
 
