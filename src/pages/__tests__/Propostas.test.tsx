@@ -45,7 +45,8 @@ vi.mock('@/lib/pocketbase/client', () => ({
 }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
-import Propostas from '@/pages/Propostas'
+import Propostas, { garantirSaudacaoEmailProposta } from '@/pages/Propostas'
+import type { ItemProposta } from '@/services/propostas'
 
 const itemProposta = {
   negocio: {
@@ -151,6 +152,15 @@ describe('Propostas', () => {
     })
   })
 
+  it('trata sugestão contendo somente saudação sem travar a interface', () => {
+    expect(
+      garantirSaudacaoEmailProposta(
+        'Olá, Brenda. Tudo bem?\n\n',
+        itemProposta as unknown as ItemProposta,
+      ),
+    ).toBe('Olá, Brenda. Tudo bem?')
+  })
+
   it('preenche assunto e corpo do e-mail de proposta com sugestão do Nexo, link real e revisão humana', async () => {
     const user = userEvent.setup()
     render(<Propostas />)
@@ -159,7 +169,7 @@ describe('Propostas', () => {
     await screen.findByText('Publicar e enviar')
 
     expect(screen.getByLabelText('Assunto')).toHaveValue(
-      'Proposta comercial PMais — Autonunes Chevrolet Prazeres',
+      'Proposta PMais PROP-001 — Autonunes Chevrolet Prazeres',
     )
     expect(screen.getByLabelText('Mensagem')).toHaveValue()
     expect(
@@ -183,10 +193,10 @@ describe('Propostas', () => {
     )
 
     expect(screen.getByLabelText('Assunto')).toHaveValue(
-      'Proposta nº 493.26 | Porteiro para a AUTONUNES – Unidade Prazeres',
+      'Proposta PMais PROP-001 — Agentes de apoio 44h semanais | Autonunes Chevrolet Prazeres',
     )
     const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
-    expect(mensagem).toContain('Olá, Brenda! Tudo bem?')
+    expect(mensagem).toContain('Olá, Brenda. Tudo bem?')
     expect(mensagem).toContain('[LINK_PROPOSTA]')
     expect(mensagem).toContain('pelo link:\n\n[LINK_PROPOSTA]\n\nPara alinharmos')
     expect(mensagem).toContain(
@@ -201,6 +211,80 @@ describe('Propostas', () => {
     )
     expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
     expect(salvarMensagemEmailProposta).toHaveBeenCalledWith('neg-1', mensagem)
+  })
+
+  it('corrige assunto em caixa alta e acrescenta saudação quando a sugestão do Nexo vier seca', async () => {
+    gerarAjudaNexoNegocio.mockResolvedValueOnce({
+      contrato: 'nexo_ajuda_comercial_v1',
+      external_id: '4792',
+      acao: 'email_envio_proposta',
+      mensagem_sugerida:
+        'Assunto: Proposta comercial PMais — AGENTES DE APOIO 44H SEMANAIS\n\nOlá, equipe.\n\nEncaminho a proposta para sua análise.\n\nhttps://comercial.pmaisservicos.com.br/p/token-gerado',
+      resposta_curta: '',
+      fallback: false,
+    })
+    const user = userEvent.setup()
+    render(<Propostas />)
+
+    await user.click(await screen.findByRole('button', { name: /Lançar proposta/i }))
+    await user.click(screen.getByRole('button', { name: /Preencher e-mail com Nexo/i }))
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Assunto')).toHaveValue(
+        'Proposta PMais PROP-001 — Agentes de apoio 44h semanais | Autonunes Chevrolet Prazeres',
+      ),
+    )
+    const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
+    expect(mensagem).toMatch(/^Olá, Brenda\. Tudo bem\?\n\n/)
+    expect(mensagem).not.toContain('Olá, equipe')
+    expect(mensagem).toContain('Encaminho a proposta para sua análise.')
+    expect(mensagem).toContain('[LINK_PROPOSTA]')
+    expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
+  })
+
+  it('usa saudação neutra quando o contato contém marcador de nome não informado', async () => {
+    listarPropostas.mockResolvedValueOnce({
+      itens: [
+        {
+          ...itemProposta,
+          contexto: {
+            ...itemProposta.contexto,
+            contato: { ...itemProposta.contexto.contato, nome: 'NÃO INFORMADO' },
+          },
+        },
+      ],
+      configuracao: {
+        aprovacao_interna_obrigatoria: false,
+        identificacao_visitante_obrigatoria: true,
+        identificacao_visitante_updated: '2026-09-13 10:00:00.000Z',
+      },
+    })
+    gerarAjudaNexoNegocio.mockResolvedValueOnce({
+      contrato: 'nexo_ajuda_comercial_v1',
+      external_id: '4792',
+      acao: 'email_envio_proposta',
+      mensagem_sugerida:
+        'Assunto: Proposta para análise\n\nOlá, Não informado. Tudo bem?\n\nEncaminho a proposta para sua análise.\n\nhttps://comercial.pmaisservicos.com.br/p/token-gerado',
+      resposta_curta: '',
+      fallback: true,
+    })
+    const user = userEvent.setup()
+    render(<Propostas />)
+
+    await user.click(await screen.findByRole('button', { name: /Lançar proposta/i }))
+    await user.click(screen.getByRole('button', { name: /Preencher e-mail com Nexo/i }))
+
+    await waitFor(() =>
+      expect(salvarMensagemEmailProposta).toHaveBeenCalledWith(
+        'neg-1',
+        expect.stringContaining('Encaminho a proposta para sua análise.'),
+      ),
+    )
+    const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
+    expect(mensagem).toMatch(/^Olá\. Tudo bem\?\n\n/)
+    expect(mensagem).not.toContain('Olá, Não')
+    expect(mensagem).toContain('[LINK_PROPOSTA]')
+    expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
   })
 
   it('mantém a tela de propostas aberta quando o negócio não tem empresa vinculada', async () => {

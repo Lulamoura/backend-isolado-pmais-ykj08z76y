@@ -307,12 +307,21 @@ app.findFirstRecordByData = () => {
 }
 app.findRecordsByFilter = (collection, filter, sort) => {
   if (collection === 'com_whatsapp_vinculos') {
-    assert.equal(sort, '-last_message_at,-created,-id')
+    assert.equal(
+      sort,
+      '-last_message_at,-id',
+      'coleção sem campo created deve usar somente campos materializados no runtime',
+    )
     return filter.includes('negocio_ids ~')
       ? [vinculoMultiplo]
       : [vinculoAutomatico, vinculoManual, vinculoPendente]
   }
   if (collection === 'com_whatsapp_mensagens') {
+    assert.equal(
+      sort,
+      '-message_at,-received_at,-id',
+      'mensagens devem ordenar apenas por campos materializados no runtime',
+    )
     filtrosMensagens.push(filter)
     if (!incluirMensagens) return []
     if (filter.includes("chat_id = 'chat-b'")) return [mensagemRecente]
