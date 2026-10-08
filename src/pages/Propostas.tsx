@@ -514,14 +514,13 @@ export default function Propostas() {
     if (!item.proposta || !item.contexto.external_id) return
     setGerandoEmailNexo((atual) => ({ ...atual, [item.negocio.id]: true }))
     try {
-      const link = linksPublicos[item.negocio.id] || (await publicar(item))
-      if (!link) return
+      const link = LINK_PROPOSTA_TITULO
       const contextoNexo = await obterContextoNexoNegocio(item.contexto.external_id)
       const ajuda = await gerarAjudaNexoNegocio(
         item.contexto.external_id,
         'email_envio_proposta',
         contextoNexo,
-        `Gere um e-mail de envio de proposta para o cliente. Inclua uma saudação natural pelo primeiro nome do contato e um assunto específico, em escrita normal, sem copiar literalmente a capitalização do detalhamento da proposta. Use tom consultivo e humano, sem transformar o texto em uma cobrança ou ordem. Como o texto já é o próprio e-mail, não escreva "acabei de enviar por e-mail", "encaminhei por e-mail", "neste e-mail" nem outra referência ao canal; vá direto ao conteúdo, por exemplo "Encaminho a proposta para sua análise". Inclua obrigatoriamente este link público da proposta no corpo: ${link}. O texto deve ser editável pelo operador antes do envio e não deve prometer preço, prazo ou condição operacional além do que estiver no contexto.`,
+        `Gere um e-mail de envio de proposta para o cliente. Inclua uma saudação natural pelo primeiro nome do contato e um assunto específico, em escrita normal, sem copiar literalmente a capitalização do detalhamento da proposta. Use tom consultivo e humano, sem transformar o texto em uma cobrança ou ordem. Como o texto já é o próprio e-mail, não escreva "acabei de enviar por e-mail", "encaminhei por e-mail", "neste e-mail" nem outra referência ao canal; vá direto ao conteúdo, por exemplo "Encaminho a proposta para sua análise". Inclua obrigatoriamente o marcador ${link} em uma linha própria, com uma linha em branco antes e outra depois; o aplicativo substituirá esse marcador pelo link público somente no momento de publicar ou enviar. O texto deve ser editável pelo operador antes do envio e não deve prometer preço, prazo ou condição operacional além do que estiver no contexto.`,
       )
       const textoGerado = ajuda.mensagem_sugerida || ajuda.resposta_curta || ''
       const sugestao = extrairSugestaoEmailNexo(
