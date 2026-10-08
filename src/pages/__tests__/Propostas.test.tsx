@@ -197,7 +197,7 @@ describe('Propostas', () => {
     expect(removerMetalinguagemEmailProposta(entrada)).toBe(esperado)
   })
 
-  it('preenche assunto e corpo do e-mail de proposta com sugestão do Nexo, link real e revisão humana', async () => {
+  it('preenche assunto e corpo do e-mail de proposta com marcador de link e revisão humana', async () => {
     const user = userEvent.setup()
     render(<Propostas />)
 
@@ -217,15 +217,14 @@ describe('Propostas', () => {
 
     await user.click(screen.getByRole('button', { name: /Preencher e-mail com Nexo/i }))
 
-    await waitFor(() =>
-      expect(publicarProposta).toHaveBeenCalledWith('neg-1', itemProposta.proposta.updated),
-    )
+    await waitFor(() => expect(gerarAjudaNexoNegocio).toHaveBeenCalled())
+    expect(publicarProposta).not.toHaveBeenCalled()
     expect(obterContextoNexoNegocio).toHaveBeenCalledWith('4792')
     expect(gerarAjudaNexoNegocio).toHaveBeenCalledWith(
       '4792',
       'email_envio_proposta',
       contextoNexo,
-      expect.stringContaining('http://localhost:3000/p/token-proposta-segura'),
+      expect.stringContaining('[LINK_PROPOSTA]'),
     )
 
     expect(screen.getByLabelText('Assunto')).toHaveValue(
@@ -251,6 +250,70 @@ describe('Propostas', () => {
     )
     expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
     expect(salvarMensagemEmailProposta).toHaveBeenCalledWith('neg-1', mensagem)
+  })
+
+  it('mantém o link em bloco próprio mesmo quando a sugestão o cola ao texto e à assinatura', async () => {
+    gerarAjudaNexoNegocio.mockResolvedValueOnce({
+      contrato: 'nexo_ajuda_comercial_v1',
+      external_id: '4792',
+      acao: 'email_envio_proposta',
+      mensagem_sugerida:
+        'Assunto: Proposta para análise\n\nOlá, Brenda. Tudo bem?\n\nConfira a proposta:[LINK_PROPOSTA]Atenciosamente,\nShirleide Andrade do Nascimento',
+      resposta_curta: '',
+      fallback: false,
+    })
+    const user = userEvent.setup()
+    render(<Propostas />)
+
+    await user.click(await screen.findByRole('button', { name: /Lançar proposta/i }))
+    await user.click(screen.getByRole('button', { name: /Preencher e-mail com Nexo/i }))
+
+    await waitFor(() => expect(salvarMensagemEmailProposta).toHaveBeenCalled())
+    const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
+    expect(mensagem).toContain('Confira a proposta:\n\n[LINK_PROPOSTA]\n\nAtenciosamente,')
+    expect(publicarProposta).not.toHaveBeenCalled()
+    expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
+  })
+
+  it('publica o link somente quando o operador confirma o envio do e-mail', async () => {
+    const user = userEvent.setup()
+    render(<Propostas />)
+
+    await user.click(await screen.findByRole('button', { name: /Lançar proposta/i }))
+    await user.click(screen.getByRole('button', { name: /Preencher e-mail com Nexo/i }))
+    await waitFor(() => expect(salvarMensagemEmailProposta).toHaveBeenCalled())
+    expect(publicarProposta).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: /Publicar e enviar por e-mail/i }))
+
+    await waitFor(() =>
+      expect(enviarPropostaPorEmail).toHaveBeenCalledWith(
+        'neg-1',
+        expect.objectContaining({ corpo: expect.stringContaining('[LINK_PROPOSTA]') }),
+        'http://localhost:3000/p/token-proposta-segura',
+      ),
+    )
+    expect(publicarProposta).toHaveBeenCalledTimes(1)
+  })
+
+  it('publica sob demanda e troca o marcador ao copiar a mensagem para WhatsApp', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText')
+    render(<Propostas />)
+
+    await user.click(await screen.findByRole('button', { name: /Lançar proposta/i }))
+    await user.click(screen.getByRole('button', { name: /Preencher e-mail com Nexo/i }))
+    await waitFor(() => expect(salvarMensagemEmailProposta).toHaveBeenCalled())
+    expect(publicarProposta).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: /Copiar mensagem para WhatsApp/i }))
+
+    await waitFor(() => expect(writeText).toHaveBeenCalled())
+    const mensagemCopiada = writeText.mock.calls.at(-1)?.[0]
+    expect(mensagemCopiada).toContain('http://localhost:3000/p/token-proposta-segura')
+    expect(mensagemCopiada).not.toContain('[LINK_PROPOSTA]')
+    expect(publicarProposta).toHaveBeenCalledTimes(1)
+    expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
   })
 
   it('corrige assunto em caixa alta e acrescenta saudação quando a sugestão do Nexo vier seca', async () => {
