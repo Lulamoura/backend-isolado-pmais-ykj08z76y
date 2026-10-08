@@ -48,8 +48,9 @@ export function CommercialContextCard({
         : 'border-emerald-300 bg-emerald-50'
   const age = ageInDays(contexto.crm_created_at)
   const hasPendingFollowUp =
-    contexto.follow_up_pendente ??
-    followUpPendente(contexto.proxima_acao_reagendada_em, contexto.ultima_nota_em)
+    showNextAction &&
+    (contexto.follow_up_pendente ??
+      followUpPendente(contexto.proxima_acao_reagendada_em, contexto.ultima_nota_em))
   const alerts = [
     showNextAction && status === 'vencida' ? 'Próxima ação vencida' : '',
     showNextAction && status === 'ausente' ? 'Sem próxima ação' : '',

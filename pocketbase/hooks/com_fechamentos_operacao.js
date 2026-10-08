@@ -131,18 +131,17 @@
           var ultimaNotaEm = nota
             ? nota.getString('alterada_em') || nota.getString('criada_em')
             : ''
-          var FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS = 8 * 60 * 1000
-          function notaDentroDaJanelaReagendamento(notaEm, reagendamentoEm) {
+          function notaPosteriorAoReagendamento(notaEm, reagendamentoEm) {
             if (!notaEm || !reagendamentoEm) return false
             var notaTime = new Date(notaEm).getTime()
             var reagendamentoTime = new Date(reagendamentoEm).getTime()
             if (!isFinite(notaTime) || !isFinite(reagendamentoTime)) return false
-            return Math.abs(notaTime - reagendamentoTime) <= FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS
+            return notaTime > reagendamentoTime
           }
           return {
             follow_up_pendente:
               !!reagendadaEm &&
-              (!ultimaNotaEm || !notaDentroDaJanelaReagendamento(ultimaNotaEm, reagendadaEm)),
+              (!ultimaNotaEm || !notaPosteriorAoReagendamento(ultimaNotaEm, reagendadaEm)),
             proxima_acao_reagendada_em: reagendadaEm || null,
             ultima_nota_em: ultimaNotaEm || null,
           }
