@@ -45,7 +45,11 @@ vi.mock('@/lib/pocketbase/client', () => ({
 }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
-import Propostas from '@/pages/Propostas'
+import Propostas, {
+  garantirSaudacaoEmailProposta,
+  removerMetalinguagemEmailProposta,
+} from '@/pages/Propostas'
+import type { ItemProposta } from '@/services/propostas'
 
 const itemProposta = {
   negocio: {
@@ -141,7 +145,7 @@ describe('Propostas', () => {
       riscos: [],
       proximos_passos: [],
       mensagem_sugerida:
-        'Leitura breve: Brenda está reavaliando a terceirização atual da unidade de Prazeres. O envio deve conectar a proposta ao escopo solicitado e abrir espaço para entender quais melhorias ela considera essenciais. Segue rascunho editável para revisão antes do envio.\n\nAssunto: Proposta nº 493.26 | Porteiro para a AUTONUNES – Unidade Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConsiderando sua solicitação e a reavaliação do serviço terceirizado da unidade de Prazeres, encaminho a proposta nº 493.26 da PMais para sua análise.\n\nVocê pode consultar o detalhamento pelo link:\nhttps://comercial.pmaisservicos.com.br/p/CEEBtUumUGk2Inx0tX4zXzfQT8AIKnVRo8VLP7YKd4uzuHmxIv1-nNCNWCLC4EKH\n\nPara alinharmos a proposta às necessidades da AUTONUNES, gostaria de entender quais pontos do serviço atual você considera prioritários melhorar.',
+        'Leitura breve: Brenda está reavaliando a terceirização atual da unidade de Prazeres. O envio deve conectar a proposta ao escopo solicitado e abrir espaço para entender quais melhorias ela considera essenciais. Segue rascunho editável para revisão antes do envio.\n\nAssunto: Proposta nº 493.26 | Porteiro para a AUTONUNES – Unidade Prazeres\n\nOlá, Brenda! Tudo bem?\n\nAcabei de enviar por e-mail uma proposta da PMais para o serviço solicitado e para sua análise.\n\nVocê pode consultar o detalhamento pelo link:\nhttps://comercial.pmaisservicos.com.br/p/CEEBtUumUGk2Inx0tX4zXzfQT8AIKnVRo8VLP7YKd4uzuHmxIv1-nNCNWCLC4EKH\n\nPara alinharmos a proposta às necessidades da AUTONUNES, gostaria de entender quais pontos do serviço atual você considera prioritários melhorar.',
       dicas_para_melhorar_notas: [],
       resposta_curta:
         'Segue rascunho editável para apresentar a proposta à Brenda, conectando o escopo à reavaliação do serviço.\n\nAssunto: Proposta nº 493.26 | Portaria — AUTONUNES Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConforme sua solicitação, encaminho a proposta da PMais para o serviço de portaria.\n\nVocê pode consultar o detalhamento da proposta neste link:\nhttp://localhost:3000/p/token-proposta-segura\n\nApós sua avaliação, podemos combinar uma breve conversa?\n\nAtenciosamente,\nShirleide Andrade do Nascimento\nComercial | PMais',
@@ -149,6 +153,48 @@ describe('Propostas', () => {
       modelo: 'openai_chat',
       fallback: false,
     })
+  })
+
+  it('trata sugestão contendo somente saudação sem travar a interface', () => {
+    expect(
+      garantirSaudacaoEmailProposta(
+        'Olá, Brenda. Tudo bem?\n\n',
+        itemProposta as unknown as ItemProposta,
+      ),
+    ).toBe('Olá, Brenda. Tudo bem?')
+  })
+
+  it('preserva o texto quando a saudação e a primeira frase vêm na mesma linha', () => {
+    expect(
+      garantirSaudacaoEmailProposta(
+        'Olá, Brenda. Acabei de encaminhar a proposta para sua análise.',
+        itemProposta as unknown as ItemProposta,
+      ),
+    ).toBe('Olá, Brenda. Tudo bem?\n\nAcabei de encaminhar a proposta para sua análise.')
+  })
+
+  it.each([
+    ['Olá, segue a proposta para sua análise.', 'Segue a proposta para sua análise.'],
+    ['Bom dia, encaminho a proposta para sua análise.', 'Encaminho a proposta para sua análise.'],
+    ['Olá, Brenda, acabei de encaminhar a proposta.', 'Acabei de encaminhar a proposta.'],
+    ['Olá: encaminho a proposta para sua análise.', 'Encaminho a proposta para sua análise.'],
+  ])('preserva conteúdo ambíguo após a saudação: %s', (entrada, conteudoEsperado) => {
+    expect(garantirSaudacaoEmailProposta(entrada, itemProposta as unknown as ItemProposta)).toBe(
+      `Olá, Brenda. Tudo bem?\n\n${conteudoEsperado}`,
+    )
+  })
+
+  it.each([
+    [
+      'Acabei de enviar por e-mail uma proposta para sua análise.',
+      'Encaminho uma proposta para sua análise.',
+    ],
+    ['Acabei de encaminhar por e-mail a proposta solicitada.', 'Encaminho a proposta solicitada.'],
+    ['Encaminhei por e-mail a proposta solicitada.', 'Encaminho a proposta solicitada.'],
+    ['Neste e-mail, encaminho a proposta solicitada.', 'Encaminho a proposta solicitada.'],
+    ['Neste e-mail, apresento a proposta solicitada.', 'Apresento a proposta solicitada.'],
+  ])('remove referência ao próprio canal do e-mail: %s', (entrada, esperado) => {
+    expect(removerMetalinguagemEmailProposta(entrada)).toBe(esperado)
   })
 
   it('preenche assunto e corpo do e-mail de proposta com sugestão do Nexo, link real e revisão humana', async () => {
@@ -159,7 +205,7 @@ describe('Propostas', () => {
     await screen.findByText('Publicar e enviar')
 
     expect(screen.getByLabelText('Assunto')).toHaveValue(
-      'Proposta comercial PMais — Autonunes Chevrolet Prazeres',
+      'Proposta PMais PROP-001 — Autonunes Chevrolet Prazeres',
     )
     expect(screen.getByLabelText('Mensagem')).toHaveValue()
     expect(
@@ -183,10 +229,14 @@ describe('Propostas', () => {
     )
 
     expect(screen.getByLabelText('Assunto')).toHaveValue(
-      'Proposta nº 493.26 | Porteiro para a AUTONUNES – Unidade Prazeres',
+      'Proposta PMais PROP-001 — Agentes de apoio 44h semanais | Autonunes Chevrolet Prazeres',
     )
     const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
-    expect(mensagem).toContain('Olá, Brenda! Tudo bem?')
+    expect(mensagem).toContain('Olá, Brenda. Tudo bem?')
+    expect(mensagem).toContain(
+      'Encaminho uma proposta da PMais para o serviço solicitado e para sua análise.',
+    )
+    expect(mensagem).not.toContain('Acabei de enviar por e-mail')
     expect(mensagem).toContain('[LINK_PROPOSTA]')
     expect(mensagem).toContain('pelo link:\n\n[LINK_PROPOSTA]\n\nPara alinharmos')
     expect(mensagem).toContain(
@@ -201,6 +251,80 @@ describe('Propostas', () => {
     )
     expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
     expect(salvarMensagemEmailProposta).toHaveBeenCalledWith('neg-1', mensagem)
+  })
+
+  it('corrige assunto em caixa alta e acrescenta saudação quando a sugestão do Nexo vier seca', async () => {
+    gerarAjudaNexoNegocio.mockResolvedValueOnce({
+      contrato: 'nexo_ajuda_comercial_v1',
+      external_id: '4792',
+      acao: 'email_envio_proposta',
+      mensagem_sugerida:
+        'Assunto: Proposta comercial PMais — AGENTES DE APOIO 44H SEMANAIS\n\nOlá, equipe.\n\nEncaminho a proposta para sua análise.\n\nhttps://comercial.pmaisservicos.com.br/p/token-gerado',
+      resposta_curta: '',
+      fallback: false,
+    })
+    const user = userEvent.setup()
+    render(<Propostas />)
+
+    await user.click(await screen.findByRole('button', { name: /Lançar proposta/i }))
+    await user.click(screen.getByRole('button', { name: /Preencher e-mail com Nexo/i }))
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Assunto')).toHaveValue(
+        'Proposta PMais PROP-001 — Agentes de apoio 44h semanais | Autonunes Chevrolet Prazeres',
+      ),
+    )
+    const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
+    expect(mensagem).toMatch(/^Olá, Brenda\. Tudo bem\?\n\n/)
+    expect(mensagem).not.toContain('Olá, equipe')
+    expect(mensagem).toContain('Encaminho a proposta para sua análise.')
+    expect(mensagem).toContain('[LINK_PROPOSTA]')
+    expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
+  })
+
+  it('usa saudação neutra quando o contato contém marcador de nome não informado', async () => {
+    listarPropostas.mockResolvedValueOnce({
+      itens: [
+        {
+          ...itemProposta,
+          contexto: {
+            ...itemProposta.contexto,
+            contato: { ...itemProposta.contexto.contato, nome: 'NÃO INFORMADO' },
+          },
+        },
+      ],
+      configuracao: {
+        aprovacao_interna_obrigatoria: false,
+        identificacao_visitante_obrigatoria: true,
+        identificacao_visitante_updated: '2026-09-13 10:00:00.000Z',
+      },
+    })
+    gerarAjudaNexoNegocio.mockResolvedValueOnce({
+      contrato: 'nexo_ajuda_comercial_v1',
+      external_id: '4792',
+      acao: 'email_envio_proposta',
+      mensagem_sugerida:
+        'Assunto: Proposta para análise\n\nOlá, Não informado. Tudo bem?\n\nEncaminho a proposta para sua análise.\n\nhttps://comercial.pmaisservicos.com.br/p/token-gerado',
+      resposta_curta: '',
+      fallback: true,
+    })
+    const user = userEvent.setup()
+    render(<Propostas />)
+
+    await user.click(await screen.findByRole('button', { name: /Lançar proposta/i }))
+    await user.click(screen.getByRole('button', { name: /Preencher e-mail com Nexo/i }))
+
+    await waitFor(() =>
+      expect(salvarMensagemEmailProposta).toHaveBeenCalledWith(
+        'neg-1',
+        expect.stringContaining('Encaminho a proposta para sua análise.'),
+      ),
+    )
+    const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
+    expect(mensagem).toMatch(/^Olá\. Tudo bem\?\n\n/)
+    expect(mensagem).not.toContain('Olá, Não')
+    expect(mensagem).toContain('[LINK_PROPOSTA]')
+    expect(enviarPropostaPorEmail).not.toHaveBeenCalled()
   })
 
   it('mantém a tela de propostas aberta quando o negócio não tem empresa vinculada', async () => {

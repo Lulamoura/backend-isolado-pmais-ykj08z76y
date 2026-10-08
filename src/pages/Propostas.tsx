@@ -130,6 +130,112 @@ const prepararCorpoEmailParaEnvio = (corpo: string, link: string) => {
 const nomeClienteProposta = (item: ItemProposta) =>
   item.contexto.empresa?.nome?.trim() || item.negocio.titulo?.trim() || 'Cliente não informado'
 
+const textoEmCaixaUniforme = (valor: string) => {
+  const letras = valor.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ]/g, '')
+  return (
+    Boolean(letras) &&
+    (letras === letras.toLocaleUpperCase('pt-BR') || letras === letras.toLocaleLowerCase('pt-BR'))
+  )
+}
+
+const normalizarNomeHumano = (valor: string) => {
+  const limpo = valor.replace(/\s+/g, ' ').trim()
+  if (!limpo || !textoEmCaixaUniforme(limpo)) return limpo
+  const particulas = new Set(['da', 'das', 'de', 'do', 'dos', 'e'])
+  return limpo
+    .toLocaleLowerCase('pt-BR')
+    .split(' ')
+    .map((parte, indice) =>
+      indice > 0 && particulas.has(parte)
+        ? parte
+        : `${parte.charAt(0).toLocaleUpperCase('pt-BR')}${parte.slice(1)}`,
+    )
+    .join(' ')
+}
+
+const normalizarTextoAssunto = (valor?: string | null) => {
+  const limpo = String(valor || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!limpo || !textoEmCaixaUniforme(limpo)) return limpo
+  const minusculo = limpo.toLocaleLowerCase('pt-BR')
+  return `${minusculo.charAt(0).toLocaleUpperCase('pt-BR')}${minusculo.slice(1)}`
+}
+
+const assuntoPadrao = (item: ItemProposta, tipoServico?: string | null) => {
+  const identificador = item.proposta?.identificador?.trim()
+  const cliente = normalizarNomeHumano(nomeClienteProposta(item))
+  const servico = normalizarTextoAssunto(tipoServico)
+  const referencia = ['Proposta PMais', identificador].filter(Boolean).join(' ')
+  return `${referencia} — ${servico ? `${servico} | ` : ''}${cliente}`
+}
+
+const normalizarAssuntoEmailProposta = (
+  _assunto: string,
+  item: ItemProposta,
+  tipoServico?: string | null,
+) => assuntoPadrao(item, tipoServico)
+
+const primeiroNomeContato = (item: ItemProposta) => {
+  const nome = normalizarNomeHumano(item.contexto.contato?.nome || '')
+  const primeiroNome = nome.split(/\s+/)[0] || ''
+  if (['não', 'nao', 'sem', 'cliente'].includes(primeiroNome.toLocaleLowerCase('pt-BR'))) return ''
+  return primeiroNome
+}
+
+export const garantirSaudacaoEmailProposta = (corpo: string, item: ItemProposta) => {
+  const limpo = corpo.trim()
+  const primeiroNome = primeiroNomeContato(item)
+  const saudacao = primeiroNome ? `Olá, ${primeiroNome}. Tudo bem?` : 'Olá. Tudo bem?'
+  const linhas = limpo.split('\n')
+  if (/^(olá|oi|bom dia|boa tarde|boa noite|prezad[oa])/i.test(linhas[0]?.trim() || '')) {
+    const primeiraLinha = linhas.shift()?.trim() || ''
+    const saudacaoTratamento = /^(olá|oi|bom dia|boa tarde|boa noite)(?=\s|[,!:.?-]|$)/i.test(
+      primeiraLinha,
+    )
+    let restantePrimeiraLinha = primeiraLinha
+      .replace(/^(olá|oi|bom dia|boa tarde|boa noite)(?=\s|[,!:.?-]|$)\s*[,!:.?-]?\s*/i, '')
+      .replace(/^prezad[oa](?=\s|[,!:.?-]|$)\s*/i, '')
+    const nomeEscapado = primeiroNome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    if (nomeEscapado) {
+      restantePrimeiraLinha = restantePrimeiraLinha.replace(
+        new RegExp(`^${nomeEscapado}(?=\\s|[,!:.?-]|$)\\s*[,!:.?-]?\\s*`, 'i'),
+        '',
+      )
+    }
+    if (!saudacaoTratamento) {
+      restantePrimeiraLinha = restantePrimeiraLinha.replace(
+        /^(empresa|cliente|equipe)(?=\s|[,!:.?-]|$)\s*[,!:.?-]?\s*/i,
+        '',
+      )
+    }
+    restantePrimeiraLinha = restantePrimeiraLinha
+      .replace(/^tudo bem[?!.]?\s*/i, '')
+      .trim()
+      .replace(/^([a-zà-ÿ])/u, (letra) => letra.toLocaleUpperCase('pt-BR'))
+    if (restantePrimeiraLinha) linhas.unshift(restantePrimeiraLinha)
+    while (linhas.length > 0 && !linhas[0]?.trim()) linhas.shift()
+    if (/^tudo bem[?!.]?$/i.test(linhas[0]?.trim() || '')) {
+      linhas.shift()
+      while (linhas.length > 0 && !linhas[0]?.trim()) linhas.shift()
+    }
+    return `${saudacao}${linhas.length ? `\n\n${linhas.join('\n').trim()}` : ''}`
+  }
+  return `${saudacao}\n\n${limpo}`
+}
+
+export const removerMetalinguagemEmailProposta = (corpo: string) =>
+  corpo
+    .replace(
+      /(^|\n)\s*(?:acabei de\s+(?:enviar|encaminhar)|enviei|encaminhei)\s+por e-?mail\s+/gim,
+      '$1Encaminho ',
+    )
+    .replace(
+      /(^|\n)\s*(?:neste|nesse)\s+e-?mail\s*,?\s*(?:eu\s+)?([a-zà-ÿ])/gimu,
+      (_trecho, inicioLinha: string, primeiraLetra: string) =>
+        `${inicioLinha}${primeiraLetra.toLocaleUpperCase('pt-BR')}`,
+    )
+
 const assinaturaEmailProposta = (item: ItemProposta) => {
   const responsavel = item.contexto.responsavel?.name?.trim()
   return `Atenciosamente,\n${responsavel || 'Equipe Comercial PMais'}${responsavel ? '\nComercial | PMais' : ''}`
@@ -140,7 +246,12 @@ const garantirAssinaturaEmailProposta = (corpo: string, item: ItemProposta) => {
   return `${corpo.trim()}\n\n${assinaturaEmailProposta(item)}`
 }
 
-const extrairSugestaoEmailNexo = (texto: string, link: string, item: ItemProposta) => {
+const extrairSugestaoEmailNexo = (
+  texto: string,
+  link: string,
+  item: ItemProposta,
+  tipoServico?: string | null,
+) => {
   const limpo = limparTextoEmailNexo(texto)
   let linhas = removerPreambuloNexo(limpo.split('\n'))
   let assunto = ''
@@ -150,11 +261,14 @@ const extrairSugestaoEmailNexo = (texto: string, link: string, item: ItemPropost
     assunto = matchAssunto?.[1]?.trim() || ''
     linhas = linhas.slice(indiceAssunto + 1)
   }
-  const corpo = garantirAssinaturaEmailProposta(
-    formatarLinkEditavelProposta(linhas.join('\n').replace(/^\s+/, '').trim(), link),
-    item,
+  const corpoSemAssinatura = removerMetalinguagemEmailProposta(
+    garantirSaudacaoEmailProposta(
+      formatarLinkEditavelProposta(linhas.join('\n').replace(/^\s+/, '').trim(), link),
+      item,
+    ),
   )
-  return { assunto, corpo }
+  const corpo = garantirAssinaturaEmailProposta(corpoSemAssinatura, item)
+  return { assunto: normalizarAssuntoEmailProposta(assunto, item, tipoServico), corpo }
 }
 
 export default function Propostas() {
@@ -289,8 +403,6 @@ export default function Propostas() {
     setModalProposta({ negocioId, modo })
     if (modo === 'historico') void carregarTimeline(negocioId)
   }
-  const assuntoPadrao = (item: ItemProposta) =>
-    `Proposta comercial PMais — ${nomeClienteProposta(item)}`
   const destinatarioPadrao = (item: ItemProposta) =>
     item.contexto.contato?.email || item.proposta?.destinatario || ''
   const mensagemPadrao = (item: ItemProposta) =>
@@ -409,11 +521,16 @@ export default function Propostas() {
         item.contexto.external_id,
         'email_envio_proposta',
         contextoNexo,
-        `Gere um e-mail de envio de proposta para o cliente. Inclua obrigatoriamente este link público da proposta no corpo: ${link}. O texto deve ser editável pelo operador antes do envio e não deve prometer preço, prazo ou condição operacional além do que estiver no contexto.`,
+        `Gere um e-mail de envio de proposta para o cliente. Inclua uma saudação natural pelo primeiro nome do contato e um assunto específico, em escrita normal, sem copiar literalmente a capitalização do detalhamento da proposta. Use tom consultivo e humano, sem transformar o texto em uma cobrança ou ordem. Como o texto já é o próprio e-mail, não escreva "acabei de enviar por e-mail", "encaminhei por e-mail", "neste e-mail" nem outra referência ao canal; vá direto ao conteúdo, por exemplo "Encaminho a proposta para sua análise". Inclua obrigatoriamente este link público da proposta no corpo: ${link}. O texto deve ser editável pelo operador antes do envio e não deve prometer preço, prazo ou condição operacional além do que estiver no contexto.`,
       )
       const textoGerado = ajuda.mensagem_sugerida || ajuda.resposta_curta || ''
-      const sugestao = extrairSugestaoEmailNexo(textoGerado, link, item)
-      const assunto = sugestao.assunto || assuntoPadrao(item)
+      const sugestao = extrairSugestaoEmailNexo(
+        textoGerado,
+        link,
+        item,
+        contextoNexo.campos_crm?.tipo_servico,
+      )
+      const assunto = sugestao.assunto || assuntoPadrao(item, contextoNexo.campos_crm?.tipo_servico)
       setAssuntosEmail((atual) => ({ ...atual, [item.negocio.id]: assunto }))
       setMensagensEmail((atual) => ({ ...atual, [item.negocio.id]: sugestao.corpo }))
       await salvarMensagemEmailProposta(item.negocio.id, sugestao.corpo)
