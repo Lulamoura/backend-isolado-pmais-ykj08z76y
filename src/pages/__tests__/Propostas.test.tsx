@@ -45,7 +45,10 @@ vi.mock('@/lib/pocketbase/client', () => ({
 }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
-import Propostas, { garantirSaudacaoEmailProposta } from '@/pages/Propostas'
+import Propostas, {
+  garantirSaudacaoEmailProposta,
+  removerMetalinguagemEmailProposta,
+} from '@/pages/Propostas'
 import type { ItemProposta } from '@/services/propostas'
 
 const itemProposta = {
@@ -142,7 +145,7 @@ describe('Propostas', () => {
       riscos: [],
       proximos_passos: [],
       mensagem_sugerida:
-        'Leitura breve: Brenda está reavaliando a terceirização atual da unidade de Prazeres. O envio deve conectar a proposta ao escopo solicitado e abrir espaço para entender quais melhorias ela considera essenciais. Segue rascunho editável para revisão antes do envio.\n\nAssunto: Proposta nº 493.26 | Porteiro para a AUTONUNES – Unidade Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConsiderando sua solicitação e a reavaliação do serviço terceirizado da unidade de Prazeres, encaminho a proposta nº 493.26 da PMais para sua análise.\n\nVocê pode consultar o detalhamento pelo link:\nhttps://comercial.pmaisservicos.com.br/p/CEEBtUumUGk2Inx0tX4zXzfQT8AIKnVRo8VLP7YKd4uzuHmxIv1-nNCNWCLC4EKH\n\nPara alinharmos a proposta às necessidades da AUTONUNES, gostaria de entender quais pontos do serviço atual você considera prioritários melhorar.',
+        'Leitura breve: Brenda está reavaliando a terceirização atual da unidade de Prazeres. O envio deve conectar a proposta ao escopo solicitado e abrir espaço para entender quais melhorias ela considera essenciais. Segue rascunho editável para revisão antes do envio.\n\nAssunto: Proposta nº 493.26 | Porteiro para a AUTONUNES – Unidade Prazeres\n\nOlá, Brenda! Tudo bem?\n\nAcabei de enviar por e-mail uma proposta da PMais para o serviço solicitado e para sua análise.\n\nVocê pode consultar o detalhamento pelo link:\nhttps://comercial.pmaisservicos.com.br/p/CEEBtUumUGk2Inx0tX4zXzfQT8AIKnVRo8VLP7YKd4uzuHmxIv1-nNCNWCLC4EKH\n\nPara alinharmos a proposta às necessidades da AUTONUNES, gostaria de entender quais pontos do serviço atual você considera prioritários melhorar.',
       dicas_para_melhorar_notas: [],
       resposta_curta:
         'Segue rascunho editável para apresentar a proposta à Brenda, conectando o escopo à reavaliação do serviço.\n\nAssunto: Proposta nº 493.26 | Portaria — AUTONUNES Prazeres\n\nOlá, Brenda! Tudo bem?\n\nConforme sua solicitação, encaminho a proposta da PMais para o serviço de portaria.\n\nVocê pode consultar o detalhamento da proposta neste link:\nhttp://localhost:3000/p/token-proposta-segura\n\nApós sua avaliação, podemos combinar uma breve conversa?\n\nAtenciosamente,\nShirleide Andrade do Nascimento\nComercial | PMais',
@@ -159,6 +162,39 @@ describe('Propostas', () => {
         itemProposta as unknown as ItemProposta,
       ),
     ).toBe('Olá, Brenda. Tudo bem?')
+  })
+
+  it('preserva o texto quando a saudação e a primeira frase vêm na mesma linha', () => {
+    expect(
+      garantirSaudacaoEmailProposta(
+        'Olá, Brenda. Acabei de encaminhar a proposta para sua análise.',
+        itemProposta as unknown as ItemProposta,
+      ),
+    ).toBe('Olá, Brenda. Tudo bem?\n\nAcabei de encaminhar a proposta para sua análise.')
+  })
+
+  it.each([
+    ['Olá, segue a proposta para sua análise.', 'Segue a proposta para sua análise.'],
+    ['Bom dia, encaminho a proposta para sua análise.', 'Encaminho a proposta para sua análise.'],
+    ['Olá, Brenda, acabei de encaminhar a proposta.', 'Acabei de encaminhar a proposta.'],
+    ['Olá: encaminho a proposta para sua análise.', 'Encaminho a proposta para sua análise.'],
+  ])('preserva conteúdo ambíguo após a saudação: %s', (entrada, conteudoEsperado) => {
+    expect(garantirSaudacaoEmailProposta(entrada, itemProposta as unknown as ItemProposta)).toBe(
+      `Olá, Brenda. Tudo bem?\n\n${conteudoEsperado}`,
+    )
+  })
+
+  it.each([
+    [
+      'Acabei de enviar por e-mail uma proposta para sua análise.',
+      'Encaminho uma proposta para sua análise.',
+    ],
+    ['Acabei de encaminhar por e-mail a proposta solicitada.', 'Encaminho a proposta solicitada.'],
+    ['Encaminhei por e-mail a proposta solicitada.', 'Encaminho a proposta solicitada.'],
+    ['Neste e-mail, encaminho a proposta solicitada.', 'Encaminho a proposta solicitada.'],
+    ['Neste e-mail, apresento a proposta solicitada.', 'Apresento a proposta solicitada.'],
+  ])('remove referência ao próprio canal do e-mail: %s', (entrada, esperado) => {
+    expect(removerMetalinguagemEmailProposta(entrada)).toBe(esperado)
   })
 
   it('preenche assunto e corpo do e-mail de proposta com sugestão do Nexo, link real e revisão humana', async () => {
@@ -197,6 +233,10 @@ describe('Propostas', () => {
     )
     const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
     expect(mensagem).toContain('Olá, Brenda. Tudo bem?')
+    expect(mensagem).toContain(
+      'Encaminho uma proposta da PMais para o serviço solicitado e para sua análise.',
+    )
+    expect(mensagem).not.toContain('Acabei de enviar por e-mail')
     expect(mensagem).toContain('[LINK_PROPOSTA]')
     expect(mensagem).toContain('pelo link:\n\n[LINK_PROPOSTA]\n\nPara alinharmos')
     expect(mensagem).toContain(

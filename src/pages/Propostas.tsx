@@ -189,7 +189,31 @@ export const garantirSaudacaoEmailProposta = (corpo: string, item: ItemProposta)
   const saudacao = primeiroNome ? `Olá, ${primeiroNome}. Tudo bem?` : 'Olá. Tudo bem?'
   const linhas = limpo.split('\n')
   if (/^(olá|oi|bom dia|boa tarde|boa noite|prezad[oa])/i.test(linhas[0]?.trim() || '')) {
-    linhas.shift()
+    const primeiraLinha = linhas.shift()?.trim() || ''
+    const saudacaoTratamento = /^(olá|oi|bom dia|boa tarde|boa noite)(?=\s|[,!:.?-]|$)/i.test(
+      primeiraLinha,
+    )
+    let restantePrimeiraLinha = primeiraLinha
+      .replace(/^(olá|oi|bom dia|boa tarde|boa noite)(?=\s|[,!:.?-]|$)\s*[,!:.?-]?\s*/i, '')
+      .replace(/^prezad[oa](?=\s|[,!:.?-]|$)\s*/i, '')
+    const nomeEscapado = primeiroNome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    if (nomeEscapado) {
+      restantePrimeiraLinha = restantePrimeiraLinha.replace(
+        new RegExp(`^${nomeEscapado}(?=\\s|[,!:.?-]|$)\\s*[,!:.?-]?\\s*`, 'i'),
+        '',
+      )
+    }
+    if (!saudacaoTratamento) {
+      restantePrimeiraLinha = restantePrimeiraLinha.replace(
+        /^(empresa|cliente|equipe)(?=\s|[,!:.?-]|$)\s*[,!:.?-]?\s*/i,
+        '',
+      )
+    }
+    restantePrimeiraLinha = restantePrimeiraLinha
+      .replace(/^tudo bem[?!.]?\s*/i, '')
+      .trim()
+      .replace(/^([a-zà-ÿ])/u, (letra) => letra.toLocaleUpperCase('pt-BR'))
+    if (restantePrimeiraLinha) linhas.unshift(restantePrimeiraLinha)
     while (linhas.length > 0 && !linhas[0]?.trim()) linhas.shift()
     if (/^tudo bem[?!.]?$/i.test(linhas[0]?.trim() || '')) {
       linhas.shift()
@@ -199,6 +223,18 @@ export const garantirSaudacaoEmailProposta = (corpo: string, item: ItemProposta)
   }
   return `${saudacao}\n\n${limpo}`
 }
+
+export const removerMetalinguagemEmailProposta = (corpo: string) =>
+  corpo
+    .replace(
+      /(^|\n)\s*(?:acabei de\s+(?:enviar|encaminhar)|enviei|encaminhei)\s+por e-?mail\s+/gim,
+      '$1Encaminho ',
+    )
+    .replace(
+      /(^|\n)\s*(?:neste|nesse)\s+e-?mail\s*,?\s*(?:eu\s+)?([a-zà-ÿ])/gimu,
+      (_trecho, inicioLinha: string, primeiraLetra: string) =>
+        `${inicioLinha}${primeiraLetra.toLocaleUpperCase('pt-BR')}`,
+    )
 
 const assinaturaEmailProposta = (item: ItemProposta) => {
   const responsavel = item.contexto.responsavel?.name?.trim()
@@ -225,9 +261,11 @@ const extrairSugestaoEmailNexo = (
     assunto = matchAssunto?.[1]?.trim() || ''
     linhas = linhas.slice(indiceAssunto + 1)
   }
-  const corpoSemAssinatura = garantirSaudacaoEmailProposta(
-    formatarLinkEditavelProposta(linhas.join('\n').replace(/^\s+/, '').trim(), link),
-    item,
+  const corpoSemAssinatura = removerMetalinguagemEmailProposta(
+    garantirSaudacaoEmailProposta(
+      formatarLinkEditavelProposta(linhas.join('\n').replace(/^\s+/, '').trim(), link),
+      item,
+    ),
   )
   const corpo = garantirAssinaturaEmailProposta(corpoSemAssinatura, item)
   return { assunto: normalizarAssuntoEmailProposta(assunto, item, tipoServico), corpo }
@@ -483,7 +521,7 @@ export default function Propostas() {
         item.contexto.external_id,
         'email_envio_proposta',
         contextoNexo,
-        `Gere um e-mail de envio de proposta para o cliente. Inclua uma saudação natural pelo primeiro nome do contato e um assunto específico, em escrita normal, sem copiar literalmente a capitalização do detalhamento da proposta. Use tom consultivo e humano, sem transformar o texto em uma cobrança ou ordem. Inclua obrigatoriamente este link público da proposta no corpo: ${link}. O texto deve ser editável pelo operador antes do envio e não deve prometer preço, prazo ou condição operacional além do que estiver no contexto.`,
+        `Gere um e-mail de envio de proposta para o cliente. Inclua uma saudação natural pelo primeiro nome do contato e um assunto específico, em escrita normal, sem copiar literalmente a capitalização do detalhamento da proposta. Use tom consultivo e humano, sem transformar o texto em uma cobrança ou ordem. Como o texto já é o próprio e-mail, não escreva "acabei de enviar por e-mail", "encaminhei por e-mail", "neste e-mail" nem outra referência ao canal; vá direto ao conteúdo, por exemplo "Encaminho a proposta para sua análise". Inclua obrigatoriamente este link público da proposta no corpo: ${link}. O texto deve ser editável pelo operador antes do envio e não deve prometer preço, prazo ou condição operacional além do que estiver no contexto.`,
       )
       const textoGerado = ajuda.mensagem_sugerida || ajuda.resposta_curta || ''
       const sugestao = extrairSugestaoEmailNexo(
