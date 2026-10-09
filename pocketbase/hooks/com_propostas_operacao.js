@@ -462,6 +462,20 @@
         } catch (_) {}
         return eventos
       }
+      function propostaPrimeiraAbertura(app, propostaId) {
+        try {
+          var acessos = app.findRecordsByFilter(
+            'com_proposta_eventos_publicos',
+            "publicacao_id.proposta_id = '" + propostaId + "' && tipo='pagina_acessada'",
+            'ocorrido_em',
+            1,
+            0,
+          )
+          return acessos.length ? acessos[0].getString('ocorrido_em') : null
+        } catch (_) {
+          return null
+        }
+      }
       function aprovacaoInternaObrigatoria(app) {
         try {
           var parametro = app.findFirstRecordByData(
@@ -633,22 +647,8 @@
               versao = versoes[0]
               eventos = propostaEventos($app, versao.id)
             }
-            try {
-              var publicacaoAtiva = $app.findFirstRecordByFilter(
-                'com_proposta_publicacoes',
-                "proposta_id = '" + proposta.id + "' && estado='ativa'",
-              )
-              var acessosPublicacao = $app.findRecordsByFilter(
-                'com_proposta_eventos_publicos',
-                "publicacao_id = '" + publicacaoAtiva.id + "' && tipo='pagina_acessada'",
-                'ocorrido_em',
-                1,
-                0,
-              )
-              abertaPublicacao = acessosPublicacao.length > 0
-              if (abertaPublicacao)
-                primeiroAcessoPublicacaoEm = acessosPublicacao[0].getString('ocorrido_em')
-            } catch (_) {}
+            primeiroAcessoPublicacaoEm = propostaPrimeiraAbertura($app, proposta.id)
+            abertaPublicacao = !!primeiroAcessoPublicacaoEm
             try {
               var enviosSistema = $app.findRecordsByFilter(
                 'com_proposta_envios',
