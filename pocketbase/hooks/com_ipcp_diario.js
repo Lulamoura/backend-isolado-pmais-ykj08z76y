@@ -729,12 +729,26 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
     )
   }
 
+  function activeCampaignDealId(rec) {
+    try {
+      var vinculo = $app.findFirstRecordByFilter(
+        'com_vinculos_externos',
+        "collection_name='com_negocios' && record_id='" +
+          esc(rec.id) +
+          "' && sistema_origem='activecampaign' && external_type='business'",
+      )
+      if (vinculo && vinculo.getString('external_id')) return vinculo.getString('external_id')
+    } catch (_) {}
+    return null
+  }
+
   function negocioHumanoId(rec) {
     return (
       rec.getString('oe_numero') ||
+      activeCampaignDealId(rec) ||
       rec.getString('external_id') ||
       rec.getString('codigo') ||
-      rec.id
+      'Sem número legível'
     )
   }
   function textoRegistroComercial(rec) {
@@ -1115,13 +1129,16 @@ routerAdd('POST', '/backend/v1/ipcp/processamento-diario/homologacao', function 
       if (item.getString('qualificacao') === 'pendente' || item.getString('etapa') === 'prospects')
         motivos.push('qualificação pendente')
       if (!motivos.length) motivos.push('exige próximo passo comercial verificável')
+      var externalId = activeCampaignDealId(item)
       negociosAtencao.push({
+        negocio_id: item.id,
+        external_id: externalId,
         id_negocio: negocioHumanoId(item),
         cliente: nomeNegocio(item),
         motivo: motivos.join('; '),
         acao_recomendada: 'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.',
         blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
-        link: '/pipeline?negocio=' + encodeURIComponent(negocioHumanoId(item)),
+        link: '/pipeline?negocio=' + encodeURIComponent(item.id),
       })
     }
 
@@ -1514,12 +1531,26 @@ cronAdd(
       )
     }
 
+    function activeCampaignDealId(rec) {
+      try {
+        var vinculo = $app.findFirstRecordByFilter(
+          'com_vinculos_externos',
+          "collection_name='com_negocios' && record_id='" +
+            esc(rec.id) +
+            "' && sistema_origem='activecampaign' && external_type='business'",
+        )
+        if (vinculo && vinculo.getString('external_id')) return vinculo.getString('external_id')
+      } catch (_) {}
+      return null
+    }
+
     function negocioHumanoId(rec) {
       return (
         rec.getString('oe_numero') ||
+        activeCampaignDealId(rec) ||
         rec.getString('external_id') ||
         rec.getString('codigo') ||
-        rec.id
+        'Sem número legível'
       )
     }
     function textoRegistroComercial(rec) {
@@ -1903,14 +1934,17 @@ cronAdd(
         )
           motivos.push('qualificação pendente')
         if (!motivos.length) motivos.push('exige próximo passo comercial verificável')
+        var externalId = activeCampaignDealId(item)
         negociosAtencao.push({
+          negocio_id: item.id,
+          external_id: externalId,
           id_negocio: negocioHumanoId(item),
           cliente: nomeNegocio(item),
           motivo: motivos.join('; '),
           acao_recomendada:
             'Registrar decisor, pendência, prazo de retorno e próxima ação objetiva.',
           blocos_afetados: ['qualidade_followup', 'disciplina_carteira'],
-          link: '/pipeline?negocio=' + encodeURIComponent(negocioHumanoId(item)),
+          link: '/pipeline?negocio=' + encodeURIComponent(item.id),
         })
       }
 
@@ -2347,21 +2381,85 @@ routerAdd(
       return rows
     }
 
-    function negocioHumanoId(rec) {
-      var oe = rec.getString('oe_numero')
-      if (oe) return oe
+    function activeCampaignDealId(rec) {
       try {
         var vinculo = $app.findFirstRecordByFilter(
           'com_vinculos_externos',
-          "collection_name='com_negocios' && record_id='" + esc(rec.id) + "'",
+          "collection_name='com_negocios' && record_id='" +
+            esc(rec.id) +
+            "' && sistema_origem='activecampaign' && external_type='business'",
         )
         if (vinculo && vinculo.getString('external_id')) return vinculo.getString('external_id')
       } catch (_) {}
-      var external = rec.getString('external_id')
-      if (external) return external
-      var codigo = rec.getString('codigo')
-      if (codigo) return codigo
-      return 'Sem número legível'
+      return null
+    }
+
+    function negocioHumanoId(rec) {
+      return (
+        rec.getString('oe_numero') ||
+        activeCampaignDealId(rec) ||
+        rec.getString('external_id') ||
+        rec.getString('codigo') ||
+        'Sem número legível'
+      )
+    }
+
+    function idTecnicoPocketBase(value) {
+      return /^[a-z0-9]{15}$/.test(String(value || ''))
+    }
+
+    function negocioInternoIdAtencao(item) {
+      var explicito = String((item && item.negocio_id) || '')
+      if (idTecnicoPocketBase(explicito)) return explicito
+      var link = String((item && item.link) || '')
+      var marcador = 'negocio='
+      var inicio = link.indexOf(marcador)
+      if (inicio >= 0) {
+        var candidato = link.slice(inicio + marcador.length).split('&')[0]
+        try {
+          candidato = decodeURIComponent(candidato)
+        } catch (_) {}
+        if (idTecnicoPocketBase(candidato)) return candidato
+      }
+      var legado = String((item && item.id_negocio) || '')
+      return idTecnicoPocketBase(legado) ? legado : ''
+    }
+
+    function normalizarNegociosAtencaoParaResposta(items) {
+      var normalizados = []
+      items = items || []
+      for (var nai = 0; nai < items.length; nai++) {
+        var item = items[nai] || {}
+        var out = {}
+        var keys = Object.keys(item)
+        for (var nki = 0; nki < keys.length; nki++) out[keys[nki]] = item[keys[nki]]
+        var internalId = negocioInternoIdAtencao(item)
+        var externalId = ''
+        var numeroHumano = ''
+        if (internalId) {
+          try {
+            var negocio = $app.findRecordById('com_negocios', internalId)
+            externalId = activeCampaignDealId(negocio) || ''
+            numeroHumano = negocioHumanoId(negocio)
+          } catch (_) {}
+        }
+        if (!numeroHumano) {
+          var numeroLegado = String(item.id_negocio || '')
+          if (
+            numeroLegado &&
+            numeroLegado !== 'Sem número legível' &&
+            !idTecnicoPocketBase(numeroLegado)
+          )
+            numeroHumano = numeroLegado
+        }
+        out.negocio_id = internalId || null
+        out.external_id = externalId || null
+        out.id_negocio = numeroHumano || externalId || 'Sem número legível'
+        if (internalId) out.link = '/pipeline?negocio=' + encodeURIComponent(internalId)
+        else delete out.link
+        normalizados.push(out)
+      }
+      return normalizados
     }
     function textoRegistroComercial(rec) {
       try {
@@ -2693,7 +2791,10 @@ routerAdd(
         )
           motivos.push('qualificação pendente')
         if (!motivos.length) motivos.push('exige próximo passo comercial verificável')
+        var externalId = activeCampaignDealId(item)
         negociosAtencao.push({
+          negocio_id: item.id,
+          external_id: externalId,
           id_negocio: negocioHumanoId(item),
           cliente: nomeNegocio(item),
           empresa: nomeRelacionado('com_empresas', item.getString('empresa_id'), [
@@ -3108,9 +3209,11 @@ routerAdd(
       ? snapshotAnteriorComparavel(snapshot, snapshots)
       : null
     pacoteVivo.evolucao = montarEvolucaoIpcp(ipcpPayload, anteriorComparavel)
-    var negociosAtencaoResposta = usarSnapshotComoLeituraAtual
-      ? payload.negocios_atencao || []
-      : pacoteVivo.negocios_atencao || []
+    var negociosAtencaoResposta = normalizarNegociosAtencaoParaResposta(
+      usarSnapshotComoLeituraAtual
+        ? payload.negocios_atencao || []
+        : pacoteVivo.negocios_atencao || [],
+    )
     var evidenciasResposta = usarSnapshotComoLeituraAtual
       ? payload.evidencias
       : pacoteVivo.evidencias

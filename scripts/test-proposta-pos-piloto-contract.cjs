@@ -48,8 +48,17 @@ const checks = [
     timeline.includes('visitante_nome:') && service.includes('visitante_nome: string | null'),
   ],
   [
-    'fila calcula abertura da publicação vigente',
-    operation.includes('primeiro_acesso_publicacao_em') && service.includes('aberta: boolean'),
+    'fila calcula abertura no nível da proposta com uma consulta sem limite de publicações',
+    operation.includes('function propostaPrimeiraAbertura(app, propostaId)') &&
+      operation.includes(
+        '"publicacao_id.proposta_id = \'" + propostaId + "\' && tipo=\'pagina_acessada\'"',
+      ) &&
+      /'ocorrido_em',\s+1,\s+0,/.test(operation) &&
+      operation.includes(
+        'primeiroAcessoPublicacaoEm = propostaPrimeiraAbertura($app, proposta.id)',
+      ) &&
+      !operation.includes('for (var pi = 0; pi < publicacoes.length; pi++)') &&
+      service.includes('aberta: boolean'),
   ],
   [
     'UI reutiliza nome por publicação no navegador',
@@ -73,7 +82,7 @@ const checks = [
     'modelo operacional completo de envio foi preservado',
     internalPage.includes('Publicar e enviar por e-mail') &&
       internalPage.includes('Somente publicar') &&
-      /Copiar mensagem para\s+WhatsApp/.test(internalPage) &&
+      /Copiar mensagem[\s\S]*para WhatsApp/.test(internalPage) &&
       internalPage.includes('Com cópia (Cc)') &&
       internalPage.includes('Responder para') &&
       internalPage.includes('[LINK_PROPOSTA]'),

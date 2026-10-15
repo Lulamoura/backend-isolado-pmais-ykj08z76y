@@ -35,6 +35,31 @@ assert.match(card, /item\.empresa/, 'card de negócios em atenção deve renderi
 assert.match(card, /item\.contato/, 'card de negócios em atenção deve renderizar Contato')
 assert.match(
   service,
+  /negocio_id\?: string \| null[\s\S]{0,120}external_id\?: string \| null/,
+  'tipo deve distinguir ID técnico interno de número externo do ActiveCampaign',
+)
+assert.match(
+  card,
+  /dealId=\{activeCampaignDealIdAtencao\(item\)\}/,
+  'link do ActiveCampaign deve usar apenas o identificador externo canônico',
+)
+assert.match(
+  card,
+  /activeCampaignDealIdAtencao[\s\S]{0,240}item\.external_id[\s\S]{0,160}\/\^\\d\+\$\//,
+  'link do ActiveCampaign deve aceitar somente external_id numérico confirmado pelo backend',
+)
+assert.doesNotMatch(
+  card,
+  /activeCampaignDealIdAtencao[\s\S]{0,240}numeroNegocioAtencao\(item\)/,
+  'número humano/OE não pode ser reaproveitado como ID de negócio no ActiveCampaign',
+)
+assert.doesNotMatch(
+  card,
+  /dealId=\{numeroNegocioAtencao\(item\) \|\| item\.id_negocio\}/,
+  'link do ActiveCampaign não pode reutilizar ID técnico como fallback',
+)
+assert.match(
+  service,
   /NEXO_IPCP_DIARIO_VIVO_PATH/,
   'serviço deve declarar caminho vivo do Nexo/IPCP',
 )
