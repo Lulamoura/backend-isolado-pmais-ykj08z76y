@@ -194,7 +194,16 @@ function nomeNegocioAtencao(item: IpcpDiarioReadOnly['negocios_atencao'][number]
 }
 
 function numeroNegocioAtencao(item: IpcpDiarioReadOnly['negocios_atencao'][number]): string {
-  return String(item.id_negocio || '').trim()
+  const numero = String(item.id_negocio || '').trim()
+  if (numero && numero !== 'Sem número legível' && !isIdTecnico(numero)) return numero
+  const externalId = String(item.external_id || '').trim()
+  if (externalId && !isIdTecnico(externalId)) return externalId
+  return ''
+}
+
+function activeCampaignDealIdAtencao(item: IpcpDiarioReadOnly['negocios_atencao'][number]): string {
+  const externalId = String(item.external_id || '').trim()
+  return /^\d+$/.test(externalId) ? externalId : ''
 }
 
 function BlocoAjuda({ bloco }: { bloco: IpcpBlocoId }) {
@@ -364,7 +373,7 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
               ) : (
                 data.negocios_atencao.map((item) => (
                   <div
-                    key={item.id_negocio}
+                    key={item.negocio_id || item.external_id || item.id_negocio}
                     className="rounded-lg border border-slate-200/80 bg-white p-3.5 shadow-xs"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
@@ -388,7 +397,7 @@ export function IpcpEducativoDiarioCard({ data }: { data: IpcpDiarioReadOnly }) 
                           </Link>
                         ) : null}
                         <ActiveCampaignDealLink
-                          dealId={numeroNegocioAtencao(item) || item.id_negocio}
+                          dealId={activeCampaignDealIdAtencao(item)}
                           compact
                         />
                       </div>

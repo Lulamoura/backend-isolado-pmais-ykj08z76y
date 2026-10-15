@@ -7,7 +7,7 @@ assert.ok(fs.existsSync(hookPath), 'hook IPCP diário deve existir')
 const hook = fs.readFileSync(hookPath, 'utf8')
 const routeStart = hook.indexOf("'/backend/v1/nexo/ipcp/diario'")
 assert.notEqual(routeStart, -1, 'deve expor GET /backend/v1/nexo/ipcp/diario para o Nexo')
-const routeSource = hook.slice(Math.max(0, routeStart - 500), routeStart + 40000)
+const routeSource = hook.slice(Math.max(0, routeStart - 500), routeStart + 52000)
 
 assert.match(
   routeSource,
@@ -150,6 +150,26 @@ assert.match(
 )
 assert.match(
   routeSource,
+  /function normalizarNegociosAtencaoParaResposta\(items\)/,
+  'rota deve normalizar também os negócios vindos de snapshots antigos antes de responder',
+)
+assert.match(
+  routeSource,
+  /normalizarNegociosAtencaoParaResposta\([\s\S]{0,220}payload\.negocios_atencao/,
+  'negócios persistidos em snapshot devem ser reidratados com o vínculo atual do ActiveCampaign',
+)
+assert.match(
+  routeSource,
+  /external_id:\s*externalId/,
+  'payload deve separar o ID externo do ActiveCampaign do ID técnico interno',
+)
+assert.match(
+  routeSource,
+  /negocio_id:\s*item\.id/,
+  'payload vivo deve preservar o ID técnico somente em campo interno explícito',
+)
+assert.match(
+  routeSource,
   /var calculadoEm = snapshot[\s\S]{0,180}snapshot\.getString\('updated'\)[\s\S]{0,120}: null/,
   'Base exibida deve usar data/hora do snapshot disponível; sem snapshot não deve inventar hora da consulta',
 )
@@ -175,8 +195,8 @@ assert.match(
 )
 assert.match(
   routeSource,
-  /var negociosAtencaoResposta = usarSnapshotComoLeituraAtual[\s\S]{0,180}payload\.negocios_atencao[\s\S]{0,180}pacoteVivo\.negocios_atencao/,
-  'rota deve usar negócios do snapshot exibido e leitura viva apenas quando não houver snapshot como leitura atual',
+  /var negociosAtencaoResposta = normalizarNegociosAtencaoParaResposta\([\s\S]{0,260}payload\.negocios_atencao[\s\S]{0,180}pacoteVivo\.negocios_atencao/,
+  'rota deve usar negócios do snapshot exibido e leitura viva apenas quando não houver snapshot como leitura atual, normalizando ambos antes da resposta',
 )
 assert.match(
   routeSource,
