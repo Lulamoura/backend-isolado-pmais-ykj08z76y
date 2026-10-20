@@ -1,6 +1,27 @@
 import { describe, expect, it } from 'vitest'
 
-import { getSubstituicoesPageTitle } from '@/components/Layout'
+import {
+  contarPendenciasCuradoriaUnificada,
+  CURADORIA_BADGE_LIMITE,
+  getSubstituicoesPageTitle,
+} from '@/components/Layout'
+
+describe('contarPendenciasCuradoriaUnificada', () => {
+  it('consulta a mesma janela de casos exibida na Curadoria Comercial', () => {
+    expect(CURADORIA_BADGE_LIMITE).toBe(50)
+  })
+
+  it('usa somente as filas exibidas como pendentes na Curadoria Comercial', () => {
+    expect(
+      contarPendenciasCuradoriaUnificada({
+        para_tratar: 2,
+        aguardando_decisao: 1,
+        conhecimento_aprovado: 7,
+        historico: 9,
+      }),
+    ).toBe(3)
+  })
+})
 
 describe('getSubstituicoesPageTitle', () => {
   it.each([

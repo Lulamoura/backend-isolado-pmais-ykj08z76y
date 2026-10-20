@@ -23,14 +23,30 @@ for (const source of [webhook, reconciliation]) {
   assert.match(source, /:next_action/)
 }
 for (const source of [proposals, closings, orders, slas]) {
-  assert.match(source, /notaPosteriorAoReagendamento/)
+  assert.match(source, /FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS\s*=\s*8\s*\*\s*60\s*\*\s*1000/)
+  assert.match(source, /notaDentroDaJanelaReagendamento/)
   assert.match(source, /nota\.getString\('alterada_em'\) \|\| nota\.getString\('criada_em'\)/)
-  assert.match(source, /notaTime > reagendamentoTime/)
-  assert.doesNotMatch(source, /FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS/)
-  assert.doesNotMatch(source, /Math\.abs\(notaTime - reagendamentoTime\)/)
+  assert.match(
+    source,
+    /Math\.abs\(notaTime - reagendamentoTime\) <= FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS/,
+  )
   assert.match(source, /follow_up_pendente/)
-  assert.match(source, /!notaPosteriorAoReagendamento\(ultimaNotaEm, reagendadaEm\)/)
+  assert.match(source, /!notaDentroDaJanelaReagendamento\(ultimaNotaEm, reagendadaEm\)/)
 }
+
+const helperMatch = proposals.match(
+  /var FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS\s*=\s*8\s*\*\s*60\s*\*\s*1000[\s\S]*?function notaDentroDaJanelaReagendamento\(notaEm, reagendamentoEm\)\s*\{[\s\S]*?\n\s*\}/,
+)
+assert.ok(helperMatch, 'helper de correlação temporal deve existir no hook real')
+const helper = new Function(
+  `${helperMatch[0]}; return { janela: FOLLOWUP_REAGENDAMENTO_TOLERANCIA_MS, dentro: notaDentroDaJanelaReagendamento }`,
+)()
+assert.equal(helper.janela, 8 * 60 * 1000)
+assert.equal(helper.dentro('2026-10-16T12:00:00Z', '2026-10-16T12:00:05Z'), true)
+assert.equal(helper.dentro('2026-10-16T12:00:10Z', '2026-10-16T12:00:05Z'), true)
+assert.equal(helper.dentro('2026-10-16T12:00:00Z', '2026-10-16T12:08:00Z'), true)
+assert.equal(helper.dentro('2026-10-16T12:00:00Z', '2026-10-16T12:08:00.001Z'), false)
+assert.equal(helper.dentro('', '2026-10-16T12:00:00Z'), false)
 assert.match(
   contextCard,
   /const hasPendingFollowUp\s*=\s*showNextAction\s*&&/,

@@ -308,11 +308,18 @@ assert(candidato.cliente === 'Empresa Protegida', 'candidato informa o cliente')
 assert(candidato.valor === 21584.46, 'candidato converte centavos para reais')
 assert(candidato.responsavel === 'Cristiane PMais', 'candidato informa o responsável')
 assert(
-  resposta.body.qualidade_base === null,
-  'gestor não recebe qualidade global de outras equipes',
+  resposta.body.visao_restrita !== true,
+  'gestor comercial recebe a visão administrativa da integração',
 )
-assert(resposta.body.ultima_mensagem === null, 'gestor não recebe última mensagem global')
-assert(Object.keys(resposta.body.counts).length === 0, 'gestor não recebe contadores globais')
+assert(
+  Object.keys(resposta.body.counts).length > 0,
+  'gestor comercial recebe os contadores operacionais',
+)
+assert(
+  resposta.body.counts.vinculos_pendentes === 1,
+  'gestor comercial recebe contadores operacionais preenchidos',
+)
+assert(resposta.body.qualidade_base !== null, 'gestor comercial recebe a qualidade da base')
 
 resposta = executar('gestor-comercial', 'equipe-2')
 assert(resposta.statusCode === 200, 'gestor fora do escopo recebe resposta segura')
