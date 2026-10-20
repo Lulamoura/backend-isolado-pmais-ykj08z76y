@@ -1554,64 +1554,62 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     vinculos_pendentes: 0,
     vinculos_ambiguos_negocio_aberto: 0,
   }
-  if (slug !== 'gestor-comercial') {
-    try {
-      counts.eventos_hoje = contarRegistros(
-        'com_whatsapp_eventos',
-        filtroHojeRecife,
-        '-received_at,-id',
-      )
-      counts.eventos_24h = counts.eventos_hoje
-    } catch (_) {
-      registrarFalha('eventos_hoje')
-    }
-    try {
-      counts.mensagens_hoje = contarRegistros(
-        'com_whatsapp_mensagens',
-        filtroHojeRecife,
-        '-received_at,-id',
-      )
-      counts.mensagens_24h = counts.mensagens_hoje
-    } catch (_) {
-      registrarFalha('mensagens_hoje')
-    }
-    try {
-      counts.midias_pendentes = contarRegistros(
-        'com_whatsapp_midias',
-        "download_status='pendente'",
-        '-received_at,-id',
-      )
-    } catch (_) {
-      registrarFalha('midias_pendentes')
-    }
-    try {
-      counts.transcricoes_pendentes = contarRegistros(
-        'com_whatsapp_midias',
-        "transcricao_status='pendente_transcricao'",
-        '-received_at,-id',
-      )
-    } catch (_) {
-      registrarFalha('transcricoes_pendentes')
-    }
-    try {
-      counts.vinculos_pendentes = contarRegistros(
-        'com_whatsapp_vinculos',
-        "status='pendente_confirmacao' || status='ambiguidade' || status='ambiguidade_negocio_aberto'",
-        '-last_message_at,-id',
-      )
-    } catch (_) {
-      registrarFalha('vinculos_pendentes')
-    }
+  try {
+    counts.eventos_hoje = contarRegistros(
+      'com_whatsapp_eventos',
+      filtroHojeRecife,
+      '-received_at,-id',
+    )
+    counts.eventos_24h = counts.eventos_hoje
+  } catch (_) {
+    registrarFalha('eventos_hoje')
+  }
+  try {
+    counts.mensagens_hoje = contarRegistros(
+      'com_whatsapp_mensagens',
+      filtroHojeRecife,
+      '-received_at,-id',
+    )
+    counts.mensagens_24h = counts.mensagens_hoje
+  } catch (_) {
+    registrarFalha('mensagens_hoje')
+  }
+  try {
+    counts.midias_pendentes = contarRegistros(
+      'com_whatsapp_midias',
+      "download_status='pendente'",
+      '-received_at,-id',
+    )
+  } catch (_) {
+    registrarFalha('midias_pendentes')
+  }
+  try {
+    counts.transcricoes_pendentes = contarRegistros(
+      'com_whatsapp_midias',
+      "transcricao_status='pendente_transcricao'",
+      '-received_at,-id',
+    )
+  } catch (_) {
+    registrarFalha('transcricoes_pendentes')
+  }
+  try {
+    counts.vinculos_pendentes = contarRegistros(
+      'com_whatsapp_vinculos',
+      "status='pendente_confirmacao' || status='ambiguidade' || status='ambiguidade_negocio_aberto'",
+      '-last_message_at,-id',
+    )
+  } catch (_) {
+    registrarFalha('vinculos_pendentes')
+  }
 
-    try {
-      counts.vinculos_ambiguos_negocio_aberto = contarRegistros(
-        'com_whatsapp_vinculos',
-        "status='ambiguidade_negocio_aberto'",
-        '-last_message_at,-id',
-      )
-    } catch (_) {
-      registrarFalha('vinculos_ambiguos')
-    }
+  try {
+    counts.vinculos_ambiguos_negocio_aberto = contarRegistros(
+      'com_whatsapp_vinculos',
+      "status='ambiguidade_negocio_aberto'",
+      '-last_message_at,-id',
+    )
+  } catch (_) {
+    registrarFalha('vinculos_ambiguos')
   }
 
   if (slug === 'integracao') {
@@ -1666,40 +1664,6 @@ routerAdd('GET', '/backend/v1/integracao/whatsapp/uazapi/status', function (e) {
     } catch (_) {
       registrarFalha('detalhes_ambiguidades')
     }
-  }
-
-  if (slug === 'gestor-comercial') {
-    var fontesRestritas = [
-      'eventos_hoje',
-      'mensagens_hoje',
-      'midias_pendentes',
-      'transcricoes_pendentes',
-      'vinculos_pendentes',
-      'vinculos_ambiguos',
-      'mensagens_qualidade',
-      'vinculos_qualidade',
-      'midias_qualidade',
-      'ultimo_webhook',
-      'ultima_mensagem',
-      'ultima_midia',
-    ]
-    for (var fri = 0; fri < fontesRestritas.length; fri++) registrarFalha(fontesRestritas[fri])
-    return e.json(200, {
-      ok: true,
-      monitoramento_ok: false,
-      fontes_indisponiveis: falhasMonitoramento,
-      visao_restrita: true,
-      provider: 'uazapi',
-      secret_configured: secretConfigured,
-      modo: 'captura_passiva',
-      automatic_send_allowed: false,
-      counts: {},
-      ambiguidades_negocios_abertos: ambiguidadesNegociosAbertos,
-      qualidade_base: null,
-      ultimo_webhook: null,
-      ultima_mensagem: null,
-      ultima_midia: null,
-    })
   }
 
   var ultimoWebhook = firstRecord('com_whatsapp_eventos', '', '-received_at', 'ultimo_webhook')

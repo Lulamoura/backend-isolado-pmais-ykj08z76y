@@ -29,7 +29,7 @@ import { MUTATIONS_ENABLED } from '@/lib/feature-flags'
 import { cn } from '@/lib/utils'
 import { MAIN_MODULES, modulePathFor } from '@/lib/navigation'
 import AccessDenied from '@/pages/AccessDenied'
-import { obterResumoCuradoriaNexo } from '@/services/nexo-curadoria'
+import { listarCasosCuradoriaComercial } from '@/services/nexo-curadoria'
 
 const SUBSTITUICOES_ALLOWLIST = new Set([
   'superadministrador',
@@ -47,6 +47,8 @@ export const CURADORIA_NEXO_ALLOWLIST = new Set([
   'leitura-executiva',
 ])
 
+export const CURADORIA_BADGE_LIMITE = 50
+
 export function getSubstituicoesPageTitle(pathname: string, mutationsEnabled = true) {
   if (pathname === '/substituicoes' || pathname === '/substituicoes/') return 'Substituições'
   if (pathname === '/substituicoes/nova' || pathname === '/substituicoes/nova/') {
@@ -57,6 +59,15 @@ export function getSubstituicoesPageTitle(pathname: string, mutationsEnabled = t
   }
   if (/^\/substituicoes\/[^/]+\/?$/.test(pathname)) return 'Detalhes da substituição'
   return null
+}
+
+export function contarPendenciasCuradoriaUnificada(
+  contadores: Partial<Record<'para_tratar' | 'aguardando_decisao', number>>,
+): number {
+  return (
+    Math.max(0, Number(contadores.para_tratar || 0)) +
+    Math.max(0, Number(contadores.aguardando_decisao || 0))
+  )
 }
 
 function LayoutContent() {
@@ -103,9 +114,11 @@ function LayoutContent() {
     }
 
     let ativo = true
-    obterResumoCuradoriaNexo(1)
+    listarCasosCuradoriaComercial(CURADORIA_BADGE_LIMITE)
       .then((resumo) => {
-        if (ativo) setCuradoriaNexoPendencias(resumo.pendencias)
+        if (ativo) {
+          setCuradoriaNexoPendencias(contarPendenciasCuradoriaUnificada(resumo.contadores))
+        }
       })
       .catch(() => {
         if (ativo) setCuradoriaNexoPendencias(0)
