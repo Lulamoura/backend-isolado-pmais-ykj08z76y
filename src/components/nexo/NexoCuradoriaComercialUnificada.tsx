@@ -417,17 +417,17 @@ export default function NexoCuradoriaComercialUnificada({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Contexto comercial consolidado
+              Central de exceções
             </p>
             <h2 className="mt-1 flex items-center gap-2 text-xl font-bold text-slate-900">
               <BookOpenCheck className="h-5 w-5 text-violet-700" aria-hidden="true" />
               Curadoria Comercial
             </h2>
             <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-600">
-              O Nexo elimina duplicidades e reúne evidências de WhatsApp, negócios, propostas,
-              follow-ups, reuniões e ActiveCampaign. Assuntos comuns só entram após três casos
-              independentes; matérias sensíveis seguem imediatamente para decisão. Nenhuma evidência
-              vira orientação oficial sem revisão humana.
+              O Nexo consolida somente o fluxo corrente: rotinas claras e rastreáveis são tratadas
+              automaticamente sob política governada. Conflitos e matérias sensíveis chegam à
+              revisão humana; baixa confiança ou rastreabilidade ausente, isoladamente, não criam
+              trabalho humano. O passivo anterior ao marco de corte permanece intocado.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => void carregar()} disabled={carregando}>

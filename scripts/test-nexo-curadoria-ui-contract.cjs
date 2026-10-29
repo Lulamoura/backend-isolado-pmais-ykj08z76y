@@ -54,6 +54,31 @@ assert.match(
   'ações da UI unificada não devem ser renderizadas em read-only',
 )
 assert.match(component, /Modo somente leitura/, 'UI deve explicar o modo read-only')
+assert.match(
+  component,
+  /Central de exceções/,
+  'UI deve nomear a curadoria como central de exceções',
+)
+assert.match(
+  component,
+  /rotinas claras[^.]+tratadas\s+automaticamente/i,
+  'UI deve explicar que rotinas claras não sobrecarregam a fila humana',
+)
+assert.match(
+  component,
+  /Conflitos e matérias sensíveis chegam à\s+revisão humana/i,
+  'UI deve explicar exatamente o que chega à revisão humana',
+)
+assert.match(
+  component,
+  /baixa confiança ou rastreabilidade ausente, isoladamente, não criam\s+trabalho humano/i,
+  'UI não deve transformar ruído ou hipótese isolada em trabalho humano',
+)
+assert.doesNotMatch(
+  component,
+  /Assuntos comuns só entram após três casos independentes/,
+  'UI não deve manter a explicação antiga de fila por recorrência',
+)
 
 assert.match(
   failClosedMigration,

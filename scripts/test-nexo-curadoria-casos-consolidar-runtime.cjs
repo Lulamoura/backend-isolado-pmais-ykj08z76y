@@ -2,11 +2,19 @@ const assert = require('assert')
 const fs = require('fs')
 const vm = require('vm')
 
+const POLICY_VERSION = 'pmais_nexo_auto_promotion_policy_v1'
+const AUTOMATIC_SCHEMA_VERSION = 'pmais_nexo_curadoria_conhecimento_automatico_v1'
+const AUTOMATIC_AGENT_ID = 'nexo-curadoria-automatico'
+const CUTOFF_CREATED = '2026-09-30 23:59:59.999Z'
+const CUTOFF_ID = 'ledger-cutoff'
+
 class MockRecord {
   constructor(collection, id, values) {
     this.collection = collection
     this.id = id || ''
     this.values = { ...(values || {}) }
+    if (collection === 'com_ledger_comercial' && !this.values.created && this.values.occurred_at)
+      this.values.created = this.values.occurred_at
   }
   getString(name) {
     const value = this.values[name]
@@ -50,6 +58,20 @@ const executiveProfile = new MockRecord('com_perfis', 'profile-executive', {
 const executive = new MockRecord('users', 'user-executive', {
   ativo_comercial: true,
   perfil_id: executiveProfile.id,
+})
+const policy = {
+  policy_version: POLICY_VERSION,
+  cutoff: { created: CUTOFF_CREATED, id: CUTOFF_ID },
+  automatic_schema_version: AUTOMATIC_SCHEMA_VERSION,
+  automatic_agent_id: AUTOMATIC_AGENT_ID,
+  integrity_hash: `hash:${POLICY_VERSION}|${CUTOFF_CREATED}|${CUTOFF_ID}|${AUTOMATIC_SCHEMA_VERSION}|${AUTOMATIC_AGENT_ID}`,
+}
+const parameter = new MockRecord('com_parametros', 'parameter-current-flow', {
+  chave: 'nexo.curadoria.fluxo_corrente_v1',
+  valor: JSON.stringify(policy),
+  ativo: true,
+  tipo: 'json_imutavel',
+  versao: 1,
 })
 
 const ledger = [
@@ -163,6 +185,7 @@ const ledger = [
         risco: 'baixo',
         confianca: 'alta',
         occurred_at: `2026-10-01 ${15 + index}:00:00.000Z`,
+        created: `2026-09-30 ${15 + index}:00:00.000Z`,
         status: 'novo',
       }),
   ),
@@ -170,6 +193,7 @@ const ledger = [
 
 const collections = {
   com_perfis: [profile, executiveProfile],
+  com_parametros: [parameter],
   com_ledger_comercial: ledger,
   com_nexo_curadoria_casos: [],
   com_nexo_curadoria_evidencias: [],
@@ -187,6 +211,11 @@ function rowsFor(name) {
 const app = {
   findRecordById(collection, id) {
     const rec = rowsFor(collection).find((row) => row.id === id)
+    if (!rec) throw new Error('not found')
+    return rec
+  },
+  findFirstRecordByData(collection, field, value) {
+    const rec = rowsFor(collection).find((row) => row.getString(field) === value)
     if (!rec) throw new Error('not found')
     return rec
   },
@@ -344,6 +373,12 @@ const legacyPreferenceCase = new MockRecord('com_nexo_curadoria_casos', 'legacy-
   conhecimento_status: 'nao_publicado',
 })
 collections.com_nexo_curadoria_casos.push(legacyPreferenceCase)
+
+// The immutable cutoff keeps the initial historical recurrence inputs out of the first pass.
+// Move those same fixture records into the current-flow window for the recurrence scenario below.
+ledger[0].set('created', '2026-10-02 08:00:00.000Z')
+ledger[1].set('created', '2026-10-02 08:01:00.000Z')
+ledger[2].set('created', '2026-10-02 08:02:00.000Z')
 
 for (const [suffix, negocioRef] of [
   ['A', 'OE-L1'],

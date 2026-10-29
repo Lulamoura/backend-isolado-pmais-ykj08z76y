@@ -110,10 +110,15 @@ describe('Curadoria Comercial Unificada', () => {
     render(<NexoCuradoriaComercialUnificada />)
 
     expect(
-      await screen.findByText(/Assuntos comuns só entram após três casos independentes/i),
+      await screen.findByText(/rotinas claras e rastreáveis são tratadas automaticamente/i),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/matérias sensíveis seguem imediatamente para decisão/i),
+      screen.getByText(/Conflitos e matérias sensíveis chegam à revisão humana/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /baixa confiança ou rastreabilidade ausente, isoladamente, não criam trabalho humano/i,
+      ),
     ).toBeInTheDocument()
     expect(await screen.findByText('Preferência recorrente de comunicação')).toBeInTheDocument()
     expect(screen.getByText('Cliente Horizonte')).toBeInTheDocument()
