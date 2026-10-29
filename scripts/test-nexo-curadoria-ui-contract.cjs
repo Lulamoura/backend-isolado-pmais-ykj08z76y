@@ -31,6 +31,16 @@ assert.match(
   'página deve ativar read-only pelo perfil',
 )
 assert.match(page, /Histórico legado somente leitura/, 'legado deve aparecer apenas como histórico')
+assert.match(
+  page,
+  /O Nexo promove rotinas seguras automaticamente; somente conflitos e matérias sensíveis[\s\S]{0,80}seguem para revisão humana/,
+  'cabeçalho da página deve refletir curadoria humana somente por exceção',
+)
+assert.doesNotMatch(
+  page,
+  /Evidências comerciais passam por revisão humana antes de se tornarem conhecimento/,
+  'página não pode afirmar revisão humana para toda evidência',
+)
 assert.doesNotMatch(
   page,
   /salvarEntrevistaCuradoriaNexo|salvarDecisaoSuperiorCuradoriaNexo|atualizarDecisaoSuperiorCuradoriaNexo|sincronizarDecisaoSegundoCerebroCuradoriaNexo|atualizarRevisaoIpcpCuradoriaNexo/,

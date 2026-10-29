@@ -6,7 +6,7 @@ const POLICY_VERSION = 'pmais_nexo_auto_promotion_policy_v1'
 const AUTOMATIC_SCHEMA_VERSION = 'pmais_nexo_curadoria_conhecimento_automatico_v1'
 const AUTOMATIC_AGENT_ID = 'nexo-curadoria-automatico'
 const CUTOFF_CREATED = '2026-09-30 23:59:59.999Z'
-const CUTOFF_ID = 'ledger-cutoff'
+const CUTOFF_ID = 'zzzzzzzzzzzzzzz'
 
 class MockRecord {
   constructor(collection, id, values) {
@@ -232,6 +232,8 @@ const app = {
     const rows = rowsFor(name)
     if (!record.id) {
       record.id = `generated-${nextId++}`
+      if (name === 'com_nexo_curadoria_casos' && !record.getString('created'))
+        record.set('created', '2026-10-02 00:00:00.000Z')
       rows.push(record)
     }
   },
@@ -371,6 +373,7 @@ const legacyPreferenceCase = new MockRecord('com_nexo_curadoria_casos', 'legacy-
   human_review_required: true,
   automatic_promotion_allowed: false,
   conhecimento_status: 'nao_publicado',
+  created: '2026-10-01 00:00:00.000Z',
 })
 collections.com_nexo_curadoria_casos.push(legacyPreferenceCase)
 
@@ -419,6 +422,7 @@ for (const [id, negocioRef] of [
       fontes: [],
       evidencia_hashes: [],
       conhecimento_status: 'nao_publicado',
+      created: '2026-10-01 00:00:00.000Z',
     }),
   )
 }

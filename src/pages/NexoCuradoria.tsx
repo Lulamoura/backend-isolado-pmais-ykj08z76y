@@ -87,8 +87,8 @@ export default function NexoCuradoria() {
             Curadoria Comercial
           </h2>
           <p className="mt-1.5 text-sm text-slate-600">
-            Evidências comerciais passam por revisão humana antes de se tornarem conhecimento
-            operacional.
+            O Nexo promove rotinas seguras automaticamente; somente conflitos e matérias sensíveis
+            seguem para revisão humana.
           </p>
         </div>
         <Badge
