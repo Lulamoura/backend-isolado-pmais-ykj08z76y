@@ -243,10 +243,18 @@ const configuredSecrets = {
   PMAIS_CURADORIA_API_KEY: 'preview-api-key',
   PMAIS_CURADORIA_HMAC_SECRET: 'preview-hmac-secret',
   PMAIS_CURADORIA_APPROVAL_SECRET: 'preview-approval-secret',
+  PMAIS_CURADORIA_AUTOMATIC_API_KEY: 'preview-automatic-api-key',
+  PMAIS_CURADORIA_AUTOMATIC_HMAC_SECRET: 'preview-automatic-hmac-secret',
+  PMAIS_CURADORIA_AUTOMATIC_POLICY_SECRET: 'preview-automatic-policy-secret',
+  PMAIS_CURADORIA_AUTOMATIC_AGENT_ID: 'nexo-curadoria-automatico',
   PMAIS_CURADORIA_PROD_GATEWAY_URL: 'https://agents.pmaisservicos.com.br/producao/nexo-hermes/v1',
   PMAIS_CURADORIA_PROD_API_KEY: 'prod-api-key',
   PMAIS_CURADORIA_PROD_HMAC_SECRET: 'prod-hmac-secret',
   PMAIS_CURADORIA_PROD_APPROVAL_SECRET: 'prod-approval-secret',
+  PMAIS_CURADORIA_PROD_AUTOMATIC_API_KEY: 'prod-automatic-api-key',
+  PMAIS_CURADORIA_PROD_AUTOMATIC_HMAC_SECRET: 'prod-automatic-hmac-secret',
+  PMAIS_CURADORIA_PROD_AUTOMATIC_POLICY_SECRET: 'prod-automatic-policy-secret',
+  PMAIS_CURADORIA_PROD_AUTOMATIC_AGENT_ID: 'nexo-curadoria-automatico',
 }
 const requestedEnvironmentSecrets = []
 const gatewayRouterContext = {
@@ -312,6 +320,10 @@ assert.deepStrictEqual(
     gatewayKey: 'preview-api-key',
     gatewaySecret: 'preview-hmac-secret',
     approvalSecret: 'preview-approval-secret',
+    automaticGatewayKey: 'preview-automatic-api-key',
+    automaticGatewaySecret: 'preview-automatic-hmac-secret',
+    automaticPolicySecret: 'preview-automatic-policy-secret',
+    automaticAgentId: 'nexo-curadoria-automatico',
   },
   'Origin exata de Preview deve selecionar somente URL e credenciais de Preview',
 )
@@ -323,6 +335,10 @@ for (const origin of [productionCustomOrigin, productionDirectOrigin]) {
       gatewayKey: 'prod-api-key',
       gatewaySecret: 'prod-hmac-secret',
       approvalSecret: 'prod-approval-secret',
+      automaticGatewayKey: 'prod-automatic-api-key',
+      automaticGatewaySecret: 'prod-automatic-hmac-secret',
+      automaticPolicySecret: 'prod-automatic-policy-secret',
+      automaticAgentId: 'nexo-curadoria-automatico',
     },
     `Origin exata de Produção deve selecionar somente URL e credenciais de Produção: ${origin}`,
   )
@@ -363,6 +379,24 @@ for (const [origin, urlSecret] of [
   )
   configuredSecrets[urlSecret] = originalUrl
 }
+for (const [origin, identitySecret] of [
+  [previewAppOrigin, 'PMAIS_CURADORIA_AUTOMATIC_AGENT_ID'],
+  [productionCustomOrigin, 'PMAIS_CURADORIA_PROD_AUTOMATIC_AGENT_ID'],
+]) {
+  const originalIdentity = configuredSecrets[identitySecret]
+  configuredSecrets[identitySecret] = 'nexo'
+  assert.strictEqual(
+    routeGatewayConfig(origin).automaticAgentId,
+    'nexo',
+    `configuração humana deve continuar disponível para validar a identidade automática somente no envio: ${identitySecret}`,
+  )
+  configuredSecrets[identitySecret] = originalIdentity
+}
+assert.match(
+  processorCallback,
+  /isAutomaticPayload[\s\S]*automaticAgentId !== 'nexo-curadoria-automatico'[\s\S]*automaticAgentId !== payload\.policy_proof\.agent_id[\s\S]*GATEWAY_AUTOMATICO_NAO_CONFIGURADO/,
+  'credencial automática deve rejeitar identidade configurada diferente da identidade dedicada sem alterar o caminho humano',
+)
 assert.match(
   processorCallback,
   /e\.request\.header\.get\('Origin'\)/,
