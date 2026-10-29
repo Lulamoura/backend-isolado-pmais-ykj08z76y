@@ -483,7 +483,11 @@ outbox.set('payload_hash', crypto.createHash('sha256').update(canonicalJson(payl
 rejected = invokeProcessor()
 assert.equal(rejected.status, 200)
 assert.equal(rejected.payload.falhas, 1)
-assert.equal(gatewayCalls.length, 0, 'automatic payload must be reconstructed from authoritative state')
+assert.equal(
+  gatewayCalls.length,
+  0,
+  'automatic payload must be reconstructed from authoritative state',
+)
 payload.title = originalTitle
 payload.policy_proof.content_sha256 = crypto
   .createHash('sha256')
@@ -542,10 +546,7 @@ const changedPolicy = invoke({ dry_run: true })
 assert.equal(changedPolicy.status, 503)
 assert.equal(changedPolicy.payload.error, 'POLITICA_FLUXO_CORRENTE_INVALIDA')
 
-parameter.set(
-  'valor',
-  JSON.stringify({ ...policy, automatic_agent_id: 'nexo' }),
-)
+parameter.set('valor', JSON.stringify({ ...policy, automatic_agent_id: 'nexo' }))
 const changedAgentIdentity = invoke({ dry_run: true })
 assert.equal(changedAgentIdentity.status, 503)
 assert.equal(changedAgentIdentity.payload.error, 'POLITICA_FLUXO_CORRENTE_INVALIDA')
@@ -585,14 +586,15 @@ assert.equal(typeof migrateUp, 'function')
 migrateUp(migrationApp)
 assert.equal(migrationRecords.length, 1)
 const migratedPolicy = JSON.parse(migrationRecords[0].getString('valor'))
-assert.deepEqual(migratedPolicy.cutoff, policy.cutoff, 'migration must preserve the exact cutoff tuple')
+assert.deepEqual(
+  migratedPolicy.cutoff,
+  policy.cutoff,
+  'migration must preserve the exact cutoff tuple',
+)
 assert.equal(migratedPolicy.automatic_agent_id, AUTOMATIC_AGENT_ID)
 assert.equal(migratedPolicy.integrity_hash, policy.integrity_hash)
 assert.doesNotThrow(() => migrateUp(migrationApp), 'exact identity-bound policy must be idempotent')
-migrationRecords[0].set(
-  'valor',
-  JSON.stringify({ ...migratedPolicy, automatic_agent_id: 'nexo' }),
-)
+migrationRecords[0].set('valor', JSON.stringify({ ...migratedPolicy, automatic_agent_id: 'nexo' }))
 assert.throws(
   () => migrateUp(migrationApp),
   /incompatible immutable current-flow policy/,
