@@ -4153,6 +4153,23 @@
       return '{' + partes.join(',') + '}'
     }
 
+    function dataPocketBaseValida(value) {
+      var match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{3})Z$/.exec(
+        String(value || ''),
+      )
+      if (!match) return false
+      var year = Number(match[1])
+      var month = Number(match[2])
+      var day = Number(match[3])
+      var hour = Number(match[4])
+      var minute = Number(match[5])
+      var second = Number(match[6])
+      if (month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) return false
+      var leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+      var days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+      return day >= 1 && day <= days[month - 1]
+    }
+
     function lerPoliticaFluxoCorrente(app) {
       var parametro = app.findFirstRecordByData('com_parametros', 'chave', FLOW_POLICY_KEY)
       var politica = JSON.parse(parametro.getString('valor') || '{}')
@@ -4175,8 +4192,8 @@
         politica.policy_version !== FLOW_POLICY_VERSION ||
         politica.automatic_schema_version !== AUTOMATIC_SCHEMA_VERSION ||
         politica.automatic_agent_id !== AUTOMATIC_AGENT_ID ||
-        !cutoff.created ||
-        !cutoff.id ||
+        !dataPocketBaseValida(cutoff.created) ||
+        !/^[a-z0-9]{15}$/.test(String(cutoff.id || '')) ||
         politica.integrity_hash !== integrityHash
       )
         throw new Error('POLITICA_FLUXO_CORRENTE_INVALIDA')
@@ -4758,11 +4775,7 @@
 
     function resolverCasoExistente(estado, grupo) {
       var direto = estado.caso_por_fingerprint[grupo.fingerprint]
-      if (
-        direto &&
-        texto(direto, 'created') &&
-        !posteriorAoCorte(direto, politicaFluxoCorrente.cutoff)
-      ) {
+      if (direto && !posteriorAoCorte(direto, politicaFluxoCorrente.cutoff)) {
         grupo.historical_fingerprint = grupo.fingerprint
         grupo.fingerprint = String(
           $security.sha256(
@@ -4775,6 +4788,8 @@
           ),
         )
         direto = estado.caso_por_fingerprint[grupo.fingerprint]
+        if (direto && !posteriorAoCorte(direto, politicaFluxoCorrente.cutoff))
+          return { caso: null, ambiguo: true }
       }
       var candidatos = []
       var vistos = {}
@@ -4785,8 +4800,7 @@
         if (
           !candidato ||
           vistos[candidato.id] ||
-          (texto(candidato, 'created') &&
-            !posteriorAoCorte(candidato, politicaFluxoCorrente.cutoff))
+          !posteriorAoCorte(candidato, politicaFluxoCorrente.cutoff)
         )
           continue
         vistos[candidato.id] = true

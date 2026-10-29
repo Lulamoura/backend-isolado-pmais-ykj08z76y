@@ -8,7 +8,7 @@ const POLICY_VERSION = 'pmais_nexo_auto_promotion_policy_v1'
 const AUTOMATIC_SCHEMA_VERSION = 'pmais_nexo_curadoria_conhecimento_automatico_v1'
 const AUTOMATIC_AGENT_ID = 'nexo-curadoria-automatico'
 const CUTOFF_CREATED = '2026-10-20 10:00:00.000Z'
-const CUTOFF_ID = 'ledger-cutoff'
+const CUTOFF_ID = 'zzzzzzzzzzzzzzz'
 
 function canonicalJson(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
@@ -156,7 +156,6 @@ const historicalMatchingCase = new MockRecord(
     evidencia_hashes: ['historical-evidence'],
     fontes: ['historical-source'],
     resumo_factual: 'Estado histórico imutável.',
-    created: '2026-10-19 08:30:00.000Z',
   },
 )
 const historicalMatchingSnapshot = JSON.stringify(historicalMatchingCase.values)
@@ -202,6 +201,8 @@ const app = {
     const target = records(record.collection.name)
     if (!record.id) {
       record.id = `generated-${nextId++}`
+      if (record.collection.name === 'com_nexo_curadoria_casos' && !record.getString('created'))
+        record.set('created', '2026-10-21 00:00:00.000Z')
       target.push(record)
     }
   },
@@ -483,7 +484,11 @@ outbox.set('payload_hash', crypto.createHash('sha256').update(canonicalJson(payl
 rejected = invokeProcessor()
 assert.equal(rejected.status, 200)
 assert.equal(rejected.payload.falhas, 1)
-assert.equal(gatewayCalls.length, 0, 'automatic payload must be reconstructed from authoritative state')
+assert.equal(
+  gatewayCalls.length,
+  0,
+  'automatic payload must be reconstructed from authoritative state',
+)
 payload.title = originalTitle
 payload.policy_proof.content_sha256 = crypto
   .createHash('sha256')
@@ -542,18 +547,95 @@ const changedPolicy = invoke({ dry_run: true })
 assert.equal(changedPolicy.status, 503)
 assert.equal(changedPolicy.payload.error, 'POLITICA_FLUXO_CORRENTE_INVALIDA')
 
+const malformedCutoffDate = '2026-10-20T10:00:00.000Z'
 parameter.set(
   'valor',
-  JSON.stringify({ ...policy, automatic_agent_id: 'nexo' }),
+  JSON.stringify({
+    ...policy,
+    cutoff: { created: malformedCutoffDate, id: CUTOFF_ID },
+    integrity_hash: crypto
+      .createHash('sha256')
+      .update(
+        `${POLICY_VERSION}|${malformedCutoffDate}|${CUTOFF_ID}|${AUTOMATIC_SCHEMA_VERSION}|${AUTOMATIC_AGENT_ID}`,
+      )
+      .digest('hex'),
+  }),
 )
+const malformedDatePolicy = invoke({ dry_run: true })
+assert.equal(malformedDatePolicy.status, 503)
+assert.equal(malformedDatePolicy.payload.error, 'POLITICA_FLUXO_CORRENTE_INVALIDA')
+
+const impossibleCutoffDate = '2026-02-30 12:00:00.000Z'
+parameter.set(
+  'valor',
+  JSON.stringify({
+    ...policy,
+    cutoff: { created: impossibleCutoffDate, id: CUTOFF_ID },
+    integrity_hash: crypto
+      .createHash('sha256')
+      .update(
+        `${POLICY_VERSION}|${impossibleCutoffDate}|${CUTOFF_ID}|${AUTOMATIC_SCHEMA_VERSION}|${AUTOMATIC_AGENT_ID}`,
+      )
+      .digest('hex'),
+  }),
+)
+const impossibleDatePolicy = invoke({ dry_run: true })
+assert.equal(impossibleDatePolicy.status, 503)
+assert.equal(impossibleDatePolicy.payload.error, 'POLITICA_FLUXO_CORRENTE_INVALIDA')
+
+const malformedCutoffId = 'invalid-id'
+parameter.set(
+  'valor',
+  JSON.stringify({
+    ...policy,
+    cutoff: { created: CUTOFF_CREATED, id: malformedCutoffId },
+    integrity_hash: crypto
+      .createHash('sha256')
+      .update(
+        `${POLICY_VERSION}|${CUTOFF_CREATED}|${malformedCutoffId}|${AUTOMATIC_SCHEMA_VERSION}|${AUTOMATIC_AGENT_ID}`,
+      )
+      .digest('hex'),
+  }),
+)
+const malformedIdPolicy = invoke({ dry_run: true })
+assert.equal(malformedIdPolicy.status, 503)
+assert.equal(malformedIdPolicy.payload.error, 'POLITICA_FLUXO_CORRENTE_INVALIDA')
+
+parameter.set('valor', JSON.stringify({ ...policy, automatic_agent_id: 'nexo' }))
 const changedAgentIdentity = invoke({ dry_run: true })
 assert.equal(changedAgentIdentity.status, 503)
 assert.equal(changedAgentIdentity.payload.error, 'POLITICA_FLUXO_CORRENTE_INVALIDA')
 
 let migrateUp
 const migrationRecords = []
+let migrationLedgerCreatedField = null
+let migrationCasesCreatedField = null
+let migrationLedgerRows = [
+  new MockRecord('com_ledger_comercial', 'old000000000001', { created: '' }),
+]
+const migrationLedgerCollection = {
+  name: 'com_ledger_comercial',
+  fields: {
+    getByName: (name) => (name === 'created' ? migrationLedgerCreatedField : null),
+    add: (field) => {
+      if (field.name === 'created') migrationLedgerCreatedField = field
+    },
+  },
+}
+const migrationCasesCollection = {
+  name: 'com_nexo_curadoria_casos',
+  fields: {
+    getByName: (name) => (name === 'created' ? migrationCasesCreatedField : null),
+    add: (field) => {
+      if (field.name === 'created') migrationCasesCreatedField = field
+    },
+  },
+}
 const migrationSandbox = {
   Record: RecordCtor,
+  AutodateField: function AutodateField(options) {
+    return { ...options, type: () => 'autodate' }
+  },
   $security: context.$security,
   migrate(up) {
     migrateUp = up
@@ -570,33 +652,89 @@ const migrationApp = {
     if (!found) throw new Error('not found')
     return found
   },
-  findRecordsByFilter() {
-    return [new MockRecord('com_ledger_comercial', CUTOFF_ID, { created: CUTOFF_CREATED })]
+  findRecordsByFilter(collection, filter) {
+    if (collection === 'com_parametros')
+      return migrationRecords.filter((record) => record.getString('chave') === POLICY_KEY)
+    if (collection === 'com_ledger_comercial' && filter === "created != ''")
+      return migrationLedgerRows.filter((record) => record.getString('created'))
+    if (collection === 'com_ledger_comercial' && filter === "id != ''") return migrationLedgerRows
+    return []
   },
   findCollectionByNameOrId(name) {
+    if (name === 'com_ledger_comercial') return migrationLedgerCollection
+    if (name === 'com_nexo_curadoria_casos') return migrationCasesCollection
     return { name }
   },
   save(record) {
+    if (record === migrationLedgerCollection || record === migrationCasesCollection) return
     record.id = record.id || 'policy-record'
     migrationRecords.push(record)
   },
 }
 assert.equal(typeof migrateUp, 'function')
 migrateUp(migrationApp)
+assert(migrationCasesCreatedField, 'migration must add immutable created to cases')
 assert.equal(migrationRecords.length, 1)
 const migratedPolicy = JSON.parse(migrationRecords[0].getString('valor'))
-assert.deepEqual(migratedPolicy.cutoff, policy.cutoff, 'migration must preserve the exact cutoff tuple')
-assert.equal(migratedPolicy.automatic_agent_id, AUTOMATIC_AGENT_ID)
-assert.equal(migratedPolicy.integrity_hash, policy.integrity_hash)
-assert.doesNotThrow(() => migrateUp(migrationApp), 'exact identity-bound policy must be idempotent')
-migrationRecords[0].set(
-  'valor',
-  JSON.stringify({ ...migratedPolicy, automatic_agent_id: 'nexo' }),
+assert.match(
+  migratedPolicy.cutoff.created,
+  /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+  'migration must use the PocketBase lexical datetime format',
 )
+assert.equal(migratedPolicy.cutoff.id, '000000000000000')
+assert.equal(migratedPolicy.automatic_agent_id, AUTOMATIC_AGENT_ID)
+assert.equal(
+  migratedPolicy.integrity_hash,
+  crypto
+    .createHash('sha256')
+    .update(
+      `${POLICY_VERSION}|${migratedPolicy.cutoff.created}|${migratedPolicy.cutoff.id}|${AUTOMATIC_SCHEMA_VERSION}|${AUTOMATIC_AGENT_ID}`,
+    )
+    .digest('hex'),
+)
+assert.doesNotThrow(() => migrateUp(migrationApp), 'exact identity-bound policy must be idempotent')
+migrationRecords[0].set('valor', JSON.stringify({ ...migratedPolicy, automatic_agent_id: 'nexo' }))
 assert.throws(
   () => migrateUp(migrationApp),
   /incompatible immutable current-flow policy/,
   'migration must reject an existing policy bound to another automatic identity',
+)
+
+migrationRecords[0].set(
+  'valor',
+  JSON.stringify({
+    ...migratedPolicy,
+    cutoff: { created: '2026-10-29T16:00:00.000Z', id: '000000000000000' },
+    integrity_hash: crypto
+      .createHash('sha256')
+      .update(
+        `${POLICY_VERSION}|2026-10-29T16:00:00.000Z|000000000000000|${AUTOMATIC_SCHEMA_VERSION}|${AUTOMATIC_AGENT_ID}`,
+      )
+      .digest('hex'),
+  }),
+)
+assert.throws(
+  () => migrateUp(migrationApp),
+  /incompatible immutable current-flow policy/,
+  'migration must reject a self-consistent cutoff with a non-PocketBase datetime format',
+)
+
+migrationRecords.length = 0
+migrationLedgerCreatedField = {
+  name: 'created',
+  onCreate: true,
+  onUpdate: false,
+  type: () => 'autodate',
+}
+migrationLedgerRows = [
+  new MockRecord('com_ledger_comercial', 'dated0000000001', {
+    created: '2026-10-29 16:00:00.000Z',
+  }),
+]
+assert.throws(
+  () => migrateUp(migrationApp),
+  /ambiguous current-flow recovery with preexisting created field/,
+  'recovery must fail closed when created and dated rows preexist without the immutable policy',
 )
 
 console.log('nexo-curadoria current-flow runtime: PASS')
