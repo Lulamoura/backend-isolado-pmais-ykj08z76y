@@ -1118,6 +1118,239 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     ]
   }
 
+  function consultaIpcpHistoricoDiario(body) {
+    var autorizados = {
+      g6pxypm3844lq68: 'Raquel Trindade Bezerra da Silva',
+      '2l6xnywtiwm53xq': 'Cristiane Maria da Silva',
+      d1spnjkg3g7l6fd: 'Viviane Marculino da Silva',
+      pmdghnoqc5x3rnn: 'Shirleide Andrade do Nascimento',
+    }
+    var chavesBlocos = [
+      'resultado_comercial',
+      'valor_estrategico',
+      'disciplina_carteira',
+      'qualidade_followup',
+      'registros_aprendizado',
+    ]
+
+    function dataValida(value) {
+      var text = String(value || '')
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return ''
+      var partes = text.split('-')
+      var data = new Date(Date.UTC(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2])))
+      if (data.toISOString().slice(0, 10) !== text) return ''
+      return text
+    }
+
+    function proximoDia(value) {
+      var partes = value.split('-')
+      var data = new Date(Date.UTC(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]) + 1))
+      return data.toISOString().slice(0, 10)
+    }
+
+    function datasPeriodo(inicio, fim) {
+      var datas = []
+      var cursor = inicio
+      while (cursor <= fim && datas.length <= 93) {
+        datas.push(cursor)
+        cursor = proximoDia(cursor)
+      }
+      return datas
+    }
+
+    function idsSolicitados() {
+      var raw = body.responsavel_ids
+      var lista = []
+      if (Array.isArray(raw)) lista = raw
+      else if (raw) lista = String(raw).split(',')
+      else if (body.responsavel_id) lista = [body.responsavel_id]
+      var unicos = []
+      for (var i = 0; i < lista.length; i++) {
+        var id = String(lista[i] || '').trim()
+        if (id && unicos.indexOf(id) < 0) unicos.push(id)
+      }
+      return unicos
+    }
+
+    function registroCompletoOperacional(record) {
+      if (!record) return false
+      var modo = record.getString('modo')
+      var status = record.getString('status')
+      if (modo !== 'processamento_diario' || status !== 'producao_assistida') return false
+      var payload = leituraPayloadIpcp(record)
+      var ipcp = payload.ipcp || {}
+      var blocos = ipcp.blocos || {}
+      function numeroPreenchido(value) {
+        if (typeof value === 'number') return isFinite(value)
+        if (typeof value !== 'string') return false
+        var texto = value.trim()
+        if (!texto || !/^-?(?:\d+\.?\d*|\.\d+)$/.test(texto)) return false
+        return isFinite(Number(texto))
+      }
+      if (!numeroPreenchido(ipcp.total)) return false
+      for (var i = 0; i < chavesBlocos.length; i++) {
+        if (!numeroPreenchido(blocos[chavesBlocos[i]])) return false
+      }
+      return payload.pacote_completo === true
+    }
+
+    function pontoSnapshot(record, responsavelId, responsavelNome) {
+      var payload = leituraPayloadIpcp(record)
+      var ipcp = payload.ipcp || {}
+      var blocosOrigem = ipcp.blocos || {}
+      var blocos = {}
+      var soma = 0
+      for (var i = 0; i < chavesBlocos.length; i++) {
+        var chave = chavesBlocos[i]
+        blocos[chave] = Number(blocosOrigem[chave] || 0)
+        soma += blocos[chave]
+      }
+      var total = Number(ipcp.total)
+      if (!isFinite(total)) total = Number(record.get('ipcp_total') || 0)
+      return {
+        data_referencia: record.getString('data_referencia'),
+        responsavel_id: responsavelId,
+        responsavel_nome: responsavelNome,
+        ipcp_total: Math.round(total * 10) / 10,
+        blocos: blocos,
+        soma_blocos: Math.round(soma * 10) / 10,
+        diferenca_total_blocos: Math.round((total - soma) * 10) / 10,
+        formula_version: record.getString('formula_version') || null,
+        modo: record.getString('modo') || null,
+        status: record.getString('status') || null,
+        origem: record.getString('origem') || null,
+        snapshot_completo: true,
+        calculado_em: record.getString('updated') || record.getString('created') || null,
+      }
+    }
+
+    var inicio = dataValida(body.inicio || body.data_inicio)
+    var fim = dataValida(body.fim || body.data_fim)
+    if (!inicio || !fim || inicio > fim)
+      return e.json(400, { error: 'IPCP_HISTORICO_PERIODO_INVALIDO' })
+    var datas = datasPeriodo(inicio, fim)
+    if (!datas.length || datas.length > 93)
+      return e.json(400, { error: 'IPCP_HISTORICO_PERIODO_MAXIMO_93_DIAS' })
+
+    var responsavelIds = idsSolicitados()
+    if (!responsavelIds.length)
+      return e.json(400, { error: 'IPCP_HISTORICO_RESPONSAVEL_OBRIGATORIO' })
+    if (responsavelIds.length > 4)
+      return e.json(400, { error: 'IPCP_HISTORICO_MAXIMO_4_RESPONSAVEIS' })
+    for (var ai = 0; ai < responsavelIds.length; ai++) {
+      if (!autorizados[responsavelIds[ai]])
+        return e.json(403, {
+          error: 'IPCP_HISTORICO_RESPONSAVEL_NAO_AUTORIZADO',
+          responsavel_id: responsavelIds[ai],
+        })
+    }
+
+    var pontos = []
+    var ausencias = []
+    var series = []
+    var fonteDisponivel = true
+    for (var ri = 0; ri < responsavelIds.length; ri++) {
+      var responsavelId = responsavelIds[ri]
+      var responsavelNome = autorizados[responsavelId]
+      var rows = []
+      try {
+        var paginaTamanho = 100
+        var paginaOffset = 0
+        var paginaCompleta = true
+        while (paginaCompleta && paginaOffset < 2000) {
+          var lote = $app.findRecordsByFilter(
+            'com_ipcp_snapshots',
+            "data_referencia >= '" +
+              esc(inicio) +
+              "' && data_referencia <= '" +
+              esc(fim) +
+              "' && escopo = 'equipe' && responsavel_id = '" +
+              esc(responsavelId) +
+              "' && modo = 'processamento_diario' && status = 'producao_assistida'",
+            '-data_referencia,-updated,-created',
+            paginaTamanho,
+            paginaOffset,
+          )
+          for (var li = 0; li < lote.length; li++) rows.push(lote[li])
+          paginaCompleta = lote.length === paginaTamanho
+          paginaOffset += lote.length
+        }
+        if (paginaCompleta)
+          return e.json(503, {
+            error: 'IPCP_HISTORICO_LIMITE_SEGURO_EXCEDIDO',
+            responsavel_id: responsavelId,
+          })
+      } catch (_) {
+        return e.json(503, {
+          error: 'IPCP_HISTORICO_FONTE_INDISPONIVEL',
+          responsavel_id: responsavelId,
+        })
+      }
+      var porData = {}
+      for (var si = 0; si < rows.length; si++) {
+        var dataSnapshot = rows[si].getString('data_referencia')
+        if (dataSnapshot < inicio || dataSnapshot > fim || porData[dataSnapshot]) continue
+        if (!registroCompletoOperacional(rows[si])) continue
+        porData[dataSnapshot] = pontoSnapshot(rows[si], responsavelId, responsavelNome)
+      }
+      var pontosResponsavel = []
+      var ausenciasResponsavel = []
+      for (var di = 0; di < datas.length; di++) {
+        if (porData[datas[di]]) {
+          pontos.push(porData[datas[di]])
+          pontosResponsavel.push(porData[datas[di]])
+        } else {
+          var ausencia = {
+            data_referencia: datas[di],
+            responsavel_id: responsavelId,
+            responsavel_nome: responsavelNome,
+            status: 'sem_snapshot_operacional_completo',
+          }
+          ausencias.push(ausencia)
+          ausenciasResponsavel.push(ausencia)
+        }
+      }
+      series.push({
+        responsavel_id: responsavelId,
+        responsavel_nome: responsavelNome,
+        pontos: pontosResponsavel,
+        datas_sem_snapshot: ausenciasResponsavel,
+      })
+    }
+
+    return resposta('ipcp_historico_diario', {
+      contrato_ipcp: 'nexo_ipcp_historico_diario_v1',
+      fonte_dados: 'com_ipcp_snapshots',
+      escopo_efetivo: 'equipe_gerencial_autorizada',
+      periodo_aplicado: {
+        inicio: inicio,
+        fim: fim,
+        timezone: 'America/Recife',
+      },
+      regra_selecao:
+        'Último snapshot completo de produção assistida por dia e responsável; simulações e registros incompletos são excluídos.',
+      fonte_disponivel: fonteDisponivel,
+      total_pontos: pontos.length,
+      total_datas_sem_snapshot: ausencias.length,
+      pontos: pontos,
+      datas_sem_snapshot: ausencias,
+      series_por_responsavel: series,
+      guardrails: {
+        somente_leitura: true,
+        read_only: true,
+        sem_mutacao: true,
+        no_mutation: true,
+        sem_crm_write: true,
+        sem_app_write: true,
+        sem_snapshot_novo: true,
+        sem_recalculo_retroativo: true,
+        sem_envio: true,
+        sem_ranking_punitivo: true,
+        credenciais_pessoais_operadoras: false,
+      },
+    })
+  }
+
   function consultaIpcpGerencial(body) {
     var data = hojeRecife()
     var escopoReq = String(body.escopo || 'equipe').trim()
@@ -1869,9 +2102,15 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     return 'resumo_pipeline'
   }
 
+  var body = e.requestInfo().body || {}
+  var tipo = resolverTipo(body)
   var expected = ''
   try {
-    expected = $secrets.get('PMAIS_NEXO_SERVICE_SECRET') || $secrets.get('AC_WEBHOOK_SECRET') || ''
+    if (tipo === 'ipcp_historico_diario') {
+      expected = $secrets.get('PMAIS_NEXO_SERVICE_SECRET') || ''
+    } else {
+      expected = $secrets.get('PMAIS_NEXO_SERVICE_SECRET') || $secrets.get('AC_WEBHOOK_SECRET') || ''
+    }
   } catch (_) {}
   var provided =
     e.request.header.get('x-pmais-nexo-service-secret') ||
@@ -1879,8 +2118,6 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     ''
   if (!expected || provided !== expected) return e.forbiddenError('NEXO_CONSULTA_FORBIDDEN')
 
-  var body = e.requestInfo().body || {}
-  var tipo = resolverTipo(body)
   var permitidas = {
     resumo_pipeline: true,
     negocio_por_id: true,
@@ -1889,11 +2126,13 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     aprendizados_comerciais: true,
     aprendizados_whatsapp_comercial: true,
     ipcp_gerencial: true,
+    ipcp_historico_diario: true,
     ipcp_revisoes_pendentes: true,
   }
   if (!permitidas[tipo])
     return e.json(400, { error: 'TIPO_CONSULTA_INVALIDO', permitidas: Object.keys(permitidas) })
 
+  if (tipo === 'ipcp_historico_diario') return consultaIpcpHistoricoDiario(body)
   if (tipo === 'ipcp_gerencial') return consultaIpcpGerencial(body)
   if (tipo === 'ipcp_revisoes_pendentes') return consultaRevisoesIpcpPendentes()
   if (tipo === 'aprendizados_whatsapp_comercial') return consultaAprendizadosWhatsappComercial(body)
