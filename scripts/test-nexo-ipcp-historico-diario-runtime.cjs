@@ -57,6 +57,66 @@ function snapshot(id, overrides = {}) {
   })
 }
 
+function arrayPayloadWithAttachedBusinessFields(values, total = 60.8) {
+  const payload = [...values]
+  payload.pacote_completo = true
+  payload.ipcp = {
+    total,
+    blocos: {
+      resultado_comercial: 18,
+      valor_estrategico: 9,
+      disciplina_carteira: 14,
+      qualidade_followup: 12,
+      registros_aprendizado: 7.8,
+    },
+  }
+  return payload
+}
+
+function arrayPayloadWithRawProperty() {
+  const payload = []
+  payload.raw = JSON.stringify({
+    pacote_completo: true,
+    ipcp: {
+      total: 60.8,
+      blocos: {
+        resultado_comercial: 18,
+        valor_estrategico: 9,
+        disciplina_carteira: 14,
+        qualidade_followup: 12,
+        registros_aprendizado: 7.8,
+      },
+    },
+  })
+  return payload
+}
+
+function validPayloadJson(total) {
+  return JSON.stringify({
+    pacote_completo: true,
+    ipcp: {
+      total,
+      blocos: {
+        resultado_comercial: 15,
+        valor_estrategico: 7,
+        disciplina_carteira: 11,
+        qualidade_followup: 9,
+        registros_aprendizado: total - 42,
+      },
+    },
+  })
+}
+
+function rawMessageStringer(total) {
+  return { toString: () => validPayloadJson(total) }
+}
+
+function numericByteObject(total) {
+  return Object.fromEntries(
+    Array.from(Buffer.from(validPayloadJson(total)), (value, index) => [String(index), value]),
+  )
+}
+
 const snapshotsByUser = {
   g6pxypm3844lq68: [
     snapshot('simulado-mais-novo', {
@@ -107,6 +167,76 @@ const snapshotsByUser = {
     }),
   ],
   d1spnjkg3g7l6fd: [
+    ...['', null, 0].map((raw, index) =>
+      snapshot(`viviane-wrapper-raw-invalido-${index}`, {
+        responsavel_id: 'd1spnjkg3g7l6fd',
+        responsavel_nome: users.d1spnjkg3g7l6fd,
+        payload: {
+          raw,
+          pacote_completo: true,
+          ipcp: JSON.parse(validPayloadJson(60.8)).ipcp,
+        },
+      }),
+    ),
+    ...['null', '[]', '1'].map((payload, index) =>
+      snapshot(`viviane-string-json-nao-objeto-${index}`, {
+        responsavel_id: 'd1spnjkg3g7l6fd',
+        responsavel_nome: users.d1spnjkg3g7l6fd,
+        payload,
+      }),
+    ),
+    ...['null', '[]', '1'].map((raw, index) =>
+      snapshot(`viviane-wrapper-json-nao-objeto-${index}`, {
+        responsavel_id: 'd1spnjkg3g7l6fd',
+        responsavel_nome: users.d1spnjkg3g7l6fd,
+        payload: { raw },
+      }),
+    ),
+    snapshot('viviane-array-com-raw-property', {
+      responsavel_id: 'd1spnjkg3g7l6fd',
+      responsavel_nome: users.d1spnjkg3g7l6fd,
+      payload: arrayPayloadWithRawProperty(),
+    }),
+    snapshot('viviane-array-vazio-com-propriedades', {
+      responsavel_id: 'd1spnjkg3g7l6fd',
+      responsavel_nome: users.d1spnjkg3g7l6fd,
+      payload: arrayPayloadWithAttachedBusinessFields([]),
+    }),
+    snapshot('viviane-byte-fora-faixa-com-propriedades', {
+      responsavel_id: 'd1spnjkg3g7l6fd',
+      responsavel_nome: users.d1spnjkg3g7l6fd,
+      payload: arrayPayloadWithAttachedBusinessFields([999]),
+    }),
+    snapshot('viviane-byte-fracionario-com-propriedades', {
+      responsavel_id: 'd1spnjkg3g7l6fd',
+      responsavel_nome: users.d1spnjkg3g7l6fd,
+      payload: arrayPayloadWithAttachedBusinessFields([1.5]),
+    }),
+    snapshot('viviane-json-array-com-propriedades', {
+      responsavel_id: 'd1spnjkg3g7l6fd',
+      responsavel_nome: users.d1spnjkg3g7l6fd,
+      payload: arrayPayloadWithAttachedBusinessFields(Array.from(Buffer.from('[]'))),
+    }),
+    snapshot('viviane-json-null-com-propriedades', {
+      responsavel_id: 'd1spnjkg3g7l6fd',
+      responsavel_nome: users.d1spnjkg3g7l6fd,
+      payload: arrayPayloadWithAttachedBusinessFields(Array.from(Buffer.from('null'))),
+    }),
+    snapshot('viviane-json-primitivo-com-propriedades', {
+      responsavel_id: 'd1spnjkg3g7l6fd',
+      responsavel_nome: users.d1spnjkg3g7l6fd,
+      payload: arrayPayloadWithAttachedBusinessFields(Array.from(Buffer.from('1'))),
+    }),
+    snapshot('viviane-json-malformado-com-propriedades', {
+      responsavel_id: 'd1spnjkg3g7l6fd',
+      responsavel_nome: users.d1spnjkg3g7l6fd,
+      payload: arrayPayloadWithAttachedBusinessFields(Array.from(Buffer.from('{'))),
+    }),
+    snapshot('viviane-utf8-invalido-com-propriedades', {
+      responsavel_id: 'd1spnjkg3g7l6fd',
+      responsavel_nome: users.d1spnjkg3g7l6fd,
+      payload: arrayPayloadWithAttachedBusinessFields([0xc3, 0x28]),
+    }),
     snapshot('viviane-total-nulo', {
       responsavel_id: 'd1spnjkg3g7l6fd',
       responsavel_nome: users.d1spnjkg3g7l6fd,
@@ -193,7 +323,14 @@ const snapshotsByUser = {
       },
     }),
   ],
-  pmdghnoqc5x3rnn: [],
+  pmdghnoqc5x3rnn: [
+    snapshot('shirleide-json-raw-message', {
+      responsavel_id: 'pmdghnoqc5x3rnn',
+      responsavel_nome: users.pmdghnoqc5x3rnn,
+      ipcp_total: 47.3,
+      payload: rawMessageStringer(47.3),
+    }),
+  ],
 }
 
 const context = vm.createContext({
@@ -283,7 +420,7 @@ assert.deepEqual(JSON.parse(JSON.stringify(response.data.periodo_aplicado)), {
   timezone: 'America/Recife',
 })
 assert.equal(response.data.total_pontos, response.data.pontos.length)
-assert.equal(response.data.total_pontos, 2)
+assert.equal(response.data.total_pontos, 3)
 assert.equal(
   response.data.pontos.some((item) => item.responsavel_id === 'd1spnjkg3g7l6fd'),
   false,
@@ -303,7 +440,14 @@ assert.deepEqual(Object.keys(response.data.pontos[0].blocos).sort(), [
   'resultado_comercial',
   'valor_estrategico',
 ])
-assert.equal(response.data.datas_sem_snapshot.length, 6)
+assert.equal(
+  response.data.pontos.some(
+    (item) => item.responsavel_id === 'pmdghnoqc5x3rnn' && item.ipcp_total === 47.3,
+  ),
+  true,
+  'payload JSON RawMessage do PocketBase deve ser decodificado sem aceitar arrays de negócio',
+)
+assert.equal(response.data.datas_sem_snapshot.length, 5)
 assert.equal(
   response.data.datas_sem_snapshot.some(
     (item) => item.data_referencia === '2026-10-29' && item.responsavel_id === 'g6pxypm3844lq68',
@@ -313,6 +457,43 @@ assert.equal(
 assert.equal(response.data.guardrails.sem_crm_write, true)
 assert.equal(response.data.guardrails.sem_app_write, true)
 assert.equal(response.data.guardrails.sem_envio, true)
+assert.equal(writes, 0)
+
+snapshotsByUser.pmdghnoqc5x3rnn = [
+  snapshot('shirleide-typed-array', {
+    responsavel_id: 'pmdghnoqc5x3rnn',
+    responsavel_nome: users.pmdghnoqc5x3rnn,
+    ipcp_total: 48.3,
+    payload: Uint8Array.from(Buffer.from(validPayloadJson(48.3))),
+  }),
+]
+response = call({
+  tipo_consulta: 'ipcp_historico_diario',
+  inicio: '2026-10-30',
+  fim: '2026-10-30',
+  responsavel_ids: ['pmdghnoqc5x3rnn'],
+})
+assert.equal(response.status, 200)
+assert.equal(response.data.total_pontos, 1)
+assert.equal(response.data.pontos[0].ipcp_total, 48.3)
+
+snapshotsByUser.pmdghnoqc5x3rnn = [
+  snapshot('shirleide-numeric-byte-object', {
+    responsavel_id: 'pmdghnoqc5x3rnn',
+    responsavel_nome: users.pmdghnoqc5x3rnn,
+    ipcp_total: 49.3,
+    payload: numericByteObject(49.3),
+  }),
+]
+response = call({
+  tipo_consulta: 'ipcp_historico_diario',
+  inicio: '2026-10-30',
+  fim: '2026-10-30',
+  responsavel_ids: ['pmdghnoqc5x3rnn'],
+})
+assert.equal(response.status, 200)
+assert.equal(response.data.total_pontos, 1)
+assert.equal(response.data.pontos[0].ipcp_total, 49.3)
 assert.equal(writes, 0)
 
 response = call(
