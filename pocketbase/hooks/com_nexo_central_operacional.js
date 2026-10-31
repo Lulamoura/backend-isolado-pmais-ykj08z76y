@@ -1077,10 +1077,61 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
   function leituraPayloadIpcp(record) {
     if (!record) return {}
     try {
+      function parseObjeto(json) {
+        var parsed = JSON.parse(json || '{}')
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+      }
+
+      function parseBytes(bytes, length) {
+        if (!length) return {}
+        var encoded = ''
+        for (var i = 0; i < length; i++) {
+          var value = bytes[i]
+          if (!Number.isInteger(value) || value < 0 || value > 255) return {}
+          var hex = value.toString(16).toUpperCase()
+          encoded += '%' + (hex.length < 2 ? '0' + hex : hex)
+        }
+        return parseObjeto(decodeURIComponent(encoded))
+      }
+
       var raw = record.get('payload')
       if (!raw) return {}
-      if (typeof raw === 'string') return JSON.parse(raw || '{}')
-      if (raw.raw && typeof raw.raw === 'string') return JSON.parse(raw.raw || '{}')
+      if (typeof raw === 'string') return parseObjeto(raw)
+      if (Array.isArray(raw)) return parseBytes(raw, raw.length)
+      if (typeof raw !== 'object') return {}
+
+      if (Object.prototype.hasOwnProperty.call(raw, 'raw')) {
+        return typeof raw.raw === 'string' ? parseObjeto(raw.raw) : {}
+      }
+
+      if (Number.isInteger(raw.length) && raw.length >= 0) {
+        return parseBytes(raw, raw.length)
+      }
+
+      var keys = Object.keys(raw)
+      if (keys.length) {
+        var numericKeys = true
+        for (var k = 0; k < keys.length; k++) {
+          if (!/^(0|[1-9][0-9]*)$/.test(keys[k])) {
+            numericKeys = false
+            break
+          }
+        }
+        if (numericKeys) {
+          keys.sort(function (a, b) {
+            return Number(a) - Number(b)
+          })
+          var bytes = []
+          for (var n = 0; n < keys.length; n++) {
+            if (Number(keys[n]) !== n) return {}
+            bytes.push(raw[keys[n]])
+          }
+          return parseBytes(bytes, bytes.length)
+        }
+      }
+
+      var serialized = String(raw)
+      if (serialized && serialized !== '[object Object]') return parseObjeto(serialized)
       return raw
     } catch (_) {
       return {}
