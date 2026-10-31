@@ -2109,7 +2109,8 @@ routerAdd('POST', '/backend/v1/nexo/consulta-app', (e) => {
     if (tipo === 'ipcp_historico_diario') {
       expected = $secrets.get('PMAIS_NEXO_SERVICE_SECRET') || ''
     } else {
-      expected = $secrets.get('PMAIS_NEXO_SERVICE_SECRET') || $secrets.get('AC_WEBHOOK_SECRET') || ''
+      expected =
+        $secrets.get('PMAIS_NEXO_SERVICE_SECRET') || $secrets.get('AC_WEBHOOK_SECRET') || ''
     }
   } catch (_) {}
   var provided =
