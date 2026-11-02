@@ -96,9 +96,7 @@ function AjudaResposta({
   const [feedback, setFeedback] = useState<string | null>(null)
   const contextoFactual = [resumoUltimoFollowUp(contexto)]
   const sugestao =
-    analiseWhatsapp.proximo_passo_recomendado ||
-    ajuda.proximos_passos?.[0] ||
-    ajuda.mensagem_sugerida
+    analiseWhatsapp.proximo_passo_recomendado || ajuda.proximos_passos?.[0] || ajuda.mensagem_sugerida
 
   const registrarFeedback = async (resultado: 'usada' | 'ajustada' | 'nao_foi_util') => {
     const auditId = String(auditoria?.audit_id || '').trim()
@@ -141,10 +139,7 @@ function AjudaResposta({
         <p className="mt-2 whitespace-pre-wrap text-slate-800">{resumoTexto(sugestao)}</p>
       </section>
       <section className="rounded-md border bg-white p-4 text-sm">
-        <label
-          htmlFor={`nexo-minuta-${ajuda.external_id}`}
-          className="font-semibold text-slate-950"
-        >
+        <label htmlFor={`nexo-minuta-${ajuda.external_id}`} className="font-semibold text-slate-950">
           Minuta editável
         </label>
         <textarea
@@ -160,30 +155,13 @@ function AjudaResposta({
         <section className="rounded-md border bg-white p-4 text-sm">
           <p className="font-semibold text-slate-950">Esta sugestão foi útil?</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              disabled={registrando || Boolean(feedback)}
-              onClick={() => registrarFeedback('usada')}
-            >
+            <Button type="button" size="sm" disabled={registrando || Boolean(feedback)} onClick={() => registrarFeedback('usada')}>
               Usar sugestão
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={registrando || Boolean(feedback)}
-              onClick={() => registrarFeedback('ajustada')}
-            >
+            <Button type="button" size="sm" variant="outline" disabled={registrando || Boolean(feedback)} onClick={() => registrarFeedback('ajustada')}>
               Ajustar
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={registrando || Boolean(feedback)}
-              onClick={() => registrarFeedback('nao_foi_util')}
-            >
+            <Button type="button" size="sm" variant="outline" disabled={registrando || Boolean(feedback)} onClick={() => registrarFeedback('nao_foi_util')}>
               Não foi útil
             </Button>
           </div>
@@ -191,8 +169,7 @@ function AjudaResposta({
         </section>
       ) : (
         <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          A sugestão foi exibida, mas sua avaliação está indisponível porque o registro auditável
-          não foi confirmado.
+          A sugestão foi exibida, mas sua avaliação está indisponível porque o registro auditável não foi confirmado.
         </p>
       )}
       {fallback ? (

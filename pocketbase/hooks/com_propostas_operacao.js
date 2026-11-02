@@ -3194,7 +3194,10 @@
           evento.set('whatsapp_mensagens', provenienciaWhatsapp.whatsapp_mensagens)
           evento.set('whatsapp_resumo_factual', provenienciaWhatsapp.whatsapp_resumo_factual || '')
           evento.set('conhecimento_oficial', false)
-          var auditId = nexoResumoSeguroAprendizado(auditoria.audit_id || nexoNovoAuditId(), 160)
+          var auditId = nexoResumoSeguroAprendizado(
+            auditoria.audit_id || nexoNovoAuditId(),
+            160,
+          )
           evento.set('audit_id', auditId)
           evento.set('created_at', new Date())
           $app.save(evento)
@@ -3570,6 +3573,113 @@
     'POST',
     '/backend/v1/nexo/negocios/{externalId}/ajuda/feedback',
     function (e) {
+      function garantirColecaoFeedback(app) {
+        function aplicarContrato(collection) {
+          if (String(collection.type || '') !== 'base')
+            throw new Error('SCHEMA_FEEDBACK_INCOMPATIVEL: collection_type')
+          var changed = false
+          function tipoCampo(field) {
+            if (!field || typeof field.type !== 'function') return ''
+            return String(field.type())
+          }
+          var rules = ['createRule', 'updateRule', 'deleteRule', 'listRule', 'viewRule']
+          for (var r = 0; r < rules.length; r++) {
+            if (collection[rules[r]] !== null) {
+              collection[rules[r]] = null
+              changed = true
+            }
+          }
+          function garantirTexto(name, max) {
+            var field = null
+            try {
+              field = collection.fields.getByName(name)
+            } catch (_) {}
+            if (!field) {
+              collection.fields.add(new TextField({ name: name, required: true, max: max }))
+              changed = true
+              return
+            }
+            if (tipoCampo(field) !== 'text')
+              throw new Error('SCHEMA_FEEDBACK_INCOMPATIVEL: ' + name)
+            if (field.required !== true) {
+              field.required = true
+              changed = true
+            }
+            if (Number(field.max || 0) !== max) {
+              field.max = max
+              changed = true
+            }
+          }
+          function garantirData(name) {
+            var field = null
+            try {
+              field = collection.fields.getByName(name)
+            } catch (_) {}
+            if (!field) {
+              collection.fields.add(new DateField({ name: name, required: true }))
+              changed = true
+              return
+            }
+            if (tipoCampo(field) !== 'date')
+              throw new Error('SCHEMA_FEEDBACK_INCOMPATIVEL: ' + name)
+            if (field.required !== true) {
+              field.required = true
+              changed = true
+            }
+          }
+          garantirTexto('external_id', 80)
+          garantirTexto('audit_id', 160)
+          garantirTexto('resultado', 40)
+          garantirTexto('usuario_id', 80)
+          garantirData('created_at')
+          var expectedIndexes = [
+            'CREATE UNIQUE INDEX idx_nexo_feedback_audit_usuario ON com_nexo_sugestao_feedback_v1 (audit_id, usuario_id)',
+            'CREATE INDEX idx_nexo_feedback_external_created ON com_nexo_sugestao_feedback_v1 (external_id, created_at)',
+          ]
+          var preservedIndexes = (collection.indexes || []).filter(function (indexSql) {
+            var sql = String(indexSql || '')
+            return (
+              sql.indexOf('idx_nexo_feedback_audit_usuario') < 0 &&
+              sql.indexOf('idx_nexo_feedback_external_created') < 0
+            )
+          })
+          var reconciledIndexes = preservedIndexes.concat(expectedIndexes)
+          if (JSON.stringify(collection.indexes || []) !== JSON.stringify(reconciledIndexes)) {
+            collection.indexes = reconciledIndexes
+            changed = true
+          }
+          return changed
+        }
+        var collection = null
+        try {
+          collection = app.findCollectionByNameOrId('com_nexo_sugestao_feedback_v1')
+        } catch (_) {
+          collection = new Collection({
+            type: 'base',
+            name: 'com_nexo_sugestao_feedback_v1',
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+            listRule: null,
+            viewRule: null,
+          })
+        }
+        var changed = aplicarContrato(collection)
+        if (!collection.id || changed) {
+          try {
+            app.save(collection)
+          } catch (saveError) {
+            if (collection.id) throw saveError
+            try {
+              collection = app.findCollectionByNameOrId('com_nexo_sugestao_feedback_v1')
+            } catch (_) {
+              throw saveError
+            }
+            if (aplicarContrato(collection)) app.save(collection)
+          }
+        }
+        return app.findCollectionByNameOrId('com_nexo_sugestao_feedback_v1')
+      }
       var ator = e.auth
       if (!ator || !ator.getBool('ativo_comercial'))
         return e.forbiddenError('Usuario comercial necessario')
@@ -3584,7 +3694,8 @@
       var auditId = String(body.audit_id || '').trim()
       var resultado = String(body.resultado || '').trim()
       var resultadosPermitidos = ['usada', 'ajustada', 'nao_foi_util']
-      if (!/^[a-zA-Z0-9._:-]{1,160}$/.test(auditId)) return e.badRequestError('Auditoria invalida')
+      if (!/^[a-zA-Z0-9._:-]{1,160}$/.test(auditId))
+        return e.badRequestError('Auditoria invalida')
       if (resultadosPermitidos.indexOf(resultado) < 0)
         return e.badRequestError('Resultado de feedback invalido')
       var negocios = $app.findRecordsByFilter(
@@ -3598,6 +3709,7 @@
       var perfil = propostaPerfil($app, ator)
       if (!propostaPodeAcessar(ator, perfil, negocios[0]))
         return e.forbiddenError('Sem acesso ao negocio')
+      garantirColecaoFeedback($app)
       var eventos = $app.findRecordsByFilter(
         'com_nexo_aprendizado_eventos',
         "external_id = '" +
@@ -3626,7 +3738,19 @@
       feedback.set('resultado', resultado)
       feedback.set('usuario_id', ator.id)
       feedback.set('created_at', new Date())
-      $app.save(feedback)
+      try {
+        $app.save(feedback)
+      } catch (saveError) {
+        var concorrente = $app.findRecordsByFilter(
+          'com_nexo_sugestao_feedback_v1',
+          "audit_id = '" + auditId + "' && usuario_id = '" + ator.id + "'",
+          '',
+          1,
+          0,
+        )
+        if (concorrente.length) return e.json(409, { message: 'Avaliacao ja registrada' })
+        throw saveError
+      }
       return e.json(201, { status: 'registrado', feedback_id: feedback.id })
     },
     $apis.requireAuth('users'),
