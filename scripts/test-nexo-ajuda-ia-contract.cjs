@@ -172,6 +172,11 @@ assert.match(
 )
 assert.match(
   hook,
+  /\/ajuda\/feedback'[\s\S]*com_vinculos_externos[\s\S]*external_type='business'[\s\S]*findRecordById\('com_negocios', vinculo\.getString\('record_id'\)\)[\s\S]*propostaPodeAcessar[\s\S]*garantirColecaoFeedback/,
+  'feedback deve resolver o negócio pelo vínculo ActiveCampaign antes da autorização e materialização',
+)
+assert.match(
+  hook,
   /com_nexo_sugestao_feedback_v1[\s\S]*new Record[\s\S]*feedback\.set\('resultado'/,
   'backend deve criar feedback append-only em coleção fechada',
 )

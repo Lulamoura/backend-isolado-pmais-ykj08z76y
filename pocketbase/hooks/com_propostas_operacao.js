@@ -3698,16 +3698,25 @@
         return e.badRequestError('Auditoria invalida')
       if (resultadosPermitidos.indexOf(resultado) < 0)
         return e.badRequestError('Resultado de feedback invalido')
-      var negocios = $app.findRecordsByFilter(
-        'com_negocios',
-        "external_id = '" + externalId + "'",
-        '',
-        1,
-        0,
-      )
-      if (!negocios.length) return e.notFoundError('Negocio nao encontrado')
+      var vinculo
+      try {
+        vinculo = $app.findFirstRecordByFilter(
+          'com_vinculos_externos',
+          "sistema_origem='activecampaign' && external_type='business' && external_id = '" +
+            externalId +
+            "'",
+        )
+      } catch (_) {
+        return e.notFoundError('Negocio nao espelhado')
+      }
+      var negocio
+      try {
+        negocio = $app.findRecordById('com_negocios', vinculo.getString('record_id'))
+      } catch (_) {
+        return e.notFoundError('Negocio local nao encontrado')
+      }
       var perfil = propostaPerfil($app, ator)
-      if (!propostaPodeAcessar(ator, perfil, negocios[0]))
+      if (!propostaPodeAcessar(ator, perfil, negocio))
         return e.forbiddenError('Sem acesso ao negocio')
       garantirColecaoFeedback($app)
       var eventos = $app.findRecordsByFilter(
