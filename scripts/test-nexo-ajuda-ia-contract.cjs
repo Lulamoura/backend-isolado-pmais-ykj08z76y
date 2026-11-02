@@ -4,10 +4,12 @@ const assert = require('node:assert/strict')
 const hookPath = 'pocketbase/hooks/com_propostas_operacao.js'
 const servicePath = 'src/services/nexo.ts'
 const componentPath = 'src/components/NexoBusinessActions.tsx'
+const feedbackMigrationPath = 'pocketbase/migrations/202611021600_nexo_sugestao_feedback.js'
 
 const hook = fs.readFileSync(hookPath, 'utf8')
 const service = fs.readFileSync(servicePath, 'utf8')
 const component = fs.readFileSync(componentPath, 'utf8')
+const feedbackMigration = fs.readFileSync(feedbackMigrationPath, 'utf8')
 
 assert.match(
   hook,
@@ -133,6 +135,11 @@ assert.match(
   'serviço frontend deve chamar POST de ajuda do Nexo',
 )
 assert.match(service, /NexoAjudaComercial/, 'serviço deve tipar resposta consultiva do Nexo')
+assert.match(
+  service,
+  /registrarFeedbackAjudaNexo[\s\S]*\/ajuda\/feedback[\s\S]*POST/,
+  'serviço frontend deve registrar avaliação da sugestão assistida',
+)
 
 assert.match(component, /Sugerir próximo follow-up/, 'UI deve oferecer ação de follow-up')
 assert.match(component, /Preparar WhatsApp/, 'UI deve oferecer ação de WhatsApp')
@@ -141,6 +148,12 @@ assert.match(component, /Avaliar risco de perda/, 'UI deve oferecer análise de 
 assert.match(component, /Dicas para melhorar notas/, 'UI deve oferecer dicas de notas')
 assert.match(component, /gerarAjudaNexoNegocio/, 'UI deve chamar geração real do Nexo')
 assert.match(component, /Gerar ajuda do Nexo/, 'UI deve ter botão primário de geração')
+assert.match(component, /Contexto considerado/, 'UI deve separar os fatos considerados')
+assert.match(component, /Leitura do Nexo/, 'UI deve separar a interpretação do Nexo')
+assert.match(component, /Sugestão de ação/, 'UI deve separar a recomendação')
+assert.match(component, /Minuta editável/, 'UI deve permitir revisar a minuta antes de usar')
+assert.match(component, /Usar sugestão/, 'UI deve permitir marcar a sugestão como usada')
+assert.match(component, /Não foi útil/, 'UI deve permitir rejeitar a sugestão')
 assert.doesNotMatch(
   component,
   /function gerarAjudaComercial|const perguntas: string\[\] = \[\]/,
@@ -153,10 +166,47 @@ assert.doesNotMatch(
   'sanitização da Ajuda do Nexo não pode achatar quebras de linha em um parágrafo único',
 )
 assert.match(
-  component,
-  /nexo-resposta-paragrafos/,
-  'UI deve renderizar a resposta do Nexo em parágrafos separados, não em uma caixa com texto corrido',
+  hook,
+  /\/backend\/v1\/nexo\/negocios\/\{externalId\}\/ajuda\/feedback/,
+  'backend deve expor rota autenticada de feedback da Produção Assistida',
 )
+assert.match(
+  hook,
+  /com_nexo_sugestao_feedback_v1[\s\S]*new Record[\s\S]*feedback\.set\('resultado'/,
+  'backend deve criar feedback append-only em coleção fechada',
+)
+assert.match(
+  hook,
+  /registro_confirmado\s*=\s*nexoCapturarAprendizadoApp/,
+  'resposta deve informar se o registro auditável foi realmente persistido',
+)
+assert.match(
+  component,
+  /registro_confirmado\s*===\s*true/,
+  'frontend deve liberar feedback apenas após confirmação explícita da auditoria',
+)
+assert.match(
+  hook,
+  /tipo_evento = 'nexo_consulta_suporte_app'[\s\S]{0,300}usuario_id = '/,
+  'feedback deve estar vinculado ao autor da sugestão',
+)
+assert.match(
+  hook,
+  /randomString\(32\)/,
+  'audit_id deve usar componente aleatório forte',
+)
+assert.doesNotMatch(
+  hook,
+  /evento\.set\('feedback_/,
+  'feedback não pode sobrescrever o evento original da sugestão',
+)
+assert.match(feedbackMigration, /com_nexo_sugestao_feedback_v1/)
+assert.match(feedbackMigration, /listRule:\s*null/)
+assert.match(feedbackMigration, /viewRule:\s*null/)
+assert.match(feedbackMigration, /audit_id/)
+assert.match(feedbackMigration, /resultado/)
+assert.doesNotMatch(feedbackMigration, /feedback_texto_ajustado/)
+assert.doesNotMatch(feedbackMigration, /motivo/)
 assert.match(
   hook,
   /result\.sort\(function \(a, b\)[\s\S]*bTime - aTime/,

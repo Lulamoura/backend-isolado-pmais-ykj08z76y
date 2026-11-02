@@ -113,7 +113,7 @@ const contextoNexo = {
   contato: { nome: 'Brenda', email: 'brenda@cliente.com.br' },
   campos_crm: {
     tipo_servico: 'Agentes de apoio 44h semanais',
-    detalhamento_proposta: 'Cliente solicitou proposta para 06 lojas.',
+    detalhamento_proposta: 'Proposta nº493.26 contempla o serviço solicitado para 06 lojas.',
   },
   notas_followups: [{ texto: 'Cliente aguarda análise da gestora de RH.' }],
 }
@@ -205,7 +205,7 @@ describe('Propostas', () => {
     await screen.findByText('Publicar e enviar')
 
     expect(screen.getByLabelText('Assunto')).toHaveValue(
-      'Proposta PMais PROP-001 — Autonunes Chevrolet Prazeres',
+      'Proposta PMais — Autonunes Chevrolet Prazeres',
     )
     expect(screen.getByLabelText('Mensagem')).toHaveValue()
     expect(
@@ -228,7 +228,7 @@ describe('Propostas', () => {
     )
 
     expect(screen.getByLabelText('Assunto')).toHaveValue(
-      'Proposta PMais PROP-001 — Agentes de apoio 44h semanais | Autonunes Chevrolet Prazeres',
+      'Proposta nº 493.26 — Agentes de apoio 44h semanais | Autonunes Chevrolet Prazeres',
     )
     const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value
     expect(mensagem).toContain('Olá, Brenda. Tudo bem?')
@@ -334,7 +334,7 @@ describe('Propostas', () => {
 
     await waitFor(() =>
       expect(screen.getByLabelText('Assunto')).toHaveValue(
-        'Proposta PMais PROP-001 — Agentes de apoio 44h semanais | Autonunes Chevrolet Prazeres',
+        'Proposta nº 493.26 — Agentes de apoio 44h semanais | Autonunes Chevrolet Prazeres',
       ),
     )
     const mensagem = (screen.getByLabelText('Mensagem') as HTMLTextAreaElement).value

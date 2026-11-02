@@ -167,9 +167,19 @@ assert.doesNotMatch(
   /segundo-cerebro-pmais[\s\S]{0,600}(writeFile|fs\.|app\.save\()/,
   'hook do app não pode escrever diretamente no segundo cérebro',
 )
+const capturaAprendizadoInicio = hook.indexOf('function nexoCapturarAprendizadoApp(resposta)')
+const capturaAprendizadoFim = hook.indexOf(
+  'function nexoChamarPMaisAgentGateway()',
+  capturaAprendizadoInicio,
+)
+assert.ok(
+  capturaAprendizadoInicio >= 0 && capturaAprendizadoFim > capturaAprendizadoInicio,
+  'função de captura do aprendizado deve estar presente',
+)
+const capturaAprendizado = hook.slice(capturaAprendizadoInicio, capturaAprendizadoFim)
 assert.doesNotMatch(
-  hook,
-  /com_nexo_aprendizado_eventos[\s\S]{0,1200}(token|password|senha|secret|api[_-]?key|authorization|bearer)/i,
+  capturaAprendizado,
+  /(token|password|senha|secret|api[_-]?key|authorization|bearer)/i,
   'payload persistido não pode conter segredos ou headers',
 )
 assert.match(

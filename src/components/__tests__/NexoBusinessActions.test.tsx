@@ -4,8 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const obterContextoNexoNegocio = vi.hoisted(() => vi.fn())
 const gerarAjudaNexoNegocio = vi.hoisted(() => vi.fn())
+const registrarFeedbackAjudaNexo = vi.hoisted(() => vi.fn())
 
-vi.mock('@/services/nexo', () => ({ obterContextoNexoNegocio, gerarAjudaNexoNegocio }))
+vi.mock('@/services/nexo', () => ({
+  obterContextoNexoNegocio,
+  gerarAjudaNexoNegocio,
+  registrarFeedbackAjudaNexo,
+}))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 import { NexoBusinessActions } from '@/components/NexoBusinessActions'
@@ -99,6 +104,7 @@ const ajuda = {
     segundo_cerebro_usado: true,
     segundo_cerebro_fontes: ['CONTRATO-OPERACIONAL.md'],
     audit_id: 'nexo-4792-123',
+    registro_confirmado: true,
   },
 }
 
@@ -121,6 +127,7 @@ describe('NexoBusinessActions', () => {
     vi.clearAllMocks()
     obterContextoNexoNegocio.mockResolvedValue(contexto)
     gerarAjudaNexoNegocio.mockResolvedValue(ajuda)
+    registrarFeedbackAjudaNexo.mockResolvedValue({ status: 'registrado' })
   })
 
   it('gera resposta única e útil para sugestão de próximo follow-up', async () => {
@@ -148,31 +155,27 @@ describe('NexoBusinessActions', () => {
       expect(gerarAjudaNexoNegocio).toHaveBeenCalledWith('4792', 'proximo_follow_up', contexto, ''),
     )
     expect(await screen.findByText('Resposta do Nexo')).toBeInTheDocument()
-    expect(screen.getByTestId('nexo-resposta-paragrafos').querySelectorAll('p')).toHaveLength(3)
+    expect(screen.getByText('Contexto considerado')).toBeInTheDocument()
+    expect(screen.getByText('Leitura do Nexo')).toBeInTheDocument()
+    expect(screen.getByText('Sugestão de ação')).toBeInTheDocument()
+    expect(screen.getByText('Minuta editável')).toBeInTheDocument()
     expect(
-      screen.getByText(
-        /Sugestão de follow-up: Olá, Brenda. Conseguiu algum retorno da análise do RH\?/,
-      ),
+      screen.getByText(/1 registro de follow-up\. Último registro: Cliente aguardando análise/),
     ).toBeInTheDocument()
-    expect(screen.queryByText('Fatos observados na conversa')).not.toBeInTheDocument()
-    expect(
-      screen.queryByText('O cliente informou que validará a proposta com o RH.'),
-    ).not.toBeInTheDocument()
-    expect(screen.queryByText('Pendências e compromissos')).not.toBeInTheDocument()
-    expect(screen.queryByText('Retorno prometido até sexta-feira.')).not.toBeInTheDocument()
-    expect(
-      screen.queryByText('Nenhuma objeção explícita na conversa recente.'),
-    ).not.toBeInTheDocument()
-    expect(screen.queryByText('Comparação com o CRM')).not.toBeInTheDocument()
-    expect(screen.queryByText('Conversa: sexta-feira; CRM: 10/10/2026.')).not.toBeInTheDocument()
-    expect(screen.queryByText('Sugestão do Nexo')).not.toBeInTheDocument()
-    expect(
-      screen.queryByText('Aguardar até sexta-feira e revisar o follow-up.'),
-    ).not.toBeInTheDocument()
-    expect(screen.queryByText('Rascunho para revisão humana')).not.toBeInTheDocument()
-    expect(
-      screen.queryByText('Olá, Brenda. Conseguiu concluir a validação com o RH?'),
-    ).not.toBeInTheDocument()
+    expect(screen.getByText('Aguardar até sexta-feira e revisar o follow-up.')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /Minuta editável/i })).toHaveValue(
+      'Olá, Brenda. Conseguiu concluir a validação com o RH?',
+    )
+    expect(screen.getByRole('button', { name: 'Usar sugestão' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ajustar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Não foi útil' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Usar sugestão' }))
+    await waitFor(() =>
+      expect(registrarFeedbackAjudaNexo).toHaveBeenCalledWith('4792', {
+        audit_id: 'nexo-4792-123',
+        resultado: 'usada',
+      }),
+    )
     expect(screen.queryByText('Perguntas críticas')).not.toBeInTheDocument()
     expect(screen.queryByText('Riscos percebidos')).not.toBeInTheDocument()
     expect(screen.queryByText('Diagnóstico comercial')).not.toBeInTheDocument()
@@ -184,6 +187,63 @@ describe('NexoBusinessActions', () => {
     expect(
       screen.queryByText('Cliente aguardando análise pela gestora de RH.'),
     ).not.toBeInTheDocument()
+  })
+
+  it('reinicia minuta e avaliação ao gerar uma nova sugestão na mesma modal', async () => {
+    const segundaAjuda = {
+      ...ajuda,
+      diagnostico: 'Segunda leitura do negócio.',
+      mensagem_sugerida: 'Segunda minuta.',
+      analise_whatsapp: {
+        ...ajuda.analise_whatsapp,
+        rascunho_follow_up: 'Segunda minuta.',
+      },
+      auditoria_geracao: { ...ajuda.auditoria_geracao, audit_id: 'nexo-4792-456' },
+    }
+    gerarAjudaNexoNegocio.mockResolvedValueOnce(ajuda).mockResolvedValueOnce(segundaAjuda)
+    const user = userEvent.setup()
+    render(
+      <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
+    await screen.findByText('Escolha a ajuda do Nexo')
+    await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
+    const minuta = await screen.findByRole('textbox', { name: /Minuta editável/i })
+    await user.clear(minuta)
+    await user.type(minuta, 'Texto ajustado da primeira sugestão.')
+    await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: /Minuta editável/i })).toHaveValue('Segunda minuta.'),
+    )
+    expect(screen.queryByText('Avaliação registrada.')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['não confirmada', false],
+    ['sem confirmação no contrato', undefined],
+  ])('bloqueia avaliação quando a auditoria está %s', async (_rotulo, registroConfirmado) => {
+    gerarAjudaNexoNegocio.mockResolvedValue({
+      ...ajuda,
+      auditoria_geracao: {
+        ...ajuda.auditoria_geracao,
+        registro_confirmado: registroConfirmado,
+      },
+    })
+    const user = userEvent.setup()
+    render(
+      <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
+    await screen.findByText('Escolha a ajuda do Nexo')
+    await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
+
+    expect(
+      await screen.findByText(/avaliação está indisponível porque o registro auditável não foi confirmado/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Usar sugestão' })).not.toBeInTheDocument()
   })
 
   it('renderiza WhatsApp como resposta única, sem painel de diagnóstico', async () => {
@@ -202,8 +262,12 @@ describe('NexoBusinessActions', () => {
       expect(gerarAjudaNexoNegocio).toHaveBeenCalledWith('4792', 'preparar_whatsapp', contexto, ''),
     )
     expect(await screen.findByText('Resposta do Nexo')).toBeInTheDocument()
-    expect(screen.getByTestId('nexo-resposta-paragrafos').querySelectorAll('p')).toHaveLength(3)
-    expect(screen.getByText(/Sugestão de WhatsApp: Oi, Brenda/)).toBeInTheDocument()
+    expect(screen.getByText('Contexto considerado')).toBeInTheDocument()
+    expect(screen.getByText('Leitura do Nexo')).toBeInTheDocument()
+    expect(screen.getByText('Sugestão de ação')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /Minuta editável/i })).toHaveValue(
+      'Olá, Brenda. Conseguiu concluir a validação com o RH?',
+    )
     expect(screen.queryByText('Perguntas críticas')).not.toBeInTheDocument()
     expect(screen.queryByText('Riscos percebidos')).not.toBeInTheDocument()
     expect(screen.queryByText('Diagnóstico comercial')).not.toBeInTheDocument()

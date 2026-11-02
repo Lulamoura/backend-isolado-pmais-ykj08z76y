@@ -1760,6 +1760,20 @@
         }
       }
 
+      function nexoNovoAuditId() {
+        var aleatorio = ''
+        try {
+          if ($security && typeof $security.randomString === 'function')
+            aleatorio = $security.randomString(32)
+        } catch (_) {}
+        if (!aleatorio) {
+          aleatorio = $security
+            .sha256(externalId + ':' + ator.id + ':' + Date.now() + ':' + Math.random())
+            .slice(0, 32)
+        }
+        return 'nexo-' + externalId + '-' + aleatorio
+      }
+
       function nexoRespostaFallback(externalId, acao, motivo, resumo) {
         resumo = resumo || {}
         var negocio = resumo.negocio || {}
@@ -1829,7 +1843,7 @@
             fallback: true,
             segundo_cerebro_usado: false,
             segundo_cerebro_fontes: [],
-            audit_id: 'nexo-' + externalId + '-' + Date.now(),
+            audit_id: nexoNovoAuditId(),
           },
         }
       }
@@ -2465,7 +2479,7 @@
             fallback: gatewayJson.fallback,
             segundo_cerebro_usado: Boolean((gatewayJson.second_brain || {}).used),
             segundo_cerebro_fontes: (gatewayJson.second_brain || {}).sources || [],
-            audit_id: 'nexo-' + externalId + '-' + Date.now(),
+            audit_id: nexoNovoAuditId(),
           },
         }
       }
@@ -3181,7 +3195,7 @@
           evento.set('whatsapp_resumo_factual', provenienciaWhatsapp.whatsapp_resumo_factual || '')
           evento.set('conhecimento_oficial', false)
           var auditId = nexoResumoSeguroAprendizado(
-            auditoria.audit_id || 'nexo-' + externalId + '-' + Date.now(),
+            auditoria.audit_id || nexoNovoAuditId(),
             160,
           )
           evento.set('audit_id', auditId)
@@ -3200,6 +3214,7 @@
             evidenciaRef: evento.id || auditId,
             auditId: auditId,
           })
+          return true
         } catch (err) {
           console.error(
             'NEXO_APRENDIZADO_EVENTO_ERRO',
@@ -3209,6 +3224,7 @@
               erro: String(err).slice(0, 120),
             }),
           )
+          return false
         }
       }
 
@@ -3263,7 +3279,8 @@
       if (pmaisGatewayResponse) {
         if (pmaisGatewayResponse.statusCode >= 200 && pmaisGatewayResponse.statusCode < 300) {
           var respostaGateway = nexoRespostaGatewayParaContrato(pmaisGatewayResponse.json || {})
-          nexoCapturarAprendizadoApp(respostaGateway)
+          respostaGateway.auditoria_geracao.registro_confirmado =
+            nexoCapturarAprendizadoApp(respostaGateway)
           return e.json(200, respostaGateway)
         }
         console.error(
@@ -3304,7 +3321,8 @@
           'CONFIGURACAO_IA_AUSENTE',
           contextoSeguro,
         )
-        nexoCapturarAprendizadoApp(respostaConfiguracaoAusente)
+        respostaConfiguracaoAusente.auditoria_geracao.registro_confirmado =
+          nexoCapturarAprendizadoApp(respostaConfiguracaoAusente)
         return e.json(200, respostaConfiguracaoAusente)
       }
 
@@ -3459,7 +3477,8 @@
           'IA_HTTP_' + response.statusCode + (erroIa ? ': ' + erroIa : ''),
           contextoSeguro,
         )
-        nexoCapturarAprendizadoApp(respostaErroIa)
+        respostaErroIa.auditoria_geracao.registro_confirmado =
+          nexoCapturarAprendizadoApp(respostaErroIa)
         return e.json(502, respostaErroIa)
       }
 
@@ -3531,10 +3550,10 @@
             fallback: false,
             segundo_cerebro_usado: false,
             segundo_cerebro_fontes: [],
-            audit_id: 'nexo-' + externalId + '-' + Date.now(),
+            audit_id: nexoNovoAuditId(),
           },
         }
-        nexoCapturarAprendizadoApp(respostaIa)
+        respostaIa.auditoria_geracao.registro_confirmado = nexoCapturarAprendizadoApp(respostaIa)
         return e.json(200, respostaIa)
       } catch (err) {
         var respostaErroContrato = nexoRespostaFallback(
@@ -3543,9 +3562,76 @@
           String(err).slice(0, 80),
           contextoSeguro,
         )
-        nexoCapturarAprendizadoApp(respostaErroContrato)
+        respostaErroContrato.auditoria_geracao.registro_confirmado =
+          nexoCapturarAprendizadoApp(respostaErroContrato)
         return e.json(502, respostaErroContrato)
       }
+    },
+    $apis.requireAuth('users'),
+  )
+  routerAdd(
+    'POST',
+    '/backend/v1/nexo/negocios/{externalId}/ajuda/feedback',
+    function (e) {
+      var ator = e.auth
+      if (!ator || !ator.getBool('ativo_comercial'))
+        return e.forbiddenError('Usuario comercial necessario')
+      var externalId = String(e.request.pathValue('externalId') || '').trim()
+      if (!/^[0-9]+$/.test(externalId)) return e.badRequestError('ID externo invalido')
+      var body = new DynamicModel({ audit_id: '', resultado: '' })
+      try {
+        e.bindBody(body)
+      } catch (_) {
+        return e.badRequestError('Feedback invalido')
+      }
+      var auditId = String(body.audit_id || '').trim()
+      var resultado = String(body.resultado || '').trim()
+      var resultadosPermitidos = ['usada', 'ajustada', 'nao_foi_util']
+      if (!/^[a-zA-Z0-9._:-]{1,160}$/.test(auditId))
+        return e.badRequestError('Auditoria invalida')
+      if (resultadosPermitidos.indexOf(resultado) < 0)
+        return e.badRequestError('Resultado de feedback invalido')
+      var negocios = $app.findRecordsByFilter(
+        'com_negocios',
+        "external_id = '" + externalId + "'",
+        '',
+        1,
+        0,
+      )
+      if (!negocios.length) return e.notFoundError('Negocio nao encontrado')
+      var perfil = propostaPerfil($app, ator)
+      if (!propostaPodeAcessar(ator, perfil, negocios[0]))
+        return e.forbiddenError('Sem acesso ao negocio')
+      var eventos = $app.findRecordsByFilter(
+        'com_nexo_aprendizado_eventos',
+        "external_id = '" +
+          externalId +
+          "' && audit_id = '" +
+          auditId +
+          "' && tipo_evento = 'nexo_consulta_suporte_app' && usuario_id = '" +
+          ator.id +
+          "'",
+        '-created_at',
+        1,
+        0,
+      )
+      if (!eventos.length) return e.notFoundError('Sugestao nao encontrada')
+      var existentes = $app.findRecordsByFilter(
+        'com_nexo_sugestao_feedback_v1',
+        "audit_id = '" + auditId + "' && usuario_id = '" + ator.id + "'",
+        '',
+        1,
+        0,
+      )
+      if (existentes.length) return e.json(409, { message: 'Avaliacao ja registrada' })
+      var feedback = new Record($app.findCollectionByNameOrId('com_nexo_sugestao_feedback_v1'))
+      feedback.set('external_id', externalId)
+      feedback.set('audit_id', auditId)
+      feedback.set('resultado', resultado)
+      feedback.set('usuario_id', ator.id)
+      feedback.set('created_at', new Date())
+      $app.save(feedback)
+      return e.json(201, { status: 'registrado', feedback_id: feedback.id })
     },
     $apis.requireAuth('users'),
   )

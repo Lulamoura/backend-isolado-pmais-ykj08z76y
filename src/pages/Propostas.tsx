@@ -162,11 +162,23 @@ const normalizarTextoAssunto = (valor?: string | null) => {
   return `${minusculo.charAt(0).toLocaleUpperCase('pt-BR')}${minusculo.slice(1)}`
 }
 
-const assuntoPadrao = (item: ItemProposta, tipoServico?: string | null) => {
-  const identificador = item.proposta?.identificador?.trim()
+const extrairNumeroHumanoProposta = (detalhamento?: string | null) => {
+  const texto = String(detalhamento || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const encontrado = texto.match(/\bproposta\s*(?:n[º°o.]?|número|numero)\s*[:#.-]?\s*(\d{1,6}(?:[./-]\d{1,6})*)\b/i)
+  return encontrado?.[1]?.trim() || ''
+}
+
+const assuntoPadrao = (
+  item: ItemProposta,
+  tipoServico?: string | null,
+  detalhamentoProposta?: string | null,
+) => {
+  const numeroHumano = extrairNumeroHumanoProposta(detalhamentoProposta)
   const cliente = normalizarNomeHumano(nomeClienteProposta(item))
   const servico = normalizarTextoAssunto(tipoServico)
-  const referencia = ['Proposta PMais', identificador].filter(Boolean).join(' ')
+  const referencia = numeroHumano ? `Proposta nº ${numeroHumano}` : 'Proposta PMais'
   return `${referencia} — ${servico ? `${servico} | ` : ''}${cliente}`
 }
 
@@ -174,7 +186,8 @@ const normalizarAssuntoEmailProposta = (
   _assunto: string,
   item: ItemProposta,
   tipoServico?: string | null,
-) => assuntoPadrao(item, tipoServico)
+  detalhamentoProposta?: string | null,
+) => assuntoPadrao(item, tipoServico, detalhamentoProposta)
 
 const primeiroNomeContato = (item: ItemProposta) => {
   const nome = normalizarNomeHumano(item.contexto.contato?.nome || '')
@@ -251,6 +264,7 @@ const extrairSugestaoEmailNexo = (
   link: string,
   item: ItemProposta,
   tipoServico?: string | null,
+  detalhamentoProposta?: string | null,
 ) => {
   const limpo = limparTextoEmailNexo(texto)
   let linhas = removerPreambuloNexo(limpo.split('\n'))
@@ -268,7 +282,15 @@ const extrairSugestaoEmailNexo = (
     ),
   )
   const corpo = garantirAssinaturaEmailProposta(corpoSemAssinatura, item)
-  return { assunto: normalizarAssuntoEmailProposta(assunto, item, tipoServico), corpo }
+  return {
+    assunto: normalizarAssuntoEmailProposta(
+      assunto,
+      item,
+      tipoServico,
+      detalhamentoProposta,
+    ),
+    corpo,
+  }
 }
 
 export default function Propostas() {
@@ -528,8 +550,15 @@ export default function Propostas() {
         link,
         item,
         contextoNexo.campos_crm?.tipo_servico,
+        contextoNexo.campos_crm?.detalhamento_proposta,
       )
-      const assunto = sugestao.assunto || assuntoPadrao(item, contextoNexo.campos_crm?.tipo_servico)
+      const assunto =
+        sugestao.assunto ||
+        assuntoPadrao(
+          item,
+          contextoNexo.campos_crm?.tipo_servico,
+          contextoNexo.campos_crm?.detalhamento_proposta,
+        )
       setAssuntosEmail((atual) => ({ ...atual, [item.negocio.id]: assunto }))
       setMensagensEmail((atual) => ({ ...atual, [item.negocio.id]: sugestao.corpo }))
       await salvarMensagemEmailProposta(item.negocio.id, sugestao.corpo)

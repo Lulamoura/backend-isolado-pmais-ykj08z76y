@@ -42,6 +42,7 @@ const sandbox = {
     Array.isArray(value) ? value : value ? [String(value)] : fallback ? [fallback] : [],
   nexoBooleanoCuradoria: (value) => Boolean(value),
   nexoNormalizarAvaliacaoCuradoria: (value) => value || null,
+  nexoNovoAuditId: () => 'nexo-neg-42-random',
   Date: { now: () => 123 },
 }
 vm.createContext(sandbox)

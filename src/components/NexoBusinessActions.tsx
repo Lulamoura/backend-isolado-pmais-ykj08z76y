@@ -13,6 +13,7 @@ import {
 import {
   gerarAjudaNexoNegocio,
   obterContextoNexoNegocio,
+  registrarFeedbackAjudaNexo,
   type NexoAcaoAssistida,
   type NexoAjudaComercial,
   type NexoContextoNegocio,
@@ -78,42 +79,99 @@ function CampoTexto({ titulo, texto }: { titulo: string; texto?: string | null }
   )
 }
 
-function AjudaResposta({ ajuda }: { ajuda: NexoAjudaComercial }) {
+function AjudaResposta({
+  ajuda,
+  contexto,
+}: {
+  ajuda: NexoAjudaComercial
+  contexto: NexoContextoNegocio
+}) {
   const auditoria = ajuda.auditoria_geracao
+  const feedbackDisponivel = auditoria?.registro_confirmado === true
   const fallback = Boolean(auditoria?.fallback ?? ajuda.fallback)
-  const resposta =
-    ajuda.resposta_curta ||
-    [
-      ajuda.diagnostico ? `Leitura breve: ${ajuda.diagnostico}` : '',
-      ajuda.mensagem_sugerida ? `Sugestão: ${ajuda.mensagem_sugerida}` : '',
-      ajuda.proximos_passos?.[0] ? `Próximo passo: ${ajuda.proximos_passos[0]}` : '',
-      ajuda.dicas_para_melhorar_notas?.[0]
-        ? `Dica extra: ${ajuda.dicas_para_melhorar_notas[0]}`
-        : '',
-    ]
-      .filter(Boolean)
-      .join('\n\n')
-  const paragrafos = resposta
-    .replace(/\r\n/g, '\n')
-    .split(/\n{2,}/)
-    .map((parte) => parte.trim())
-    .filter(Boolean)
+  const analiseWhatsapp = ajuda.analise_whatsapp || {}
+  const minutaInicial = analiseWhatsapp.rascunho_follow_up || ajuda.mensagem_sugerida || ''
+  const [minuta, setMinuta] = useState(minutaInicial)
+  const [registrando, setRegistrando] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const contextoFactual = [resumoUltimoFollowUp(contexto)]
+  const sugestao =
+    analiseWhatsapp.proximo_passo_recomendado || ajuda.proximos_passos?.[0] || ajuda.mensagem_sugerida
+
+  const registrarFeedback = async (resultado: 'usada' | 'ajustada' | 'nao_foi_util') => {
+    const auditId = String(auditoria?.audit_id || '').trim()
+    if (!auditId) {
+      toast.error('A sugestão não possui identificação de auditoria para registrar a avaliação.')
+      return
+    }
+    setRegistrando(true)
+    try {
+      await registrarFeedbackAjudaNexo(ajuda.external_id, {
+        audit_id: auditId,
+        resultado,
+      })
+      setFeedback(resultado)
+      toast.success('Avaliação registrada para melhorar as próximas sugestões do Nexo.')
+    } catch (_) {
+      toast.error('Não foi possível registrar a avaliação desta sugestão.')
+    } finally {
+      setRegistrando(false)
+    }
+  }
 
   return (
     <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-4">
+      <p className="font-semibold text-slate-950">Resposta do Nexo</p>
       <section className="rounded-md border bg-white p-4 text-sm">
-        <p className="font-semibold text-slate-950">Resposta do Nexo</p>
-        <div
-          data-testid="nexo-resposta-paragrafos"
-          className="mt-3 space-y-4 leading-6 text-slate-800"
-        >
-          {paragrafos.map((paragrafo) => (
-            <p key={paragrafo} className="whitespace-pre-wrap">
-              {paragrafo}
-            </p>
+        <p className="font-semibold text-slate-950">Contexto considerado</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-800">
+          {contextoFactual.map((item) => (
+            <li key={item}>{item}</li>
           ))}
-        </div>
+        </ul>
       </section>
+      <section className="rounded-md border bg-white p-4 text-sm">
+        <p className="font-semibold text-slate-950">Leitura do Nexo</p>
+        <p className="mt-2 whitespace-pre-wrap text-slate-800">{resumoTexto(ajuda.diagnostico)}</p>
+      </section>
+      <section className="rounded-md border bg-white p-4 text-sm">
+        <p className="font-semibold text-slate-950">Sugestão de ação</p>
+        <p className="mt-2 whitespace-pre-wrap text-slate-800">{resumoTexto(sugestao)}</p>
+      </section>
+      <section className="rounded-md border bg-white p-4 text-sm">
+        <label htmlFor={`nexo-minuta-${ajuda.external_id}`} className="font-semibold text-slate-950">
+          Minuta editável
+        </label>
+        <textarea
+          id={`nexo-minuta-${ajuda.external_id}`}
+          aria-label="Minuta editável"
+          value={minuta}
+          onChange={(event) => setMinuta(event.target.value)}
+          rows={5}
+          className="mt-2 w-full rounded-md border bg-white p-3 leading-6 text-slate-800"
+        />
+      </section>
+      {feedbackDisponivel ? (
+        <section className="rounded-md border bg-white p-4 text-sm">
+          <p className="font-semibold text-slate-950">Esta sugestão foi útil?</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" size="sm" disabled={registrando || Boolean(feedback)} onClick={() => registrarFeedback('usada')}>
+              Usar sugestão
+            </Button>
+            <Button type="button" size="sm" variant="outline" disabled={registrando || Boolean(feedback)} onClick={() => registrarFeedback('ajustada')}>
+              Ajustar
+            </Button>
+            <Button type="button" size="sm" variant="outline" disabled={registrando || Boolean(feedback)} onClick={() => registrarFeedback('nao_foi_util')}>
+              Não foi útil
+            </Button>
+          </div>
+          {feedback ? <p className="mt-2 text-xs text-emerald-700">Avaliação registrada.</p> : null}
+        </section>
+      ) : (
+        <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          A sugestão foi exibida, mas sua avaliação está indisponível porque o registro auditável não foi confirmado.
+        </p>
+      )}
       {fallback ? (
         <p className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white">
           Falha de acionamento de modelo - Avisar administrador do sistema.
@@ -292,7 +350,11 @@ export function NexoBusinessActions({
               </section>
 
               {ajuda ? (
-                <AjudaResposta ajuda={ajuda} />
+                <AjudaResposta
+                  key={ajuda.auditoria_geracao?.audit_id || ajuda.mensagem_sugerida || 'ajuda-nexo'}
+                  ajuda={ajuda}
+                  contexto={contexto}
+                />
               ) : (
                 <section className="rounded-md border bg-slate-50 p-3 text-sm">
                   <p className="font-semibold text-slate-950">Resumo do histórico disponível</p>
