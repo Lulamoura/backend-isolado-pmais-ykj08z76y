@@ -166,9 +166,7 @@ const extrairNumeroHumanoProposta = (detalhamento?: string | null) => {
   const texto = String(detalhamento || '')
     .replace(/\s+/g, ' ')
     .trim()
-  const encontrado = texto.match(
-    /\bproposta\s*(?:n[º°o.]?|número|numero)\s*[:#.-]?\s*(\d{1,6}(?:[./-]\d{1,6})*)\b/i,
-  )
+  const encontrado = texto.match(/\bproposta\s*(?:n[º°o.]?|número|numero)\s*[:#.-]?\s*(\d{1,6}(?:[./-]\d{1,6})*)\b/i)
   return encontrado?.[1]?.trim() || ''
 }
 
@@ -285,7 +283,12 @@ const extrairSugestaoEmailNexo = (
   )
   const corpo = garantirAssinaturaEmailProposta(corpoSemAssinatura, item)
   return {
-    assunto: normalizarAssuntoEmailProposta(assunto, item, tipoServico, detalhamentoProposta),
+    assunto: normalizarAssuntoEmailProposta(
+      assunto,
+      item,
+      tipoServico,
+      detalhamentoProposta,
+    ),
     corpo,
   }
 }

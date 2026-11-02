@@ -177,6 +177,16 @@ assert.match(
 )
 assert.match(
   hook,
+  /function garantirColecaoFeedback[\s\S]*typeof field\.type !== 'function'[\s\S]*field\.type\(\)[\s\S]*SCHEMA_FEEDBACK_INCOMPATIVEL[\s\S]*garantirTexto\('external_id', 80\)[\s\S]*garantirTexto\('audit_id', 160\)[\s\S]*garantirTexto\('resultado', 40\)[\s\S]*garantirTexto\('usuario_id', 80\)[\s\S]*garantirData\('created_at'\)[\s\S]*idx_nexo_feedback_audit_usuario[\s\S]*app\.save\(collection\)/,
+  'rota deve materializar e reparar a coleção fechada de feedback com a API de campos do PocketBase JSVM',
+)
+assert.match(
+  hook,
+  /try\s*\{\s*\$app\.save\(feedback\)[\s\S]*catch \(saveError\)[\s\S]*var concorrente = \$app\.findRecordsByFilter[\s\S]*Avaliacao ja registrada[\s\S]*throw saveError/,
+  'concorrência no registro de feedback deve preservar unicidade e responder conflito em vez de erro interno',
+)
+assert.match(
+  hook,
   /registro_confirmado\s*=\s*nexoCapturarAprendizadoApp/,
   'resposta deve informar se o registro auditável foi realmente persistido',
 )
@@ -190,7 +200,11 @@ assert.match(
   /tipo_evento = 'nexo_consulta_suporte_app'[\s\S]{0,300}usuario_id = '/,
   'feedback deve estar vinculado ao autor da sugestão',
 )
-assert.match(hook, /randomString\(32\)/, 'audit_id deve usar componente aleatório forte')
+assert.match(
+  hook,
+  /randomString\(32\)/,
+  'audit_id deve usar componente aleatório forte',
+)
 assert.doesNotMatch(
   hook,
   /evento\.set\('feedback_/,
