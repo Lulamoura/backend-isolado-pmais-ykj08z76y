@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T15:53:39.422Z",
+  "generatedAt": "2026-11-02T20:02:41.290Z",
   "collections": [
     {
       "name": "users",
@@ -4947,6 +4947,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
         }
       ],
       "indexes": [
@@ -5344,6 +5351,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
         }
       ],
       "indexes": [
@@ -5704,6 +5718,53 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_com_nexo_curadoria_outbox_auditoria_retry ON com_nexo_curadoria_outbox_auditoria (outbox_id, retry_count)",
         "CREATE INDEX idx_com_nexo_curadoria_outbox_auditoria_data ON com_nexo_curadoria_outbox_auditoria (requested_at)"
+      ]
+    },
+    {
+      "name": "com_nexo_sugestao_feedback_v1",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "external_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "audit_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "resultado",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "usuario_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_nexo_feedback_audit_usuario ON com_nexo_sugestao_feedback_v1 (audit_id, usuario_id)",
+        "CREATE INDEX idx_nexo_feedback_external_created ON com_nexo_sugestao_feedback_v1 (external_id, created_at)"
       ]
     }
   ]

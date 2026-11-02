@@ -155,7 +155,9 @@ describe('NexoAssistente', () => {
     expect(screen.getByText('Detalhamento da proposta:').parentElement).toHaveTextContent(
       'Detalhamento da proposta: sem abertura confirmada',
     )
-    expect(screen.getByText('Detalhamento da proposta:').parentElement).not.toHaveTextContent('PROP-')
+    expect(screen.getByText('Detalhamento da proposta:').parentElement).not.toHaveTextContent(
+      'PROP-',
+    )
     expect(screen.getByText('Ação recomendada:').parentElement).not.toHaveTextContent(
       /negócio 123/i,
     )

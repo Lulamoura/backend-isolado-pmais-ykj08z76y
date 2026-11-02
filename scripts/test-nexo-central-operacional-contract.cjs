@@ -10,7 +10,9 @@ const adjacentUi = [
   'src/pages/Atividades.tsx',
   'src/pages/OrdensExecucao.tsx',
   'src/pages/NexoCuradoria.tsx',
-].map((path) => fs.readFileSync(path, 'utf8')).join('\n')
+]
+  .map((path) => fs.readFileSync(path, 'utf8'))
+  .join('\n')
 
 assert.match(page, /Gerar análise com Nexo/, 'Central deve ter botão real de processamento')
 assert.doesNotMatch(

@@ -62,7 +62,7 @@ export function getSubstituicoesPageTitle(pathname: string, mutationsEnabled = t
 }
 
 export function contarPendenciasCuradoriaUnificada(
-  contadores: Partial<Record<'para_tratar' | 'aguardando_decisao', number>>,
+  contadores: Partial<Record<string, number>>,
 ): number {
   return (
     Math.max(0, Number(contadores.para_tratar || 0)) +

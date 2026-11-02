@@ -327,7 +327,10 @@ routerAdd(
           var id = String(ids[j] || '').trim()
           if (!id) continue
           var escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-          text = text.replace(new RegExp('\\bnegócio\\s+(?:AC\\s*#)?' + escaped + '\\b', 'gi'), 'negócio')
+          text = text.replace(
+            new RegExp('\\bnegócio\\s+(?:AC\\s*#)?' + escaped + '\\b', 'gi'),
+            'negócio',
+          )
         }
       }
       return text.replace(/[ \t]{2,}/g, ' ').trim()
@@ -480,7 +483,9 @@ routerAdd(
       if (citados.length) {
         var exemplos = []
         for (var i = 0; i < citados.length && i < 3; i++)
-          exemplos.push((citados[i].titulo || 'Negócio sem título') + ' — ' + destinoCliente(citados[i]))
+          exemplos.push(
+            (citados[i].titulo || 'Negócio sem título') + ' — ' + destinoCliente(citados[i]),
+          )
         linhas.push('Primeiros negócios citados: ' + exemplos.join('; ') + '.')
       }
       linhas.push('Nenhuma mensagem foi enviada e nenhum negócio foi alterado automaticamente.')
