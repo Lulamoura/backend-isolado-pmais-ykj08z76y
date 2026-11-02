@@ -215,7 +215,9 @@ describe('NexoBusinessActions', () => {
     await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
 
     await waitFor(() =>
-      expect(screen.getByRole('textbox', { name: /Minuta editável/i })).toHaveValue('Segunda minuta.'),
+      expect(screen.getByRole('textbox', { name: /Minuta editável/i })).toHaveValue(
+        'Segunda minuta.',
+      ),
     )
     expect(screen.queryByText('Avaliação registrada.')).not.toBeInTheDocument()
   })
@@ -241,7 +243,9 @@ describe('NexoBusinessActions', () => {
     await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
 
     expect(
-      await screen.findByText(/avaliação está indisponível porque o registro auditável não foi confirmado/i),
+      await screen.findByText(
+        /avaliação está indisponível porque o registro auditável não foi confirmado/i,
+      ),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Usar sugestão' })).not.toBeInTheDocument()
   })

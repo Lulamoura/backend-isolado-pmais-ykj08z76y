@@ -190,11 +190,7 @@ assert.match(
   /tipo_evento = 'nexo_consulta_suporte_app'[\s\S]{0,300}usuario_id = '/,
   'feedback deve estar vinculado ao autor da sugestão',
 )
-assert.match(
-  hook,
-  /randomString\(32\)/,
-  'audit_id deve usar componente aleatório forte',
-)
+assert.match(hook, /randomString\(32\)/, 'audit_id deve usar componente aleatório forte')
 assert.doesNotMatch(
   hook,
   /evento\.set\('feedback_/,

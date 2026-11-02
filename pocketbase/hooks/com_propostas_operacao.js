@@ -3194,10 +3194,7 @@
           evento.set('whatsapp_mensagens', provenienciaWhatsapp.whatsapp_mensagens)
           evento.set('whatsapp_resumo_factual', provenienciaWhatsapp.whatsapp_resumo_factual || '')
           evento.set('conhecimento_oficial', false)
-          var auditId = nexoResumoSeguroAprendizado(
-            auditoria.audit_id || nexoNovoAuditId(),
-            160,
-          )
+          var auditId = nexoResumoSeguroAprendizado(auditoria.audit_id || nexoNovoAuditId(), 160)
           evento.set('audit_id', auditId)
           evento.set('created_at', new Date())
           $app.save(evento)
@@ -3587,8 +3584,7 @@
       var auditId = String(body.audit_id || '').trim()
       var resultado = String(body.resultado || '').trim()
       var resultadosPermitidos = ['usada', 'ajustada', 'nao_foi_util']
-      if (!/^[a-zA-Z0-9._:-]{1,160}$/.test(auditId))
-        return e.badRequestError('Auditoria invalida')
+      if (!/^[a-zA-Z0-9._:-]{1,160}$/.test(auditId)) return e.badRequestError('Auditoria invalida')
       if (resultadosPermitidos.indexOf(resultado) < 0)
         return e.badRequestError('Resultado de feedback invalido')
       var negocios = $app.findRecordsByFilter(
