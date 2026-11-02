@@ -172,8 +172,8 @@ assert.match(
 )
 assert.match(
   hook,
-  /\/ajuda\/feedback'[\s\S]*com_vinculos_externos[\s\S]*external_type='business'[\s\S]*findRecordById\('com_negocios', vinculo\.getString\('record_id'\)\)[\s\S]*propostaPodeAcessar[\s\S]*garantirColecaoFeedback/,
-  'feedback deve resolver o negócio pelo vínculo ActiveCampaign antes da autorização e materialização',
+  /\/ajuda\/feedback'[\s\S]*function feedbackPerfil[\s\S]*function feedbackPodeAcessar[\s\S]*com_vinculos_externos[\s\S]*external_type='business'[\s\S]*findRecordById\('com_negocios', vinculo\.getString\('record_id'\)\)[\s\S]*feedbackPodeAcessar[\s\S]*garantirColecaoFeedback/,
+  'feedback deve manter autorização autocontida no callback JSVM e resolver o negócio pelo vínculo ActiveCampaign antes da materialização',
 )
 assert.match(
   hook,

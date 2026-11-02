@@ -3573,6 +3573,96 @@
     'POST',
     '/backend/v1/nexo/negocios/{externalId}/ajuda/feedback',
     function (e) {
+      function feedbackPerfil(app, user) {
+        try {
+          return app.findRecordById('com_perfis', user.getString('perfil_id')).getString('slug')
+        } catch (_) {
+          return ''
+        }
+      }
+      function feedbackHojeRecife() {
+        return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      }
+      function feedbackDataCivil(value) {
+        return String(value || '').slice(0, 10)
+      }
+      function feedbackSubstituicaoVigente(record, hoje) {
+        if (!record || record.getString('cancelada_em')) return false
+        var inicio = feedbackDataCivil(record.getString('data_inicio'))
+        var fim = feedbackDataCivil(record.getString('data_fim'))
+        return (!inicio || inicio <= hoje) && (!fim || fim >= hoje)
+      }
+      function feedbackListaContem(lista, id) {
+        if (!lista || !id) return false
+        if (Array.isArray(lista)) return lista.indexOf(id) >= 0
+        if (typeof lista.length === 'number' && typeof lista !== 'string') {
+          for (var i = 0; i < lista.length; i++) if (String(lista[i] || '') === id) return true
+        }
+        var texto = ''
+        try {
+          texto = JSON.stringify(lista)
+        } catch (_) {
+          texto = String(lista || '')
+        }
+        return texto.indexOf(id) >= 0
+      }
+      function feedbackSubstituicaoAutoriza(app, user, negocio) {
+        var titularId = negocio.getString('responsavel_id')
+        if (!titularId || !user || !user.id) return false
+        try {
+          var hoje = feedbackHojeRecife()
+          var filtro =
+            "titular_id = '" +
+            titularId +
+            "' && (substituto_principal_id = '" +
+            user.id +
+            "' || substituto_reserva_id = '" +
+            user.id +
+            "')"
+          var subs = app.findRecordsByFilter('com_substituicoes', filtro, '-created', 500, 0)
+          for (var i = 0; i < subs.length; i++) {
+            if (subs[i].getString('titular_id') !== titularId) continue
+            if (
+              subs[i].getString('substituto_principal_id') !== user.id &&
+              subs[i].getString('substituto_reserva_id') !== user.id
+            )
+              continue
+            if (!feedbackSubstituicaoVigente(subs[i], hoje)) continue
+            if (subs[i].getString('tipo_cobertura') === 'integral') return true
+            if (feedbackListaContem(subs[i].get('negocios_cobertos'), negocio.id)) return true
+          }
+        } catch (_) {}
+        return false
+      }
+      function feedbackPodeAcessar(app, user, perfil, negocio) {
+        if (perfil === 'superadministrador' || perfil === 'leitura-executiva') return true
+        if (negocio.getString('responsavel_id') === user.id) return true
+        if (feedbackSubstituicaoAutoriza(app, user, negocio)) return true
+        var escopo = 'proprios'
+        try {
+          var links = app.findRecordsByFilter(
+            'com_perfil_permissoes',
+            "perfil_id = '" + user.getString('perfil_id') + "'",
+            '',
+            500,
+            0,
+          )
+          for (var i = 0; i < links.length; i++) {
+            var permissao = app.findRecordById(
+              'com_permissoes',
+              links[i].getString('permissao_id'),
+            )
+            if (permissao.getString('slug') === 'negocios.view')
+              escopo = links[i].getString('escopo')
+          }
+        } catch (_) {}
+        if (escopo === 'todos') return true
+        return (
+          escopo === 'equipe' &&
+          !!user.getString('equipe_id') &&
+          negocio.getString('equipe_id') === user.getString('equipe_id')
+        )
+      }
       function garantirColecaoFeedback(app) {
         function aplicarContrato(collection) {
           if (String(collection.type || '') !== 'base')
@@ -3715,8 +3805,8 @@
       } catch (_) {
         return e.notFoundError('Negocio local nao encontrado')
       }
-      var perfil = propostaPerfil($app, ator)
-      if (!propostaPodeAcessar(ator, perfil, negocio))
+      var perfil = feedbackPerfil($app, ator)
+      if (!feedbackPodeAcessar($app, ator, perfil, negocio))
         return e.forbiddenError('Sem acesso ao negocio')
       garantirColecaoFeedback($app)
       var eventos = $app.findRecordsByFilter(
