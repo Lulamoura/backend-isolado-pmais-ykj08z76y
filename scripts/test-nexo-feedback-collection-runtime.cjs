@@ -134,7 +134,9 @@ const divergent = new Collection({
   deleteRule: '',
 })
 divergent.fields.add(new TextField({ name: 'external_id', required: false, max: 10 }))
-divergent.indexes = ['CREATE INDEX idx_feedback_operacional_extra ON com_nexo_sugestao_feedback_v1 (resultado)']
+divergent.indexes = [
+  'CREATE INDEX idx_feedback_operacional_extra ON com_nexo_sugestao_feedback_v1 (resultado)',
+]
 const repairApp = appWith(divergent)
 const repaired = ensure(repairApp)
 assert.equal(repaired.fields.getByName('external_id').required, true)

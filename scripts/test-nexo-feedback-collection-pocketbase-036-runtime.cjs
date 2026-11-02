@@ -11,7 +11,10 @@ const pocketbase = process.env.POCKETBASE_BIN
 assert(pocketbase, 'POCKETBASE_BIN must point to a PocketBase 0.36.x binary')
 assert(fs.existsSync(pocketbase), `PocketBase binary not found: ${pocketbase}`)
 
-const source = fs.readFileSync(path.join(root, 'pocketbase/hooks/com_propostas_operacao.js'), 'utf8')
+const source = fs.readFileSync(
+  path.join(root, 'pocketbase/hooks/com_propostas_operacao.js'),
+  'utf8',
+)
 function extractFunction(text, name) {
   const start = text.indexOf(`function ${name}(`)
   assert.notEqual(start, -1, `${name} deve existir`)
@@ -85,10 +88,24 @@ fs.writeFileSync(path.join(hooksDirectory, 'zz_nexo_feedback_probe.pb.js'), hook
 function migrate() {
   const result = spawnSync(
     pocketbase,
-    ['migrate', 'up', '--dir', dataDirectory, '--migrationsDir', migrationsDirectory, '--hooksDir', emptyHooksDirectory, '--dev=false'],
+    [
+      'migrate',
+      'up',
+      '--dir',
+      dataDirectory,
+      '--migrationsDir',
+      migrationsDirectory,
+      '--hooksDir',
+      emptyHooksDirectory,
+      '--dev=false',
+    ],
     { cwd: root, encoding: 'utf8' },
   )
-  assert.equal(result.status, 0, `PocketBase migration failed\n${result.stdout || ''}${result.stderr || ''}`)
+  assert.equal(
+    result.status,
+    0,
+    `PocketBase migration failed\n${result.stdout || ''}${result.stderr || ''}`,
+  )
 }
 function reservePort() {
   return new Promise((resolve, reject) => {
@@ -108,7 +125,9 @@ function request(url) {
       res.on('data', (chunk) => (raw += chunk))
       res.on('end', () => {
         let body = null
-        try { body = JSON.parse(raw) } catch (_) {}
+        try {
+          body = JSON.parse(raw)
+        } catch (_) {}
         resolve({ status: res.statusCode, body, raw })
       })
     })
@@ -143,7 +162,17 @@ async function main() {
   const baseUrl = `http://127.0.0.1:${port}`
   const server = spawn(
     pocketbase,
-    ['serve', `--http=127.0.0.1:${port}`, '--dir', dataDirectory, '--migrationsDir', migrationsDirectory, '--hooksDir', hooksDirectory, '--dev=false'],
+    [
+      'serve',
+      `--http=127.0.0.1:${port}`,
+      '--dir',
+      dataDirectory,
+      '--migrationsDir',
+      migrationsDirectory,
+      '--hooksDir',
+      hooksDirectory,
+      '--dev=false',
+    ],
     { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] },
   )
   let stdout = ''
@@ -153,7 +182,11 @@ async function main() {
   try {
     await waitForReady(baseUrl, server, () => stdout + stderr)
     const first = await request(`${baseUrl}/__test/nexo-feedback-schema`)
-    assert.equal(first.status, 200, `first schema reconciliation failed: ${first.raw}\n${stdout}${stderr}`)
+    assert.equal(
+      first.status,
+      200,
+      `first schema reconciliation failed: ${first.raw}\n${stdout}${stderr}`,
+    )
     assert.equal(first.body.rules_closed, true)
     assert.deepEqual(
       first.body.fields.map((field) => [field.name, field.type, field.required]),
