@@ -108,6 +108,7 @@ export interface NexoAjudaGeracaoAuditavel {
   segundo_cerebro_usado?: boolean
   segundo_cerebro_fontes?: string[]
   audit_id?: string
+  registro_confirmado?: boolean
 }
 
 export interface NexoAjudaComercial {
@@ -160,4 +161,22 @@ export function gerarAjudaNexoNegocio(
       instrucao_operador: instrucaoOperador || '',
     },
   })
+}
+
+export type FeedbackAjudaNexoResultado = 'usada' | 'ajustada' | 'nao_foi_util'
+
+export function registrarFeedbackAjudaNexo(
+  externalId: string,
+  input: {
+    audit_id: string
+    resultado: FeedbackAjudaNexoResultado
+  },
+) {
+  return pb.send<{ status: 'registrado' }>(
+    `/backend/v1/nexo/negocios/${encodeURIComponent(externalId)}/ajuda/feedback`,
+    {
+      method: 'POST',
+      body: input,
+    },
+  )
 }
