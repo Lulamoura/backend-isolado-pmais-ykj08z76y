@@ -4,6 +4,13 @@ const assert = require('assert')
 const page = fs.readFileSync('src/pages/NexoAssistente.tsx', 'utf8')
 const service = fs.readFileSync('src/services/nexo-central.ts', 'utf8')
 const hook = fs.readFileSync('pocketbase/hooks/com_nexo_central_operacional.js', 'utf8')
+const adjacentUi = [
+  'src/components/CommercialContextCard.tsx',
+  'src/pages/Qualificacoes.tsx',
+  'src/pages/Atividades.tsx',
+  'src/pages/OrdensExecucao.tsx',
+  'src/pages/NexoCuradoria.tsx',
+].map((path) => fs.readFileSync(path, 'utf8')).join('\n')
 
 assert.match(page, /Gerar análise com Nexo/, 'Central deve ter botão real de processamento')
 assert.doesNotMatch(
@@ -17,7 +24,16 @@ assert.doesNotMatch(
   /<Alert[\s\S]*?Escopo seguro da análise/,
   'Tela não deve manter card dedicado de Escopo seguro da análise',
 )
-assert.match(page, /ID do negócio/, 'Cada card analisado deve exibir ID do negócio')
+assert.doesNotMatch(
+  page,
+  /ID do negócio/,
+  'Cards analisados não podem expor rótulo ou identificador técnico do negócio',
+)
+assert.match(
+  page,
+  /ActiveCampaignDealLink dealId=\{item\.external_id\}/,
+  'Link pode usar somente external_id internamente para abrir o ActiveCampaign',
+)
 assert.doesNotMatch(
   page,
   /item\.resumo/,
@@ -115,8 +131,8 @@ assert.match(
 assert.match(hook, /second_brain/, 'Contrato deve preservar metadados de segundo cérebro')
 assert.match(
   hook,
-  /fallback:\s*false/,
-  'Resposta real deve marcar fallback false quando Gateway responder',
+  /fallback:\s*gatewayJson\.fallback/,
+  'Resposta real deve preservar o estado de fallback validado do Gateway',
 )
 assert.match(
   hook,
@@ -139,7 +155,22 @@ assert.match(
   /sistema_origem\s*=\s*'activecampaign'|sistema_origem = 'activecampaign'/,
   'Backend deve buscar ID externo pelo vínculo oficial do ActiveCampaign',
 )
-assert.match(hook, /oe_numero/, 'Backend deve priorizar número OE quando existir')
+assert.match(hook, /oe_numero/, 'Backend deve preservar número OE quando existir')
+assert.doesNotMatch(
+  hook,
+  /partes\.push\(n\.proposta\.identificador \|\| n\.proposta\.id/,
+  'Detalhamento da proposta não pode expor identificador técnico nem ID interno',
+)
+assert.doesNotMatch(
+  hook,
+  /var idNegocio = n\.id_negocio \|\| n\.external_id/,
+  'Ação recomendada não pode usar ID externo cru como rótulo visual',
+)
+assert.match(
+  hook,
+  /contextoNegocioParaModelo/,
+  'Central deve criar DTO de apresentação sem IDs técnicos antes de chamar o modelo',
+)
 assert.match(
   hook,
   /detalhamento_proposta/,
@@ -203,6 +234,27 @@ assert.match(
   hook,
   /aprendizados-comerciais/,
   'Aprendizados comerciais deve permanecer como exceção explícita ao filtro operacional',
+)
+
+assert.doesNotMatch(
+  adjacentUi,
+  /Negócio AC #|`Negócio \$\{[^}]*external_id\}`/,
+  'Telas adjacentes do Nexo não podem exibir external_id como referência visual',
+)
+assert.doesNotMatch(
+  adjacentUi,
+  /ID externo do ActiveCampaign/,
+  'Estados vazios devem explicar o vínculo ausente sem expor terminologia técnica',
+)
+assert.match(
+  hook,
+  /escopo:\s*contextoEscopoParaModelo\(escopo\)/,
+  'Contexto enviado ao modelo deve usar DTO de escopo sem responsavel_id',
+)
+assert.match(
+  adjacentUi,
+  /ActiveCampaignDealLink/,
+  'Telas adjacentes devem preservar o atalho interno para o ActiveCampaign',
 )
 
 console.log('nexo-central-operacional contract: PASS')

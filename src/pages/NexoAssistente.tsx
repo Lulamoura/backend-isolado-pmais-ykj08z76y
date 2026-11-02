@@ -182,8 +182,33 @@ function modeloLabel(resultado: AnaliseCentralNexoResponse) {
   )
 }
 
+function sanitizeCentralText(
+  value: string | undefined,
+  technicalIds: Array<string | null | undefined> = [],
+) {
+  let text = String(value || '').replace(/\bPROP-[A-Z0-9_-]+\b/gi, '')
+  for (const rawId of technicalIds) {
+    const id = String(rawId || '').trim()
+    if (!id) continue
+    const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    text = text.replace(new RegExp(`\\bnegócio\\s+(?:AC\\s*#)?${escaped}\\b`, 'gi'), 'negócio')
+    text = text.replace(new RegExp(`\\b${escaped}\\b`, 'g'), '')
+  }
+  return text
+    .replace(/^\s*[;,:–—-]+\s*/, '')
+    .replace(/\s+([;,.])/g, '$1')
+    .replace(/;\s*;/g, ';')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
 function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse }) {
-  const blocos = resultado.analise
+  const idsTecnicos = resultado.itens.flatMap((item) => [
+    item.negocio_id,
+    item.external_id,
+    item.id_negocio,
+  ])
+  const blocos = sanitizeCentralText(resultado.analise, idsTecnicos)
     .split(/\n{2,}/)
     .map((item) => item.trim())
     .filter(Boolean)
@@ -244,8 +269,7 @@ function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse })
             </p>
             <div className="grid gap-3">
               {resultado.itens.slice(0, 6).map((item, index) => {
-                const idNegocio =
-                  item.id_negocio || item.external_id || item.negocio_id || 'Sem ID externo'
+                const idsItem = [item.negocio_id, item.external_id, item.id_negocio]
                 return (
                   <div
                     key={`${item.negocio_id || item.external_id || index}`}
@@ -256,10 +280,7 @@ function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse })
                         {item.titulo || 'Negócio sem título'}
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                          ID do negócio: {idNegocio}
-                        </span>
-                        <ActiveCampaignDealLink dealId={idNegocio} compact />
+                        <ActiveCampaignDealLink dealId={item.external_id} compact />
                       </div>
                     </div>
                     <div className="mt-2.5 grid gap-1.5 text-xs text-slate-600 sm:grid-cols-3">
@@ -285,7 +306,7 @@ function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse })
                     {item.detalhamento_proposta ? (
                       <p className="mt-2.5 rounded-lg border border-slate-200/70 bg-slate-50/70 p-2.5 text-xs leading-relaxed text-slate-700">
                         <strong className="text-slate-800">Detalhamento da proposta:</strong>{' '}
-                        {item.detalhamento_proposta}
+                        {sanitizeCentralText(item.detalhamento_proposta, idsItem)}
                       </p>
                     ) : null}
                     {item.acao_sugerida ? (
@@ -293,7 +314,7 @@ function ResultadoNexo({ resultado }: { resultado: AnaliseCentralNexoResponse })
                         <span className="text-violet-600 font-bold uppercase tracking-wider text-[10px] block mb-0.5">
                           Ação recomendada:
                         </span>
-                        {item.acao_sugerida}
+                        {sanitizeCentralText(item.acao_sugerida, idsItem)}
                       </p>
                     ) : null}
                   </div>

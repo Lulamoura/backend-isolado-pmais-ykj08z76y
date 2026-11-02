@@ -161,9 +161,6 @@ export default function OrdensExecucao() {
                     </CardTitle>
                     {item.negocio.external_id && (
                       <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <p className="text-xs font-medium text-slate-500">
-                          Negócio AC #{item.negocio.external_id}
-                        </p>
                         <ActiveCampaignDealLink dealId={item.negocio.external_id} compact />
                       </div>
                     )}

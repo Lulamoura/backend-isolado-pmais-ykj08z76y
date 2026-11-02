@@ -39,17 +39,12 @@ describe('ActiveCampaignDealLink', () => {
       await primeiraLeitura
     })
 
-    expect(screen.getByRole('link', { name: /4887/ })).toHaveAttribute(
-      'href',
-      'https://crm.example.com/app/deals/4887',
-    )
-    expect(screen.getByRole('link', { name: /4883/ })).toHaveAttribute(
-      'href',
-      'https://crm.example.com/app/deals/4883',
-    )
-    expect(screen.getByRole('link', { name: /4879/ })).toHaveAttribute(
-      'href',
-      'https://crm.example.com/app/deals/4879',
+    const links = screen.getAllByRole('link', { name: 'Abrir negócio no ActiveCampaign' })
+    expect(links[0]).toHaveAttribute('href', 'https://crm.example.com/app/deals/4887')
+    expect(links[1]).toHaveAttribute('href', 'https://crm.example.com/app/deals/4883')
+    expect(links[2]).toHaveAttribute('href', 'https://crm.example.com/app/deals/4879')
+    expect(links.every((link) => !link.getAttribute('aria-label')?.match(/4887|4883|4879/))).toBe(
+      true,
     )
 
     primeiraTela.unmount()
@@ -59,7 +54,7 @@ describe('ActiveCampaignDealLink', () => {
 
     await waitFor(() => expect(getFirstListItem).toHaveBeenCalledTimes(2))
     await waitFor(() =>
-      expect(screen.getByRole('link', { name: /4900/ })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: 'Abrir negócio no ActiveCampaign' })).toHaveAttribute(
         'href',
         'https://crm-novo.example.com/app/deals/4900',
       ),
@@ -85,7 +80,7 @@ describe('ActiveCampaignDealLink', () => {
 
     await waitFor(() => expect(getFirstListItem).toHaveBeenCalledTimes(4))
     await waitFor(() =>
-      expect(screen.getByRole('link', { name: /4902/ })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: 'Abrir negócio no ActiveCampaign' })).toHaveAttribute(
         'href',
         'https://crm-recuperado.example.com/deals/4902',
       ),

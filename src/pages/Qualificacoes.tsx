@@ -293,9 +293,6 @@ export default function Qualificacoes() {
                       </CardTitle>
                       {item.external_id && (
                         <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <p className="text-xs font-medium text-slate-500">
-                            Negócio AC #{item.external_id}
-                          </p>
                           <ActiveCampaignDealLink dealId={item.external_id} compact />
                         </div>
                       )}

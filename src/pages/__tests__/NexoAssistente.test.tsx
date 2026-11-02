@@ -139,15 +139,25 @@ describe('NexoAssistente', () => {
     expect(screen.getByText(/Modelo: Gpt 5.5 Codex/i)).toBeInTheDocument()
     expect(screen.queryByText(/provider: nexo_hermes/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/modelo: openai_chat/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Leitura breve do Nexo.')).toBeInTheDocument()
+    expect(screen.getByText('Priorize as propostas sem resposta objetiva.')).toBeInTheDocument()
     expect(screen.getAllByText(/Hospital Alpha/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/ID do negócio: 123/i)).toBeInTheDocument()
+    expect(screen.queryByText(/ID do negócio/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Abrir negócio no ActiveCampaign' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('/123'),
+    )
     expect(screen.getByText('Cliente:').parentElement).toHaveTextContent('Cliente: Hospital Alpha')
     expect(screen.getByText('Contato:').parentElement).toHaveTextContent('Contato: Brenda Cliente')
     expect(screen.getByText('Responsável interno:').parentElement).toHaveTextContent(
       'Responsável interno: Viviane Marculino',
     )
     expect(screen.getByText('Detalhamento da proposta:').parentElement).toHaveTextContent(
-      'Detalhamento da proposta: PROP-123',
+      'Detalhamento da proposta: sem abertura confirmada',
+    )
+    expect(screen.getByText('Detalhamento da proposta:').parentElement).not.toHaveTextContent('PROP-')
+    expect(screen.getByText('Ação recomendada:').parentElement).not.toHaveTextContent(
+      /negócio 123/i,
     )
     expect(screen.getByText(/15\/09\/2026/i)).toBeInTheDocument()
     expect(screen.queryByText(/2026-09-15/i)).not.toBeInTheDocument()

@@ -12,7 +12,7 @@ interface ActiveCampaignDealLinkProps {
 
 export function ActiveCampaignDealLink({
   dealId,
-  label = 'Abrir no ActiveCampaign',
+  label = 'Abrir negócio no ActiveCampaign',
   compact = false,
   className,
 }: ActiveCampaignDealLinkProps) {
@@ -22,7 +22,7 @@ export function ActiveCampaignDealLink({
 
   return (
     <Button variant="outline" size="sm" className={className} asChild>
-      <a href={url} target="_blank" rel="noopener noreferrer" aria-label={`${label} ${dealId}`}>
+      <a href={url} target="_blank" rel="noopener noreferrer" aria-label={label}>
         <ExternalLink className={compact ? 'h-3.5 w-3.5' : 'mr-1.5 h-4 w-4'} />
         {compact ? <span className="sr-only">{label}</span> : label}
       </a>

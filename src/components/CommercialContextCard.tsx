@@ -59,11 +59,8 @@ export function CommercialContextCard({
   return (
     <div className="space-y-3 text-sm">
       {contexto.external_id && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Negócio AC #{contexto.external_id}
-          </p>
-          <ActiveCampaignDealLink dealId={contexto.external_id} label="Abrir no ActiveCampaign" />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <ActiveCampaignDealLink dealId={contexto.external_id} />
         </div>
       )}
       <BusinessContactCard empresa={contexto.empresa} contato={contexto.contato} />
