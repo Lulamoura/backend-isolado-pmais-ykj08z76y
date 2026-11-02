@@ -429,5 +429,8 @@ describe('NexoBusinessActions', () => {
       await screen.findByRole('dialog', { name: /Detalhamento da Proposta/i }),
     ).toBeInTheDocument()
     expect(screen.getByText('Agentes de Apoio 44h semanais')).toBeInTheDocument()
+    expect(screen.queryByText(/negócio AC #4792/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('Identificador')).not.toBeInTheDocument()
+    expect(screen.queryByText(/PROP-L0C1HJRLYLXE65L|vyfivus2xl6yx4o/i)).not.toBeInTheDocument()
   })
 })

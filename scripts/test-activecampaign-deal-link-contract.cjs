@@ -54,8 +54,9 @@ assert(
 assert(
   card.includes('target="_blank"') &&
     card.includes('rel="noopener noreferrer"') &&
-    card.includes('Abrir no ActiveCampaign'),
-  'link deve abrir ActiveCampaign em nova aba com rótulo operacional',
+    card.includes('Abrir negócio no ActiveCampaign') &&
+    !card.includes('aria-label={`${label} ${dealId}`}'),
+  'link deve abrir ActiveCampaign em nova aba sem expor o ID no rótulo acessível',
 )
 assert(
   contextCard.includes('ActiveCampaignDealLink') && negocios.includes('ActiveCampaignDealLink'),

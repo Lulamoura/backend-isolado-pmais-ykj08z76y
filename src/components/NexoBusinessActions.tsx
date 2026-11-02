@@ -288,14 +288,12 @@ export function NexoBusinessActions({
             <DialogTitle>
               {modal === 'ajuda' ? 'Ajuda do Nexo' : 'Detalhamento da Proposta'}
             </DialogTitle>
-            <DialogDescription>
-              {businessTitle} {externalIdLimpo ? `· negócio AC #${externalIdLimpo}` : ''}
-            </DialogDescription>
+            <DialogDescription>{businessTitle}</DialogDescription>
           </DialogHeader>
 
           {!canLoad ? (
             <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              Este card ainda não tem ID externo do ActiveCampaign para consultar o contexto do
+              Este negócio ainda não está vinculado ao ActiveCampaign para consultar o contexto do
               Nexo.
             </p>
           ) : loading ? (
@@ -412,10 +410,6 @@ export function NexoBusinessActions({
                 </p>
                 {proposta ? (
                   <dl className="mt-2 grid gap-2 sm:grid-cols-2">
-                    <div>
-                      <dt className="text-xs text-muted-foreground">Identificador</dt>
-                      <dd>{proposta.identificador || proposta.id || 'Não informado'}</dd>
-                    </div>
                     <div>
                       <dt className="text-xs text-muted-foreground">Status</dt>
                       <dd>{proposta.status || proposta.publicacao_estado || 'Não informado'}</dd>

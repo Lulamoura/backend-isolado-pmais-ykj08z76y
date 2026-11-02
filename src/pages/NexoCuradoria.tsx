@@ -26,7 +26,6 @@ function resumoDecisao(decisao: NexoCuradoriaDecisaoSuperior) {
   return [
     decisao.empresa_nome || decisao.negocio_titulo || 'Empresa não informada',
     decisao.contato_nome || 'Contato não informado',
-    decisao.external_id ? `Negócio ${decisao.external_id}` : '',
   ]
     .filter(Boolean)
     .join(' · ')

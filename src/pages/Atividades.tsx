@@ -275,10 +275,7 @@ export default function Atividades() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle className="text-base">{item.negocio.titulo}</CardTitle>
-                    <CardDescription>
-                      {item.negocio.external_id ? `Negócio AC #${item.negocio.external_id} · ` : ''}
-                      {item.negocio.etapa || 'Etapa não informada'}
-                    </CardDescription>
+                    <CardDescription>{item.negocio.etapa || 'Etapa não informada'}</CardDescription>
                     <ActiveCampaignDealLink
                       dealId={item.negocio.external_id}
                       compact

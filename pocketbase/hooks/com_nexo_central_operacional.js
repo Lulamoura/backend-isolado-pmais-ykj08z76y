@@ -29,6 +29,14 @@ routerAdd(
       return text
     }
 
+    function limparIdentificadoresTecnicos(value, max) {
+      return limparTexto(value, max)
+        .replace(/\bPROP-[A-Z0-9_-]+\b/gi, '')
+        .replace(/\b(?=[a-z0-9]{15}\b)(?=[a-z0-9]*\d)[a-z0-9]{15}\b/g, '')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim()
+    }
+
     function envValue(nome) {
       try {
         if (typeof $os !== 'undefined' && $os.getenv) return $os.getenv(nome) || ''
@@ -253,7 +261,7 @@ routerAdd(
       return {
         negocio_id: n.id,
         external_id: external,
-        id_negocio: oeNumero || external || 'Sem ID externo',
+        id_negocio: oeNumero || null,
         titulo: n.getString('titulo') || 'Negócio sem título',
         cliente_nome: nomeRelacionado('com_empresas', empresaId, ['nome', 'razao_social']),
         contato_nome: nomeRelacionado('com_contatos', contatoId, ['nome']),
@@ -273,6 +281,58 @@ routerAdd(
       }
     }
 
+    function contextoNegocioParaModelo(n) {
+      return {
+        titulo: n.titulo,
+        cliente_nome: n.cliente_nome || null,
+        contato_nome: n.contato_nome || null,
+        etapa: n.etapa || null,
+        fase_crm: n.fase_crm || null,
+        valor_centavos: n.valor_centavos,
+        responsavel_nome: n.responsavel_nome || null,
+        proxima_acao_em: formatarDataBR(n.proxima_acao_em) || null,
+        dias_desde_atualizacao: n.dias_desde_atualizacao,
+        dias_ate_proxima_acao: n.dias_ate_proxima_acao,
+        proposta: n.proposta
+          ? {
+              status: n.proposta.status || null,
+              publicacao_estado: n.proposta.publicacao_estado || null,
+              ultimo_envio_email_em: formatarDataBR(n.proposta.ultimo_envio_email_em) || null,
+              aberta: !!n.proposta.aberta,
+            }
+          : null,
+        notas_followups: (n.notas_followups || []).map(function (nota) {
+          return {
+            data: formatarDataBR(nota.data) || null,
+            texto: limparIdentificadoresTecnicos(nota.texto, 800),
+          }
+        }),
+      }
+    }
+
+    function contextoEscopoParaModelo(escopo) {
+      return {
+        tipo: escopo.tipo,
+        label: escopo.label,
+        responsavel_nome: escopo.responsavel_nome || null,
+        perfil_slug: escopo.perfil_slug,
+      }
+    }
+
+    function sanitizarSaidaCentral(value, negocios, max) {
+      var text = limparIdentificadoresTecnicos(value, max)
+      for (var i = 0; i < negocios.length; i++) {
+        var ids = [negocios[i].negocio_id, negocios[i].external_id, negocios[i].id_negocio]
+        for (var j = 0; j < ids.length; j++) {
+          var id = String(ids[j] || '').trim()
+          if (!id) continue
+          var escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          text = text.replace(new RegExp('\\bnegócio\\s+(?:AC\\s*#)?' + escaped + '\\b', 'gi'), 'negócio')
+        }
+      }
+      return text.replace(/[ \t]{2,}/g, ' ').trim()
+    }
+
     function destinoCliente(n) {
       if (n.contato_nome && n.cliente_nome) return n.contato_nome + ' / ' + n.cliente_nome
       if (n.contato_nome) return n.contato_nome
@@ -283,7 +343,6 @@ routerAdd(
     function detalhamentoPropostaItemCentral(n) {
       var partes = []
       if (n.proposta) {
-        partes.push(n.proposta.identificador || n.proposta.id || 'proposta vinculada')
         partes.push(n.proposta.aberta ? 'aberta pelo cliente' : 'sem abertura confirmada')
         if (n.proposta.ultimo_envio_email_em)
           partes.push('último envio em ' + formatarDataBR(n.proposta.ultimo_envio_email_em))
@@ -421,7 +480,7 @@ routerAdd(
       if (citados.length) {
         var exemplos = []
         for (var i = 0; i < citados.length && i < 3; i++)
-          exemplos.push((citados[i].id_negocio || 'Sem ID') + ' — ' + destinoCliente(citados[i]))
+          exemplos.push((citados[i].titulo || 'Negócio sem título') + ' — ' + destinoCliente(citados[i]))
         linhas.push('Primeiros negócios citados: ' + exemplos.join('; ') + '.')
       }
       linhas.push('Nenhuma mensagem foi enviada e nenhum negócio foi alterado automaticamente.')
@@ -436,12 +495,12 @@ routerAdd(
       var proposta = n.proposta || null
       var vencida = n.dias_ate_proxima_acao !== null && n.dias_ate_proxima_acao > 0
       var semAbertura = proposta && !proposta.aberta
-      var idNegocio = n.id_negocio || n.external_id || 'Sem ID externo'
+      var referenciaNegocio = n.titulo || destino
       if (frente === 'notas-incompletas') {
         if (semAbertura)
           return (
             'Registrar no negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ' se ' +
             destino +
             ' recebeu a proposta, quem analisa e qual prazo de retorno; a pendência principal é confirmar recebimento antes de cobrar decisão.'
@@ -449,7 +508,7 @@ routerAdd(
         if (vencida)
           return (
             'Atualizar o negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ' com o resultado do follow-up vencido em ' +
             proxima +
             ', registrando quem respondeu, objeção e novo compromisso.'
@@ -457,14 +516,14 @@ routerAdd(
         if (semNotas)
           return (
             'Criar nota mínima no negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ' com necessidade do cliente, decisor, prazo e próximo passo combinado com ' +
             destino +
             '.'
           )
         return (
           'Complementar a última nota do negócio ' +
-          idNegocio +
+          referenciaNegocio +
           ' com prazo de decisão, objeção objetiva e responsável externo pela resposta.'
         )
       }
@@ -474,7 +533,7 @@ routerAdd(
             'Abordar ' +
             destino +
             ' sobre o negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ' perguntando quais pontos da proposta aberta precisam de esclarecimento e qual prazo real de decisão.'
           )
         if (semAbertura)
@@ -482,14 +541,14 @@ routerAdd(
             'Confirmar com ' +
             destino +
             ' se o link da proposta do negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ' chegou corretamente e oferecer reenvio ou esclarecimento, sem cobrança genérica.'
           )
         return (
           'Verificar com ' +
           destino +
           ' se o negócio ' +
-          idNegocio +
+          referenciaNegocio +
           ' já está pronto para proposta formal ou se ainda falta qualificação.'
         )
       }
@@ -497,7 +556,7 @@ routerAdd(
         if (vencida)
           return (
             'Regularizar hoje o follow-up vencido do negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ' com ' +
             destino +
             ', registrando retorno esperado e novo prazo combinado.'
@@ -505,14 +564,14 @@ routerAdd(
         if (!n.proxima_acao_em)
           return (
             'Definir e registrar uma próxima ação objetiva para o negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ' com ' +
             destino +
             ', incluindo data, assunto e resultado esperado.'
           )
         return (
           'Revisar se a próxima ação do negócio ' +
-          idNegocio +
+          referenciaNegocio +
           ' com ' +
           destino +
           ' tem objetivo claro e prazo compatível com o cliente.'
@@ -522,7 +581,7 @@ routerAdd(
         if (n.dias_desde_atualizacao !== null && n.dias_desde_atualizacao >= 7)
           return (
             'Reaquecer o negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ' com ' +
             destino +
             ' porque está sem atualização recente; retomar necessidade e pendência específica antes da próxima data (' +
@@ -532,7 +591,7 @@ routerAdd(
         if (semAbertura)
           return (
             'Reduzir risco de esfriamento do negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ' confirmando recebimento da proposta com ' +
             destino +
             ' antes que o prazo se alongue.'
@@ -542,7 +601,7 @@ routerAdd(
             'Preparar contato próximo com ' +
             destino +
             ' no negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ', pois a próxima ação está prevista para ' +
             proxima +
             ' e precisa sair com objetivo claro.'
@@ -550,7 +609,7 @@ routerAdd(
         if (prazoDias !== null && prazoDias >= 10)
           return (
             'Antecipar leitura do negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ' com ' +
             destino +
             ': a próxima ação ficou distante (' +
@@ -559,7 +618,7 @@ routerAdd(
           )
         return (
           'Acompanhar o negócio ' +
-          idNegocio +
+          referenciaNegocio +
           ' com ' +
           destino +
           ' antes de ' +
@@ -571,13 +630,13 @@ routerAdd(
         if (semAbertura)
           return (
             'Aprendizado do negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ': proposta enviada sem abertura exige checagem rápida de recebimento antes de interpretar silêncio como desinteresse.'
           )
         if (vencida)
           return (
             'Aprendizado do negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ': próxima ação vencida indica necessidade de disciplina de prazo e registro de retorno combinado com ' +
             destino +
             '.'
@@ -585,12 +644,12 @@ routerAdd(
         if (semNotas)
           return (
             'Aprendizado do negócio ' +
-            idNegocio +
+            referenciaNegocio +
             ': histórico fraco limita a inteligência do Nexo; padronizar nota com necessidade, decisor, prazo e objeção.'
           )
         return (
           'Aprendizado do negócio ' +
-          idNegocio +
+          referenciaNegocio +
           ': transformar a interação com ' +
           destino +
           ' em orientação de abordagem, objeção e cadência para casos semelhantes.'
@@ -599,7 +658,7 @@ routerAdd(
       if (vencida)
         return (
           'Prioridade do dia: recuperar o negócio ' +
-          idNegocio +
+          referenciaNegocio +
           ' com ' +
           destino +
           ' por causa da próxima ação vencida em ' +
@@ -611,13 +670,13 @@ routerAdd(
           'Prioridade do dia: confirmar com ' +
           destino +
           ' se a proposta do negócio ' +
-          idNegocio +
+          referenciaNegocio +
           ' chegou corretamente, pois ainda não há abertura confirmada.'
         )
       if (semNotas && prazoDias !== null && prazoDias <= 3)
         return (
           'Prioridade do dia: qualificar hoje o histórico do negócio ' +
-          idNegocio +
+          referenciaNegocio +
           ' com ' +
           destino +
           ', porque a próxima ação está próxima (' +
@@ -627,7 +686,7 @@ routerAdd(
       if (semNotas && prazoDias !== null && prazoDias >= 10)
         return (
           'Prioridade do dia: revisar antecipadamente o negócio ' +
-          idNegocio +
+          referenciaNegocio +
           ' com ' +
           destino +
           ', pois a próxima ação está distante (' +
@@ -637,7 +696,7 @@ routerAdd(
       if (semNotas)
         return (
           'Prioridade do dia: qualificar melhor o histórico do negócio ' +
-          idNegocio +
+          referenciaNegocio +
           ' com ' +
           destino +
           ' antes de novo avanço comercial previsto para ' +
@@ -646,7 +705,7 @@ routerAdd(
         )
       return (
         'Prioridade do dia: contato objetivo no negócio ' +
-        idNegocio +
+        referenciaNegocio +
         ' com ' +
         destino +
         ' para avançar etapa, confirmar decisor e prazo de retorno.'
@@ -729,7 +788,7 @@ routerAdd(
       ) {
         throw new Error('GATEWAY_CONTRACT_INVALID')
       }
-      var texto = limparTexto(gatewayJson.resposta_curta, 12000)
+      var texto = sanitizarSaidaCentral(gatewayJson.resposta_curta, negocios, 12000)
       return {
         contrato: 'nexo_central_operacional_v1',
         frente: frente,
@@ -848,9 +907,9 @@ routerAdd(
     var contexto = {
       tipo: 'central_operacional',
       frente: frente,
-      escopo: escopo,
+      escopo: contextoEscopoParaModelo(escopo),
       total_negocios: negocios.length,
-      negocios: negocios,
+      negocios: negocios.map(contextoNegocioParaModelo),
       instrucoes_saida: [
         'Responda como análise operacional da Central Assistente Nexo, não como ajuda de um único negócio.',
         'Priorize negócios concretos pelo cliente, contato solicitante, título e responsável quando houver dados suficientes.',
