@@ -14,9 +14,9 @@ routerAdd(
     var externalId = String(e.request.pathValue('externalId') || '').trim()
     if (!/^[0-9]+$/.test(externalId)) return e.badRequestError('ID externo invalido')
 
-    var body = new DynamicModel({ signals: null })
+    var body = {}
     try {
-      e.bindBody(body)
+      body = e.requestInfo().body || {}
     } catch (_) {
       return e.badRequestError('Correcao invalida')
     }
