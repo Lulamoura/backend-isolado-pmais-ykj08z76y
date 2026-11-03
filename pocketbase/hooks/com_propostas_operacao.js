@@ -3225,15 +3225,124 @@
         }
       }
 
+      function nexoCorrecaoMemoriaAtiva() {
+        var correcoes
+        try {
+          correcoes = $app.findRecordsByFilter(
+            'com_nexo_memoria_correcoes_v1',
+            "external_id = '" + externalId + "'",
+            '-revision',
+            1,
+            0,
+          )
+        } catch (_) {
+          throw new Error('NEXO_CORRECAO_CANONICA_INDISPONIVEL')
+        }
+        if (!correcoes.length) return null
+        var correcao = correcoes[0]
+        var signals = correcao.get('signals')
+        var revision = correcao.getInt('revision')
+        var allowlists = {
+          commitment_codes: [
+            'internal_validation_pending',
+            'return_promised',
+            'proposal_review_pending',
+            'meeting_scheduled',
+            'documents_pending',
+          ],
+          objection_codes: [
+            'price',
+            'deadline',
+            'scope',
+            'supplier_change',
+            'decision_authority',
+            'budget',
+            'trust',
+          ],
+          risk_codes: [
+            'stale_followup',
+            'overdue_commitment',
+            'no_response',
+            'decision_delay',
+            'scope_unclear',
+            'commercial_divergence',
+          ],
+          next_step_code: [
+            'request_confirmation',
+            'schedule_followup',
+            'clarify_scope',
+            'send_proposal_for_review',
+            'await_customer_return',
+            'escalate_human_review',
+            'no_action',
+            'none',
+          ],
+        }
+        if (!signals || typeof signals !== 'object' || Array.isArray(signals) || revision < 1)
+          throw new Error('NEXO_CORRECAO_CANONICA_INVALIDA')
+        var keys = Object.keys(signals).sort()
+        if (keys.join(',') !== 'commitment_codes,next_step_code,objection_codes,risk_codes')
+          throw new Error('NEXO_CORRECAO_CANONICA_INVALIDA')
+        function listaFechada(nome) {
+          var valores = signals[nome]
+          if (!Array.isArray(valores) || valores.length > 5) return null
+          var vistos = {}
+          var copia = []
+          for (var i = 0; i < valores.length; i++) {
+            if (
+              typeof valores[i] !== 'string' ||
+              allowlists[nome].indexOf(valores[i]) < 0 ||
+              vistos[valores[i]]
+            )
+              return null
+            vistos[valores[i]] = true
+            copia.push(valores[i])
+          }
+          return copia.sort()
+        }
+        var commitments = listaFechada('commitment_codes')
+        var objections = listaFechada('objection_codes')
+        var risks = listaFechada('risk_codes')
+        if (
+          commitments === null ||
+          objections === null ||
+          risks === null ||
+          typeof signals.next_step_code !== 'string' ||
+          allowlists.next_step_code.indexOf(signals.next_step_code) < 0
+        )
+          throw new Error('NEXO_CORRECAO_CANONICA_INVALIDA')
+        return {
+          schema_version: 'nexo_honcho_correction_v1',
+          revision: revision,
+          signals: {
+            commitment_codes: commitments,
+            objection_codes: objections,
+            risk_codes: risks,
+            next_step_code: signals.next_step_code,
+          },
+        }
+      }
+      var humanMemoryCorrectionAtiva
+      try {
+        humanMemoryCorrectionAtiva = nexoCorrecaoMemoriaAtiva()
+      } catch (_) {
+        return e.json(503, {
+          code: 'NEXO_CORRECAO_CANONICA_INVALIDA',
+          message: 'A ajuda do Nexo está indisponível até a correção do contexto registrado.',
+        })
+      }
+
       function nexoChamarPMaisAgentGateway() {
         var url = nexoPMaisAgentGatewayUrl(pmaisGatewayUrlBase)
         if (!url || !pmaisGatewayApiKey || !pmaisGatewayHmacSecret) return null
-        var gatewayBody = JSON.stringify({
+        var payload = {
           negocio_external_id: externalId,
           acao: acao,
           instrucao_operador: nexoLimparTextoAjuda(body.instrucao_operador, 1200),
           contexto: contextoSeguro,
-        })
+        }
+        if (humanMemoryCorrectionAtiva) payload.human_memory_correction = humanMemoryCorrectionAtiva
+        var gatewayBody = JSON.stringify(payload)
         var timestamp = String(Math.floor(Date.now() / 1000))
         var signature = $security.hs256(timestamp + '.' + gatewayBody, pmaisGatewayHmacSecret)
         return $http.send({
@@ -3253,12 +3362,14 @@
 
       function nexoChamarPMaisSkipBridge() {
         if (!pmaisSkipBridgeSecret) return null
-        var gatewayBody = JSON.stringify({
+        var payload = {
           negocio_external_id: externalId,
           acao: acao,
           instrucao_operador: nexoLimparTextoAjuda(body.instrucao_operador, 1200),
           contexto: contextoSeguro,
-        })
+        }
+        if (humanMemoryCorrectionAtiva) payload.human_memory_correction = humanMemoryCorrectionAtiva
+        var gatewayBody = JSON.stringify(payload)
         return $http.send({
           url: pmaisSkipBridgeUrl,
           method: 'POST',
@@ -3287,6 +3398,14 @@
             message: nexoErroIaSanitizado(pmaisGatewayResponse),
           }),
         )
+      }
+
+      if (humanMemoryCorrectionAtiva) {
+        return e.json(503, {
+          code: 'NEXO_CORRECAO_CANONICA_INDISPONIVEL',
+          message:
+            'A ajuda do Nexo está temporariamente indisponível para este contexto corrigido.',
+        })
       }
 
       var gatewayKey =

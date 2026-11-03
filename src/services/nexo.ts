@@ -180,3 +180,20 @@ export function registrarFeedbackAjudaNexo(
     },
   )
 }
+
+export interface NexoCorrecaoMemoriaSignals {
+  commitment_codes: string[]
+  objection_codes: string[]
+  risk_codes: string[]
+  next_step_code: string
+}
+
+export function registrarCorrecaoMemoriaNexo(
+  externalId: string,
+  signals: NexoCorrecaoMemoriaSignals,
+) {
+  return pb.send<{ status: 'registrado'; revision: number }>(
+    `/backend/v1/nexo/negocios/${encodeURIComponent(externalId)}/memoria/correcao`,
+    { method: 'POST', body: { signals } },
+  )
+}

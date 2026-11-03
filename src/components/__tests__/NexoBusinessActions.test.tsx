@@ -5,11 +5,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const obterContextoNexoNegocio = vi.hoisted(() => vi.fn())
 const gerarAjudaNexoNegocio = vi.hoisted(() => vi.fn())
 const registrarFeedbackAjudaNexo = vi.hoisted(() => vi.fn())
+const registrarCorrecaoMemoriaNexo = vi.hoisted(() => vi.fn())
 
 vi.mock('@/services/nexo', () => ({
   obterContextoNexoNegocio,
   gerarAjudaNexoNegocio,
   registrarFeedbackAjudaNexo,
+  registrarCorrecaoMemoriaNexo,
 }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
@@ -128,6 +130,7 @@ describe('NexoBusinessActions', () => {
     obterContextoNexoNegocio.mockResolvedValue(contexto)
     gerarAjudaNexoNegocio.mockResolvedValue(ajuda)
     registrarFeedbackAjudaNexo.mockResolvedValue({ status: 'registrado' })
+    registrarCorrecaoMemoriaNexo.mockResolvedValue({ status: 'registrado', revision: 1 })
   })
 
   it('gera resposta única e útil para sugestão de próximo follow-up', async () => {
@@ -436,5 +439,53 @@ describe('NexoBusinessActions', () => {
     expect(screen.queryByText(/negócio AC #4792/i)).not.toBeInTheDocument()
     expect(screen.queryByText('Identificador')).not.toBeInTheDocument()
     expect(screen.queryByText(/PROP-L0C1HJRLYLXE65L|vyfivus2xl6yx4o/i)).not.toBeInTheDocument()
+  })
+
+  it('registra correção humana estruturada sem expor códigos técnicos', async () => {
+    const user = userEvent.setup()
+    render(
+      <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
+    await screen.findByText('Escolha a ajuda do Nexo')
+    await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
+    await screen.findByText('Resposta do Nexo')
+    await user.click(screen.getByRole('button', { name: 'Corrigir contexto da memória' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Preço' }))
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Próximo passo corrigido' }),
+      'no_action',
+    )
+    await user.click(screen.getByRole('button', { name: 'Salvar correção de contexto' }))
+
+    await waitFor(() =>
+      expect(registrarCorrecaoMemoriaNexo).toHaveBeenCalledWith('4792', {
+        commitment_codes: [],
+        objection_codes: ['price'],
+        risk_codes: [],
+        next_step_code: 'no_action',
+      }),
+    )
+    expect(screen.queryByText(/price|no_action|revision|external_id/i)).not.toBeInTheDocument()
+  })
+
+  it('limita cada grupo de correção a cinco escolhas disponíveis', async () => {
+    const user = userEvent.setup()
+    render(
+      <NexoBusinessActions externalId="4792" businessTitle="Proposta Qualificada" allowNexoHelp />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /Ajuda do Nexo/i }))
+    await screen.findByText('Escolha a ajuda do Nexo')
+    await user.click(screen.getByRole('button', { name: /Gerar ajuda do Nexo/i }))
+    await screen.findByText('Resposta do Nexo')
+    await user.click(screen.getByRole('button', { name: 'Corrigir contexto da memória' }))
+    for (const rotulo of ['Preço', 'Prazo', 'Escopo', 'Troca de fornecedor', 'Poder de decisão']) {
+      await user.click(screen.getByRole('checkbox', { name: rotulo }))
+    }
+
+    expect(screen.getByRole('checkbox', { name: 'Orçamento' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Confiança' })).toBeDisabled()
   })
 })

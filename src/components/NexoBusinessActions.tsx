@@ -13,6 +13,7 @@ import {
 import {
   gerarAjudaNexoNegocio,
   obterContextoNexoNegocio,
+  registrarCorrecaoMemoriaNexo,
   registrarFeedbackAjudaNexo,
   type NexoAcaoAssistida,
   type NexoAjudaComercial,
@@ -55,6 +56,41 @@ const ACOES_NEXO: Array<{ id: NexoAcaoAssistida; label: string; descricao: strin
   },
 ]
 
+const COMPROMISSOS = [
+  ['internal_validation_pending', 'Validação interna pendente'],
+  ['return_promised', 'Retorno prometido'],
+  ['proposal_review_pending', 'Revisão da proposta pendente'],
+  ['meeting_scheduled', 'Reunião agendada'],
+  ['documents_pending', 'Documentos pendentes'],
+] as const
+const OBJECOES = [
+  ['price', 'Preço'],
+  ['deadline', 'Prazo'],
+  ['scope', 'Escopo'],
+  ['supplier_change', 'Troca de fornecedor'],
+  ['decision_authority', 'Poder de decisão'],
+  ['budget', 'Orçamento'],
+  ['trust', 'Confiança'],
+] as const
+const RISCOS = [
+  ['stale_followup', 'Follow-up parado'],
+  ['overdue_commitment', 'Compromisso atrasado'],
+  ['no_response', 'Sem resposta'],
+  ['decision_delay', 'Decisão atrasada'],
+  ['scope_unclear', 'Escopo indefinido'],
+  ['commercial_divergence', 'Divergência comercial'],
+] as const
+const PROXIMOS_PASSOS = [
+  ['none', 'Não informado'],
+  ['request_confirmation', 'Solicitar confirmação'],
+  ['schedule_followup', 'Agendar follow-up'],
+  ['clarify_scope', 'Esclarecer escopo'],
+  ['send_proposal_for_review', 'Enviar proposta para revisão'],
+  ['await_customer_return', 'Aguardar retorno do cliente'],
+  ['escalate_human_review', 'Encaminhar para revisão humana'],
+  ['no_action', 'Sem próxima ação'],
+] as const
+
 const resumoTexto = (valor?: string | null) => {
   const texto = String(valor || '').trim()
   return texto || 'Não informado.'
@@ -75,6 +111,102 @@ function CampoTexto({ titulo, texto }: { titulo: string; texto?: string | null }
     <section className="rounded-md border bg-slate-50 p-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{titulo}</p>
       <p className="mt-2 whitespace-pre-wrap text-sm text-slate-800">{resumoTexto(texto)}</p>
+    </section>
+  )
+}
+
+function CorrecaoMemoria({ externalId }: { externalId: string }) {
+  const [aberta, setAberta] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const [salva, setSalva] = useState(false)
+  const [commitments, setCommitments] = useState<string[]>([])
+  const [objections, setObjections] = useState<string[]>([])
+  const [risks, setRisks] = useState<string[]>([])
+  const [nextStep, setNextStep] = useState('none')
+
+  const alternar = (codigo: string, valores: string[], definir: (valor: string[]) => void) =>
+    definir(
+      valores.includes(codigo) ? valores.filter((item) => item !== codigo) : [...valores, codigo],
+    )
+
+  const salvar = async () => {
+    setSalvando(true)
+    try {
+      await registrarCorrecaoMemoriaNexo(externalId, {
+        commitment_codes: commitments,
+        objection_codes: objections,
+        risk_codes: risks,
+        next_step_code: nextStep,
+      })
+      setSalva(true)
+      setAberta(false)
+      toast.success('Correção de contexto registrada para as próximas ajudas do Nexo.')
+    } catch (_) {
+      toast.error('Não foi possível registrar a correção de contexto.')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const grupo = (
+    titulo: string,
+    opcoes: ReadonlyArray<readonly [string, string]>,
+    valores: string[],
+    definir: (valor: string[]) => void,
+  ) => (
+    <fieldset className="rounded-md border p-3">
+      <legend className="px-1 font-medium">{titulo} — selecione até 5</legend>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {opcoes.map(([codigo, rotulo]) => (
+          <label key={codigo} className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={valores.includes(codigo)}
+              disabled={!valores.includes(codigo) && valores.length >= 5}
+              onChange={() => alternar(codigo, valores, definir)}
+            />
+            {rotulo}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+
+  return (
+    <section className="rounded-md border bg-white p-4 text-sm">
+      <Button type="button" size="sm" variant="outline" onClick={() => setAberta(!aberta)}>
+        Corrigir contexto da memória
+      </Button>
+      {salva ? <p className="mt-2 text-xs text-emerald-700">Correção registrada.</p> : null}
+      {aberta ? (
+        <div className="mt-3 space-y-3">
+          <p className="text-muted-foreground">
+            Marque somente fatos confirmados. Campos sem marcação retiram informações anteriores.
+          </p>
+          {grupo('Compromissos confirmados', COMPROMISSOS, commitments, setCommitments)}
+          {grupo('Objeções confirmadas', OBJECOES, objections, setObjections)}
+          {grupo('Riscos confirmados', RISCOS, risks, setRisks)}
+          <label className="block font-medium">
+            Próximo passo corrigido
+            <select
+              aria-label="Próximo passo corrigido"
+              value={nextStep}
+              onChange={(event) => setNextStep(event.target.value)}
+              className="mt-1 block w-full rounded-md border bg-white p-2"
+            >
+              {PROXIMOS_PASSOS.map(([codigo, rotulo]) => (
+                <option key={codigo} value={codigo}>
+                  {rotulo}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button type="button" size="sm" disabled={salvando} onClick={() => void salvar()}>
+            {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Salvar correção de contexto
+          </Button>
+        </div>
+      ) : null}
     </section>
   )
 }
@@ -195,6 +327,7 @@ function AjudaResposta({
           não foi confirmado.
         </p>
       )}
+      <CorrecaoMemoria externalId={ajuda.external_id} />
       {fallback ? (
         <p className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white">
           Falha de acionamento de modelo - Avisar administrador do sistema.
