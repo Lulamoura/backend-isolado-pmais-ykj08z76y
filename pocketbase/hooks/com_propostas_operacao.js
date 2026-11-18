@@ -4918,6 +4918,7 @@
       return e.json(503, { ok: false, error: 'LEDGER_INDISPONIVEL' })
     }
     var historicalUntouched = 0
+    // Deployment marker: forces Preview to rematerialize the N1 snapshot hook artifact.
     var historicalSnapshotLines = []
     var historicalPeriodStart = ''
     var historicalPeriodEnd = ''
