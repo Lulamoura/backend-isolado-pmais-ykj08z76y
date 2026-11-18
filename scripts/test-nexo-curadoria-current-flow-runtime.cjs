@@ -70,6 +70,23 @@ const parameter = new MockRecord('com_parametros', 'parameter-current-flow', {
   tipo: 'json_imutavel',
   versao: 1,
 })
+const n4RuntimeGate = new MockRecord('com_parametros', 'parameter-n4-runtime', {
+  chave: 'nexo.curadoria.homologacao_n4_runtime_v1',
+  valor: JSON.stringify({
+    gate_version: 'pmais_nexo_curadoria_homologacao_n4_runtime_v1',
+    batch_id: '20261118-a1',
+    preview_host: 'backend-isolado-pmais-43b9c--preview.goskip.app',
+    evidence_refs: [
+      'n4-homologacao-20261118-a1:routine-1',
+      'n4-homologacao-20261118-a1:routine-2',
+      'n4-homologacao-20261118-a1:routine-3',
+      'n4-homologacao-20261118-a1:conflict-1',
+    ],
+  }),
+  ativo: true,
+  tipo: 'json_imutavel',
+  versao: 1,
+})
 
 function ledger(id, created, values) {
   return new MockRecord('com_ledger_comercial', id, {
@@ -98,9 +115,18 @@ function ledger(id, created, values) {
 const rows = [
   ledger('historical', '2026-10-19 09:00:00.000Z'),
   ledger('ledger-before-cutoff-id', CUTOFF_CREATED),
-  ledger('routine', '2026-10-20 11:00:00.000Z'),
-  ledger('routine-2', '2026-10-20 11:10:00.000Z'),
-  ledger('routine-3', '2026-10-20 11:20:00.000Z'),
+  ledger('routine', '2026-10-20 11:00:00.000Z', {
+    fonte: 'homologacao_n4',
+    evidencia_ref: 'n4-homologacao-20261118-a1:routine-1',
+  }),
+  ledger('routine-2', '2026-10-20 11:10:00.000Z', {
+    fonte: 'homologacao_n4',
+    evidencia_ref: 'n4-homologacao-20261118-a1:routine-2',
+  }),
+  ledger('routine-3', '2026-10-20 11:20:00.000Z', {
+    fonte: 'homologacao_n4',
+    evidencia_ref: 'n4-homologacao-20261118-a1:routine-3',
+  }),
   ledger('missing-proof', '2026-10-20 12:00:00.000Z', {
     evidencia_ref: '',
     confianca: 'media',
@@ -165,7 +191,7 @@ const historicalMatchingSnapshot = JSON.stringify(historicalMatchingCase.values)
 const collections = {
   users: [actor],
   com_perfis: [profile],
-  com_parametros: [parameter],
+  com_parametros: [parameter, n4RuntimeGate],
   com_ledger_comercial: rows,
   com_nexo_curadoria_casos: [activeRule, historicalMatchingCase],
   com_nexo_curadoria_evidencias: [],
@@ -174,6 +200,7 @@ const collections = {
 }
 let nextId = 1
 let saves = 0
+let beforeTransaction = null
 function records(name) {
   if (!collections[name]) collections[name] = []
   return collections[name]
@@ -209,6 +236,7 @@ const app = {
     }
   },
   runInTransaction(callback) {
+    if (beforeTransaction) beforeTransaction()
     return callback(this)
   },
 }
@@ -274,11 +302,20 @@ const hookSource = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js',
 vm.runInContext(hookSource, context)
 const route = routes['POST /backend/v1/nexo/curadoria/casos/consolidar']
 assert(route, 'current-flow consolidation route must exist')
-function invoke(body) {
+function invoke(
+  body,
+  origin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app',
+  host = 'backend-isolado-pmais-43b9c--preview.goskip.app',
+) {
   let response
   route({
     auth: actor,
     requestInfo: () => ({ body }),
+    request: {
+      header: {
+        get: (name) => (name === 'Origin' ? origin : name === 'Host' ? host : ''),
+      },
+    },
     json(status, payload) {
       response = { status, payload }
       return response
@@ -318,6 +355,163 @@ assert.deepEqual(preview.payload.guardrails, {
 })
 assert.equal(saves, 0)
 
+const isolatedRefs = [
+  'n4-homologacao-20261118-a1:routine-1',
+  'n4-homologacao-20261118-a1:routine-2',
+  'n4-homologacao-20261118-a1:routine-3',
+]
+const isolatedProductionAttempt = invoke(
+  {
+    dry_run: false,
+    modo: 'homologacao_isolada_n4',
+    evidencia_refs: isolatedRefs,
+    confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+    confirmacao_homologacao: 'APLICAR_HOMOLOGACAO_ISOLADA_N4',
+  },
+  'https://comercial.pmaisservicos.com.br',
+  'backend-isolado-pmais-43b9c.goskip.app',
+)
+assert.equal(isolatedProductionAttempt.status, 403)
+assert.equal(collections.com_nexo_curadoria_casos.length, 2)
+
+const spoofedPreviewOriginAttempt = invoke(
+  {
+    dry_run: true,
+    modo: 'homologacao_isolada_n4',
+    evidencia_refs: isolatedRefs,
+  },
+  'https://backend-isolado-pmais-43b9c--preview.goskip.app',
+  'backend-isolado-pmais-43b9c.goskip.app',
+)
+assert.equal(spoofedPreviewOriginAttempt.status, 403)
+
+collections.com_parametros.splice(collections.com_parametros.indexOf(n4RuntimeGate), 1)
+const missingRuntimeGateAttempt = invoke({
+  dry_run: true,
+  modo: 'homologacao_isolada_n4',
+  evidencia_refs: isolatedRefs,
+})
+assert.equal(missingRuntimeGateAttempt.status, 503)
+collections.com_parametros.push(n4RuntimeGate)
+
+const missingConfirmationAttempt = invoke({
+  dry_run: false,
+  modo: 'homologacao_isolada_n4',
+  evidencia_refs: isolatedRefs,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(missingConfirmationAttempt.status, 400)
+
+const missingEvidenceAttempt = invoke({
+  dry_run: true,
+  modo: 'homologacao_isolada_n4',
+  evidencia_refs: ['n4-homologacao-20261118-a1:conflict-1'],
+})
+assert.equal(missingEvidenceAttempt.status, 409)
+
+const duplicateRefAttempt = invoke({
+  dry_run: true,
+  modo: 'homologacao_isolada_n4',
+  evidencia_refs: [isolatedRefs[0], isolatedRefs[0]],
+})
+assert.equal(duplicateRefAttempt.status, 400)
+
+const arbitraryRefAttempt = invoke({
+  dry_run: true,
+  modo: 'homologacao_isolada_n4',
+  evidencia_refs: ['n4-homologacao-20261118-a1:arbitrary'],
+})
+assert.equal(arbitraryRefAttempt.status, 400)
+
+const routineOne = collections.com_ledger_comercial.find(
+  (item) => item.getString('evidencia_ref') === isolatedRefs[0],
+)
+routineOne.set('fonte', 'nexo_app')
+const wrongSourceAttempt = invoke({
+  dry_run: true,
+  modo: 'homologacao_isolada_n4',
+  evidencia_refs: isolatedRefs,
+})
+assert.equal(wrongSourceAttempt.status, 409)
+routineOne.set('fonte', 'homologacao_n4')
+
+const duplicateEvidence = new MockRecord('com_ledger_comercial', 'duplicate-n4-evidence', {
+  ...routineOne.values,
+})
+collections.com_ledger_comercial.push(duplicateEvidence)
+const ambiguousEvidenceAttempt = invoke({
+  dry_run: true,
+  modo: 'homologacao_isolada_n4',
+  evidencia_refs: isolatedRefs,
+})
+assert.equal(ambiguousEvidenceAttempt.status, 409)
+collections.com_ledger_comercial.splice(
+  collections.com_ledger_comercial.indexOf(duplicateEvidence),
+  1,
+)
+
+const isolatedPreview = invoke({
+  dry_run: true,
+  modo: 'homologacao_isolada_n4',
+  evidencia_refs: isolatedRefs,
+})
+assert.equal(isolatedPreview.status, 200)
+assert.equal(isolatedPreview.payload.execution_scope, 'homologacao_isolada_n4')
+assert.equal(isolatedPreview.payload.selected_evidence_refs, 3)
+assert.equal(isolatedPreview.payload.automatic_cases, 1)
+assert.equal(isolatedPreview.payload.human_exceptions, 0)
+
+const standardCollision = new MockRecord('com_nexo_curadoria_casos', 'standard-collision', {
+  fingerprint: crypto
+    .createHash('sha256')
+    .update('curadoria-padrao-v2|equipe|team-1|rotina_comercial')
+    .digest('hex'),
+  revisao: 1,
+  status: 'aberto_curadoria',
+  fonte_principal: 'nexo_app',
+  created: '2026-10-20 12:00:00.000Z',
+})
+collections.com_nexo_curadoria_casos.push(standardCollision)
+
+let consolidationSourceChanged = false
+beforeTransaction = () => {
+  if (consolidationSourceChanged) return
+  consolidationSourceChanged = true
+  routineOne.set('fonte', 'nexo_app')
+}
+const changedScopeDuringConsolidation = invoke({
+  dry_run: false,
+  modo: 'homologacao_isolada_n4',
+  evidencia_refs: isolatedRefs,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+  confirmacao_homologacao: 'APLICAR_HOMOLOGACAO_ISOLADA_N4',
+})
+assert.equal(changedScopeDuringConsolidation.status, 500)
+assert.equal(collections.com_nexo_curadoria_casos.length, 3)
+assert.equal(collections.com_nexo_curadoria_outbox.length, 0)
+routineOne.set('fonte', 'homologacao_n4')
+beforeTransaction = null
+
+const isolatedApplied = invoke({
+  dry_run: false,
+  modo: 'homologacao_isolada_n4',
+  evidencia_refs: isolatedRefs,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+  confirmacao_homologacao: 'APLICAR_HOMOLOGACAO_ISOLADA_N4',
+})
+assert.equal(isolatedApplied.status, 200)
+assert.equal(isolatedApplied.payload.execution_scope, 'homologacao_isolada_n4')
+assert.equal(isolatedApplied.payload.casos_criados, 1)
+assert.equal(isolatedApplied.payload.human_exceptions, 0)
+assert.equal(collections.com_nexo_curadoria_casos.length, 4)
+assert.equal(collections.com_nexo_curadoria_outbox.length, 1)
+assert.equal(standardCollision.getInt('revisao'), 1)
+assert.equal(standardCollision.getString('fonte_principal'), 'nexo_app')
+collections.com_nexo_curadoria_casos.splice(
+  collections.com_nexo_curadoria_casos.indexOf(standardCollision),
+  1,
+)
+
 const applied = invoke({ dry_run: false, confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL' })
 assert.equal(applied.status, 200)
 assert.equal(applied.payload.automatic_cases, 1)
@@ -326,18 +520,20 @@ assert.equal(applied.payload.promocao_automatica_realizada, false)
 assert.equal(applied.payload.publicacao_enfileirada, true)
 assert.equal(applied.payload.noise_ignored, 2)
 assert.equal(applied.payload.historical_untouched, 2)
-assert.equal(collections.com_nexo_curadoria_casos.length, 5)
-assert.equal(collections.com_nexo_curadoria_outbox.length, 1)
+assert.equal(collections.com_nexo_curadoria_casos.length, 6)
+assert.equal(collections.com_nexo_curadoria_outbox.length, 2)
 const applyReplayBeforePublication = invoke({
   dry_run: false,
   confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
 })
 assert.equal(applyReplayBeforePublication.status, 200)
 assert.equal(applyReplayBeforePublication.payload.publicacao_enfileirada, false)
-assert.equal(collections.com_nexo_curadoria_outbox.length, 1)
+assert.equal(collections.com_nexo_curadoria_outbox.length, 2)
 
-const automaticCase = collections.com_nexo_curadoria_casos.find((item) =>
-  item.getBool('automatic_promotion_allowed'),
+const automaticCase = collections.com_nexo_curadoria_casos.find(
+  (item) =>
+    item.getBool('automatic_promotion_allowed') &&
+    item.getString('fonte_principal') === 'homologacao_n4',
 )
 assert(automaticCase)
 assert.equal(automaticCase.getString('status'), 'aprovado')
@@ -507,15 +703,18 @@ assert.equal(
 
 const processRoute = routes['POST /backend/v1/nexo/curadoria/outbox/processar']
 assert(processRoute, 'automatic outbox processor route must exist')
-function invokeProcessor() {
+function invokeProcessor(
+  body = { limite: 10 },
+  origin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app',
+  host = 'backend-isolado-pmais-43b9c--preview.goskip.app',
+) {
   let processResponse
   processRoute({
     auth: actor,
-    requestInfo: () => ({ body: { limite: 10 } }),
+    requestInfo: () => ({ body }),
     request: {
       header: {
-        get: (name) =>
-          name === 'Origin' ? 'https://backend-isolado-pmais-43b9c--preview.goskip.app' : '',
+        get: (name) => (name === 'Origin' ? origin : name === 'Host' ? host : ''),
       },
     },
     json(status, responsePayload) {
@@ -536,9 +735,15 @@ function resetOutboxForRetry() {
   outbox.set('claim_expires_at', null)
   outbox.set('last_error', '')
 }
+const scopedProcessorBody = {
+  limite: 10,
+  modo: 'homologacao_isolada_n4',
+  outbox_ids: [outbox.id],
+  confirmacao_homologacao: 'PROCESSAR_OUTBOX_HOMOLOGACAO_ISOLADA_N4',
+}
 
 automaticTransition.set('ator_id', 'nexo')
-let rejected = invokeProcessor()
+let rejected = invokeProcessor(scopedProcessorBody)
 assert.equal(rejected.status, 200)
 assert.equal(rejected.payload.falhas, 1)
 assert.equal(gatewayCalls.length, 0, 'mismatched transition actor must fail before Gateway')
@@ -554,7 +759,7 @@ payload.policy_proof.content_sha256 = crypto
   .update(canonicalJson(tamperedContent))
   .digest('hex')
 outbox.set('payload_hash', crypto.createHash('sha256').update(canonicalJson(payload)).digest('hex'))
-rejected = invokeProcessor()
+rejected = invokeProcessor(scopedProcessorBody)
 assert.equal(rejected.status, 200)
 assert.equal(rejected.payload.falhas, 1)
 assert.equal(
@@ -571,16 +776,111 @@ outbox.set('payload_hash', crypto.createHash('sha256').update(canonicalJson(payl
 resetOutboxForRetry()
 
 automaticSecrets.PMAIS_CURADORIA_AUTOMATIC_AGENT_ID = 'nexo'
-rejected = invokeProcessor()
+rejected = invokeProcessor(scopedProcessorBody)
 assert.equal(rejected.status, 200)
 assert.equal(rejected.payload.falhas, 1)
 assert.equal(gatewayCalls.length, 0, 'arbitrary configured automatic identity must fail closed')
 automaticSecrets.PMAIS_CURADORIA_AUTOMATIC_AGENT_ID = AUTOMATIC_AGENT_ID
 resetOutboxForRetry()
 
-const processResponse = invokeProcessor()
+const unrelatedOutbox = new MockRecord('com_nexo_curadoria_outbox', 'unrelated-pending', {
+  caso_id: 'missing-unrelated-case',
+  decisao_id: 'missing-unrelated-transition',
+  acao: 'publicar_automatico',
+  status: 'pendente',
+  requested_at: '2026-10-20 16:00:00.000Z',
+})
+collections.com_nexo_curadoria_outbox.push(unrelatedOutbox)
+const productionProcessorAttempt = invokeProcessor(
+  scopedProcessorBody,
+  'https://comercial.pmaisservicos.com.br',
+  'backend-isolado-pmais-43b9c.goskip.app',
+)
+assert.equal(productionProcessorAttempt.status, 403)
+assert.equal(outbox.getString('status'), 'pendente')
+
+const spoofedProcessorAttempt = invokeProcessor(
+  scopedProcessorBody,
+  'https://backend-isolado-pmais-43b9c--preview.goskip.app',
+  'backend-isolado-pmais-43b9c.goskip.app',
+)
+assert.equal(spoofedProcessorAttempt.status, 403)
+assert.equal(outbox.getString('status'), 'pendente')
+
+collections.com_parametros.splice(collections.com_parametros.indexOf(n4RuntimeGate), 1)
+const missingProcessorRuntimeGate = invokeProcessor(scopedProcessorBody)
+assert.equal(missingProcessorRuntimeGate.status, 503)
+assert.equal(outbox.getString('status'), 'pendente')
+collections.com_parametros.push(n4RuntimeGate)
+
+const priorOutbox = new MockRecord('com_nexo_curadoria_outbox', 'prior-n4-operation', {
+  caso_id: automaticCase.id,
+  decisao_id: automaticTransition.id,
+  acao: 'publicar_automatico',
+  caso_revisao: outbox.getInt('caso_revisao'),
+  status: 'pendente',
+  requested_at: '2026-10-20 10:00:00.000Z',
+})
+collections.com_nexo_curadoria_outbox.push(priorOutbox)
+const blockedByPrior = invokeProcessor(scopedProcessorBody)
+assert.equal(blockedByPrior.status, 200)
+assert.equal(blockedByPrior.payload.processados, 0)
+assert.equal(blockedByPrior.payload.bloqueados_ordem, 1)
+assert.equal(outbox.getString('status'), 'pendente')
+assert.equal(gatewayCalls.length, 0)
+priorOutbox.set('status', 'supersedido')
+
+let gateRemovedDuringClaim = false
+beforeTransaction = () => {
+  if (gateRemovedDuringClaim) return
+  gateRemovedDuringClaim = true
+  collections.com_parametros.splice(collections.com_parametros.indexOf(n4RuntimeGate), 1)
+}
+const removedGateDuringClaim = invokeProcessor(scopedProcessorBody)
+assert.equal(removedGateDuringClaim.status, 200)
+assert.equal(removedGateDuringClaim.payload.processados, 0)
+assert.equal(removedGateDuringClaim.payload.ignorados, 1)
+assert.equal(outbox.getString('status'), 'pendente')
+assert.equal(gatewayCalls.length, 0)
+collections.com_parametros.push(n4RuntimeGate)
+beforeTransaction = null
+
+let preHttpTransactionCount = 0
+beforeTransaction = () => {
+  preHttpTransactionCount++
+  if (preHttpTransactionCount !== 2) return
+  collections.com_parametros.splice(collections.com_parametros.indexOf(n4RuntimeGate), 1)
+}
+const removedGateBeforeHttp = invokeProcessor(scopedProcessorBody)
+assert.equal(removedGateBeforeHttp.status, 200)
+assert.equal(removedGateBeforeHttp.payload.processados, 0)
+assert.equal(removedGateBeforeHttp.payload.invalidados, 1)
+assert.equal(outbox.getString('status'), 'invalidado')
+assert.equal(gatewayCalls.length, 0)
+collections.com_parametros.push(n4RuntimeGate)
+beforeTransaction = null
+resetOutboxForRetry()
+
+let sourceChangedDuringClaim = false
+beforeTransaction = () => {
+  if (sourceChangedDuringClaim) return
+  sourceChangedDuringClaim = true
+  automaticCase.set('fonte_principal', 'nexo_app')
+}
+const changedScopeDuringClaim = invokeProcessor(scopedProcessorBody)
+assert.equal(changedScopeDuringClaim.status, 200)
+assert.equal(changedScopeDuringClaim.payload.processados, 0)
+assert.equal(changedScopeDuringClaim.payload.ignorados, 1)
+assert.equal(outbox.getString('status'), 'pendente')
+assert.equal(gatewayCalls.length, 0)
+automaticCase.set('fonte_principal', 'homologacao_n4')
+beforeTransaction = null
+
+const processResponse = invokeProcessor(scopedProcessorBody)
 assert.equal(processResponse.status, 200)
 assert.equal(processResponse.payload.processados, 1)
+assert.equal(processResponse.payload.execution_scope, 'homologacao_isolada_n4')
+assert.equal(unrelatedOutbox.getString('status'), 'pendente')
 assert.equal(gatewayCalls.length, 1)
 const gatewayCall = gatewayCalls[0]
 assert.equal(
@@ -620,7 +920,7 @@ assert.equal(replay.status, 200)
 assert.equal(replay.payload.casos_criados, 0)
 assert.equal(replay.payload.evidencias_criadas, 0)
 assert.equal(replay.payload.publicacao_enfileirada, false)
-assert.equal(collections.com_nexo_curadoria_outbox.length, 1)
+assert.equal(collections.com_nexo_curadoria_outbox.length, 4)
 
 parameter.set(
   'valor',
