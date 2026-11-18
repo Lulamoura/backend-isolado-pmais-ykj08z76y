@@ -4918,11 +4918,38 @@
       return e.json(503, { ok: false, error: 'LEDGER_INDISPONIVEL' })
     }
     var historicalUntouched = 0
+    var historicalSnapshotLines = []
+    var historicalPeriodStart = ''
+    var historicalPeriodEnd = ''
+    var historicalSnapshotValid = true
     var ledgerCorrente = []
     for (var lci = 0; lci < ledgerRows.length; lci++) {
-      if (posteriorAoCorte(ledgerRows[lci], politicaFluxoCorrente.cutoff))
+      if (posteriorAoCorte(ledgerRows[lci], politicaFluxoCorrente.cutoff)) {
         ledgerCorrente.push(ledgerRows[lci])
-      else historicalUntouched++
+      } else {
+        historicalUntouched++
+        var historicalId = String(ledgerRows[lci].id || '')
+        var historicalOccurredAt = texto(ledgerRows[lci], 'occurred_at')
+        if (!historicalId || !dataPocketBaseValida(historicalOccurredAt)) {
+          historicalSnapshotValid = false
+        } else {
+          historicalSnapshotLines.push(historicalId + '|' + historicalOccurredAt)
+          if (!historicalPeriodStart || historicalOccurredAt < historicalPeriodStart)
+            historicalPeriodStart = historicalOccurredAt
+          if (!historicalPeriodEnd || historicalOccurredAt > historicalPeriodEnd)
+            historicalPeriodEnd = historicalOccurredAt
+        }
+      }
+    }
+    if (!historicalSnapshotValid || historicalSnapshotLines.length !== historicalUntouched)
+      return e.json(503, { ok: false, error: 'PROVA_PASSIVO_HISTORICO_INDISPONIVEL' })
+    historicalSnapshotLines.sort()
+    var historicalSnapshot = {
+      count: historicalUntouched,
+      period_start: historicalPeriodStart || null,
+      period_end: historicalPeriodEnd || null,
+      sha256: String($security.sha256(historicalSnapshotLines.join('\n'))),
+      canonicalization: 'id|occurred_at\\n sorted by id; UTF-8; no trailing newline',
     }
     ledgerRows = ledgerCorrente
 
@@ -5308,6 +5335,7 @@
         policy_version: politicaFluxoCorrente.policy_version,
         cutoff: politicaFluxoCorrente.cutoff,
         historical_untouched: historicalUntouched,
+        historical_snapshot: historicalSnapshot,
         automatic_cases: automaticCases,
         human_exceptions: humanExceptions,
         noise_ignored: noiseIgnored,

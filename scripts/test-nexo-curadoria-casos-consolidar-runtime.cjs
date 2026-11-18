@@ -1,4 +1,5 @@
 const assert = require('assert')
+const crypto = require('crypto')
 const fs = require('fs')
 const vm = require('vm')
 
@@ -256,7 +257,12 @@ const context = {
   $app: app,
   $os: { getenv: () => '' },
   $http: { send: () => ({ statusCode: 500, json: {}, raw: '' }) },
-  $security: { sha256: (value) => `hash:${value}` },
+  $security: {
+    sha256: (value) =>
+      String(value).includes('\n')
+        ? crypto.createHash('sha256').update(String(value), 'utf8').digest('hex')
+        : `hash:${value}`,
+  },
   $apis: {
     bodyLimit: () => function () {},
     requireAuth: () => function () {},
@@ -296,6 +302,19 @@ assert.equal(dryRun.status, 200)
 assert.equal(dryRun.payload.dry_run, true)
 assert.equal(dryRun.payload.casos_novos, 2, 'matéria sensível entra imediatamente')
 assert.equal(dryRun.payload.evidencias_novas, 2)
+assert.deepEqual(
+  dryRun.payload.historical_snapshot,
+  {
+    count: 6,
+    period_start: '2026-09-28 12:00:00.000Z',
+    period_end: '2026-10-01 17:00:00.000Z',
+    sha256: '7429b0747a243f392ed91480dbd22770b33ab654906fa9e0a09f589a88e6e3b7',
+    canonicalization: 'id|occurred_at\\n sorted by id; UTF-8; no trailing newline',
+  },
+  'dry-run deve expor apenas prova sanitizada do passivo histórico',
+)
+assert.equal(JSON.stringify(dryRun.payload).includes('Cliente A'), false)
+assert.match(dryRun.payload.historical_snapshot.sha256, /^[a-f0-9]{64}$/)
 assert.equal(saveCalls, 0)
 assert.equal(collections.com_nexo_curadoria_casos.length, 0)
 
