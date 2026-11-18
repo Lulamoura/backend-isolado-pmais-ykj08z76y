@@ -99,6 +99,8 @@ const rows = [
   ledger('historical', '2026-10-19 09:00:00.000Z'),
   ledger('ledger-before-cutoff-id', CUTOFF_CREATED),
   ledger('routine', '2026-10-20 11:00:00.000Z'),
+  ledger('routine-2', '2026-10-20 11:10:00.000Z'),
+  ledger('routine-3', '2026-10-20 11:20:00.000Z'),
   ledger('missing-proof', '2026-10-20 12:00:00.000Z', {
     evidencia_ref: '',
     confianca: 'media',
@@ -295,17 +297,43 @@ assert.equal(preview.payload.policy_version, POLICY_VERSION)
 assert.deepEqual(preview.payload.cutoff, policy.cutoff)
 assert.equal(preview.payload.historical_untouched, 2)
 assert.equal(preview.payload.automatic_cases, 1)
-assert.equal(preview.payload.human_exceptions, 3)
-assert.equal(preview.payload.noise_ignored, 1)
+assert.equal(preview.payload.human_exceptions, 2)
+assert.equal(preview.payload.noise_ignored, 2)
+assert.deepEqual(preview.payload.classification_counts, {
+  ledger_records: {
+    discarded_noise: 2,
+    operational_history: 0,
+  },
+  consolidated_groups: {
+    hypothesis_waiting_evidence: 0,
+    automatic_promotion: 1,
+    management_exception: 0,
+    direction_exception: 2,
+  },
+})
+assert.deepEqual(preview.payload.guardrails, {
+  no_mutation: true,
+  no_send: true,
+  no_publication: true,
+})
 assert.equal(saves, 0)
 
 const applied = invoke({ dry_run: false, confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL' })
 assert.equal(applied.status, 200)
 assert.equal(applied.payload.automatic_cases, 1)
-assert.equal(applied.payload.human_exceptions, 3)
-assert.equal(applied.payload.noise_ignored, 1)
+assert.equal(applied.payload.human_exceptions, 2)
+assert.equal(applied.payload.promocao_automatica_realizada, false)
+assert.equal(applied.payload.publicacao_enfileirada, true)
+assert.equal(applied.payload.noise_ignored, 2)
 assert.equal(applied.payload.historical_untouched, 2)
-assert.equal(collections.com_nexo_curadoria_casos.length, 6)
+assert.equal(collections.com_nexo_curadoria_casos.length, 5)
+assert.equal(collections.com_nexo_curadoria_outbox.length, 1)
+const applyReplayBeforePublication = invoke({
+  dry_run: false,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(applyReplayBeforePublication.status, 200)
+assert.equal(applyReplayBeforePublication.payload.publicacao_enfileirada, false)
 assert.equal(collections.com_nexo_curadoria_outbox.length, 1)
 
 const automaticCase = collections.com_nexo_curadoria_casos.find((item) =>
@@ -318,6 +346,34 @@ assert.equal(automaticCase.getBool('human_review_required'), false)
 assert.equal(automaticCase.getString('validado_por'), AUTOMATIC_AGENT_ID)
 assert.equal(automaticCase.getString('created_by'), AUTOMATIC_AGENT_ID)
 assert.equal(automaticCase.getString('updated_by'), AUTOMATIC_AGENT_ID)
+
+const listRoute = routes['POST /backend/v1/nexo/curadoria/casos/listar']
+assert(listRoute, 'curation list route must exist')
+function invokeList() {
+  let listResponse
+  listRoute({
+    auth: actor,
+    requestInfo: () => ({ body: { limite: 100 } }),
+    json(status, responsePayload) {
+      listResponse = { status, payload: responsePayload }
+      return listResponse
+    },
+    forbiddenError(message) {
+      listResponse = { status: 403, payload: { message } }
+      return listResponse
+    },
+  })
+  return listResponse
+}
+const pendingPublicationView = invokeList()
+assert.equal(pendingPublicationView.status, 200)
+assert.equal(
+  pendingPublicationView.payload.visoes.conhecimento_aprovado.some(
+    (item) => item.conhecimento_status === 'pendente_publicacao',
+  ),
+  false,
+  'pending publication must not be exposed as active approved knowledge',
+)
 
 const automaticTransition = collections.com_nexo_curadoria_transicoes.find(
   (item) => item.getString('caso_id') === automaticCase.id,
@@ -370,6 +426,16 @@ assert.deepEqual(
     no_active_rule_conflict: true,
   },
 )
+assert.match(
+  hookSource,
+  /reversible:\s*texto\(ledger, 'promocao_modo'\) === 'promover_baixo_risco'/,
+  'reversibility must be derived from the governed promotion mode',
+)
+assert.match(
+  hookSource,
+  /reversible:\s*!!grupo\.safety_predicates\.reversible/,
+  'automatic policy proof must preserve the classified reversibility predicate',
+)
 const contentWithoutProof = { ...payload }
 delete contentWithoutProof.policy_proof
 assert.equal(
@@ -404,7 +470,7 @@ assert.match(
 const humanCases = collections.com_nexo_curadoria_casos.filter((item) =>
   item.getBool('human_review_required'),
 )
-assert.equal(humanCases.length, 3)
+assert.equal(humanCases.length, 2)
 assert(humanCases.every((item) => !item.getBool('automatic_promotion_allowed')))
 const conflictCase = humanCases.find((item) => item.getString('assunto_chave') === 'followup')
 assert(conflictCase, 'active-rule conflict must become a human exception')
@@ -532,11 +598,21 @@ assert.equal(
 )
 assert.equal(outbox.getString('status'), 'processado')
 assert.equal(automaticCase.getString('conhecimento_status'), 'ativo')
+const activeKnowledgeView = invokeList()
+assert.equal(activeKnowledgeView.status, 200)
+assert.equal(
+  activeKnowledgeView.payload.visoes.conhecimento_aprovado.some(
+    (item) => item.conhecimento_status === 'ativo',
+  ),
+  true,
+  'knowledge becomes active only after authoritative outbox readback',
+)
 
 const replay = invoke({ dry_run: false, confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL' })
 assert.equal(replay.status, 200)
 assert.equal(replay.payload.casos_criados, 0)
 assert.equal(replay.payload.evidencias_criadas, 0)
+assert.equal(replay.payload.publicacao_enfileirada, false)
 assert.equal(collections.com_nexo_curadoria_outbox.length, 1)
 
 parameter.set(

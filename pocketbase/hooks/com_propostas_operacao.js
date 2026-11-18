@@ -4666,6 +4666,30 @@
       return out
     }
 
+    function contemDadoProtegido(value) {
+      var text = String(value || '')
+      if (!text) return false
+      if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)) return true
+      if (/\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}/.test(text)) return true
+      if (/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(text)) return true
+      if (/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/.test(text)) return true
+      if (
+        /(api[_-]?key|access[_-]?token|authorization|bearer|senha|password|secret|aws[_-]?(?:secret[_-]?access[_-]?key|session[_-]?token))\s*[:=]\s*\S{6,}/i.test(
+          text,
+        )
+      )
+        return true
+      if (/\bbearer\s+[A-Za-z0-9._~+/-]{10,}/i.test(text)) return true
+      if (/\bgh[pousr]_[A-Za-z0-9]{20,}\b/.test(text)) return true
+      if (/\bgithub_pat_[A-Za-z0-9_]{20,}\b/.test(text)) return true
+      if (/\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b/.test(text)) return true
+      if (/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/.test(text)) return true
+      if (/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/.test(text))
+        return true
+      if (/https?:\/\/[^\s/:]+:[^\s/@]+@/i.test(text)) return true
+      return /-----BEGIN [A-Z ]*PRIVATE KEY-----/i.test(text)
+    }
+
     function carregar(app, collectionName) {
       var out = []
       var offset = 0
@@ -4874,11 +4898,11 @@
         action: 'publicar',
         case_revision: numero(caso, 'revisao'),
         content_sha256: String($security.sha256(jsonCanonico(payload))),
-        no_sensitive_data: true,
-        no_conflicts: true,
-        traceable: true,
-        coherent: true,
-        reversible: true,
+        no_sensitive_data: !!grupo.safety_predicates.non_sensitive,
+        no_conflicts: !!grupo.safety_predicates.no_active_rule_conflict,
+        traceable: !!grupo.safety_predicates.traceable,
+        coherent: !!grupo.safety_predicates.coherent,
+        reversible: !!grupo.safety_predicates.reversible,
       }
       return payload
     }
@@ -4957,10 +4981,13 @@
     var automaticCases = 0
     var humanExceptions = 0
     var noiseIgnored = 0
+    var operationalHistoryRecords = 0
     var grupos = {}
     var escoposPorRecorrencia = {}
     var negocioRefPorId = {}
     var negocioIdComRefAmbigua = {}
+    var negocioIdPorRef = {}
+    var negocioRefComIdAmbiguo = {}
     for (var nmi = 0; nmi < ledgerRows.length; nmi++) {
       var ledgerMapeamento = ledgerRows[nmi]
       if (texto(ledgerMapeamento, 'status') === 'descartado') continue
@@ -4973,11 +5000,21 @@
       )
         negocioIdComRefAmbigua[negocioIdMapeamento] = true
       else negocioRefPorId[negocioIdMapeamento] = negocioRefMapeamento
+      if (
+        negocioIdPorRef[negocioRefMapeamento] &&
+        negocioIdPorRef[negocioRefMapeamento] !== negocioIdMapeamento
+      )
+        negocioRefComIdAmbiguo[negocioRefMapeamento] = true
+      else negocioIdPorRef[negocioRefMapeamento] = negocioIdMapeamento
     }
     for (var li = 0; li < ledgerRows.length; li++) {
       var ledger = ledgerRows[li]
-      if (texto(ledger, 'status') === 'descartado') continue
+      if (texto(ledger, 'status') === 'descartado') {
+        noiseIgnored++
+        continue
+      }
       var analise = assuntoELimites(ledger)
+      if (contemDadoProtegido(texto(ledger, 'fato'))) analise.sensiveis.push('dado_protegido')
       var destinoOrigem = texto(ledger, 'destino_sugerido')
       var risco = normalizar(texto(ledger, 'risco'))
       var sensivel = analise.sensiveis.length > 0
@@ -4986,37 +5023,52 @@
       var negocioIdNormalizado = normalizar(negocioId)
       var negocioRefNormalizado = normalizar(negocioRef)
       var negocioRefCanonico = negocioRefNormalizado
-      if (
-        negocioIdNormalizado &&
-        !negocioIdComRefAmbigua[negocioIdNormalizado] &&
-        negocioRefPorId[negocioIdNormalizado]
-      )
+      if (negocioIdNormalizado && negocioIdComRefAmbigua[negocioIdNormalizado])
+        negocioRefCanonico = ''
+      else if (negocioIdNormalizado && negocioRefPorId[negocioIdNormalizado])
         negocioRefCanonico = negocioRefPorId[negocioIdNormalizado]
       var empresaNome = texto(ledger, 'empresa_nome')
-      var evidenciaRef = texto(ledger, 'evidencia_ref') || ledger.id
+      var evidenciaRefInformada = texto(ledger, 'evidencia_ref')
+      var evidenciaRef = evidenciaRefInformada || ledger.id
       var escopoOriginal = negocioRef || empresaNome
-      var escopoIndependente = negocioRefCanonico
-        ? 'negocio_ref|' + negocioRefCanonico
-        : negocioIdNormalizado
-          ? 'negocio_id|' + negocioIdNormalizado
-          : empresaNome
-            ? 'empresa|' + normalizar(empresaNome)
-            : ''
+      var negocioIdCanonico = negocioIdNormalizado
+      var aliasAmbiguoSemId = Boolean(
+        !negocioIdCanonico &&
+        negocioRefNormalizado &&
+        negocioRefComIdAmbiguo[negocioRefNormalizado],
+      )
+      if (
+        !negocioIdCanonico &&
+        negocioRefNormalizado &&
+        !negocioRefComIdAmbiguo[negocioRefNormalizado] &&
+        negocioIdPorRef[negocioRefNormalizado]
+      )
+        negocioIdCanonico = negocioIdPorRef[negocioRefNormalizado]
+      var escopoIndependente = negocioIdCanonico
+        ? 'negocio_id|' + negocioIdCanonico
+        : aliasAmbiguoSemId
+          ? ''
+          : negocioRefCanonico
+            ? 'negocio_ref|' + negocioRefCanonico
+            : empresaNome
+              ? 'empresa|' + normalizar(empresaNome)
+              : ''
       var traceable = Boolean(
         texto(ledger, 'fonte') &&
-        evidenciaRef &&
+        evidenciaRefInformada &&
         (texto(ledger, 'occurred_at') || texto(ledger, 'created')) &&
-        limparTexto(texto(ledger, 'fato'), 2400) &&
-        escopoIndependente,
+        limparTexto(texto(ledger, 'fato'), 2400),
       )
       var structuredConflict = evidenciaExigeRevisao(ledger)
+      var equipeId = texto(ledger, 'equipe_id')
       var coherent =
         normalizar(texto(ledger, 'confianca')) === 'alta' &&
         risco === 'baixo' &&
         destinoOrigem === 'historico' &&
         texto(ledger, 'promocao_modo') === 'promover_baixo_risco' &&
         !structuredConflict
-      var automatico = traceable && !sensivel && coherent && Boolean(texto(ledger, 'equipe_id'))
+      var automatico =
+        traceable && !sensivel && coherent && Boolean(equipeId) && Boolean(escopoIndependente)
       var excecaoHumana =
         sensivel ||
         structuredConflict ||
@@ -5024,34 +5076,31 @@
         risco === 'medio' ||
         risco === 'alto' ||
         risco === 'critico'
-      if (!automatico && !excecaoHumana) {
+      if (!equipeId && traceable && escopoIndependente && (coherent || excecaoHumana))
+        excecaoHumana = true
+      if ((!traceable && !sensivel) || (!escopoIndependente && !sensivel && !excecaoHumana)) {
         noiseIgnored++
         continue
       }
-      if (automatico) automaticCases++
-      else humanExceptions++
-
-      var equipeId = texto(ledger, 'equipe_id')
-      if (!sensivel && (!equipeId || !escopoIndependente)) {
-        if (excecaoHumana && traceable) {
-          equipeId = equipeId || 'gestao_comercial'
-        } else {
-          noiseIgnored++
-          if (automatico) automaticCases--
-          else humanExceptions--
-          continue
-        }
+      if (!automatico && !excecaoHumana && normalizar(texto(ledger, 'confianca')) !== 'baixa') {
+        if (destinoOrigem === 'historico' && normalizar(texto(ledger, 'confianca')) === 'alta')
+          operationalHistoryRecords++
+        else noiseIgnored++
+        continue
       }
+
       if (sensivel && !escopoIndependente)
         escopoIndependente = 'evidencia|' + normalizar(evidenciaRef)
-      var agrupamentoRef = equipeId || 'direcao'
+      var agrupamentoRef = equipeId || 'organizacao'
       var escopoTipo = sensivel
         ? negocioRef
           ? 'negocio'
           : empresaNome
             ? 'empresa'
             : 'evidencia'
-        : 'equipe'
+        : equipeId
+          ? 'equipe'
+          : 'organizacao'
       var escopoRef = sensivel ? escopoOriginal || evidenciaRef : agrupamentoRef
       var escopoLegadoTipo = negocioRef ? 'negocio' : empresaNome ? 'empresa' : ''
       var escopoLegadoRef = negocioRef || empresaNome
@@ -5107,11 +5156,17 @@
           negocio_id: sensivel ? texto(ledger, 'negocio_id') : texto(ledger, 'negocio_id'),
           automatico: automatico,
           excecao_humana: excecaoHumana,
+          structured_conflict: structuredConflict,
+          human_signal: excecaoHumana,
+          history_only:
+            destinoOrigem === 'historico' &&
+            !texto(ledger, 'promocao_modo') &&
+            normalizar(texto(ledger, 'confianca')) !== 'baixa',
           safety_predicates: {
             traceable: traceable,
             non_sensitive: !sensivel,
             coherent: coherent,
-            reversible: true,
+            reversible: texto(ledger, 'promocao_modo') === 'promover_baixo_risco',
             no_active_rule_conflict: true,
           },
           fingerprints_legados: [],
@@ -5126,9 +5181,19 @@
       var grupo = grupos[fingerprint]
       if (!automatico) grupo.automatico = false
       if (excecaoHumana) grupo.excecao_humana = true
+      if (structuredConflict) grupo.structured_conflict = true
+      if (excecaoHumana) grupo.human_signal = true
+      grupo.history_only =
+        grupo.history_only &&
+        destinoOrigem === 'historico' &&
+        !texto(ledger, 'promocao_modo') &&
+        normalizar(texto(ledger, 'confianca')) !== 'baixa'
       grupo.safety_predicates.traceable = grupo.safety_predicates.traceable && traceable
       grupo.safety_predicates.non_sensitive = grupo.safety_predicates.non_sensitive && !sensivel
       grupo.safety_predicates.coherent = grupo.safety_predicates.coherent && coherent
+      grupo.safety_predicates.reversible =
+        grupo.safety_predicates.reversible &&
+        texto(ledger, 'promocao_modo') === 'promover_baixo_risco'
       if (fingerprintLegado) grupo.fingerprints_legados.push(fingerprintLegado)
       grupo.fontes.push(texto(ledger, 'fonte') || 'comercial')
       grupo.sensiveis = grupo.sensiveis.concat(analise.sensiveis)
@@ -5148,7 +5213,7 @@
       if (momento && (!grupo.last_seen_at || momento > grupo.last_seen_at))
         grupo.last_seen_at = momento
       if (!escoposPorRecorrencia[recorrenciaChave]) escoposPorRecorrencia[recorrenciaChave] = {}
-      escoposPorRecorrencia[recorrenciaChave][escopoIndependente] = true
+      if (escopoIndependente) escoposPorRecorrencia[recorrenciaChave][escopoIndependente] = true
     }
 
     var listaGrupos = []
@@ -5171,15 +5236,6 @@
       itemGrupo.recorrencia_contagem = Object.keys(
         escoposPorRecorrencia[itemGrupo.recorrencia_chave] || {},
       ).length
-      if (
-        !itemGrupo.automatico &&
-        !itemGrupo.excecao_humana &&
-        !itemGrupo.sensiveis.length &&
-        itemGrupo.recorrencia_contagem < MIN_RECORRENCIAS_COMUNS
-      )
-        continue
-      if (itemGrupo.automatico) automaticCases++
-      else humanExceptions++
       listaGrupos.push(itemGrupo)
     }
     listaGrupos.sort(function (a, b) {
@@ -5275,8 +5331,39 @@
       ) {
         grupo.automatico = false
         grupo.excecao_humana = true
+        grupo.direction_required = true
         grupo.safety_predicates.no_active_rule_conflict = false
       }
+    }
+
+    function classificarGrupoN2(estado, grupo) {
+      aplicarConflitoRegraAtiva(estado, grupo)
+      if (grupo.sensiveis.length) return 'direction_exception'
+      if (!grupo.safety_predicates.traceable) return 'discarded_noise'
+      if (!grupo.equipe_id) return grupo.human_signal ? 'direction_exception' : 'discarded_noise'
+      if (grupo.structured_conflict || grupo.direction_required) return 'direction_exception'
+      if (grupo.recorrencia_contagem < MIN_RECORRENCIAS_COMUNS)
+        return grupo.history_only ? 'operational_history' : 'hypothesis_waiting_evidence'
+      if (
+        grupo.automatico &&
+        grupo.safety_predicates.non_sensitive &&
+        grupo.safety_predicates.coherent &&
+        grupo.safety_predicates.reversible &&
+        grupo.safety_predicates.no_active_rule_conflict
+      )
+        return 'automatic_promotion'
+      if (grupo.human_signal) return 'management_exception'
+      return grupo.history_only ? 'operational_history' : 'hypothesis_waiting_evidence'
+    }
+
+    function exigeEscaladaDirecaoN2(caso, grupo) {
+      return Boolean(
+        caso &&
+        grupo.direction_required &&
+        (texto(caso, 'alcada') !== 'direcao' ||
+          !valor(caso, 'human_review_required') ||
+          !!valor(caso, 'automatic_promotion_allowed')),
+      )
     }
 
     function planejar(app) {
@@ -5286,10 +5373,40 @@
         casos_atualizados: 0,
         evidencias_novas: 0,
         casos_legados_ambiguos: 0,
+        classification_counts: {
+          ledger_records: {
+            discarded_noise: noiseIgnored,
+            operational_history: operationalHistoryRecords,
+          },
+          consolidated_groups: {
+            hypothesis_waiting_evidence: 0,
+            automatic_promotion: 0,
+            management_exception: 0,
+            direction_exception: 0,
+          },
+        },
       }
+      automaticCases = 0
+      humanExceptions = 0
       for (var gi = 0; gi < listaGrupos.length; gi++) {
         var grupo = listaGrupos[gi]
-        aplicarConflitoRegraAtiva(estado, grupo)
+        var destinoN2 = classificarGrupoN2(estado, grupo)
+        grupo.destino_n2 = destinoN2
+        if (destinoN2 === 'discarded_noise') {
+          result.classification_counts.ledger_records.discarded_noise += grupo.evidencias.length
+          continue
+        }
+        if (destinoN2 === 'operational_history') {
+          result.classification_counts.ledger_records.operational_history += grupo.evidencias.length
+          continue
+        }
+        result.classification_counts.consolidated_groups[destinoN2]++
+        if (destinoN2 === 'hypothesis_waiting_evidence') continue
+        grupo.automatico = destinoN2 === 'automatic_promotion'
+        grupo.excecao_humana = !grupo.automatico
+        grupo.direction_required = destinoN2 === 'direction_exception'
+        if (grupo.automatico) automaticCases++
+        else humanExceptions++
         var resolucao = resolverCasoExistente(estado, grupo)
         if (resolucao.ambiguo) {
           result.casos_legados_ambiguos++
@@ -5307,14 +5424,14 @@
             novas.push(grupo.evidencias[gei])
         }
         var recorrenciaMudou = numero(caso, 'recorrencia_contagem') !== grupo.recorrencia_contagem
-        if (novas.length || recorrenciaMudou || deveReabrir(caso, novas)) result.casos_atualizados++
+        if (
+          novas.length ||
+          recorrenciaMudou ||
+          deveReabrir(caso, novas) ||
+          exigeEscaladaDirecaoN2(caso, grupo)
+        )
+          result.casos_atualizados++
         result.evidencias_novas += novas.length
-      }
-      automaticCases = 0
-      humanExceptions = 0
-      for (var rci = 0; rci < listaGrupos.length; rci++) {
-        if (listaGrupos[rci].automatico) automaticCases++
-        else humanExceptions++
       }
       return result
     }
@@ -5339,7 +5456,13 @@
         historical_snapshot: historicalSnapshot,
         automatic_cases: automaticCases,
         human_exceptions: humanExceptions,
-        noise_ignored: noiseIgnored,
+        noise_ignored: preview.classification_counts.ledger_records.discarded_noise,
+        classification_counts: preview.classification_counts,
+        guardrails: {
+          no_mutation: true,
+          no_send: true,
+          no_publication: true,
+        },
         automatic_send_allowed: false,
       })
     }
@@ -5349,12 +5472,22 @@
     var evidenciasCriadas = 0
     var transicoesCriadas = 0
     var casosLegadosAmbiguos = 0
+    var publicacoesEnfileiradas = 0
     try {
       $app.runInTransaction(function (tx) {
         var estado = estadoAtual(tx)
         for (var gi = 0; gi < listaGrupos.length; gi++) {
           var grupo = listaGrupos[gi]
-          aplicarConflitoRegraAtiva(estado, grupo)
+          var destinoN2 = classificarGrupoN2(estado, grupo)
+          if (
+            destinoN2 !== 'automatic_promotion' &&
+            destinoN2 !== 'management_exception' &&
+            destinoN2 !== 'direction_exception'
+          )
+            continue
+          grupo.automatico = destinoN2 === 'automatic_promotion'
+          grupo.excecao_humana = !grupo.automatico
+          grupo.direction_required = destinoN2 === 'direction_exception'
           var resolucao = resolverCasoExistente(estado, grupo)
           if (resolucao.ambiguo) {
             casosLegadosAmbiguos++
@@ -5370,7 +5503,7 @@
               'status',
               grupo.automatico
                 ? 'aprovado'
-                : grupo.sensiveis.length
+                : grupo.direction_required
                   ? 'aguardando_direcao'
                   : 'aberto_curadoria',
             )
@@ -5413,8 +5546,8 @@
                 return ev.hash
               }),
             )
-            caso.set('risco_classe', grupo.sensiveis.length ? 'alto' : 'baixo')
-            caso.set('alcada', grupo.sensiveis.length ? 'direcao' : 'gestao_comercial')
+            caso.set('risco_classe', grupo.direction_required ? 'alto' : 'baixo')
+            caso.set('alcada', grupo.direction_required ? 'direcao' : 'gestao_comercial')
             caso.set('sensivel_motivos', grupo.sensiveis)
             caso.set(
               'confianca',
@@ -5450,7 +5583,11 @@
           var recorrenciaMudou = numero(caso, 'recorrencia_contagem') !== grupo.recorrencia_contagem
           var gatilho = !novoCaso ? gatilhoReabertura(caso, novasEvidencias) : ''
           var reabrirCaso = !!gatilho
-          if (!novoCaso && (novasEvidencias.length || recorrenciaMudou || reabrirCaso)) {
+          var escaladaDirecao = !novoCaso && exigeEscaladaDirecaoN2(caso, grupo)
+          if (
+            !novoCaso &&
+            (novasEvidencias.length || recorrenciaMudou || reabrirCaso || escaladaDirecao)
+          ) {
             var hashes = arrayUnico(
               lerArray(caso, 'evidencia_hashes').concat(
                 novasEvidencias.map(function (ev) {
@@ -5469,6 +5606,12 @@
             if (grupo.responsavel_id) caso.set('responsavel_id', grupo.responsavel_id)
             if (grupo.equipe_id) caso.set('equipe_id', grupo.equipe_id)
             if (grupo.negocio_id) caso.set('negocio_id', grupo.negocio_id)
+            if (grupo.direction_required) {
+              caso.set('alcada', 'direcao')
+              caso.set('risco_classe', 'alto')
+              caso.set('human_review_required', true)
+              caso.set('automatic_promotion_allowed', false)
+            }
             caso.set('resumo_factual', arrayUnico(grupo.resumos).slice(0, 3).join(' | '))
             caso.set(
               'confianca',
@@ -5486,23 +5629,27 @@
               statusAnterior === 'aguardando_gestao' ||
               statusAnterior === 'aguardando_direcao'
             var novaRevisao = revisaoAtual
-            if (reabrirCaso || casoEmRevisao) {
+            if (reabrirCaso || casoEmRevisao || escaladaDirecao) {
               novaRevisao = revisaoAtual + 1
               caso.set('revisao', novaRevisao)
             }
-            if (reabrirCaso) {
-              var statusReaberto = grupo.sensiveis.length
+            if (reabrirCaso || escaladaDirecao) {
+              var statusReaberto = grupo.direction_required
                 ? 'aguardando_direcao'
                 : 'aberto_curadoria'
               caso.set('status', statusReaberto)
               caso.set('next_review_at', null)
-              if (texto(caso, 'conhecimento_status') === 'ativo')
+              var conhecimentoStatusAnterior = texto(caso, 'conhecimento_status')
+              if (
+                conhecimentoStatusAnterior === 'ativo' ||
+                conhecimentoStatusAnterior === 'pendente_publicacao'
+              )
                 caso.set('conhecimento_status', 'revisao_necessaria')
               reabertura = {
                 status_anterior: statusAnterior,
                 status_novo: statusReaberto,
                 revisao: novaRevisao,
-                gatilho: gatilho,
+                gatilho: gatilho || 'escalada_direcao_n2',
               }
               try {
                 var operacoesAntigas = carregar(tx, 'com_nexo_curadoria_outbox')
@@ -5615,6 +5762,7 @@
                 outboxAuto.set('caso_revisao', 1)
                 outboxAuto.set('requested_at', new Date())
                 tx.save(outboxAuto)
+                publicacoesEnfileiradas++
               }
             }
           } else if (reabertura) {
@@ -5642,7 +5790,9 @@
                 'motivo',
                 reabertura.gatilho === 'revisao_vencida'
                   ? 'Caso reaberto por revisão programada vencida.'
-                  : 'Caso reaberto por materialidade estruturada em nova evidência.',
+                  : reabertura.gatilho === 'escalada_direcao_n2'
+                    ? 'Caso escalado para alçada executiva pela matriz governada N2.'
+                    : 'Caso reaberto por materialidade estruturada em nova evidência.',
               )
               transicaoReabertura.set('metadados', {
                 automatico: true,
@@ -5675,9 +5825,15 @@
       historical_untouched: historicalUntouched,
       automatic_cases: automaticCases,
       human_exceptions: humanExceptions,
-      noise_ignored: noiseIgnored,
+      noise_ignored: preview.classification_counts.ledger_records.discarded_noise,
+      classification_counts: preview.classification_counts,
+      guardrails: {
+        no_send: true,
+        no_publication: true,
+      },
       automatic_send_allowed: false,
-      promocao_automatica_realizada: automaticCases > 0,
+      publicacao_enfileirada: publicacoesEnfileiradas > 0,
+      promocao_automatica_realizada: false,
     })
   })
 
@@ -6144,6 +6300,7 @@
         visoes.aguardando_decisao.push(item)
       if (
         status === 'aprovado' &&
+        nexoCuradoriaCasosTexto(caso, 'conhecimento_status') === 'ativo' &&
         (acesso.visao_executiva || alcada === 'gestao_comercial') &&
         visoes.conhecimento_aprovado.length < limite
       )

@@ -172,6 +172,18 @@ const ledger = [
     occurred_at: '2026-10-01 14:00:00.000Z',
     status: 'novo',
   }),
+  new MockRecord('com_ledger_comercial', 'ledger-sensitive-without-external-ref', {
+    fonte: 'nexo_app',
+    canal: 'Ajuda do Nexo',
+    tipo_evento: 'mensagem',
+    fato: 'Relato de possível vazamento de dados pessoais exige avaliação executiva.',
+    evidencia_ref: '',
+    destino_sugerido: 'curadoria',
+    risco: 'alto',
+    confianca: 'baixa',
+    occurred_at: '2026-10-01 14:30:00.000Z',
+    status: 'novo',
+  }),
   ...['A', 'B', 'C'].map(
     (suffix, index) =>
       new MockRecord('com_ledger_comercial', `ledger-no-team-${suffix}`, {
@@ -300,8 +312,25 @@ function invoke(body, auth = actor) {
 const dryRun = invoke({ dry_run: true })
 assert.equal(dryRun.status, 200)
 assert.equal(dryRun.payload.dry_run, true)
-assert.equal(dryRun.payload.casos_novos, 2, 'matéria sensível entra imediatamente')
-assert.equal(dryRun.payload.evidencias_novas, 2)
+assert.equal(dryRun.payload.casos_novos, 3, 'matéria sensível entra imediatamente')
+assert.equal(dryRun.payload.evidencias_novas, 3)
+assert.deepEqual(dryRun.payload.classification_counts, {
+  ledger_records: {
+    discarded_noise: 0,
+    operational_history: 0,
+  },
+  consolidated_groups: {
+    hypothesis_waiting_evidence: 1,
+    automatic_promotion: 0,
+    management_exception: 0,
+    direction_exception: 3,
+  },
+})
+assert.deepEqual(dryRun.payload.guardrails, {
+  no_mutation: true,
+  no_send: true,
+  no_publication: true,
+})
 assert.deepEqual(
   dryRun.payload.historical_snapshot,
   {
@@ -341,11 +370,11 @@ const applied = invoke({
   confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
 })
 assert.equal(applied.status, 200)
-assert.equal(applied.payload.casos_criados, 2)
-assert.equal(applied.payload.evidencias_criadas, 2)
-assert.equal(applied.payload.transicoes_criadas, 2)
-assert.equal(collections.com_nexo_curadoria_casos.length, 2)
-assert.equal(collections.com_nexo_curadoria_evidencias.length, 2)
+assert.equal(applied.payload.casos_criados, 3)
+assert.equal(applied.payload.evidencias_criadas, 3)
+assert.equal(applied.payload.transicoes_criadas, 3)
+assert.equal(collections.com_nexo_curadoria_casos.length, 3)
+assert.equal(collections.com_nexo_curadoria_evidencias.length, 3)
 assert.equal(
   collections.com_nexo_curadoria_casos.filter(
     (item) => item.getString('assunto_chave') === 'preferencia_comunicacao',
@@ -663,5 +692,373 @@ assert.equal(secondApply.payload.evidencias_criadas, 0)
 assert.equal(secondApply.payload.transicoes_criadas, 0)
 assert.equal(secondApply.payload.automatic_send_allowed, false)
 assert.equal('caso_ids' in secondApply.payload, false)
+
+const n2AdditionalRows = []
+for (let index = 1; index <= 3; index++) {
+  n2AdditionalRows.push(
+    new MockRecord('com_ledger_comercial', `n2-no-team-${index}`, {
+      fonte: 'nexo_app',
+      canal: 'Ajuda do Nexo',
+      empresa_nome: `Empresa sem equipe ${index}`,
+      negocio_ref: `OE-N2-SEM-EQUIPE-${index}`,
+      tipo_evento: 'alinhamento_organizacional_n2',
+      fato: 'Alinhamento operacional recorrente requer definição da equipe responsável.',
+      evidencia_ref: `event-n2-no-team-${index}`,
+      destino_sugerido: 'curadoria',
+      risco: 'baixo',
+      confianca: 'alta',
+      occurred_at: `2026-10-03 1${index}:00:00.000Z`,
+      created: `2026-10-03 1${index}:00:00.000Z`,
+      status: 'novo',
+    }),
+    new MockRecord('com_ledger_comercial', `n2-management-${index}`, {
+      fonte: 'nexo_app',
+      canal: 'Ajuda do Nexo',
+      empresa_nome: `Empresa gestão ${index}`,
+      negocio_ref: `OE-N2-GESTAO-${index}`,
+      equipe_id: 'equipe-n2',
+      tipo_evento: 'roteiro_comercial_n2',
+      fato: 'Roteiro comercial recorrente precisa de alinhamento da gestão.',
+      evidencia_ref: `event-n2-management-${index}`,
+      destino_sugerido: 'curadoria',
+      risco: 'baixo',
+      confianca: 'alta',
+      occurred_at: `2026-10-03 2${index}:00:00.000Z`,
+      created: `2026-10-03 2${index}:00:00.000Z`,
+      status: 'novo',
+    }),
+    new MockRecord('com_ledger_comercial', `n2-no-team-automatic-${index}`, {
+      fonte: 'nexo_app',
+      canal: 'Ajuda do Nexo',
+      empresa_nome: `Empresa automática sem equipe ${index}`,
+      negocio_ref: `OE-N2-AUTO-SEM-EQUIPE-${index}`,
+      tipo_evento: 'rotina_sem_equipe_n2',
+      fato: 'Rotina recorrente é coerente, mas ainda não possui equipe responsável.',
+      evidencia_ref: `event-n2-no-team-automatic-${index}`,
+      destino_sugerido: 'historico',
+      risco: 'baixo',
+      confianca: 'alta',
+      promocao_modo: 'promover_baixo_risco',
+      occurred_at: `2026-10-04 1${index}:00:00.000Z`,
+      created: `2026-10-04 1${index}:00:00.000Z`,
+      status: 'novo',
+    }),
+    new MockRecord('com_ledger_comercial', `n2-team-automatic-${index}`, {
+      fonte: 'nexo_app',
+      canal: 'Ajuda do Nexo',
+      empresa_nome: `Empresa automática com equipe ${index}`,
+      negocio_ref: `OE-N2-AUTO-EQUIPE-${index}`,
+      equipe_id: 'equipe-automatica-n2',
+      tipo_evento: 'rotina_automatica_n2',
+      fato: 'Rotina recorrente, coerente e reversível com equipe responsável.',
+      evidencia_ref: `event-n2-team-automatic-${index}`,
+      destino_sugerido: 'historico',
+      risco: 'baixo',
+      confianca: 'alta',
+      promocao_modo: 'promover_baixo_risco',
+      occurred_at: `2026-10-04 2${index}:00:00.000Z`,
+      created: `2026-10-04 2${index}:00:00.000Z`,
+      status: 'novo',
+    }),
+  )
+}
+n2AdditionalRows.push(
+  new MockRecord('com_ledger_comercial', 'n2-operational-history', {
+    fonte: 'nexo_app',
+    canal: 'Ajuda do Nexo',
+    empresa_nome: 'Empresa histórico operacional',
+    negocio_ref: 'OE-N2-HISTORICO',
+    equipe_id: 'equipe-n2',
+    tipo_evento: 'historico_operacional_n2',
+    fato: 'Registro factual concluído sem proposta de orientação operacional.',
+    evidencia_ref: 'event-n2-operational-history',
+    destino_sugerido: 'historico',
+    risco: 'baixo',
+    confianca: 'alta',
+    promocao_modo: '',
+    occurred_at: '2026-10-03 23:00:00.000Z',
+    created: '2026-10-03 23:00:00.000Z',
+    status: 'novo',
+  }),
+)
+ledger.push(...n2AdditionalRows)
+
+const n2MatrixPreview = invoke({ dry_run: true })
+assert.equal(n2MatrixPreview.status, 200)
+assert.equal(n2MatrixPreview.payload.casos_novos, 4)
+assert.equal(n2MatrixPreview.payload.evidencias_novas, 12)
+assert.equal(n2MatrixPreview.payload.classification_counts.ledger_records.operational_history, 1)
+assert(n2MatrixPreview.payload.classification_counts.consolidated_groups.management_exception >= 1)
+assert(n2MatrixPreview.payload.classification_counts.consolidated_groups.direction_exception >= 5)
+
+const n2MatrixApply = invoke({
+  dry_run: false,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(n2MatrixApply.status, 200)
+assert.equal(n2MatrixApply.payload.casos_criados, 4)
+assert.equal(n2MatrixApply.payload.evidencias_criadas, 12)
+const organizationCase = collections.com_nexo_curadoria_casos.find(
+  (item) => item.getString('assunto_chave') === 'alinhamento_organizacional_n2',
+)
+assert(organizationCase, 'ausência de equipe deve consolidar um caso organizacional')
+assert.equal(organizationCase.getString('escopo_tipo'), 'organizacao')
+assert.equal(organizationCase.getString('escopo_ref'), 'organizacao')
+assert.equal(organizationCase.getString('equipe_id'), '')
+assert.equal(organizationCase.getString('alcada'), 'direcao')
+assert.equal(organizationCase.getString('status'), 'aguardando_direcao')
+const automaticWithoutTeamCase = collections.com_nexo_curadoria_casos.find(
+  (item) => item.getString('assunto_chave') === 'rotina_sem_equipe_n2',
+)
+assert(
+  automaticWithoutTeamCase,
+  'candidato automático sem equipe deve falhar fechado para a direção',
+)
+assert.equal(automaticWithoutTeamCase.getString('escopo_tipo'), 'organizacao')
+assert.equal(automaticWithoutTeamCase.getString('alcada'), 'direcao')
+assert.equal(automaticWithoutTeamCase.getBool('automatic_promotion_allowed'), false)
+const automaticTeamCase = collections.com_nexo_curadoria_casos.find(
+  (item) => item.getString('assunto_chave') === 'rotina_automatica_n2',
+)
+assert(automaticTeamCase, 'candidato automático governado deve materializar caso aprovado')
+assert.equal(automaticTeamCase.getString('status'), 'aprovado')
+assert.equal(automaticTeamCase.getString('conhecimento_status'), 'pendente_publicacao')
+collections.com_nexo_curadoria_casos.push(
+  new MockRecord('com_nexo_curadoria_casos', 'active-automatic-conflict', {
+    fingerprint: 'active-automatic-conflict-fingerprint',
+    recorrencia_chave: automaticTeamCase.getString('recorrencia_chave'),
+    status: 'aprovado',
+    conhecimento_status: 'ativo',
+    created: '2026-09-29 09:00:00.000Z',
+  }),
+)
+const directionEscalationPreview = invoke({ dry_run: true })
+assert.equal(directionEscalationPreview.status, 200)
+assert.equal(
+  directionEscalationPreview.payload.casos_atualizados,
+  1,
+  'dry-run must project direction escalation even without new evidence',
+)
+const directionEscalationApply = invoke({
+  dry_run: false,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(directionEscalationApply.status, 200)
+assert.equal(directionEscalationApply.payload.casos_atualizados, 1)
+assert.equal(directionEscalationApply.payload.evidencias_criadas, 0)
+assert.equal(automaticTeamCase.getString('status'), 'aguardando_direcao')
+assert.equal(automaticTeamCase.getString('alcada'), 'direcao')
+const directionEscalationTransition = collections.com_nexo_curadoria_transicoes.find(
+  (item) =>
+    item.getString('caso_id') === automaticTeamCase.id &&
+    item.get('metadados').gatilho === 'escalada_direcao_n2',
+)
+assert(directionEscalationTransition, 'direction escalation must create an audited transition')
+assert.match(directionEscalationTransition.getString('motivo'), /alçada executiva/i)
+const managementCase = collections.com_nexo_curadoria_casos.find(
+  (item) => item.getString('assunto_chave') === 'roteiro_comercial_n2',
+)
+assert(managementCase, 'recorrência comum com sinal humano deve consolidar uma exceção')
+assert.equal(managementCase.getString('alcada'), 'gestao_comercial')
+assert.equal(managementCase.getString('status'), 'aberto_curadoria')
+managementCase.set('status', 'aprovado')
+managementCase.set('conhecimento_status', 'ativo')
+managementCase.set('validado_por', 'manager-n2')
+managementCase.set('approved_at', '2026-10-04 20:00:00.000Z')
+const managementRevisionBeforeConflict = managementCase.getInt('revisao')
+ledger.push(
+  new MockRecord('com_ledger_comercial', 'n2-management-structured-conflict', {
+    fonte: 'reuniao',
+    canal: 'Reunião comercial',
+    empresa_nome: 'Empresa gestão conflito',
+    negocio_ref: 'OE-N2-GESTAO-CONFLITO',
+    equipe_id: 'equipe-n2',
+    tipo_evento: 'roteiro_comercial_n2',
+    fato: 'A orientação recorrente entrou em contradição material com regra autorizada.',
+    revisao_status: 'contradicao_material',
+    evidencia_ref: 'event-n2-management-structured-conflict',
+    destino_sugerido: 'curadoria',
+    risco: 'baixo',
+    confianca: 'alta',
+    occurred_at: '2026-10-05 12:00:00.000Z',
+    created: '2026-10-05 12:00:00.000Z',
+    status: 'novo',
+  }),
+)
+const escalatedManagementCase = invoke({
+  dry_run: false,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(escalatedManagementCase.status, 200)
+assert.equal(escalatedManagementCase.payload.casos_criados, 0)
+assert.equal(escalatedManagementCase.payload.casos_atualizados, 1)
+assert.equal(managementCase.getString('status'), 'aguardando_direcao')
+assert.equal(managementCase.getString('alcada'), 'direcao')
+assert.equal(managementCase.getString('risco_classe'), 'alto')
+assert.equal(managementCase.getBool('human_review_required'), true)
+assert.equal(managementCase.getBool('automatic_promotion_allowed'), false)
+assert.equal(managementCase.getInt('revisao'), managementRevisionBeforeConflict + 1)
+assert.equal(managementCase.getString('conhecimento_status'), 'revisao_necessaria')
+assert.equal(
+  collections.com_nexo_curadoria_casos.some(
+    (item) => item.getString('assunto_chave') === 'historico_operacional_n2',
+  ),
+  false,
+  'histórico operacional não deve materializar caso',
+)
+
+for (let index = 1; index <= 3; index++) {
+  ledger.push(
+    new MockRecord('com_ledger_comercial', `n2-ambiguous-business-${index}`, {
+      fonte: 'nexo_app',
+      canal: 'Ajuda do Nexo',
+      empresa_nome: 'Empresa com referência divergente',
+      negocio_id: 'same-business-id',
+      negocio_ref: `OE-ALIAS-${index}`,
+      equipe_id: 'equipe-ambigua',
+      tipo_evento: 'padrao_alias_n2',
+      fato: 'Mesmo negócio apareceu com referências comerciais divergentes.',
+      evidencia_ref: `event-n2-ambiguous-${index}`,
+      destino_sugerido: 'historico',
+      risco: 'baixo',
+      confianca: 'alta',
+      promocao_modo: 'promover_baixo_risco',
+      occurred_at: `2026-10-06 1${index}:00:00.000Z`,
+      created: `2026-10-06 1${index}:00:00.000Z`,
+      status: 'novo',
+    }),
+  )
+}
+const ambiguousBusinessPreview = invoke({ dry_run: true })
+assert.equal(ambiguousBusinessPreview.status, 200)
+assert.equal(ambiguousBusinessPreview.payload.casos_novos, 0)
+const ambiguousBusinessApply = invoke({
+  dry_run: false,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(ambiguousBusinessApply.status, 200)
+assert.equal(ambiguousBusinessApply.payload.casos_criados, 0)
+assert.equal(
+  collections.com_nexo_curadoria_casos.some(
+    (item) => item.getString('assunto_chave') === 'padrao_alias_n2',
+  ),
+  false,
+  'aliases divergentes do mesmo negócio não comprovam recorrência independente',
+)
+
+for (let index = 1; index <= 3; index++) {
+  ledger.push(
+    new MockRecord('com_ledger_comercial', `n2-shared-alias-${index}`, {
+      fonte: 'nexo_app',
+      canal: 'Ajuda do Nexo',
+      empresa_nome: `Empresa com ID canônico ${index}`,
+      negocio_id: `canonical-business-${index}`,
+      negocio_ref: 'OE-SHARED-ALIAS',
+      equipe_id: 'equipe-alias-compartilhado',
+      tipo_evento: 'padrao_alias_compartilhado_n2',
+      fato: 'Negócios distintos compartilham uma referência legada não canônica.',
+      evidencia_ref: `event-n2-shared-alias-${index}`,
+      destino_sugerido: 'historico',
+      risco: 'baixo',
+      confianca: 'alta',
+      promocao_modo: 'promover_baixo_risco',
+      occurred_at: `2026-10-06 2${index}:00:00.000Z`,
+      created: `2026-10-06 2${index}:00:00.000Z`,
+      status: 'novo',
+    }),
+  )
+}
+ledger.push(
+  new MockRecord('com_ledger_comercial', 'n2-shared-alias-without-canonical-id', {
+    fonte: 'nexo_app',
+    canal: 'Ajuda do Nexo',
+    empresa_nome: 'Empresa sem ID em alias ambíguo',
+    negocio_ref: 'OE-SHARED-ALIAS',
+    equipe_id: 'equipe-alias-compartilhado',
+    tipo_evento: 'padrao_alias_compartilhado_n2',
+    fato: 'Referência ambígua sem ID canônico não comprova um novo escopo independente.',
+    evidencia_ref: 'event-n2-shared-alias-without-id',
+    destino_sugerido: 'historico',
+    risco: 'baixo',
+    confianca: 'alta',
+    promocao_modo: 'promover_baixo_risco',
+    occurred_at: '2026-10-06 23:30:00.000Z',
+    created: '2026-10-06 23:30:00.000Z',
+    status: 'novo',
+  }),
+)
+const sharedAliasPreview = invoke({ dry_run: true })
+assert.equal(sharedAliasPreview.status, 200)
+assert.equal(sharedAliasPreview.payload.casos_novos, 1)
+assert.equal(sharedAliasPreview.payload.evidencias_novas, 3)
+const sharedAliasApply = invoke({
+  dry_run: false,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(sharedAliasApply.status, 200)
+assert.equal(sharedAliasApply.payload.casos_criados, 1)
+const sharedAliasCase = collections.com_nexo_curadoria_casos.find(
+  (item) => item.getString('assunto_chave') === 'padrao_alias_compartilhado_n2',
+)
+assert(sharedAliasCase, 'IDs canônicos distintos devem contar como escopos independentes')
+assert.equal(sharedAliasCase.getString('status'), 'aprovado')
+assert.equal(sharedAliasCase.getInt('recorrencia_contagem'), 3)
+
+const protectedContentSamples = [
+  `Contato: pessoa${'@'}example.test`,
+  'Telefone: (81) 99999-0000',
+  'CPF: 123.456.789-00',
+  `Credencial: access_${'token'}=sample-value`,
+  `Credencial: api_${'key'}=sample-value`,
+  `Token: gh${'p_'}${'a'.repeat(24)}`,
+  `Token: github_${'pat_'}${'h'.repeat(24)}`,
+  `Token: sk-${'proj-'}${'b'.repeat(24)}`,
+  `Chave: AKIA${'C'.repeat(16)}`,
+  `${'AWS_'}${'SECRET_ACCESS_KEY'}=${'i'.repeat(40)}`,
+  `${'AWS_'}${'SESSION_TOKEN'}=${'j'.repeat(40)}`,
+  `${'Author'}${'ization'}: ${'Bear'}${'er'} ${'d'.repeat(24)}`,
+  `JWT: eyJ${'e'.repeat(12)}.${'f'.repeat(12)}.${'g'.repeat(12)}`,
+  `-----BEGIN ${'private key'}-----`,
+]
+for (let index = 0; index < protectedContentSamples.length; index++) {
+  ledger.push(
+    new MockRecord('com_ledger_comercial', `n2-protected-content-${index}`, {
+      fonte: 'nexo_app',
+      canal: 'Ajuda do Nexo',
+      empresa_nome: `Empresa conteúdo protegido ${index}`,
+      negocio_ref: `OE-N2-PROTECTED-${index}`,
+      equipe_id: 'equipe-protegida',
+      tipo_evento: 'conteudo_protegido_n2',
+      fato: protectedContentSamples[index],
+      evidencia_ref: `event-n2-protected-${index}`,
+      destino_sugerido: 'historico',
+      risco: 'baixo',
+      confianca: 'alta',
+      promocao_modo: 'promover_baixo_risco',
+      occurred_at: `2026-10-07 1${index}:00:00.000Z`,
+      created: `2026-10-07 1${index}:00:00.000Z`,
+      status: 'novo',
+    }),
+  )
+}
+const protectedContentPreview = invoke({ dry_run: true })
+assert.equal(protectedContentPreview.status, 200)
+assert.equal(protectedContentPreview.payload.casos_novos, protectedContentSamples.length)
+assert(
+  protectedContentPreview.payload.classification_counts.consolidated_groups.direction_exception >=
+    protectedContentSamples.length,
+)
+const protectedContentApply = invoke({
+  dry_run: false,
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(protectedContentApply.status, 200)
+assert.equal(protectedContentApply.payload.casos_criados, protectedContentSamples.length)
+const protectedContentCases = collections.com_nexo_curadoria_casos.filter(
+  (item) => item.getString('assunto_chave') === 'conteudo_protegido_n2',
+)
+assert.equal(protectedContentCases.length, protectedContentSamples.length)
+assert(protectedContentCases.every((item) => item.getString('alcada') === 'direcao'))
+assert(protectedContentCases.every((item) => !item.getBool('automatic_promotion_allowed')))
 
 console.log('nexo-curadoria-casos-consolidar runtime: PASS')
