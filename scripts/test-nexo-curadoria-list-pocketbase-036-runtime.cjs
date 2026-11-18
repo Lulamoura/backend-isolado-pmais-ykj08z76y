@@ -304,6 +304,7 @@ async function main() {
     assert.deepStrictEqual(listed.body.contadores, {
       para_tratar: 1,
       aguardando_decisao: 0,
+      publicacao_pendente: 0,
       conhecimento_aprovado: 0,
       historico: 0,
     })

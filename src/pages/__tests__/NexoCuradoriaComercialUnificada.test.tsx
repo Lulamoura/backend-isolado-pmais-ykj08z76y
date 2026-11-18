@@ -62,6 +62,16 @@ const resposta = {
         regra_candidata: 'Submeter condições excepcionais à direção antes de responder ao cliente.',
       },
     ],
+    publicacao_pendente: [
+      {
+        ...casoBase,
+        id: 'technical-pending-publication-id',
+        status: 'aprovado',
+        titulo: 'Orientação aprovada aguardando publicação',
+        regra_candidata: 'Registrar o responsável pelo próximo passo comercial.',
+        conhecimento_status: 'pendente_publicacao',
+      },
+    ],
     conhecimento_aprovado: [
       {
         ...casoBase,
@@ -84,6 +94,7 @@ const resposta = {
   contadores: {
     para_tratar: 1,
     aguardando_decisao: 1,
+    publicacao_pendente: 1,
     conhecimento_aprovado: 1,
     historico: 1,
   },
@@ -105,7 +116,7 @@ describe('Curadoria Comercial Unificada', () => {
     })
   })
 
-  it('mostra as quatro visões e referências humanas sem expor identificadores técnicos', async () => {
+  it('mostra as cinco visões, alçadas e referências humanas sem expor identificadores técnicos', async () => {
     const user = userEvent.setup()
     render(<NexoCuradoriaComercialUnificada />)
 
@@ -124,12 +135,19 @@ describe('Curadoria Comercial Unificada', () => {
     expect(screen.getByText('Cliente Horizonte')).toBeInTheDocument()
     expect(screen.getByText(/OE-501/)).toBeInTheDocument()
     expect(screen.getByText('WhatsApp')).toBeInTheDocument()
+    expect(screen.getByText('Alçada: gestão comercial')).toBeInTheDocument()
     expect(screen.queryByText('technical-case-id-should-not-be-visible')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: /Aguardando decisão/ }))
     expect(screen.getByText('Condição comercial para validação')).toBeInTheDocument()
+    expect(screen.getByText('Alçada: direção')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: /Conhecimento aprovado/ }))
+    await user.click(screen.getByRole('tab', { name: /Publicação pendente/ }))
+    expect(screen.getByText('Orientação aprovada aguardando publicação')).toBeInTheDocument()
+    expect(screen.getByText('Aprovada; ainda não está em uso pelo Nexo')).toBeInTheDocument()
+    expect(screen.queryByText('Aprovado para uso operacional')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: /Conhecimento vigente/ }))
     expect(screen.getByText('Registrar o próximo passo após cada reunião.')).toBeInTheDocument()
     expect(screen.getByText('Orientação vigente')).toBeInTheDocument()
 
@@ -194,7 +212,7 @@ describe('Curadoria Comercial Unificada', () => {
     expect(screen.queryByRole('button', { name: 'Ajustar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Rejeitar' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: /Conhecimento aprovado/ }))
+    await user.click(screen.getByRole('tab', { name: /Conhecimento vigente/ }))
     expect(screen.queryByRole('button', { name: 'Retirar orientação' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: /Histórico/ }))
     expect(screen.queryByRole('button', { name: 'Reabrir análise' })).not.toBeInTheDocument()

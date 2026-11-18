@@ -6268,6 +6268,7 @@
     var visoes = {
       para_tratar: [],
       aguardando_decisao: [],
+      publicacao_pendente: [],
       conhecimento_aprovado: [],
       historico: [],
     }
@@ -6277,6 +6278,7 @@
       var status = nexoCuradoriaCasosTexto(caso, 'status')
       var alcada = nexoCuradoriaCasoAlcada(caso)
       var item = nexoCuradoriaCasoResposta(caso)
+      item.alcada = alcada
       if (
         ((acesso.visao_executiva && alcada === 'direcao') ||
           (!acesso.visao_executiva && alcada === 'gestao_comercial')) &&
@@ -6300,6 +6302,13 @@
         visoes.aguardando_decisao.push(item)
       if (
         status === 'aprovado' &&
+        nexoCuradoriaCasosTexto(caso, 'conhecimento_status') === 'pendente_publicacao' &&
+        (acesso.visao_executiva || alcada === 'gestao_comercial') &&
+        visoes.publicacao_pendente.length < limite
+      )
+        visoes.publicacao_pendente.push(item)
+      if (
+        status === 'aprovado' &&
         nexoCuradoriaCasosTexto(caso, 'conhecimento_status') === 'ativo' &&
         (acesso.visao_executiva || alcada === 'gestao_comercial') &&
         visoes.conhecimento_aprovado.length < limite
@@ -6319,6 +6328,7 @@
       contadores: {
         para_tratar: visoes.para_tratar.length,
         aguardando_decisao: visoes.aguardando_decisao.length,
+        publicacao_pendente: visoes.publicacao_pendente.length,
         conhecimento_aprovado: visoes.conhecimento_aprovado.length,
         historico: visoes.historico.length,
       },

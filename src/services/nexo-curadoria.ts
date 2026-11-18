@@ -142,6 +142,7 @@ export interface CasoCuradoriaComercial {
 export interface CuradoriaComercialVisoes {
   para_tratar: CasoCuradoriaComercial[]
   aguardando_decisao: CasoCuradoriaComercial[]
+  publicacao_pendente: CasoCuradoriaComercial[]
   conhecimento_aprovado: CasoCuradoriaComercial[]
   historico: CasoCuradoriaComercial[]
 }

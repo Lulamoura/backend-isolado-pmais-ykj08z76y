@@ -31,7 +31,8 @@ const perguntasEntrevista = [
 const visoes = [
   { chave: 'para_tratar', rotulo: 'Para tratar' },
   { chave: 'aguardando_decisao', rotulo: 'Aguardando decisão' },
-  { chave: 'conhecimento_aprovado', rotulo: 'Conhecimento aprovado' },
+  { chave: 'publicacao_pendente', rotulo: 'Publicação pendente' },
+  { chave: 'conhecimento_aprovado', rotulo: 'Conhecimento vigente' },
   { chave: 'historico', rotulo: 'Histórico' },
 ] as const
 
@@ -42,12 +43,14 @@ const vazio: CuradoriaComercialResponse = {
   visoes: {
     para_tratar: [],
     aguardando_decisao: [],
+    publicacao_pendente: [],
     conhecimento_aprovado: [],
     historico: [],
   },
   contadores: {
     para_tratar: 0,
     aguardando_decisao: 0,
+    publicacao_pendente: 0,
     conhecimento_aprovado: 0,
     historico: 0,
   },
@@ -147,11 +150,16 @@ function CasoCard({
                 {rotuloFonte(fonte)}
               </Badge>
             ))}
-            {caso.alcada === 'direcao' && (
-              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
-                Decisão da direção
-              </Badge>
-            )}
+            <Badge
+              variant="outline"
+              className={
+                caso.alcada === 'direcao'
+                  ? 'border-amber-200 bg-amber-50 text-amber-800'
+                  : 'border-sky-200 bg-sky-50 text-sky-800'
+              }
+            >
+              {caso.alcada === 'direcao' ? 'Alçada: direção' : 'Alçada: gestão comercial'}
+            </Badge>
           </div>
           <h3 className="mt-3 text-base font-bold text-slate-900">{caso.titulo}</h3>
           {referencias.length > 0 && (
@@ -166,9 +174,11 @@ function CasoCard({
           )}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-800">
-            {statusRotulos[caso.status] || 'Em análise'}
-          </Badge>
+          {visao !== 'publicacao_pendente' && (
+            <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-800">
+              {statusRotulos[caso.status] || 'Em análise'}
+            </Badge>
+          )}
           {conhecimentoStatusRotulos[caso.conhecimento_status] && (
             <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800">
               {conhecimentoStatusRotulos[caso.conhecimento_status]}
@@ -207,6 +217,12 @@ function CasoCard({
             {caso.regra_candidata}
           </p>
         </div>
+      )}
+
+      {visao === 'publicacao_pendente' && (
+        <p className="mt-3 text-xs font-semibold text-amber-800">
+          Aprovada; ainda não está em uso pelo Nexo
+        </p>
       )}
 
       {!somenteLeitura && (

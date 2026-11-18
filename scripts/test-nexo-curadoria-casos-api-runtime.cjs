@@ -231,7 +231,7 @@ const cases = [
     evidencia_contagem: 2,
     recorrencia_contagem: 2,
     risco_classe: 'alto',
-    alcada: 'direcao',
+    alcada: 'gestao_comercial',
     sensivel_motivos: ['politica_comercial'],
     confianca: 'media',
     human_review_required: true,
@@ -709,6 +709,11 @@ assert.equal(executiveList.status, 200)
 assert.equal(executiveList.payload.visoes.aguardando_decisao.length, 1)
 assert.equal(executiveList.payload.visoes.para_tratar.length, 1)
 assert.equal(executiveList.payload.visoes.para_tratar[0].id, 'case-sensitive-open')
+assert.equal(
+  executiveList.payload.visoes.para_tratar[0].alcada,
+  'direcao',
+  'listed authority must match the derived authority used for access and queue classification',
+)
 assert.equal(executiveList.payload.visoes.conhecimento_aprovado.length, 1)
 assert.equal(executiveList.payload.visoes.historico.length, 1)
 

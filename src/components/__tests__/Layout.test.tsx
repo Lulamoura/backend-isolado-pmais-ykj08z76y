@@ -16,6 +16,7 @@ describe('contarPendenciasCuradoriaUnificada', () => {
       contarPendenciasCuradoriaUnificada({
         para_tratar: 2,
         aguardando_decisao: 1,
+        publicacao_pendente: 11,
         conhecimento_aprovado: 7,
         historico: 9,
       }),

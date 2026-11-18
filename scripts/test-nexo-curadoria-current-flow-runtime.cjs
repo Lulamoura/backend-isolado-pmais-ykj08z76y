@@ -374,6 +374,13 @@ assert.equal(
   false,
   'pending publication must not be exposed as active approved knowledge',
 )
+assert.equal(
+  pendingPublicationView.payload.visoes.publicacao_pendente.some(
+    (item) => item.id === automaticCase.id && item.conhecimento_status === 'pendente_publicacao',
+  ),
+  true,
+  'pending publication must remain visible in its own traceability view',
+)
 
 const automaticTransition = collections.com_nexo_curadoria_transicoes.find(
   (item) => item.getString('caso_id') === automaticCase.id,
