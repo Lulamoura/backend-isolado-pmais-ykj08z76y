@@ -4556,6 +4556,16 @@
     var FLOW_POLICY_VERSION = 'pmais_nexo_auto_promotion_policy_v1'
     var AUTOMATIC_SCHEMA_VERSION = 'pmais_nexo_curadoria_conhecimento_automatico_v1'
     var AUTOMATIC_AGENT_ID = 'nexo-curadoria-automatico'
+    var N4_HOMOLOGATION_MODE = 'homologacao_isolada_n4'
+    var N4_HOMOLOGATION_CONFIRMATION = 'APLICAR_HOMOLOGACAO_ISOLADA_N4'
+    var PREVIEW_ORIGIN = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
+    var PREVIEW_HOST = 'backend-isolado-pmais-43b9c--preview.goskip.app'
+    var N4_ALLOWED_EVIDENCE_REFS = {
+      'n4-homologacao-20261118-a1:routine-1': true,
+      'n4-homologacao-20261118-a1:routine-2': true,
+      'n4-homologacao-20261118-a1:routine-3': true,
+      'n4-homologacao-20261118-a1:conflict-1': true,
+    }
 
     function jsonCanonico(value) {
       if (value === null || typeof value !== 'object') return JSON.stringify(value)
@@ -4828,6 +4838,34 @@
       )
     }
 
+    function hashLedgerHomologacaoN4(record) {
+      var fields = [
+        'fonte',
+        'evidencia_ref',
+        'status',
+        'occurred_at',
+        'created',
+        'fato',
+        'observacao',
+        'tipo_evento',
+        'risco',
+        'negocio_id',
+        'negocio_ref',
+        'empresa_nome',
+        'contato_nome',
+        'responsavel',
+        'responsavel_id',
+        'equipe_id',
+        'destino_sugerido',
+        'confianca',
+        'promocao_modo',
+        'revisao_status',
+      ]
+      var projection = { id: record.id }
+      for (var i = 0; i < fields.length; i++) projection[fields[i]] = texto(record, fields[i])
+      return String($security.sha256(jsonCanonico(projection)))
+    }
+
     function gatilhoReabertura(caso, novasEvidencias) {
       var status = texto(caso, 'status')
       var encerrado =
@@ -4923,6 +4961,71 @@
 
     var body = e.requestInfo().body || {}
     var dryRun = body.dry_run !== false
+    var executionScope = 'fluxo_corrente'
+    var evidenceRefsN4 = []
+    var evidenceRefsN4Map = {}
+    var evidenceRefsN4Hash = {}
+    var runtimeGateCanonicalN4 = ''
+    var requestedMode = String(body.modo || '')
+    if (requestedMode || typeof body.evidencia_refs !== 'undefined') {
+      if (requestedMode !== N4_HOMOLOGATION_MODE || !Array.isArray(body.evidencia_refs))
+        return e.json(400, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+      if (body.evidencia_refs.length < 1 || body.evidencia_refs.length > 12)
+        return e.json(400, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+      for (var eri = 0; eri < body.evidencia_refs.length; eri++) {
+        var evidenceRefN4 = String(body.evidencia_refs[eri] || '')
+        if (
+          !/^n4-homologacao-[a-z0-9-]{1,80}:[a-z0-9-]{1,80}$/.test(evidenceRefN4) ||
+          !N4_ALLOWED_EVIDENCE_REFS[evidenceRefN4] ||
+          evidenceRefsN4Map[evidenceRefN4]
+        )
+          return e.json(400, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+        evidenceRefsN4Map[evidenceRefN4] = true
+        evidenceRefsN4.push(evidenceRefN4)
+      }
+      var requestOriginN4 = ''
+      var requestHostN4 = ''
+      try {
+        requestOriginN4 = String(e.request.header.get('Origin') || '')
+        requestHostN4 = String(e.request.header.get('Host') || '').toLowerCase()
+      } catch (_) {}
+      if (requestOriginN4 !== PREVIEW_ORIGIN || requestHostN4 !== PREVIEW_HOST)
+        return e.forbiddenError('Homologacao N4 disponivel somente no Preview')
+      var runtimeGateRowsN4 = carregar($app, 'com_parametros')
+      var runtimeGateRecordN4 = null
+      var runtimeGateCountN4 = 0
+      for (var rgi = 0; rgi < runtimeGateRowsN4.length; rgi++) {
+        if (texto(runtimeGateRowsN4[rgi], 'chave') !== 'nexo.curadoria.homologacao_n4_runtime_v1')
+          continue
+        runtimeGateCountN4++
+        runtimeGateRecordN4 = runtimeGateRowsN4[rgi]
+      }
+      var runtimeGateValueN4 = null
+      try {
+        runtimeGateValueN4 = JSON.parse(texto(runtimeGateRecordN4, 'valor'))
+      } catch (_) {}
+      var runtimeGateRefsN4 = runtimeGateValueN4 && runtimeGateValueN4.evidence_refs
+      if (
+        runtimeGateCountN4 !== 1 ||
+        !runtimeGateRecordN4 ||
+        !runtimeGateRecordN4.getBool('ativo') ||
+        texto(runtimeGateRecordN4, 'tipo') !== 'json_imutavel' ||
+        Number(runtimeGateRecordN4.get('versao')) !== 1 ||
+        !runtimeGateValueN4 ||
+        Object.keys(runtimeGateValueN4).sort().join('|') !==
+          'batch_id|evidence_refs|gate_version|preview_host' ||
+        runtimeGateValueN4.gate_version !== 'pmais_nexo_curadoria_homologacao_n4_runtime_v1' ||
+        runtimeGateValueN4.batch_id !== '20261118-a1' ||
+        runtimeGateValueN4.preview_host !== PREVIEW_HOST ||
+        !Array.isArray(runtimeGateRefsN4) ||
+        runtimeGateRefsN4.join('|') !== Object.keys(N4_ALLOWED_EVIDENCE_REFS).join('|')
+      )
+        return e.json(503, { ok: false, error: 'GATE_HOMOLOGACAO_N4_INDISPONIVEL' })
+      runtimeGateCanonicalN4 = jsonCanonico(runtimeGateValueN4)
+      if (!dryRun && String(body.confirmacao_homologacao || '') !== N4_HOMOLOGATION_CONFIRMATION)
+        return e.json(400, { ok: false, error: 'CONFIRMACAO_HOMOLOGACAO_NECESSARIA' })
+      executionScope = N4_HOMOLOGATION_MODE
+    }
     if (!dryRun && slug !== 'superadministrador')
       return e.forbiddenError('Superadministrador necessario para aplicar consolidacao')
     if (!dryRun && String(body.confirmacao || '') !== CONFIRMACAO_APLICACAO)
@@ -4975,6 +5078,26 @@
       period_end: historicalPeriodEnd || null,
       sha256: String($security.sha256(historicalSnapshotLines.join('\n'))),
       canonicalization: 'id|occurred_at\\n sorted by id; UTF-8; no trailing newline',
+    }
+    if (executionScope === N4_HOMOLOGATION_MODE) {
+      var ledgerHomologacao = []
+      var evidenceRefsN4Found = {}
+      for (var lhi = 0; lhi < ledgerCorrente.length; lhi++) {
+        var ledgerEvidenceRefN4 = texto(ledgerCorrente[lhi], 'evidencia_ref')
+        if (!evidenceRefsN4Map[ledgerEvidenceRefN4]) continue
+        if (texto(ledgerCorrente[lhi], 'fonte') !== 'homologacao_n4')
+          return e.json(409, { ok: false, error: 'FONTE_HOMOLOGACAO_INVALIDA' })
+        if (evidenceRefsN4Found[ledgerEvidenceRefN4])
+          return e.json(409, { ok: false, error: 'ESCOPO_HOMOLOGACAO_AMBIGUO' })
+        evidenceRefsN4Found[ledgerEvidenceRefN4] = true
+        evidenceRefsN4Hash[ledgerEvidenceRefN4] = hashLedgerHomologacaoN4(ledgerCorrente[lhi])
+        ledgerHomologacao.push(ledgerCorrente[lhi])
+      }
+      for (var erf = 0; erf < evidenceRefsN4.length; erf++) {
+        if (!evidenceRefsN4Found[evidenceRefsN4[erf]])
+          return e.json(409, { ok: false, error: 'EVIDENCIA_HOMOLOGACAO_AUSENTE' })
+      }
+      ledgerCorrente = ledgerHomologacao
     }
     ledgerRows = ledgerCorrente
 
@@ -5104,24 +5227,35 @@
       var escopoRef = sensivel ? escopoOriginal || evidenciaRef : agrupamentoRef
       var escopoLegadoTipo = negocioRef ? 'negocio' : empresaNome ? 'empresa' : ''
       var escopoLegadoRef = negocioRef || empresaNome
-      var fingerprintLegado = escopoLegadoTipo
-        ? String(
-            $security.sha256(
-              ['curadoria-caso-v1', escopoLegadoTipo, escopoLegadoRef, analise.assunto].join('|'),
-            ),
-          )
-        : ''
+      var fingerprintLegado =
+        escopoLegadoTipo && executionScope !== N4_HOMOLOGATION_MODE
+          ? String(
+              $security.sha256(
+                ['curadoria-caso-v1', escopoLegadoTipo, escopoLegadoRef, analise.assunto].join('|'),
+              ),
+            )
+          : ''
       var recorrenciaChave = String(
-        $security.sha256(['curadoria-recorrencia-v2', agrupamentoRef, analise.assunto].join('|')),
+        $security.sha256(
+          [
+            executionScope === N4_HOMOLOGATION_MODE
+              ? 'curadoria-recorrencia-homologacao-n4-v1'
+              : 'curadoria-recorrencia-v2',
+            agrupamentoRef,
+            analise.assunto,
+          ].join('|'),
+        ),
       )
       var fingerprint = String(
         $security.sha256(
           [
-            sensivel && escopoTipo !== 'evidencia'
-              ? 'curadoria-caso-v1'
-              : sensivel
-                ? 'curadoria-caso-sensivel-sem-vinculo-v1'
-                : 'curadoria-padrao-v2',
+            executionScope === N4_HOMOLOGATION_MODE
+              ? 'curadoria-caso-homologacao-n4-v1'
+              : sensivel && escopoTipo !== 'evidencia'
+                ? 'curadoria-caso-v1'
+                : sensivel
+                  ? 'curadoria-caso-sensivel-sem-vinculo-v1'
+                  : 'curadoria-padrao-v2',
             escopoTipo,
             escopoRef,
             analise.assunto,
@@ -5464,6 +5598,8 @@
           no_publication: true,
         },
         automatic_send_allowed: false,
+        execution_scope: executionScope,
+        selected_evidence_refs: evidenceRefsN4.length,
       })
     }
 
@@ -5475,6 +5611,44 @@
     var publicacoesEnfileiradas = 0
     try {
       $app.runInTransaction(function (tx) {
+        if (executionScope === N4_HOMOLOGATION_MODE) {
+          var txParametersN4 = carregar(tx, 'com_parametros')
+          var txGateCountN4 = 0
+          for (var txpi = 0; txpi < txParametersN4.length; txpi++) {
+            if (texto(txParametersN4[txpi], 'chave') !== 'nexo.curadoria.homologacao_n4_runtime_v1')
+              continue
+            txGateCountN4++
+            var txGateValueN4 = null
+            try {
+              txGateValueN4 = JSON.parse(texto(txParametersN4[txpi], 'valor'))
+            } catch (_) {}
+            if (
+              !txParametersN4[txpi].getBool('ativo') ||
+              texto(txParametersN4[txpi], 'tipo') !== 'json_imutavel' ||
+              Number(txParametersN4[txpi].get('versao')) !== 1 ||
+              !txGateValueN4 ||
+              jsonCanonico(txGateValueN4) !== runtimeGateCanonicalN4
+            )
+              throw new Error('GATE_HOMOLOGACAO_N4_ALTERADO')
+          }
+          if (txGateCountN4 !== 1) throw new Error('GATE_HOMOLOGACAO_N4_ALTERADO')
+          var txLedgerN4 = carregar(tx, 'com_ledger_comercial')
+          var txEvidenceCountN4 = {}
+          for (var txli = 0; txli < txLedgerN4.length; txli++) {
+            var txEvidenceRefN4 = texto(txLedgerN4[txli], 'evidencia_ref')
+            if (!evidenceRefsN4Map[txEvidenceRefN4]) continue
+            txEvidenceCountN4[txEvidenceRefN4] = Number(txEvidenceCountN4[txEvidenceRefN4] || 0) + 1
+            if (
+              texto(txLedgerN4[txli], 'fonte') !== 'homologacao_n4' ||
+              hashLedgerHomologacaoN4(txLedgerN4[txli]) !== evidenceRefsN4Hash[txEvidenceRefN4]
+            )
+              throw new Error('ESCOPO_HOMOLOGACAO_ALTERADO')
+          }
+          for (var txeri = 0; txeri < evidenceRefsN4.length; txeri++) {
+            if (txEvidenceCountN4[evidenceRefsN4[txeri]] !== 1)
+              throw new Error('ESCOPO_HOMOLOGACAO_ALTERADO')
+          }
+        }
         var estado = estadoAtual(tx)
         for (var gi = 0; gi < listaGrupos.length; gi++) {
           var grupo = listaGrupos[gi]
@@ -5834,6 +6008,8 @@
       automatic_send_allowed: false,
       publicacao_enfileirada: publicacoesEnfileiradas > 0,
       promocao_automatica_realizada: false,
+      execution_scope: executionScope,
+      selected_evidence_refs: evidenceRefsN4.length,
     })
   })
 
@@ -7330,6 +7506,30 @@
     var limite = Number(bodyRequest.limite || 10)
     if (!isFinite(limite)) limite = 10
     limite = Math.max(1, Math.min(25, Math.floor(limite)))
+    var executionScopeOutbox = 'fluxo_corrente'
+    var scopedOutboxIds = []
+    var scopedOutboxIdMap = {}
+    var scopedOutboxCaseMap = {}
+    var requestedOutboxMode = String(bodyRequest.modo || '')
+    if (requestedOutboxMode || typeof bodyRequest.outbox_ids !== 'undefined') {
+      if (
+        requestedOutboxMode !== 'homologacao_isolada_n4' ||
+        !Array.isArray(bodyRequest.outbox_ids) ||
+        bodyRequest.outbox_ids.length < 1 ||
+        bodyRequest.outbox_ids.length > 12 ||
+        String(bodyRequest.confirmacao_homologacao || '') !==
+          'PROCESSAR_OUTBOX_HOMOLOGACAO_ISOLADA_N4'
+      )
+        return e.json(400, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+      for (var soi = 0; soi < bodyRequest.outbox_ids.length; soi++) {
+        var scopedOutboxId = String(bodyRequest.outbox_ids[soi] || '')
+        if (!/^[a-z0-9-]{1,80}$/.test(scopedOutboxId) || scopedOutboxIdMap[scopedOutboxId])
+          return e.json(400, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+        scopedOutboxIdMap[scopedOutboxId] = true
+        scopedOutboxIds.push(scopedOutboxId)
+      }
+      executionScopeOutbox = 'homologacao_isolada_n4'
+    }
 
     function secretValue(name) {
       try {
@@ -7462,9 +7662,91 @@
     }
 
     var requestOrigin = ''
+    var requestHost = ''
+    var runtimeGateIdOutbox = ''
+    var runtimeGateCanonicalOutbox = ''
     try {
       requestOrigin = String(e.request.header.get('Origin') || '')
+      requestHost = String(e.request.header.get('Host') || '').toLowerCase()
     } catch (_) {}
+    if (
+      executionScopeOutbox === 'homologacao_isolada_n4' &&
+      (requestOrigin !== 'https://backend-isolado-pmais-43b9c--preview.goskip.app' ||
+        requestHost !== 'backend-isolado-pmais-43b9c--preview.goskip.app')
+    )
+      return e.forbiddenError('Homologacao N4 disponivel somente no Preview')
+    if (executionScopeOutbox === 'homologacao_isolada_n4') {
+      var runtimeGateRowsOutbox = nexoCuradoriaCasosCarregar($app, 'com_parametros')
+      var runtimeGateRecordOutbox = null
+      var runtimeGateCountOutbox = 0
+      for (var rgoi = 0; rgoi < runtimeGateRowsOutbox.length; rgoi++) {
+        if (
+          nexoCuradoriaCasosTexto(runtimeGateRowsOutbox[rgoi], 'chave') !==
+          'nexo.curadoria.homologacao_n4_runtime_v1'
+        )
+          continue
+        runtimeGateCountOutbox++
+        runtimeGateRecordOutbox = runtimeGateRowsOutbox[rgoi]
+      }
+      var runtimeGateValueOutbox = null
+      try {
+        runtimeGateValueOutbox = JSON.parse(
+          nexoCuradoriaCasosTexto(runtimeGateRecordOutbox, 'valor'),
+        )
+      } catch (_) {}
+      var expectedRuntimeGateRefsOutbox = [
+        'n4-homologacao-20261118-a1:routine-1',
+        'n4-homologacao-20261118-a1:routine-2',
+        'n4-homologacao-20261118-a1:routine-3',
+        'n4-homologacao-20261118-a1:conflict-1',
+      ]
+      if (
+        runtimeGateCountOutbox !== 1 ||
+        !runtimeGateRecordOutbox ||
+        !runtimeGateRecordOutbox.getBool('ativo') ||
+        nexoCuradoriaCasosTexto(runtimeGateRecordOutbox, 'tipo') !== 'json_imutavel' ||
+        Number(runtimeGateRecordOutbox.get('versao')) !== 1 ||
+        !runtimeGateValueOutbox ||
+        Object.keys(runtimeGateValueOutbox).sort().join('|') !==
+          'batch_id|evidence_refs|gate_version|preview_host' ||
+        runtimeGateValueOutbox.gate_version !== 'pmais_nexo_curadoria_homologacao_n4_runtime_v1' ||
+        runtimeGateValueOutbox.batch_id !== '20261118-a1' ||
+        runtimeGateValueOutbox.preview_host !== 'backend-isolado-pmais-43b9c--preview.goskip.app' ||
+        !Array.isArray(runtimeGateValueOutbox.evidence_refs) ||
+        runtimeGateValueOutbox.evidence_refs.join('|') !== expectedRuntimeGateRefsOutbox.join('|')
+      )
+        return e.json(503, { ok: false, error: 'GATE_HOMOLOGACAO_N4_INDISPONIVEL' })
+      runtimeGateIdOutbox = runtimeGateRecordOutbox.id
+      runtimeGateCanonicalOutbox = nexoCuradoriaJsonCanonico(runtimeGateValueOutbox)
+    }
+    function runtimeGateOutboxValido(app) {
+      if (executionScopeOutbox !== 'homologacao_isolada_n4') return true
+      var rows = nexoCuradoriaCasosCarregar(app, 'com_parametros')
+      var found = null
+      var count = 0
+      for (var rvi = 0; rvi < rows.length; rvi++) {
+        if (
+          nexoCuradoriaCasosTexto(rows[rvi], 'chave') !== 'nexo.curadoria.homologacao_n4_runtime_v1'
+        )
+          continue
+        count++
+        found = rows[rvi]
+      }
+      if (
+        count !== 1 ||
+        !found ||
+        found.id !== runtimeGateIdOutbox ||
+        !found.getBool('ativo') ||
+        nexoCuradoriaCasosTexto(found, 'tipo') !== 'json_imutavel' ||
+        Number(found.get('versao')) !== 1
+      )
+        return false
+      var parsed = null
+      try {
+        parsed = JSON.parse(nexoCuradoriaCasosTexto(found, 'valor'))
+      } catch (_) {}
+      return Boolean(parsed && nexoCuradoriaJsonCanonico(parsed) === runtimeGateCanonicalOutbox)
+    }
     var gatewayConfig = nexoCuradoriaGatewayConfig(requestOrigin)
     if (!gatewayConfig) return e.json(503, { ok: false, error: 'GATEWAY_NAO_CONFIGURADO' })
     var gatewayBase = gatewayConfig.gatewayBase
@@ -7493,6 +7775,32 @@
     } catch (_) {
       return e.json(503, { ok: false, error: 'OUTBOX_INDISPONIVEL' })
     }
+    if (executionScopeOutbox === 'homologacao_isolada_n4') {
+      var scopedOutboxFound = {}
+      for (var sori = 0; sori < todas.length; sori++) {
+        if (!scopedOutboxIdMap[todas[sori].id]) continue
+        if (scopedOutboxFound[todas[sori].id])
+          return e.json(409, { ok: false, error: 'ESCOPO_HOMOLOGACAO_AMBIGUO' })
+        var scopedCase = null
+        try {
+          scopedCase = $app.findRecordById(
+            'com_nexo_curadoria_casos',
+            nexoCuradoriaCasosTexto(todas[sori], 'caso_id'),
+          )
+        } catch (_) {}
+        if (
+          !scopedCase ||
+          nexoCuradoriaCasosTexto(scopedCase, 'fonte_principal') !== 'homologacao_n4'
+        )
+          return e.json(409, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+        scopedOutboxFound[todas[sori].id] = true
+        scopedOutboxCaseMap[todas[sori].id] = nexoCuradoriaCasosTexto(todas[sori], 'caso_id')
+      }
+      for (var sofi = 0; sofi < scopedOutboxIds.length; sofi++) {
+        if (!scopedOutboxFound[scopedOutboxIds[sofi]])
+          return e.json(409, { ok: false, error: 'OUTBOX_HOMOLOGACAO_AUSENTE' })
+      }
+    }
     todas.sort(function (a, b) {
       var ac = nexoCuradoriaCasosTexto(a, 'caso_id')
       var bc = nexoCuradoriaCasosTexto(b, 'caso_id')
@@ -7520,10 +7828,14 @@
       var claimExpirado = statusOutbox === 'processando' && !claimAtivo
       var casoIdOutbox = nexoCuradoriaCasosTexto(todas[i], 'caso_id')
       if (casoComOperacaoAnterior[casoIdOutbox]) {
+        if (executionScopeOutbox === 'homologacao_isolada_n4' && !scopedOutboxIdMap[todas[i].id])
+          continue
         bloqueadosOrdem++
         continue
       }
       casoComOperacaoAnterior[casoIdOutbox] = true
+      if (executionScopeOutbox === 'homologacao_isolada_n4' && !scopedOutboxIdMap[todas[i].id])
+        continue
       if (claimAtivo) continue
       if (statusOutbox !== 'pendente' && statusOutbox !== 'erro' && !claimExpirado) continue
       var nextAttempt = nexoCuradoriaCasosTexto(todas[i], 'next_attempt_at')
@@ -7549,7 +7861,19 @@
       var claimedItem = null
       try {
         $app.runInTransaction(function (tx) {
+          if (!runtimeGateOutboxValido(tx)) throw new Error('GATE_HOMOLOGACAO_N4_ALTERADO')
           var atualClaim = tx.findRecordById('com_nexo_curadoria_outbox', item.id)
+          if (executionScopeOutbox === 'homologacao_isolada_n4') {
+            var casoIdClaim = nexoCuradoriaCasosTexto(atualClaim, 'caso_id')
+            if (
+              !scopedOutboxIdMap[atualClaim.id] ||
+              scopedOutboxCaseMap[atualClaim.id] !== casoIdClaim
+            )
+              throw new Error('ESCOPO_HOMOLOGACAO_INVALIDO')
+            var casoClaim = tx.findRecordById('com_nexo_curadoria_casos', casoIdClaim)
+            if (nexoCuradoriaCasosTexto(casoClaim, 'fonte_principal') !== 'homologacao_n4')
+              throw new Error('ESCOPO_HOMOLOGACAO_INVALIDO')
+          }
           var statusClaim = nexoCuradoriaCasosTexto(atualClaim, 'status')
           var claimExpira = nexoCuradoriaCasosTexto(atualClaim, 'claim_expires_at')
           var claimExpiraMs = claimExpira ? new Date(claimExpira).getTime() : 0
@@ -7592,6 +7916,16 @@
         var payloadHash = ''
         $app.runInTransaction(function (tx) {
           var atualPreHttp = tx.findRecordById('com_nexo_curadoria_outbox', item.id)
+          if (!runtimeGateOutboxValido(tx)) {
+            atualPreHttp.set('status', 'invalidado')
+            atualPreHttp.set('last_error', 'GATE_HOMOLOGACAO_N4_ALTERADO')
+            atualPreHttp.set('processed_at', new Date())
+            atualPreHttp.set('claim_token', '')
+            atualPreHttp.set('claim_expires_at', null)
+            tx.save(atualPreHttp)
+            result.invalidados++
+            return
+          }
           if (
             nexoCuradoriaCasosTexto(atualPreHttp, 'status') !== 'processando' ||
             nexoCuradoriaCasosTexto(atualPreHttp, 'claim_token') !== claimToken ||
@@ -7602,6 +7936,22 @@
             'com_nexo_curadoria_casos',
             nexoCuradoriaCasosTexto(atualPreHttp, 'caso_id'),
           )
+          if (
+            executionScopeOutbox === 'homologacao_isolada_n4' &&
+            (!scopedOutboxIdMap[atualPreHttp.id] ||
+              scopedOutboxCaseMap[atualPreHttp.id] !==
+                nexoCuradoriaCasosTexto(atualPreHttp, 'caso_id') ||
+              nexoCuradoriaCasosTexto(casoAtualOutbox, 'fonte_principal') !== 'homologacao_n4')
+          ) {
+            atualPreHttp.set('status', 'invalidado')
+            atualPreHttp.set('last_error', 'ESCOPO_HOMOLOGACAO_INVALIDO')
+            atualPreHttp.set('processed_at', new Date())
+            atualPreHttp.set('claim_token', '')
+            atualPreHttp.set('claim_expires_at', null)
+            tx.save(atualPreHttp)
+            result.invalidados++
+            return
+          }
           // Revalida o claim após ler o caso: uma supersessão pode intercalar nessa leitura.
           if (
             nexoCuradoriaCasosTexto(atualPreHttp, 'status') !== 'processando' ||
@@ -8036,6 +8386,7 @@
       em_backoff: emBackoff,
       pendentes_restantes: pendentesRestantes,
       automatic_send_allowed: false,
+      execution_scope: executionScopeOutbox,
     })
   })
 })()
