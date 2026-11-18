@@ -315,6 +315,11 @@ assert.deepEqual(
 )
 assert.equal(JSON.stringify(dryRun.payload).includes('Cliente A'), false)
 assert.match(dryRun.payload.historical_snapshot.sha256, /^[a-f0-9]{64}$/)
+assert.equal(
+  dryRun.payload.historical_snapshot.count,
+  dryRun.payload.historical_untouched,
+  'count da prova sanitizada deve coincidir com historical_untouched',
+)
 assert.equal(saveCalls, 0)
 assert.equal(collections.com_nexo_curadoria_casos.length, 0)
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-02T20:52:29.281Z",
+  "generatedAt": "2026-11-18T12:54:48.662Z",
   "collections": [
     {
       "name": "users",
@@ -5765,6 +5765,65 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_nexo_feedback_audit_usuario ON com_nexo_sugestao_feedback_v1 (audit_id, usuario_id)",
         "CREATE INDEX idx_nexo_feedback_external_created ON com_nexo_sugestao_feedback_v1 (external_id, created_at)"
+      ]
+    },
+    {
+      "name": "com_nexo_memoria_correcoes_v1",
+      "type": "base",
+      "apiRules": {
+        "list": null,
+        "view": null,
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "external_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "revision",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "schema_version",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "signals",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "snapshot_hash",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "usuario_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created_at",
+          "type": "date",
+          "required": true,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_nexo_memoria_correcao_revision ON com_nexo_memoria_correcoes_v1 (external_id, revision)",
+        "CREATE INDEX idx_nexo_memoria_correcao_latest ON com_nexo_memoria_correcoes_v1 (external_id, revision DESC)"
       ]
     }
   ]
