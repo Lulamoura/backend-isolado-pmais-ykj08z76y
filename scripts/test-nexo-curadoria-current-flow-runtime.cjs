@@ -75,7 +75,7 @@ const n4RuntimeGate = new MockRecord('com_parametros', 'parameter-n4-runtime', {
   valor: JSON.stringify({
     gate_version: 'pmais_nexo_curadoria_homologacao_n4_runtime_v1',
     batch_id: '20261118-a1',
-    preview_host: 'backend-isolado-pmais-43b9c--preview.goskip.app',
+    preview_host: 'backend-isolado-pmais-43b9c.shrd03-1.internal.goskip.dev',
     evidence_refs: [
       'n4-homologacao-20261118-a1:routine-1',
       'n4-homologacao-20261118-a1:routine-2',
@@ -305,7 +305,7 @@ assert(route, 'current-flow consolidation route must exist')
 function invoke(
   body,
   origin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app',
-  host = 'backend-isolado-pmais-43b9c--preview.goskip.app',
+  host = 'backend-isolado-pmais-43b9c.shrd03-1.internal.goskip.dev',
 ) {
   let response
   route({
@@ -706,7 +706,7 @@ assert(processRoute, 'automatic outbox processor route must exist')
 function invokeProcessor(
   body = { limite: 10 },
   origin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app',
-  host = 'backend-isolado-pmais-43b9c--preview.goskip.app',
+  host = 'backend-isolado-pmais-43b9c.shrd03-1.internal.goskip.dev',
 ) {
   let processResponse
   processRoute({
