@@ -4558,6 +4558,10 @@
     var AUTOMATIC_AGENT_ID = 'nexo-curadoria-automatico'
     var N4_HOMOLOGATION_MODE = 'homologacao_isolada_n4'
     var N4_HOMOLOGATION_CONFIRMATION = 'APLICAR_HOMOLOGACAO_ISOLADA_N4'
+    var N6_BATCH_MODE = 'lote_governado_n6'
+    var N6_BATCH_CONFIRMATION = 'APLICAR_LOTE_GOVERNADO_N6'
+    var N6_GATE_KEY = 'nexo.curadoria.lote_n6_runtime_v1'
+    var N6_GATE_VERSION = 'pmais_nexo_curadoria_lote_n6_runtime_v1'
     var PREVIEW_ORIGIN = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
     var N4_EXECUTION_SURFACE = 'shared_production_assisted'
     var N4_ALLOWED_EVIDENCE_REFS = {
@@ -4966,8 +4970,15 @@
     var evidenceRefsN4Map = {}
     var evidenceRefsN4Hash = {}
     var runtimeGateCanonicalN4 = ''
+    var ledgerIdsN6 = []
+    var ledgerIdsN6Map = {}
+    var ledgerIdsN6Hash = {}
+    var runtimeGateCanonicalN6 = ''
     var requestedMode = String(body.modo || '')
-    if (requestedMode || typeof body.evidencia_refs !== 'undefined') {
+    if (
+      requestedMode !== N6_BATCH_MODE &&
+      (requestedMode || typeof body.evidencia_refs !== 'undefined')
+    ) {
       if (requestedMode !== N4_HOMOLOGATION_MODE || !Array.isArray(body.evidencia_refs))
         return e.json(400, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
       if (body.evidencia_refs.length < 1 || body.evidencia_refs.length > 12)
@@ -5023,6 +5034,76 @@
       if (!dryRun && String(body.confirmacao_homologacao || '') !== N4_HOMOLOGATION_CONFIRMATION)
         return e.json(400, { ok: false, error: 'CONFIRMACAO_HOMOLOGACAO_NECESSARIA' })
       executionScope = N4_HOMOLOGATION_MODE
+    }
+    if (requestedMode === N6_BATCH_MODE) {
+      if (
+        requestedMode !== N6_BATCH_MODE ||
+        !Array.isArray(body.ledger_ids) ||
+        typeof body.evidencia_refs !== 'undefined'
+      )
+        return e.json(400, { ok: false, error: 'ESCOPO_LOTE_N6_INVALIDO' })
+      if (body.ledger_ids.length < 1 || body.ledger_ids.length > 12)
+        return e.json(400, { ok: false, error: 'ESCOPO_LOTE_N6_INVALIDO' })
+      for (var n6i = 0; n6i < body.ledger_ids.length; n6i++) {
+        var ledgerIdN6 = String(body.ledger_ids[n6i] || '')
+        if (!/^[a-z0-9]{15}$/.test(ledgerIdN6) || ledgerIdsN6Map[ledgerIdN6])
+          return e.json(400, { ok: false, error: 'ESCOPO_LOTE_N6_INVALIDO' })
+        ledgerIdsN6Map[ledgerIdN6] = true
+        ledgerIdsN6.push(ledgerIdN6)
+      }
+      var requestOriginN6 = ''
+      try {
+        requestOriginN6 = String(e.request.header.get('Origin') || '')
+      } catch (_) {}
+      if (requestOriginN6 !== PREVIEW_ORIGIN)
+        return e.forbiddenError('Lote N6 disponivel somente no Preview')
+      var runtimeGateRowsN6 = carregar($app, 'com_parametros')
+      var runtimeGateRecordN6 = null
+      var runtimeGateCountN6 = 0
+      for (var n6g = 0; n6g < runtimeGateRowsN6.length; n6g++) {
+        if (texto(runtimeGateRowsN6[n6g], 'chave') !== N6_GATE_KEY) continue
+        runtimeGateCountN6++
+        runtimeGateRecordN6 = runtimeGateRowsN6[n6g]
+      }
+      var runtimeGateValueN6 = null
+      try {
+        runtimeGateValueN6 = JSON.parse(texto(runtimeGateRecordN6, 'valor'))
+      } catch (_) {}
+      var runtimeGateIdsN6 = runtimeGateValueN6 && runtimeGateValueN6.ledger_ids
+      var runtimeGateHashesN6 = runtimeGateValueN6 && runtimeGateValueN6.ledger_hashes
+      if (
+        runtimeGateCountN6 !== 1 ||
+        !runtimeGateRecordN6 ||
+        !runtimeGateRecordN6.getBool('ativo') ||
+        texto(runtimeGateRecordN6, 'tipo') !== 'json_imutavel' ||
+        Number(runtimeGateRecordN6.get('versao')) !== 1 ||
+        !runtimeGateValueN6 ||
+        Object.keys(runtimeGateValueN6).sort().join('|') !==
+          'batch_id|execution_surface|expected_classification|expected_group_count|gate_version|ledger_hashes|ledger_ids' ||
+        runtimeGateValueN6.gate_version !== N6_GATE_VERSION ||
+        runtimeGateValueN6.expected_classification !== 'direction_exception' ||
+        runtimeGateValueN6.expected_group_count !== 1 ||
+        !/^20[0-9]{6}-[a-z0-9-]{1,40}$/.test(String(runtimeGateValueN6.batch_id || '')) ||
+        runtimeGateValueN6.execution_surface !== N4_EXECUTION_SURFACE ||
+        !Array.isArray(runtimeGateIdsN6) ||
+        runtimeGateIdsN6.join('|') !== ledgerIdsN6.join('|') ||
+        !runtimeGateHashesN6 ||
+        Array.isArray(runtimeGateHashesN6) ||
+        Object.keys(runtimeGateHashesN6).sort().join('|') !== ledgerIdsN6.slice().sort().join('|')
+      )
+        return e.json(503, { ok: false, error: 'GATE_LOTE_N6_INDISPONIVEL' })
+      for (var n6h = 0; n6h < ledgerIdsN6.length; n6h++) {
+        var expectedHashN6 = String(runtimeGateHashesN6[ledgerIdsN6[n6h]] || '')
+        if (!/^[a-f0-9]{64}$/.test(expectedHashN6))
+          return e.json(503, { ok: false, error: 'GATE_LOTE_N6_INDISPONIVEL' })
+        ledgerIdsN6Hash[ledgerIdsN6[n6h]] = expectedHashN6
+      }
+      runtimeGateCanonicalN6 = jsonCanonico(runtimeGateValueN6)
+      if (!dryRun && String(body.confirmacao_lote_n6 || '') !== N6_BATCH_CONFIRMATION)
+        return e.json(400, { ok: false, error: 'CONFIRMACAO_LOTE_N6_NECESSARIA' })
+      executionScope = N6_BATCH_MODE
+    } else if (requestedMode && requestedMode !== N4_HOMOLOGATION_MODE) {
+      return e.json(400, { ok: false, error: 'ESCOPO_CONSOLIDACAO_INVALIDO' })
     }
     if (!dryRun && slug !== 'superadministrador')
       return e.forbiddenError('Superadministrador necessario para aplicar consolidacao')
@@ -5096,6 +5177,26 @@
           return e.json(409, { ok: false, error: 'EVIDENCIA_HOMOLOGACAO_AUSENTE' })
       }
       ledgerCorrente = ledgerHomologacao
+    }
+    if (executionScope === N6_BATCH_MODE) {
+      var ledgerLoteN6 = []
+      var ledgerIdsN6Found = {}
+      for (var n6li = 0; n6li < ledgerCorrente.length; n6li++) {
+        var currentLedgerIdN6 = String(ledgerCorrente[n6li].id || '')
+        if (!ledgerIdsN6Map[currentLedgerIdN6]) continue
+        if (ledgerIdsN6Found[currentLedgerIdN6])
+          return e.json(409, { ok: false, error: 'ESCOPO_LOTE_N6_AMBIGUO' })
+        ledgerIdsN6Found[currentLedgerIdN6] = true
+        var currentHashN6 = hashLedgerHomologacaoN4(ledgerCorrente[n6li])
+        if (currentHashN6 !== ledgerIdsN6Hash[currentLedgerIdN6])
+          return e.json(409, { ok: false, error: 'LEDGER_LOTE_N6_ALTERADO' })
+        ledgerLoteN6.push(ledgerCorrente[n6li])
+      }
+      for (var n6lf = 0; n6lf < ledgerIdsN6.length; n6lf++) {
+        if (!ledgerIdsN6Found[ledgerIdsN6[n6lf]])
+          return e.json(409, { ok: false, error: 'LEDGER_LOTE_N6_AUSENTE' })
+      }
+      ledgerCorrente = ledgerLoteN6
     }
     ledgerRows = ledgerCorrente
 
@@ -5574,6 +5675,24 @@
     } catch (_) {
       return e.json(503, { ok: false, error: 'CURADORIA_INDISPONIVEL' })
     }
+    if (
+      executionScope === N6_BATCH_MODE &&
+      (preview.classification_counts.ledger_records.discarded_noise !== 0 ||
+        preview.classification_counts.ledger_records.operational_history !== 0 ||
+        preview.classification_counts.consolidated_groups.direction_exception !== 1 ||
+        preview.classification_counts.consolidated_groups.management_exception !== 0 ||
+        preview.classification_counts.consolidated_groups.automatic_promotion !== 0 ||
+        preview.classification_counts.consolidated_groups.hypothesis_waiting_evidence !== 0 ||
+        !(
+          (preview.casos_novos === 1 &&
+            preview.casos_atualizados === 0 &&
+            preview.evidencias_novas === ledgerIdsN6.length) ||
+          (preview.casos_novos === 0 &&
+            preview.casos_atualizados === 0 &&
+            preview.evidencias_novas === 0)
+        ))
+    )
+      return e.json(409, { ok: false, error: 'PROJECAO_LOTE_N6_DIVERGENTE' })
     if (dryRun) {
       return e.json(200, {
         ok: true,
@@ -5598,6 +5717,7 @@
         automatic_send_allowed: false,
         execution_scope: executionScope,
         selected_evidence_refs: evidenceRefsN4.length,
+        selected_ledger_ids: ledgerIdsN6.length,
       })
     }
 
@@ -5646,6 +5766,43 @@
             if (txEvidenceCountN4[evidenceRefsN4[txeri]] !== 1)
               throw new Error('ESCOPO_HOMOLOGACAO_ALTERADO')
           }
+        }
+        if (executionScope === N6_BATCH_MODE) {
+          var txParametersN6 = carregar(tx, 'com_parametros')
+          var txGateCountN6 = 0
+          for (var txp6 = 0; txp6 < txParametersN6.length; txp6++) {
+            if (texto(txParametersN6[txp6], 'chave') !== N6_GATE_KEY) continue
+            txGateCountN6++
+            var txGateValueN6 = null
+            try {
+              txGateValueN6 = JSON.parse(texto(txParametersN6[txp6], 'valor'))
+            } catch (_) {}
+            if (
+              !txParametersN6[txp6].getBool('ativo') ||
+              texto(txParametersN6[txp6], 'tipo') !== 'json_imutavel' ||
+              Number(txParametersN6[txp6].get('versao')) !== 1 ||
+              !txGateValueN6 ||
+              jsonCanonico(txGateValueN6) !== runtimeGateCanonicalN6
+            )
+              throw new Error('GATE_LOTE_N6_ALTERADO')
+          }
+          if (txGateCountN6 !== 1) throw new Error('GATE_LOTE_N6_ALTERADO')
+          var txLedgerN6 = carregar(tx, 'com_ledger_comercial')
+          var txLedgerCountN6 = {}
+          for (var txl6 = 0; txl6 < txLedgerN6.length; txl6++) {
+            var txLedgerIdN6 = String(txLedgerN6[txl6].id || '')
+            if (!ledgerIdsN6Map[txLedgerIdN6]) continue
+            txLedgerCountN6[txLedgerIdN6] = Number(txLedgerCountN6[txLedgerIdN6] || 0) + 1
+            if (hashLedgerHomologacaoN4(txLedgerN6[txl6]) !== ledgerIdsN6Hash[txLedgerIdN6])
+              throw new Error('ESCOPO_LOTE_N6_ALTERADO')
+          }
+          for (var txl6i = 0; txl6i < ledgerIdsN6.length; txl6i++) {
+            if (txLedgerCountN6[ledgerIdsN6[txl6i]] !== 1)
+              throw new Error('ESCOPO_LOTE_N6_ALTERADO')
+          }
+          var txPreviewN6 = planejar(tx)
+          if (jsonCanonico(txPreviewN6) !== jsonCanonico(preview))
+            throw new Error('PROJECAO_LOTE_N6_ALTERADA')
         }
         var estado = estadoAtual(tx)
         for (var gi = 0; gi < listaGrupos.length; gi++) {
@@ -6008,6 +6165,7 @@
       promocao_automatica_realizada: false,
       execution_scope: executionScope,
       selected_evidence_refs: evidenceRefsN4.length,
+      selected_ledger_ids: ledgerIdsN6.length,
     })
   })
 

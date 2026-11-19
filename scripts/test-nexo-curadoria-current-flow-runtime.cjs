@@ -112,6 +112,34 @@ function ledger(id, created, values) {
   })
 }
 
+function ledgerHash(record) {
+  const fields = [
+    'fonte',
+    'evidencia_ref',
+    'status',
+    'occurred_at',
+    'created',
+    'fato',
+    'observacao',
+    'tipo_evento',
+    'risco',
+    'negocio_id',
+    'negocio_ref',
+    'empresa_nome',
+    'contato_nome',
+    'responsavel',
+    'responsavel_id',
+    'equipe_id',
+    'destino_sugerido',
+    'confianca',
+    'promocao_modo',
+    'revisao_status',
+  ]
+  const projection = { id: record.id }
+  for (const field of fields) projection[field] = record.getString(field)
+  return crypto.createHash('sha256').update(canonicalJson(projection)).digest('hex')
+}
+
 const rows = [
   ledger('historical', '2026-10-19 09:00:00.000Z'),
   ledger('ledger-before-cutoff-id', CUTOFF_CREATED),
@@ -134,14 +162,14 @@ const rows = [
     tipo_evento: 'objecao_comercial',
     fato: 'Objeção comercial sem prova suficiente precisa de validação.',
   }),
-  ledger('sensitive', '2026-10-20 13:00:00.000Z', {
+  ledger('sensitive000001', '2026-10-20 13:00:00.000Z', {
     fato: 'Cliente pediu desconto no preço e alteração de política comercial.',
   }),
   ledger('conflict', '2026-10-20 14:00:00.000Z', {
     tipo_evento: 'followup',
     fato: 'Novo follow-up contradiz a regra vigente.',
   }),
-  ledger('noise', '2026-10-20 15:00:00.000Z', {
+  ledger('noise0000000001', '2026-10-20 15:00:00.000Z', {
     fato: 'Obrigado.',
     tipo_evento: 'mensagem',
     promocao_modo: '',
@@ -152,6 +180,23 @@ const rows = [
     equipe_id: '',
   }),
 ]
+const n6Selected = rows.find((item) => item.id === 'sensitive000001')
+const n6Noise = rows.find((item) => item.id === 'noise0000000001')
+const n6RuntimeGate = new MockRecord('com_parametros', 'parameter-n6-runtime', {
+  chave: 'nexo.curadoria.lote_n6_runtime_v1',
+  valor: JSON.stringify({
+    gate_version: 'pmais_nexo_curadoria_lote_n6_runtime_v1',
+    batch_id: '20261119-a1',
+    execution_surface: 'shared_production_assisted',
+    expected_classification: 'direction_exception',
+    expected_group_count: 1,
+    ledger_ids: [n6Selected.id],
+    ledger_hashes: { [n6Selected.id]: ledgerHash(n6Selected) },
+  }),
+  ativo: true,
+  tipo: 'json_imutavel',
+  versao: 1,
+})
 
 const activeRule = new MockRecord('com_nexo_curadoria_casos', 'active-followup-rule', {
   fingerprint: 'legacy-active-followup-rule',
@@ -191,7 +236,7 @@ const historicalMatchingSnapshot = JSON.stringify(historicalMatchingCase.values)
 const collections = {
   users: [actor],
   com_perfis: [profile],
-  com_parametros: [parameter, n4RuntimeGate],
+  com_parametros: [parameter, n4RuntimeGate, n6RuntimeGate],
   com_ledger_comercial: rows,
   com_nexo_curadoria_casos: [activeRule, historicalMatchingCase],
   com_nexo_curadoria_evidencias: [],
@@ -354,6 +399,166 @@ assert.deepEqual(preview.payload.guardrails, {
   no_publication: true,
 })
 assert.equal(saves, 0)
+
+const n6ProductionAttempt = invoke(
+  {
+    dry_run: true,
+    modo: 'lote_governado_n6',
+    ledger_ids: [n6Selected.id],
+  },
+  'https://comercial.pmaisservicos.com.br',
+)
+assert.equal(n6ProductionAttempt.status, 403)
+
+const n6DryRun = invoke({
+  dry_run: true,
+  modo: 'lote_governado_n6',
+  ledger_ids: [n6Selected.id],
+})
+assert.equal(n6DryRun.status, 200)
+assert.equal(n6DryRun.payload.execution_scope, 'lote_governado_n6')
+assert.equal(n6DryRun.payload.selected_ledger_ids, 1)
+assert.equal(n6DryRun.payload.human_exceptions, 1)
+assert.equal(n6DryRun.payload.automatic_cases, 0)
+assert.equal(saves, 0)
+
+const n6DuplicateId = invoke({
+  dry_run: true,
+  modo: 'lote_governado_n6',
+  ledger_ids: [n6Selected.id, n6Selected.id],
+})
+assert.equal(n6DuplicateId.status, 400)
+
+collections.com_parametros.splice(collections.com_parametros.indexOf(n6RuntimeGate), 1)
+const n6MissingGate = invoke({
+  dry_run: true,
+  modo: 'lote_governado_n6',
+  ledger_ids: [n6Selected.id],
+})
+assert.equal(n6MissingGate.status, 503)
+collections.com_parametros.push(n6RuntimeGate)
+
+const n6OriginalFact = n6Selected.getString('fato')
+n6Selected.set('fato', `${n6OriginalFact} alteração concorrente`)
+const n6HashMismatch = invoke({
+  dry_run: true,
+  modo: 'lote_governado_n6',
+  ledger_ids: [n6Selected.id],
+})
+assert.equal(n6HashMismatch.status, 409)
+n6Selected.set('fato', n6OriginalFact)
+
+const n6MissingConfirmation = invoke({
+  dry_run: false,
+  modo: 'lote_governado_n6',
+  ledger_ids: [n6Selected.id],
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+})
+assert.equal(n6MissingConfirmation.status, 400)
+
+const n6ConcurrentCase = new MockRecord('com_nexo_curadoria_casos', 'n6concurrent001', {
+  fingerprint: crypto
+    .createHash('sha256')
+    .update('curadoria-caso-v1|negocio|OE-sensitive000001|preco_ou_desconto')
+    .digest('hex'),
+  recorrencia_chave: crypto
+    .createHash('sha256')
+    .update('curadoria-recorrencia-v2|equipe-comercial|preco_ou_desconto')
+    .digest('hex'),
+  revisao: 1,
+  status: 'aguardando_direcao',
+  conhecimento_status: '',
+  evidencia_hashes: [],
+  evidencia_contagem: 0,
+  recorrencia_contagem: 0,
+  alcada: 'direcao',
+  human_review_required: true,
+  automatic_promotion_allowed: false,
+  created: '2026-10-21 01:00:00.000Z',
+})
+let n6ConcurrentInserted = false
+beforeTransaction = () => {
+  if (n6ConcurrentInserted) return
+  n6ConcurrentInserted = true
+  collections.com_nexo_curadoria_casos.push(n6ConcurrentCase)
+}
+const n6ConcurrentProjection = invoke({
+  dry_run: false,
+  modo: 'lote_governado_n6',
+  ledger_ids: [n6Selected.id],
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+  confirmacao_lote_n6: 'APLICAR_LOTE_GOVERNADO_N6',
+})
+assert.equal(n6ConcurrentProjection.status, 500)
+assert.equal(collections.com_nexo_curadoria_evidencias.length, 0)
+assert.equal(collections.com_nexo_curadoria_transicoes.length, 0)
+collections.com_nexo_curadoria_casos.splice(
+  collections.com_nexo_curadoria_casos.indexOf(n6ConcurrentCase),
+  1,
+)
+beforeTransaction = null
+
+const n6CaseCountBefore = collections.com_nexo_curadoria_casos.length
+const n6EvidenceCountBefore = collections.com_nexo_curadoria_evidencias.length
+const n6TransitionCountBefore = collections.com_nexo_curadoria_transicoes.length
+const n6OutboxCountBefore = collections.com_nexo_curadoria_outbox.length
+const n6Apply = invoke({
+  dry_run: false,
+  modo: 'lote_governado_n6',
+  ledger_ids: [n6Selected.id],
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+  confirmacao_lote_n6: 'APLICAR_LOTE_GOVERNADO_N6',
+})
+assert.equal(n6Apply.status, 200)
+assert.equal(n6Apply.payload.casos_criados, 1)
+assert.equal(n6Apply.payload.evidencias_criadas, 1)
+assert.equal(n6Apply.payload.publicacao_enfileirada, false)
+assert.equal(collections.com_nexo_curadoria_outbox.length, n6OutboxCountBefore)
+const n6Case = collections.com_nexo_curadoria_casos.at(-1)
+assert.equal(n6Case.getString('status'), 'aguardando_direcao')
+assert.equal(n6Case.getString('alcada'), 'direcao')
+assert.equal(n6Case.getBool('automatic_promotion_allowed'), false)
+
+const n6Replay = invoke({
+  dry_run: false,
+  modo: 'lote_governado_n6',
+  ledger_ids: [n6Selected.id],
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+  confirmacao_lote_n6: 'APLICAR_LOTE_GOVERNADO_N6',
+})
+assert.equal(n6Replay.status, 200)
+assert.equal(n6Replay.payload.casos_criados, 0)
+assert.equal(n6Replay.payload.casos_atualizados, 0)
+assert.equal(n6Replay.payload.evidencias_criadas, 0)
+assert.equal(collections.com_nexo_curadoria_casos.length, n6CaseCountBefore + 1)
+assert.equal(collections.com_nexo_curadoria_evidencias.length, n6EvidenceCountBefore + 1)
+assert.equal(collections.com_nexo_curadoria_transicoes.length, n6TransitionCountBefore + 1)
+const n6GateValueBeforeNoise = n6RuntimeGate.getString('valor')
+n6RuntimeGate.set(
+  'valor',
+  JSON.stringify({
+    gate_version: 'pmais_nexo_curadoria_lote_n6_runtime_v1',
+    batch_id: '20261119-a1-noise',
+    execution_surface: 'shared_production_assisted',
+    expected_classification: 'direction_exception',
+    expected_group_count: 1,
+    ledger_ids: [n6Selected.id, n6Noise.id],
+    ledger_hashes: {
+      [n6Selected.id]: ledgerHash(n6Selected),
+      [n6Noise.id]: ledgerHash(n6Noise),
+    },
+  }),
+)
+const n6ReplayWithUnrepresentedNoise = invoke({
+  dry_run: true,
+  modo: 'lote_governado_n6',
+  ledger_ids: [n6Selected.id, n6Noise.id],
+})
+assert.equal(n6ReplayWithUnrepresentedNoise.status, 409)
+n6RuntimeGate.set('valor', n6GateValueBeforeNoise)
+collections.com_nexo_curadoria_casos.splice(n6CaseCountBefore)
+collections.com_nexo_curadoria_evidencias.splice(n6EvidenceCountBefore)
+collections.com_nexo_curadoria_transicoes.splice(n6TransitionCountBefore)
 
 const isolatedRefs = [
   'n4-homologacao-20261118-a1:routine-1',
