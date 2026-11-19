@@ -4832,6 +4832,13 @@
       } catch (_) {}
       if (Array.isArray(raw)) return null
       var decoded = null
+      var rawText = texto(record, field)
+      if (rawText) {
+        try {
+          decoded = JSON.parse(rawText)
+          return decoded && typeof decoded === 'object' && !Array.isArray(decoded) ? decoded : null
+        } catch (_) {}
+      }
       if (raw && typeof raw === 'object' && typeof raw.length === 'number') {
         var bytes = ''
         for (var i = 0; i < raw.length; i++) {
@@ -7061,6 +7068,15 @@
           } catch (_) {}
           if (Array.isArray(raw)) return null
           var decoded = null
+          var rawText = texto(record, field)
+          if (rawText) {
+            try {
+              decoded = JSON.parse(rawText)
+              return decoded && typeof decoded === 'object' && !Array.isArray(decoded)
+                ? decoded
+                : null
+            } catch (_) {}
+          }
           if (raw && typeof raw === 'object' && typeof raw.length === 'number') {
             var bytes = ''
             for (var i = 0; i < raw.length; i++) {
