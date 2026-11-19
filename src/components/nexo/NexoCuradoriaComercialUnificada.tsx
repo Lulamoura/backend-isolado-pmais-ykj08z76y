@@ -65,12 +65,30 @@ const fonteRotulos: Record<string, string> = {
   whatsapp_uazapi: 'WhatsApp',
   whatsapp: 'WhatsApp',
   nexo_app: 'App Comercial',
+  nexo: 'App Comercial',
   atividade_comercial: 'App Comercial',
   activecampaign: 'ActiveCampaign',
   proposta: 'Proposta',
+  proposta_comercial: 'Proposta',
+  negocio_historico: 'Histórico do negócio',
   reuniao: 'Reunião',
   reuniao_externa: 'Reunião',
   followup: 'Follow-up',
+}
+
+const origemFatosRotulos: Record<string, string> = {
+  whatsapp_uazapi: 'conversa registrada no WhatsApp',
+  whatsapp: 'conversa registrada no WhatsApp',
+  nexo_app: 'registro no App Comercial',
+  nexo: 'registro no App Comercial',
+  atividade_comercial: 'registro no App Comercial',
+  activecampaign: 'registro no ActiveCampaign',
+  proposta: 'registro da proposta',
+  proposta_comercial: 'registro da proposta',
+  negocio_historico: 'histórico do negócio',
+  reuniao: 'registro de reunião',
+  reuniao_externa: 'registro de reunião',
+  followup: 'registro de follow-up',
 }
 
 const statusRotulos: Record<string, string> = {
@@ -109,12 +127,34 @@ function rotuloFonte(fonte: string) {
   return fonteRotulos[fonte] || 'Contexto comercial'
 }
 
+function tituloNegocioGenerico(valor?: string | null) {
+  const texto = String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+  return (
+    texto === 'proposta qualificada' ||
+    texto === 'proposta qaulificada' ||
+    texto === 'proposta' ||
+    texto === 'negocio'
+  )
+}
+
+function origensDosFatos(fontes: string[]) {
+  const rotulos = Array.from(
+    new Set(fontes.map((fonte) => origemFatosRotulos[fonte] || 'registro comercial')),
+  )
+  if (rotulos.length <= 1) return rotulos[0] || 'registro comercial'
+  return `${rotulos.slice(0, -1).join(', ')} e ${rotulos[rotulos.length - 1]}`
+}
+
 function referenciaHumana(caso: CasoCuradoriaComercial) {
   return [
     caso.empresa_nome,
     caso.contato_nome,
-    caso.negocio_numero ? `Negócio ${caso.negocio_numero}` : null,
-    caso.negocio_titulo,
+    caso.negocio_numero ? `Negócio nº ${caso.negocio_numero}` : null,
+    caso.negocio_titulo && !tituloNegocioGenerico(caso.negocio_titulo) ? caso.negocio_titulo : null,
   ].filter(Boolean)
 }
 
@@ -170,7 +210,9 @@ function CasoCard({
             </div>
           )}
           {caso.responsavel_nome && (
-            <p className="mt-1 text-xs text-slate-500">Responsável: {caso.responsavel_nome}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Responsável comercial: {caso.responsavel_nome}
+            </p>
           )}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -190,13 +232,17 @@ function CasoCard({
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         <div className="rounded-lg bg-slate-50 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Evidência consolidada
+            Fatos que originaram a curadoria
           </p>
           <p className="mt-1 text-sm leading-relaxed text-slate-700">{caso.resumo_factual}</p>
+          <div className="mt-2 space-y-0.5 text-xs text-slate-500">
+            <p>Origem dos fatos: {origensDosFatos(fontes)}</p>
+            <p>Consolidação: Nexo</p>
+          </div>
         </div>
         <div className="rounded-lg bg-violet-50/60 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
-            Motivo da curadoria
+            Por que exige curadoria
           </p>
           <p className="mt-1 text-sm leading-relaxed text-slate-700">{caso.motivo_curadoria}</p>
         </div>

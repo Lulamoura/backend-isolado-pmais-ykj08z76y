@@ -322,6 +322,27 @@ const collections = {
   com_ledger_comercial: [],
   com_nexo_curadoria_evidencias: [],
   com_nexo_curadoria_outbox_auditoria: [],
+  com_negocios: [
+    new MockRecord('com_negocios', 'business-501', {
+      oe_numero: 'OE-501',
+      titulo: 'Serviço recorrente',
+      responsavel_id: 'manager-1',
+      equipe_id: 'team-1',
+    }),
+    new MockRecord('com_negocios', 'business-999', {
+      oe_numero: 'OE-999',
+      titulo: 'Negócio fora do escopo',
+      responsavel_id: 'owner-9',
+      equipe_id: 'team-9',
+    }),
+    new MockRecord('com_negocios', 'business-777', {
+      oe_numero: 'OE-777',
+      titulo: 'Negócio coberto por substituição',
+      responsavel_id: 'owner-away',
+      equipe_id: 'team-7',
+    }),
+  ],
+  com_vinculos_externos: [],
   com_substituicoes: [
     new MockRecord('com_substituicoes', 'substitution-1', {
       titular_id: 'owner-away',

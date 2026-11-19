@@ -9370,13 +9370,19 @@
       if (acesso.visao_executiva) return true
       if (acesso.slug !== 'gestor-comercial') return false
       var actorId = acesso.actor.id
-      var responsavelId = nexoCuradoriaCasosTexto(caso, 'responsavel_id')
-      var equipeId = nexoCuradoriaCasosTexto(caso, 'equipe_id')
+      var negocioId = nexoCuradoriaCasosTexto(caso, 'negocio_id')
+      var negocio = nexoCuradoriaNegocioCanonico(negocioId)
+      if (negocioId && !negocio) return false
+      var responsavelId = negocio
+        ? nexoCuradoriaCasosTexto(negocio, 'responsavel_id')
+        : nexoCuradoriaCasosTexto(caso, 'responsavel_id')
+      var equipeId = negocio
+        ? nexoCuradoriaCasosTexto(negocio, 'equipe_id')
+        : nexoCuradoriaCasosTexto(caso, 'equipe_id')
       var actorEquipeId = nexoCuradoriaCasosTexto(acesso.actor, 'equipe_id')
       if (responsavelId && responsavelId === actorId) return true
       if (equipeId && actorEquipeId && equipeId === actorEquipeId) return true
       if (!responsavelId) return false
-      var negocioId = nexoCuradoriaCasosTexto(caso, 'negocio_id')
       var hoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
       try {
         var substituicoes = $app.findRecordsByFilter(
@@ -9436,7 +9442,134 @@
       return isFinite(nextReviewMs) && nextReviewMs <= new Date().getTime()
     }
 
+    var nexoCuradoriaNegociosCache = {}
+    var nexoCuradoriaResponsaveisCache = {}
+    var nexoCuradoriaNumerosExternosCache = {}
+
+    function nexoCuradoriaEscapeFiltro(value) {
+      return String(value || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+    }
+
+    function nexoCuradoriaNegocioCanonico(negocioId) {
+      if (!negocioId) return null
+      if (Object.prototype.hasOwnProperty.call(nexoCuradoriaNegociosCache, negocioId))
+        return nexoCuradoriaNegociosCache[negocioId]
+      try {
+        nexoCuradoriaNegociosCache[negocioId] = $app.findRecordById('com_negocios', negocioId)
+      } catch (_) {
+        nexoCuradoriaNegociosCache[negocioId] = null
+      }
+      return nexoCuradoriaNegociosCache[negocioId]
+    }
+
+    function nexoCuradoriaNumeroExternoCanonico(negocioId) {
+      if (!negocioId) return ''
+      if (Object.prototype.hasOwnProperty.call(nexoCuradoriaNumerosExternosCache, negocioId))
+        return nexoCuradoriaNumerosExternosCache[negocioId]
+      var numero = ''
+      try {
+        var vinculos = $app.findRecordsByFilter(
+          'com_vinculos_externos',
+          "collection_name = 'com_negocios' && record_id = '" +
+            nexoCuradoriaEscapeFiltro(negocioId) +
+            "' && sistema_origem = 'activecampaign' && external_type = 'business'",
+          '',
+          1,
+          0,
+        )
+        if (vinculos && vinculos.length)
+          numero = nexoCuradoriaCasosTexto(vinculos[0], 'external_id')
+      } catch (_) {}
+      nexoCuradoriaNumerosExternosCache[negocioId] = numero
+      return numero
+    }
+
+    function nexoCuradoriaResponsavelCanonico(responsavelId) {
+      if (!responsavelId) return ''
+      if (Object.prototype.hasOwnProperty.call(nexoCuradoriaResponsaveisCache, responsavelId))
+        return nexoCuradoriaResponsaveisCache[responsavelId]
+      var nome = ''
+      try {
+        var responsavel = $app.findRecordById('users', responsavelId)
+        nome =
+          nexoCuradoriaCasosTexto(responsavel, 'name') ||
+          nexoCuradoriaCasosTexto(responsavel, 'nome')
+      } catch (_) {}
+      nexoCuradoriaResponsaveisCache[responsavelId] = nome
+      return nome
+    }
+
+    function nexoCuradoriaTextoGenericoNegocio(value) {
+      var normalized = String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase()
+      return (
+        normalized === 'proposta qualificada' ||
+        normalized === 'proposta qaulificada' ||
+        normalized === 'proposta' ||
+        normalized === 'negocio'
+      )
+    }
+
+    function nexoCuradoriaNumeroHumano(value) {
+      var normalized = String(value || '').trim()
+      if (!normalized || nexoCuradoriaTextoGenericoNegocio(normalized)) return ''
+      if (/^[a-z0-9]{15}$/.test(normalized)) return ''
+      return normalized
+    }
+
+    function nexoCuradoriaCasoReferenciasHumanas(record) {
+      var negocioNumero = nexoCuradoriaNumeroHumano(
+        nexoCuradoriaCasosTexto(record, 'negocio_numero'),
+      )
+      var negocioTitulo = nexoCuradoriaCasosTexto(record, 'negocio_titulo')
+      var responsavelNome = nexoCuradoriaCasosTexto(record, 'responsavel_nome')
+      var negocioId = nexoCuradoriaCasosTexto(record, 'negocio_id')
+      var responsavelId = nexoCuradoriaCasosTexto(record, 'responsavel_id')
+      if (negocioId) {
+        responsavelId = ''
+        responsavelNome = ''
+      }
+
+      var negocio = nexoCuradoriaNegocioCanonico(negocioId)
+      if (negocio) {
+        var numeroCanonico =
+          nexoCuradoriaNumeroHumano(nexoCuradoriaCasosTexto(negocio, 'oe_numero')) ||
+          nexoCuradoriaNumeroHumano(nexoCuradoriaNumeroExternoCanonico(negocioId)) ||
+          nexoCuradoriaNumeroHumano(nexoCuradoriaCasosTexto(negocio, 'external_id')) ||
+          nexoCuradoriaNumeroHumano(nexoCuradoriaCasosTexto(negocio, 'codigo'))
+        if (numeroCanonico) negocioNumero = numeroCanonico
+        var tituloCanonico = nexoCuradoriaCasosTexto(negocio, 'titulo')
+        if (tituloCanonico) negocioTitulo = tituloCanonico
+        responsavelId = nexoCuradoriaCasosTexto(negocio, 'responsavel_id')
+      }
+
+      if (nexoCuradoriaTextoGenericoNegocio(negocioTitulo)) negocioTitulo = ''
+
+      if (responsavelId) {
+        var nomeCanonico = nexoCuradoriaResponsavelCanonico(responsavelId)
+        if (nomeCanonico) responsavelNome = nomeCanonico
+      }
+      if (
+        responsavelNome === responsavelId ||
+        /^[a-z0-9]{15}$/.test(responsavelNome) ||
+        responsavelNome.indexOf('@') >= 0
+      )
+        responsavelNome = ''
+
+      return {
+        negocio_numero: negocioNumero || null,
+        negocio_titulo: negocioTitulo || null,
+        responsavel_nome: responsavelNome || null,
+      }
+    }
+
     function nexoCuradoriaCasoResposta(record) {
+      var referenciasHumanas = nexoCuradoriaCasoReferenciasHumanas(record)
       return {
         id: record.id,
         revisao: nexoCuradoriaCasosNumero(record, 'revisao'),
@@ -9445,9 +9578,9 @@
         fontes: nexoCuradoriaCasosArray(record, 'fontes'),
         empresa_nome: nexoCuradoriaCasosTexto(record, 'empresa_nome') || null,
         contato_nome: nexoCuradoriaCasosTexto(record, 'contato_nome') || null,
-        negocio_numero: nexoCuradoriaCasosTexto(record, 'negocio_numero') || null,
-        negocio_titulo: nexoCuradoriaCasosTexto(record, 'negocio_titulo') || null,
-        responsavel_nome: nexoCuradoriaCasosTexto(record, 'responsavel_nome') || null,
+        negocio_numero: referenciasHumanas.negocio_numero,
+        negocio_titulo: referenciasHumanas.negocio_titulo,
+        responsavel_nome: referenciasHumanas.responsavel_nome,
         assunto_chave: nexoCuradoriaCasosTexto(record, 'assunto_chave'),
         titulo: nexoCuradoriaCasosTexto(record, 'titulo'),
         resumo_factual: nexoCuradoriaCasosTexto(record, 'resumo_factual'),
@@ -9523,49 +9656,52 @@
       if (!nexoCuradoriaCasoNoEscopo(acesso, caso)) continue
       var status = nexoCuradoriaCasosTexto(caso, 'status')
       var alcada = nexoCuradoriaCasoAlcada(caso)
-      var item = nexoCuradoriaCasoResposta(caso)
-      item.alcada = alcada
+      var visaoDestino = ''
       if (
         ((acesso.visao_executiva && alcada === 'direcao') ||
           (!acesso.visao_executiva && alcada === 'gestao_comercial')) &&
         (status === 'aberto_curadoria' || status === 'em_entrevista') &&
         visoes.para_tratar.length < limite
       )
-        visoes.para_tratar.push(item)
-      if (
+        visaoDestino = 'para_tratar'
+      else if (
         !acesso.visao_executiva &&
         alcada === 'gestao_comercial' &&
         status === 'aguardando_gestao' &&
         visoes.aguardando_decisao.length < limite
       )
-        visoes.aguardando_decisao.push(item)
-      if (
+        visaoDestino = 'aguardando_decisao'
+      else if (
         acesso.visao_executiva &&
         alcada === 'direcao' &&
         status === 'aguardando_direcao' &&
         visoes.aguardando_decisao.length < limite
       )
-        visoes.aguardando_decisao.push(item)
-      if (
+        visaoDestino = 'aguardando_decisao'
+      else if (
         status === 'aprovado' &&
         nexoCuradoriaCasosTexto(caso, 'conhecimento_status') === 'pendente_publicacao' &&
         (acesso.visao_executiva || alcada === 'gestao_comercial') &&
         visoes.publicacao_pendente.length < limite
       )
-        visoes.publicacao_pendente.push(item)
-      if (
+        visaoDestino = 'publicacao_pendente'
+      else if (
         status === 'aprovado' &&
         nexoCuradoriaCasosTexto(caso, 'conhecimento_status') === 'ativo' &&
         (acesso.visao_executiva || alcada === 'gestao_comercial') &&
         visoes.conhecimento_aprovado.length < limite
       )
-        visoes.conhecimento_aprovado.push(item)
-      if (
+        visaoDestino = 'conhecimento_aprovado'
+      else if (
         (status === 'rejeitado' || status === 'retirado' || status === 'sem_acao') &&
         (acesso.visao_executiva || alcada === 'gestao_comercial') &&
         visoes.historico.length < limite
       )
-        visoes.historico.push(item)
+        visaoDestino = 'historico'
+      if (!visaoDestino) continue
+      var item = nexoCuradoriaCasoResposta(caso)
+      item.alcada = alcada
+      visoes[visaoDestino].push(item)
     }
 
     return e.json(200, {
@@ -9707,13 +9843,19 @@
       if (acesso.visao_executiva) return true
       if (acesso.slug !== 'gestor-comercial') return false
       var actorId = acesso.actor.id
-      var responsavelId = nexoCuradoriaCasosTexto(caso, 'responsavel_id')
-      var equipeId = nexoCuradoriaCasosTexto(caso, 'equipe_id')
+      var negocioId = nexoCuradoriaCasosTexto(caso, 'negocio_id')
+      var negocio = nexoCuradoriaNegocioCanonico(negocioId)
+      if (negocioId && !negocio) return false
+      var responsavelId = negocio
+        ? nexoCuradoriaCasosTexto(negocio, 'responsavel_id')
+        : nexoCuradoriaCasosTexto(caso, 'responsavel_id')
+      var equipeId = negocio
+        ? nexoCuradoriaCasosTexto(negocio, 'equipe_id')
+        : nexoCuradoriaCasosTexto(caso, 'equipe_id')
       var actorEquipeId = nexoCuradoriaCasosTexto(acesso.actor, 'equipe_id')
       if (responsavelId && responsavelId === actorId) return true
       if (equipeId && actorEquipeId && equipeId === actorEquipeId) return true
       if (!responsavelId) return false
-      var negocioId = nexoCuradoriaCasosTexto(caso, 'negocio_id')
       var hoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
       try {
         var substituicoes = $app.findRecordsByFilter(
@@ -9773,7 +9915,134 @@
       return isFinite(nextReviewMs) && nextReviewMs <= new Date().getTime()
     }
 
+    var nexoCuradoriaNegociosCache = {}
+    var nexoCuradoriaResponsaveisCache = {}
+    var nexoCuradoriaNumerosExternosCache = {}
+
+    function nexoCuradoriaEscapeFiltro(value) {
+      return String(value || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+    }
+
+    function nexoCuradoriaNegocioCanonico(negocioId) {
+      if (!negocioId) return null
+      if (Object.prototype.hasOwnProperty.call(nexoCuradoriaNegociosCache, negocioId))
+        return nexoCuradoriaNegociosCache[negocioId]
+      try {
+        nexoCuradoriaNegociosCache[negocioId] = $app.findRecordById('com_negocios', negocioId)
+      } catch (_) {
+        nexoCuradoriaNegociosCache[negocioId] = null
+      }
+      return nexoCuradoriaNegociosCache[negocioId]
+    }
+
+    function nexoCuradoriaNumeroExternoCanonico(negocioId) {
+      if (!negocioId) return ''
+      if (Object.prototype.hasOwnProperty.call(nexoCuradoriaNumerosExternosCache, negocioId))
+        return nexoCuradoriaNumerosExternosCache[negocioId]
+      var numero = ''
+      try {
+        var vinculos = $app.findRecordsByFilter(
+          'com_vinculos_externos',
+          "collection_name = 'com_negocios' && record_id = '" +
+            nexoCuradoriaEscapeFiltro(negocioId) +
+            "' && sistema_origem = 'activecampaign' && external_type = 'business'",
+          '',
+          1,
+          0,
+        )
+        if (vinculos && vinculos.length)
+          numero = nexoCuradoriaCasosTexto(vinculos[0], 'external_id')
+      } catch (_) {}
+      nexoCuradoriaNumerosExternosCache[negocioId] = numero
+      return numero
+    }
+
+    function nexoCuradoriaResponsavelCanonico(responsavelId) {
+      if (!responsavelId) return ''
+      if (Object.prototype.hasOwnProperty.call(nexoCuradoriaResponsaveisCache, responsavelId))
+        return nexoCuradoriaResponsaveisCache[responsavelId]
+      var nome = ''
+      try {
+        var responsavel = $app.findRecordById('users', responsavelId)
+        nome =
+          nexoCuradoriaCasosTexto(responsavel, 'name') ||
+          nexoCuradoriaCasosTexto(responsavel, 'nome')
+      } catch (_) {}
+      nexoCuradoriaResponsaveisCache[responsavelId] = nome
+      return nome
+    }
+
+    function nexoCuradoriaTextoGenericoNegocio(value) {
+      var normalized = String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase()
+      return (
+        normalized === 'proposta qualificada' ||
+        normalized === 'proposta qaulificada' ||
+        normalized === 'proposta' ||
+        normalized === 'negocio'
+      )
+    }
+
+    function nexoCuradoriaNumeroHumano(value) {
+      var normalized = String(value || '').trim()
+      if (!normalized || nexoCuradoriaTextoGenericoNegocio(normalized)) return ''
+      if (/^[a-z0-9]{15}$/.test(normalized)) return ''
+      return normalized
+    }
+
+    function nexoCuradoriaCasoReferenciasHumanas(record) {
+      var negocioNumero = nexoCuradoriaNumeroHumano(
+        nexoCuradoriaCasosTexto(record, 'negocio_numero'),
+      )
+      var negocioTitulo = nexoCuradoriaCasosTexto(record, 'negocio_titulo')
+      var responsavelNome = nexoCuradoriaCasosTexto(record, 'responsavel_nome')
+      var negocioId = nexoCuradoriaCasosTexto(record, 'negocio_id')
+      var responsavelId = nexoCuradoriaCasosTexto(record, 'responsavel_id')
+      if (negocioId) {
+        responsavelId = ''
+        responsavelNome = ''
+      }
+
+      var negocio = nexoCuradoriaNegocioCanonico(negocioId)
+      if (negocio) {
+        var numeroCanonico =
+          nexoCuradoriaNumeroHumano(nexoCuradoriaCasosTexto(negocio, 'oe_numero')) ||
+          nexoCuradoriaNumeroHumano(nexoCuradoriaNumeroExternoCanonico(negocioId)) ||
+          nexoCuradoriaNumeroHumano(nexoCuradoriaCasosTexto(negocio, 'external_id')) ||
+          nexoCuradoriaNumeroHumano(nexoCuradoriaCasosTexto(negocio, 'codigo'))
+        if (numeroCanonico) negocioNumero = numeroCanonico
+        var tituloCanonico = nexoCuradoriaCasosTexto(negocio, 'titulo')
+        if (tituloCanonico) negocioTitulo = tituloCanonico
+        responsavelId = nexoCuradoriaCasosTexto(negocio, 'responsavel_id')
+      }
+
+      if (nexoCuradoriaTextoGenericoNegocio(negocioTitulo)) negocioTitulo = ''
+
+      if (responsavelId) {
+        var nomeCanonico = nexoCuradoriaResponsavelCanonico(responsavelId)
+        if (nomeCanonico) responsavelNome = nomeCanonico
+      }
+      if (
+        responsavelNome === responsavelId ||
+        /^[a-z0-9]{15}$/.test(responsavelNome) ||
+        responsavelNome.indexOf('@') >= 0
+      )
+        responsavelNome = ''
+
+      return {
+        negocio_numero: negocioNumero || null,
+        negocio_titulo: negocioTitulo || null,
+        responsavel_nome: responsavelNome || null,
+      }
+    }
+
     function nexoCuradoriaCasoResposta(record) {
+      var referenciasHumanas = nexoCuradoriaCasoReferenciasHumanas(record)
       return {
         id: record.id,
         revisao: nexoCuradoriaCasosNumero(record, 'revisao'),
@@ -9782,9 +10051,9 @@
         fontes: nexoCuradoriaCasosArray(record, 'fontes'),
         empresa_nome: nexoCuradoriaCasosTexto(record, 'empresa_nome') || null,
         contato_nome: nexoCuradoriaCasosTexto(record, 'contato_nome') || null,
-        negocio_numero: nexoCuradoriaCasosTexto(record, 'negocio_numero') || null,
-        negocio_titulo: nexoCuradoriaCasosTexto(record, 'negocio_titulo') || null,
-        responsavel_nome: nexoCuradoriaCasosTexto(record, 'responsavel_nome') || null,
+        negocio_numero: referenciasHumanas.negocio_numero,
+        negocio_titulo: referenciasHumanas.negocio_titulo,
+        responsavel_nome: referenciasHumanas.responsavel_nome,
         assunto_chave: nexoCuradoriaCasosTexto(record, 'assunto_chave'),
         titulo: nexoCuradoriaCasosTexto(record, 'titulo'),
         resumo_factual: nexoCuradoriaCasosTexto(record, 'resumo_factual'),
@@ -9886,10 +10155,18 @@
         if (nexoCuradoriaCasosTexto(transicoes[ti], 'transicao_chave') === transitionKey) {
           if (nexoCuradoriaCasosTexto(transicoes[ti], 'command_hash') !== commandHash)
             return e.json(409, { ok: false, error: 'REPLAY_DIVERGENTE' })
+          var replayCase = null
+          try {
+            replayCase = $app.findRecordById('com_nexo_curadoria_casos', id)
+          } catch (_) {
+            return e.json(503, { ok: false, error: 'CURADORIA_INDISPONIVEL' })
+          }
+          if (!nexoCuradoriaCasoNoEscopo(acesso, replayCase))
+            return e.forbiddenError('Caso fora do escopo do perfil')
           return e.json(200, {
             ok: true,
             idempotent_replay: true,
-            caso: nexoCuradoriaCasoResposta($app.findRecordById('com_nexo_curadoria_casos', id)),
+            caso: nexoCuradoriaCasoResposta(replayCase),
             automatic_send_allowed: false,
           })
         }

@@ -1287,10 +1287,51 @@ assert.equal(automaticCase.getString('updated_by'), AUTOMATIC_AGENT_ID)
 
 const listRoute = routes['POST /backend/v1/nexo/curadoria/casos/listar']
 assert(listRoute, 'curation list route must exist')
-function invokeList() {
+const relatedBusinessId = automaticCase.getString('negocio_id')
+assert(relatedBusinessId, 'automatic case must retain the related business id')
+automaticCase.set('negocio_numero', 'Proposta Qualificada')
+automaticCase.set('negocio_titulo', 'Proposta Qualificada')
+automaticCase.set('responsavel_nome', 'seller-old')
+automaticCase.set('responsavel_id', 'seller-old')
+collections.com_negocios = [
+  new MockRecord('com_negocios', relatedBusinessId, {
+    oe_numero: '',
+    titulo: 'Proposta Qualificada',
+    responsavel_id: 'seller-current',
+    equipe_id: 'team-current',
+  }),
+]
+collections.com_vinculos_externos = [
+  new MockRecord('com_vinculos_externos', 'business-link', {
+    collection_name: 'com_negocios',
+    record_id: relatedBusinessId,
+    sistema_origem: 'activecampaign',
+    external_type: 'business',
+    external_id: '4821',
+  }),
+]
+const managerProfile = new MockRecord('com_perfis', 'manager-profile', {
+  slug: 'gestor-comercial',
+  ativo: true,
+})
+const currentSeller = new MockRecord('users', 'seller-current', {
+  name: 'Marcos Silva',
+  perfil_id: managerProfile.id,
+  equipe_id: 'team-current',
+  ativo_comercial: true,
+})
+const formerSeller = new MockRecord('users', 'seller-old', {
+  name: 'Responsável anterior',
+  perfil_id: managerProfile.id,
+  equipe_id: 'equipe-comercial',
+  ativo_comercial: true,
+})
+collections.com_perfis.push(managerProfile)
+collections.users.push(currentSeller, formerSeller)
+function invokeList(auth = actor) {
   let listResponse
   listRoute({
-    auth: actor,
+    auth,
     requestInfo: () => ({ body: { limite: 100 } }),
     json(status, responsePayload) {
       listResponse = { status, payload: responsePayload }
@@ -1305,6 +1346,65 @@ function invokeList() {
 }
 const pendingPublicationView = invokeList()
 assert.equal(pendingPublicationView.status, 200)
+const enrichedAutomaticCase = pendingPublicationView.payload.visoes.publicacao_pendente.find(
+  (item) => item.id === automaticCase.id,
+)
+assert(enrichedAutomaticCase, 'enriched automatic case must remain listed')
+assert.equal(enrichedAutomaticCase.negocio_numero, '4821')
+assert.equal(enrichedAutomaticCase.negocio_titulo, null)
+assert.equal(enrichedAutomaticCase.responsavel_nome, 'Marcos Silva')
+const currentManagerView = invokeList(currentSeller)
+assert.equal(currentManagerView.status, 200)
+assert.equal(
+  currentManagerView.payload.visoes.publicacao_pendente.some(
+    (item) => item.id === automaticCase.id,
+  ),
+  true,
+  'current business owner must access the case after reassignment',
+)
+const formerManagerView = invokeList(formerSeller)
+assert.equal(formerManagerView.status, 200)
+assert.equal(
+  formerManagerView.payload.visoes.publicacao_pendente.some((item) => item.id === automaticCase.id),
+  false,
+  'former business owner must lose access after reassignment',
+)
+const canonicalBusiness = collections.com_negocios[0]
+canonicalBusiness.set('responsavel_id', '')
+const unassignedBusinessView = invokeList(actor)
+const unassignedCase = unassignedBusinessView.payload.visoes.publicacao_pendente.find(
+  (item) => item.id === automaticCase.id,
+)
+assert(unassignedCase)
+assert.equal(
+  unassignedCase.responsavel_nome,
+  null,
+  'unassigned business must not display the former owner as current',
+)
+canonicalBusiness.set('responsavel_id', currentSeller.id)
+collections.users = collections.users.filter((item) => item.id !== currentSeller.id)
+const unresolvedOwnerView = invokeList(actor)
+const unresolvedOwnerCase = unresolvedOwnerView.payload.visoes.publicacao_pendente.find(
+  (item) => item.id === automaticCase.id,
+)
+assert(unresolvedOwnerCase)
+assert.equal(
+  unresolvedOwnerCase.responsavel_nome,
+  null,
+  'unresolved current owner must not fall back to a historical technical value',
+)
+collections.users.push(currentSeller)
+collections.com_negocios = []
+const unavailableBusinessView = invokeList(formerSeller)
+assert.equal(unavailableBusinessView.status, 200)
+assert.equal(
+  unavailableBusinessView.payload.visoes.publicacao_pendente.some(
+    (item) => item.id === automaticCase.id,
+  ),
+  false,
+  'manager scope must fail closed when the related business is unavailable',
+)
+collections.com_negocios = [canonicalBusiness]
 assert.equal(
   pendingPublicationView.payload.visoes.conhecimento_aprovado.some(
     (item) => item.conhecimento_status === 'pendente_publicacao',

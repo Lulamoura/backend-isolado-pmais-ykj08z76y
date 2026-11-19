@@ -20,9 +20,9 @@ const casoBase = {
   fontes: ['whatsapp_uazapi', 'nexo_app'],
   empresa_nome: 'Cliente Horizonte',
   contato_nome: 'Marina Cliente',
-  negocio_numero: 'OE-501',
-  negocio_titulo: 'Terceirização operacional',
-  responsavel_nome: 'Equipe Comercial',
+  negocio_numero: '4821',
+  negocio_titulo: 'Proposta Qualificada',
+  responsavel_nome: 'Marcos Silva',
   assunto_chave: 'preferencia_comunicacao',
   titulo: 'Preferência recorrente de comunicação',
   resumo_factual: 'O cliente prefere receber resumos objetivos antes das reuniões.',
@@ -133,8 +133,18 @@ describe('Curadoria Comercial Unificada', () => {
     ).toBeInTheDocument()
     expect(await screen.findByText('Preferência recorrente de comunicação')).toBeInTheDocument()
     expect(screen.getByText('Cliente Horizonte')).toBeInTheDocument()
-    expect(screen.getByText(/OE-501/)).toBeInTheDocument()
+    expect(screen.getByText('Negócio nº 4821')).toBeInTheDocument()
+    expect(screen.queryByText('Proposta Qualificada')).not.toBeInTheDocument()
+    expect(screen.getByText('Responsável comercial: Marcos Silva')).toBeInTheDocument()
     expect(screen.getByText('WhatsApp')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Origem dos fatos: conversa registrada no WhatsApp e registro no App Comercial',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Consolidação: Nexo')).toBeInTheDocument()
+    expect(screen.getByText('Fatos que originaram a curadoria')).toBeInTheDocument()
+    expect(screen.getByText('Por que exige curadoria')).toBeInTheDocument()
     expect(screen.getByText('Alçada: gestão comercial')).toBeInTheDocument()
     expect(screen.queryByText('technical-case-id-should-not-be-visible')).not.toBeInTheDocument()
 
