@@ -58,7 +58,7 @@ migrate(
     addOrValidate(new TextField({ name: 'lease_owner', required: false, max: 64 }))
     addOrValidate(new DateField({ name: 'lease_expires_at', required: false }))
     addOrValidate(
-      new NumberField({ name: 'processed_records', required: true, min: 0, onlyInt: true }),
+      new NumberField({ name: 'processed_records', required: false, min: 0, onlyInt: true }),
     )
     addOrValidate(new TextField({ name: 'last_result_code', required: true, max: 40 }))
     addOrValidate(new DateField({ name: 'last_executed_at', required: true }))

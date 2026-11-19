@@ -13,6 +13,7 @@ const migrationNames = [
   '202611191300_nexo_curadoria_n7_execution_metrics.js',
   '202611191310_nexo_curadoria_n7_worker_state.js',
   '202611191320_nexo_curadoria_n7_controls.js',
+  '202611191330_nexo_curadoria_n7_worker_state_zero.js',
 ]
 for (const name of migrationNames)
   assert(fs.existsSync(path.join(root, 'pocketbase', 'migrations', name)), `missing ${name}`)
@@ -76,8 +77,23 @@ const assertionMigration = `migrate(function(app) {
   requireField(workerState, 'pending_ledger_hashes', 'json')
   requireField(workerState, 'lease_owner', 'text')
   requireField(workerState, 'lease_expires_at', 'date')
+  var processedRecords = requireField(workerState, 'processed_records', 'number')
+  if (processedRecords.required || Number(processedRecords.min) !== 0 || !processedRecords.onlyInt)
+    throw new Error('processed_records must accept the initial zero value')
   var states = app.findRecordsByFilter('com_nexo_curadoria_worker_estado', "worker_identity = 'nexo-curadoria-n7'", '', 2, 0)
   if (states.length !== 0) throw new Error('worker state must not be fabricated before the first governed run')
+  var zeroState = new Record(workerState)
+  zeroState.set('worker_identity', 'nexo-curadoria-n7-zero-test')
+  zeroState.set('gate_version', 'test')
+  zeroState.set('cursor_created', '2026-11-19 10:10:58.360Z')
+  zeroState.set('cursor_id', '8k78ljeajfeuwxn')
+  zeroState.set('processed_records', 0)
+  zeroState.set('last_result_code', 'test')
+  zeroState.set('last_executed_at', new Date())
+  app.save(zeroState)
+  if (zeroState.getInt('processed_records') !== 0)
+    throw new Error('processed_records did not persist the initial zero value')
+  app.delete(zeroState)
 
   var keys = ['nexo.curadoria.operacao_n7_switch_v1', 'nexo.curadoria.outbox_n7_switch_v1']
   for (var j = 0; j < keys.length; j++) {
