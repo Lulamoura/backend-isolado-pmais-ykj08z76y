@@ -10098,6 +10098,14 @@
         : 'gestao_comercial'
     }
 
+    function nexoCuradoriaCasoTransicaoPermitida(acesso, record, statusAnterior) {
+      var status = String(statusAnterior || nexoCuradoriaCasosTexto(record, 'status'))
+      var alcada = nexoCuradoriaCasoAlcada(record)
+      if ((status === 'aguardando_direcao' || alcada === 'direcao') && !acesso.pode_decidir_direcao)
+        return false
+      return true
+    }
+
     var acesso = nexoCuradoriaCasosPerfil(e)
     if (!acesso || !acesso.pode_escrever)
       return e.forbiddenError('Perfil com alçada decisória necessario')
@@ -10133,14 +10141,23 @@
     for (var ri = 0; ri < respostasRecebidas.length; ri++)
       respostas.push(nexoCuradoriaCasosLimpar(respostasRecebidas[ri], 2000))
 
-    var commandCanonical = JSON.stringify({
+    var commandCanonicalLegacy = JSON.stringify({
       acao: acao,
       regra: regra,
       observacao: observacao,
       respostas: respostas,
       revisao: expectedRevision,
     })
+    var commandCanonical = JSON.stringify({
+      acao: acao,
+      regra: regra,
+      observacao: observacao,
+      respostas: respostas,
+      etapa: etapa,
+      revisao: expectedRevision,
+    })
     var commandHash = String($security.sha256(commandCanonical))
+    var commandHashLegacy = String($security.sha256(commandCanonicalLegacy))
 
     var transitionKey = String(
       $security.sha256(
@@ -10153,7 +10170,8 @@
       var transicoes = nexoCuradoriaCasosCarregar($app, 'com_nexo_curadoria_transicoes')
       for (var ti = 0; ti < transicoes.length; ti++) {
         if (nexoCuradoriaCasosTexto(transicoes[ti], 'transicao_chave') === transitionKey) {
-          if (nexoCuradoriaCasosTexto(transicoes[ti], 'command_hash') !== commandHash)
+          var storedCommandHash = nexoCuradoriaCasosTexto(transicoes[ti], 'command_hash')
+          if (storedCommandHash !== commandHash && storedCommandHash !== commandHashLegacy)
             return e.json(409, { ok: false, error: 'REPLAY_DIVERGENTE' })
           var replayCase = null
           try {
@@ -10163,6 +10181,15 @@
           }
           if (!nexoCuradoriaCasoNoEscopo(acesso, replayCase))
             return e.forbiddenError('Caso fora do escopo do perfil')
+          if (
+            !nexoCuradoriaCasoTransicaoPermitida(
+              acesso,
+              replayCase,
+              nexoCuradoriaCasosTexto(transicoes[ti], 'status_anterior'),
+            ) ||
+            !nexoCuradoriaCasoTransicaoPermitida(acesso, replayCase, '')
+          )
+            return e.forbiddenError('Perfil sem alçada para repetir esta transição')
           return e.json(200, {
             ok: true,
             idempotent_replay: true,
@@ -10212,7 +10239,7 @@
         var conhecimentoStatusAnterior = nexoCuradoriaCasosTexto(caso, 'conhecimento_status')
         var alcada = nexoCuradoriaCasoAlcada(caso)
         caso.set('alcada', alcada)
-        if (!acesso.pode_decidir_direcao && alcada === 'direcao')
+        if (!nexoCuradoriaCasoTransicaoPermitida(acesso, caso, statusAnterior))
           throw new Error('ALCADA_INSUFICIENTE')
 
         var statusNovo = statusAnterior
@@ -10220,7 +10247,8 @@
           if (
             statusAnterior !== 'aberto_curadoria' &&
             statusAnterior !== 'em_entrevista' &&
-            statusAnterior !== 'aguardando_gestao'
+            statusAnterior !== 'aguardando_gestao' &&
+            statusAnterior !== 'aguardando_direcao'
           )
             throw new Error('TRANSICAO_NAO_PERMITIDA')
           statusNovo = 'em_entrevista'
@@ -10241,7 +10269,8 @@
           if (
             statusAnterior !== 'aberto_curadoria' &&
             statusAnterior !== 'em_entrevista' &&
-            statusAnterior !== 'aguardando_gestao'
+            statusAnterior !== 'aguardando_gestao' &&
+            statusAnterior !== 'aguardando_direcao'
           )
             throw new Error('TRANSICAO_NAO_PERMITIDA')
           caso.set('entrevista_respostas', respostas)

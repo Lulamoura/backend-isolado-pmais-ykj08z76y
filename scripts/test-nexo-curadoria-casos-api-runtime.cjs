@@ -224,6 +224,8 @@ const cases = [
     fontes: ['activecampaign'],
     empresa_nome: 'Cliente E',
     negocio_numero: 'OE-505',
+    responsavel_id: 'superadmin-1',
+    equipe_id: 'team-1',
     assunto_chave: 'politica_comercial',
     titulo: 'Condição comercial sensível identificada',
     resumo_factual: 'Foi identificada recorrência que envolve política comercial.',
@@ -754,6 +756,112 @@ const outOfScopeTransition = invokeTransition(manager, 'case-out-of-scope', {
 })
 assert.equal(outOfScopeTransition.status, 403)
 
+const directionStateDraft = new MockRecord(
+  'com_nexo_curadoria_casos',
+  'case-direction-state-draft',
+  {
+    revisao: 1,
+    status: 'aguardando_direcao',
+    fonte_principal: 'whatsapp_uazapi',
+    fontes: ['whatsapp_uazapi'],
+    empresa_nome: 'Cliente de alçada executiva',
+    responsavel_id: 'manager-1',
+    equipe_id: 'team-1',
+    assunto_chave: 'preferencia_comunicacao',
+    titulo: 'Caso encaminhado voluntariamente à direção',
+    resumo_factual: 'A direção foi acionada pelo fluxo humano.',
+    motivo_curadoria: 'Aguardando decisão executiva.',
+    evidencia_contagem: 1,
+    recorrencia_contagem: 1,
+    risco_classe: 'medio',
+    alcada: 'direcao',
+    sensivel_motivos: [],
+    confianca: 'media',
+    human_review_required: true,
+    automatic_promotion_allowed: false,
+    conhecimento_status: 'nao_publicado',
+  },
+)
+const directionStateSubmit = new MockRecord(
+  'com_nexo_curadoria_casos',
+  'case-direction-state-submit',
+  { ...directionStateDraft.values },
+)
+cases.push(directionStateDraft, directionStateSubmit)
+
+const managerCannotDraftDirectionState = invokeTransition(manager, 'case-direction-state-draft', {
+  acao: 'salvar_rascunho',
+  expected_revision: 1,
+  entrevista_etapa: 4,
+  entrevista_respostas: ['Regra', 'Exceção', 'Aplicação', 'Justificativa'],
+  regra_candidata: 'Regra',
+})
+assert.equal(managerCannotDraftDirectionState.status, 403)
+const managerCannotSubmitDirectionState = invokeTransition(manager, 'case-direction-state-submit', {
+  acao: 'encaminhar_direcao',
+  expected_revision: 1,
+  entrevista_etapa: 4,
+  entrevista_respostas: ['Regra', 'Exceção', 'Aplicação', 'Justificativa'],
+  regra_candidata: 'Regra',
+  decisao_observacao: 'Justificativa',
+})
+assert.equal(managerCannotSubmitDirectionState.status, 403)
+
+const voluntarilyEscalated = new MockRecord(
+  'com_nexo_curadoria_casos',
+  'case-voluntarily-escalated',
+  {
+    revisao: 1,
+    status: 'aberto_curadoria',
+    fonte_principal: 'whatsapp_uazapi',
+    fontes: ['whatsapp_uazapi'],
+    empresa_nome: 'Cliente escalado voluntariamente',
+    responsavel_id: 'superadmin-1',
+    equipe_id: 'team-1',
+    assunto_chave: 'preferencia_comunicacao',
+    titulo: 'Orientação gerencial escalada à direção',
+    resumo_factual: 'O caso foi escalado por decisão humana.',
+    motivo_curadoria: 'Revisão executiva solicitada.',
+    evidencia_contagem: 1,
+    recorrencia_contagem: 1,
+    risco_classe: 'medio',
+    alcada: 'gestao_comercial',
+    sensivel_motivos: [],
+    confianca: 'media',
+    human_review_required: true,
+    automatic_promotion_allowed: false,
+    conhecimento_status: 'nao_publicado',
+  },
+)
+cases.push(voluntarilyEscalated)
+const voluntaryDirectionCommand = {
+  acao: 'encaminhar_direcao',
+  expected_revision: 1,
+  entrevista_etapa: 4,
+  entrevista_respostas: ['Regra', 'Exceção', 'Aplicação', 'Justificativa'],
+  regra_candidata: 'Regra',
+  decisao_observacao: 'Justificativa',
+}
+const voluntaryDirection = invokeTransition(
+  superadmin,
+  'case-voluntarily-escalated',
+  voluntaryDirectionCommand,
+)
+assert.equal(voluntaryDirection.status, 200)
+assert.equal(voluntaryDirection.payload.caso.status, 'aguardando_direcao')
+const voluntaryProfileBeforeReplay = superadmin.getString('perfil_id')
+const voluntaryTeamBeforeReplay = superadmin.getString('equipe_id')
+superadmin.set('perfil_id', managerProfile.id)
+superadmin.set('equipe_id', 'team-1')
+const revokedVoluntaryReplay = invokeTransition(
+  superadmin,
+  'case-voluntarily-escalated',
+  voluntaryDirectionCommand,
+)
+assert.equal(revokedVoluntaryReplay.status, 403)
+superadmin.set('perfil_id', voluntaryProfileBeforeReplay)
+superadmin.set('equipe_id', voluntaryTeamBeforeReplay)
+
 const sensitiveOpen = cases.find((row) => row.id === 'case-sensitive-open')
 const executiveCannotWrite = invokeTransition(executive, 'case-sensitive-open', {
   acao: 'encaminhar_direcao',
@@ -804,6 +912,84 @@ assert.equal(
   sensitiveOpen.getString('regra_candidata'),
   'Submeter condições excepcionais à direção.',
 )
+
+const adjustedDirection = invokeTransition(superadmin, 'case-sensitive-open', {
+  acao: 'encaminhar_direcao',
+  expected_revision: 2,
+  entrevista_etapa: 4,
+  entrevista_respostas: [
+    'Submeter apenas condições excepcionais à direção.',
+    'Não se aplica a condições já previstas em contrato.',
+    'A gestão registra a decisão no negócio.',
+    'Encaminhar novamente após o ajuste solicitado.',
+  ],
+  regra_candidata: 'Submeter apenas condições excepcionais à direção.',
+  decisao_observacao: 'Encaminhar novamente após o ajuste solicitado.',
+})
+assert.equal(adjustedDirection.status, 200)
+assert.equal(adjustedDirection.payload.caso.status, 'aguardando_direcao')
+assert.equal(adjustedDirection.payload.caso.revisao, 3)
+assert.equal(sensitiveOpen.getInt('entrevista_etapa'), 4)
+assert.equal(
+  sensitiveOpen.getString('regra_candidata'),
+  'Submeter apenas condições excepcionais à direção.',
+)
+assert.equal(outbox.length, 0)
+
+const superadminProfileBeforeReplay = superadmin.getString('perfil_id')
+const superadminTeamBeforeReplay = superadmin.getString('equipe_id')
+superadmin.set('perfil_id', managerProfile.id)
+superadmin.set('equipe_id', 'team-1')
+const revokedDirectionReplay = invokeTransition(superadmin, 'case-sensitive-open', {
+  acao: 'encaminhar_direcao',
+  expected_revision: 2,
+  entrevista_etapa: 4,
+  entrevista_respostas: [
+    'Submeter apenas condições excepcionais à direção.',
+    'Não se aplica a condições já previstas em contrato.',
+    'A gestão registra a decisão no negócio.',
+    'Encaminhar novamente após o ajuste solicitado.',
+  ],
+  regra_candidata: 'Submeter apenas condições excepcionais à direção.',
+  decisao_observacao: 'Encaminhar novamente após o ajuste solicitado.',
+})
+assert.equal(revokedDirectionReplay.status, 403)
+superadmin.set('perfil_id', superadminProfileBeforeReplay)
+superadmin.set('equipe_id', superadminTeamBeforeReplay)
+
+const divergentDirectionStageReplay = invokeTransition(superadmin, 'case-sensitive-open', {
+  acao: 'encaminhar_direcao',
+  expected_revision: 2,
+  entrevista_etapa: 3,
+  entrevista_respostas: [
+    'Submeter apenas condições excepcionais à direção.',
+    'Não se aplica a condições já previstas em contrato.',
+    'A gestão registra a decisão no negócio.',
+    'Encaminhar novamente após o ajuste solicitado.',
+  ],
+  regra_candidata: 'Submeter apenas condições excepcionais à direção.',
+  decisao_observacao: 'Encaminhar novamente após o ajuste solicitado.',
+})
+assert.equal(divergentDirectionStageReplay.status, 409)
+assert.equal(divergentDirectionStageReplay.payload.error, 'REPLAY_DIVERGENTE')
+
+const directionDraft = invokeTransition(superadmin, 'case-sensitive-open', {
+  acao: 'salvar_rascunho',
+  expected_revision: 3,
+  entrevista_etapa: 4,
+  entrevista_respostas: [
+    'Submeter apenas condições excepcionais à direção.',
+    'Não se aplica a condições já previstas em contrato.',
+    'A gestão registra a decisão no negócio.',
+    'Rascunho ajustado para continuar depois.',
+  ],
+  regra_candidata: 'Submeter apenas condições excepcionais à direção.',
+})
+assert.equal(directionDraft.status, 200)
+assert.equal(directionDraft.payload.caso.status, 'em_entrevista')
+assert.equal(directionDraft.payload.caso.revisao, 4)
+assert.equal(sensitiveOpen.get('entrevista_respostas').length, 4)
+assert.equal(outbox.length, 0)
 
 const draft = invokeTransition(manager, 'case-management', {
   acao: 'salvar_rascunho',
