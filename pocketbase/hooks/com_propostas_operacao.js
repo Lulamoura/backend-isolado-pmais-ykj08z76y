@@ -4825,6 +4825,34 @@
       return Array.isArray(decoded) ? decoded : []
     }
 
+    function lerObjetoJson(record, field) {
+      var raw = null
+      try {
+        raw = valor(record, field)
+      } catch (_) {}
+      if (Array.isArray(raw)) return null
+      var decoded = null
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        try {
+          decoded = JSON.parse(JSON.stringify(raw))
+        } catch (_) {}
+        if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) return decoded
+      }
+      if (raw && typeof raw === 'object' && typeof raw.length === 'number' && raw.length > 0) {
+        try {
+          decoded = JSON.parse(String(raw))
+        } catch (_) {}
+        if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) return decoded
+      }
+      var text = typeof raw === 'string' ? raw : texto(record, field)
+      if (text) {
+        try {
+          decoded = JSON.parse(text)
+        } catch (_) {}
+      }
+      return decoded && typeof decoded === 'object' && !Array.isArray(decoded) ? decoded : null
+    }
+
     function numero(record, field) {
       try {
         return Number(record.getInt(field) || 0)
@@ -5235,7 +5263,7 @@
       }
       pendingLedgerIdsN7 = workerStateN7 ? lerArray(workerStateN7, 'pending_ledger_ids') : []
       pendingLedgerHashesN7 = workerStateN7
-        ? valor(workerStateN7, 'pending_ledger_hashes') || {}
+        ? lerObjetoJson(workerStateN7, 'pending_ledger_hashes')
         : {}
       if (
         !Array.isArray(pendingLedgerIdsN7) ||
@@ -5280,7 +5308,7 @@
             cursor_created: texto(workerStateN7, 'cursor_created'),
             cursor_id: texto(workerStateN7, 'cursor_id'),
             pending_ledger_ids: lerArray(workerStateN7, 'pending_ledger_ids'),
-            pending_ledger_hashes: valor(workerStateN7, 'pending_ledger_hashes') || {},
+            pending_ledger_hashes: lerObjetoJson(workerStateN7, 'pending_ledger_hashes'),
             lease_owner: texto(workerStateN7, 'lease_owner'),
             lease_expires_at: texto(workerStateN7, 'lease_expires_at'),
           })
@@ -6090,7 +6118,7 @@
                 cursor_created: texto(leaseStateN7, 'cursor_created'),
                 cursor_id: texto(leaseStateN7, 'cursor_id'),
                 pending_ledger_ids: lerArray(leaseStateN7, 'pending_ledger_ids'),
-                pending_ledger_hashes: valor(leaseStateN7, 'pending_ledger_hashes') || {},
+                pending_ledger_hashes: lerObjetoJson(leaseStateN7, 'pending_ledger_hashes'),
                 lease_owner: texto(leaseStateN7, 'lease_owner'),
                 lease_expires_at: texto(leaseStateN7, 'lease_expires_at'),
               })
@@ -6126,7 +6154,7 @@
         cursor_created: texto(workerStateN7, 'cursor_created'),
         cursor_id: texto(workerStateN7, 'cursor_id'),
         pending_ledger_ids: lerArray(workerStateN7, 'pending_ledger_ids'),
-        pending_ledger_hashes: valor(workerStateN7, 'pending_ledger_hashes') || {},
+        pending_ledger_hashes: lerObjetoJson(workerStateN7, 'pending_ledger_hashes'),
         lease_owner: texto(workerStateN7, 'lease_owner'),
         lease_expires_at: texto(workerStateN7, 'lease_expires_at'),
       })
@@ -6262,7 +6290,7 @@
                 cursor_created: texto(txWorkerStateN7, 'cursor_created'),
                 cursor_id: texto(txWorkerStateN7, 'cursor_id'),
                 pending_ledger_ids: lerArray(txWorkerStateN7, 'pending_ledger_ids'),
-                pending_ledger_hashes: valor(txWorkerStateN7, 'pending_ledger_hashes') || {},
+                pending_ledger_hashes: lerObjetoJson(txWorkerStateN7, 'pending_ledger_hashes'),
                 lease_owner: texto(txWorkerStateN7, 'lease_owner'),
                 lease_expires_at: texto(txWorkerStateN7, 'lease_expires_at'),
               })
@@ -7013,6 +7041,34 @@
           return Array.isArray(decoded) ? decoded : []
         }
 
+        function lerObjetoJson(record, field) {
+          var raw = null
+          try {
+            raw = valor(record, field)
+          } catch (_) {}
+          if (Array.isArray(raw)) return null
+          var decoded = null
+          if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+            try {
+              decoded = JSON.parse(JSON.stringify(raw))
+            } catch (_) {}
+            if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) return decoded
+          }
+          if (raw && typeof raw === 'object' && typeof raw.length === 'number' && raw.length > 0) {
+            try {
+              decoded = JSON.parse(String(raw))
+            } catch (_) {}
+            if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) return decoded
+          }
+          var text = typeof raw === 'string' ? raw : texto(record, field)
+          if (text) {
+            try {
+              decoded = JSON.parse(text)
+            } catch (_) {}
+          }
+          return decoded && typeof decoded === 'object' && !Array.isArray(decoded) ? decoded : null
+        }
+
         function numero(record, field) {
           try {
             return Number(record.getInt(field) || 0)
@@ -7429,7 +7485,7 @@
           }
           pendingLedgerIdsN7 = workerStateN7 ? lerArray(workerStateN7, 'pending_ledger_ids') : []
           pendingLedgerHashesN7 = workerStateN7
-            ? valor(workerStateN7, 'pending_ledger_hashes') || {}
+            ? lerObjetoJson(workerStateN7, 'pending_ledger_hashes')
             : {}
           if (
             !Array.isArray(pendingLedgerIdsN7) ||
@@ -7474,7 +7530,7 @@
                 cursor_created: texto(workerStateN7, 'cursor_created'),
                 cursor_id: texto(workerStateN7, 'cursor_id'),
                 pending_ledger_ids: lerArray(workerStateN7, 'pending_ledger_ids'),
-                pending_ledger_hashes: valor(workerStateN7, 'pending_ledger_hashes') || {},
+                pending_ledger_hashes: lerObjetoJson(workerStateN7, 'pending_ledger_hashes'),
                 lease_owner: texto(workerStateN7, 'lease_owner'),
                 lease_expires_at: texto(workerStateN7, 'lease_expires_at'),
               })
@@ -8293,7 +8349,7 @@
                     cursor_created: texto(leaseStateN7, 'cursor_created'),
                     cursor_id: texto(leaseStateN7, 'cursor_id'),
                     pending_ledger_ids: lerArray(leaseStateN7, 'pending_ledger_ids'),
-                    pending_ledger_hashes: valor(leaseStateN7, 'pending_ledger_hashes') || {},
+                    pending_ledger_hashes: lerObjetoJson(leaseStateN7, 'pending_ledger_hashes'),
                     lease_owner: texto(leaseStateN7, 'lease_owner'),
                     lease_expires_at: texto(leaseStateN7, 'lease_expires_at'),
                   })
@@ -8329,7 +8385,7 @@
             cursor_created: texto(workerStateN7, 'cursor_created'),
             cursor_id: texto(workerStateN7, 'cursor_id'),
             pending_ledger_ids: lerArray(workerStateN7, 'pending_ledger_ids'),
-            pending_ledger_hashes: valor(workerStateN7, 'pending_ledger_hashes') || {},
+            pending_ledger_hashes: lerObjetoJson(workerStateN7, 'pending_ledger_hashes'),
             lease_owner: texto(workerStateN7, 'lease_owner'),
             lease_expires_at: texto(workerStateN7, 'lease_expires_at'),
           })
@@ -8470,7 +8526,7 @@
                     cursor_created: texto(txWorkerStateN7, 'cursor_created'),
                     cursor_id: texto(txWorkerStateN7, 'cursor_id'),
                     pending_ledger_ids: lerArray(txWorkerStateN7, 'pending_ledger_ids'),
-                    pending_ledger_hashes: valor(txWorkerStateN7, 'pending_ledger_hashes') || {},
+                    pending_ledger_hashes: lerObjetoJson(txWorkerStateN7, 'pending_ledger_hashes'),
                     lease_owner: texto(txWorkerStateN7, 'lease_owner'),
                     lease_expires_at: texto(txWorkerStateN7, 'lease_expires_at'),
                   })

@@ -901,6 +901,15 @@ assert.equal(n7Busy.payload.error, 'WORKER_OPERACAO_N7_OCUPADO')
 assert.equal(collections.com_nexo_curadoria_execucoes.length, n7BusyExecutionCount)
 n7WorkerState.set('lease_owner', 'other-n7-worker')
 n7WorkerState.set('lease_expires_at', new Date(Date.now() - 60_000).toISOString())
+const n7InvalidAccumulatorCaseCount = collections.com_nexo_curadoria_casos.length
+for (const invalidPendingHashes of ['{malformed', 'null', '[]', '1', ['{}']]) {
+  n7WorkerState.set('pending_ledger_hashes', invalidPendingHashes)
+  const n7InvalidAccumulator = n7Cron.callback()
+  assert.equal(n7InvalidAccumulator.status, 503)
+  assert.equal(n7InvalidAccumulator.payload.error, 'ACUMULADOR_WORKER_OPERACAO_N7_INVALIDO')
+  assert.equal(collections.com_nexo_curadoria_casos.length, n7InvalidAccumulatorCaseCount)
+}
+n7WorkerState.set('pending_ledger_hashes', '{}')
 const n7ExpiredLease = n7Cron.callback()
 assert.equal(n7ExpiredLease.status, 200)
 assert.equal(n7WorkerState.getString('lease_owner'), '')
