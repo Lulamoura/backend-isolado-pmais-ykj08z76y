@@ -44,6 +44,13 @@ const casoBase = {
   decisao_em: null,
 }
 
+const respostasEntrevista = [
+  'Submeter condições excepcionais à direção antes de responder ao cliente.',
+  'Não aplicar a orientação quando a condição já estiver prevista em contrato.',
+  'A gestão comercial registra a decisão e o responsável pelo próximo passo.',
+  'Pode ser encaminhada porque a exceção e a responsabilidade estão claramente registradas.',
+]
+
 const resposta = {
   ok: true,
   visoes: {
@@ -59,7 +66,9 @@ const resposta = {
         alcada: 'direcao',
         risco_classe: 'alto',
         sensivel_motivos: ['politica_comercial'],
-        regra_candidata: 'Submeter condições excepcionais à direção antes de responder ao cliente.',
+        regra_candidata: respostasEntrevista[0],
+        entrevista_respostas: respostasEntrevista,
+        entrevista_etapa: 4,
       },
     ],
     publicacao_pendente: [
@@ -68,7 +77,9 @@ const resposta = {
         id: 'technical-pending-publication-id',
         status: 'aprovado',
         titulo: 'Orientação aprovada aguardando publicação',
-        regra_candidata: 'Registrar o responsável pelo próximo passo comercial.',
+        regra_candidata: respostasEntrevista[0],
+        entrevista_respostas: respostasEntrevista,
+        entrevista_etapa: 4,
         conhecimento_status: 'pendente_publicacao',
       },
     ],
@@ -151,11 +162,19 @@ describe('Curadoria Comercial Unificada', () => {
     await user.click(screen.getByRole('tab', { name: /Aguardando decisão/ }))
     expect(screen.getByText('Condição comercial para validação')).toBeInTheDocument()
     expect(screen.getByText('Alçada: direção')).toBeInTheDocument()
+    expect(screen.getByText('Respostas da entrevista guiada')).toBeInTheDocument()
+    respostasEntrevista.forEach((resposta) =>
+      expect(screen.getByText(resposta)).toBeInTheDocument(),
+    )
 
     await user.click(screen.getByRole('tab', { name: /Publicação pendente/ }))
     expect(screen.getByText('Orientação aprovada aguardando publicação')).toBeInTheDocument()
     expect(screen.getByText('Aprovada; ainda não está em uso pelo Nexo')).toBeInTheDocument()
     expect(screen.queryByText('Aprovado para uso operacional')).not.toBeInTheDocument()
+    expect(screen.getByText('Respostas da entrevista guiada')).toBeInTheDocument()
+    respostasEntrevista.forEach((resposta) =>
+      expect(screen.getByText(resposta)).toBeInTheDocument(),
+    )
 
     await user.click(screen.getByRole('tab', { name: /Conhecimento vigente/ }))
     expect(screen.getByText('Registrar o próximo passo após cada reunião.')).toBeInTheDocument()

@@ -179,6 +179,10 @@ function CasoCard({
 }) {
   const fontes = Array.from(new Set([caso.fonte_principal, ...(caso.fontes || [])])).filter(Boolean)
   const referencias = referenciaHumana(caso)
+  const respostasEntrevista = (caso.entrevista_respostas || []).map((resposta) =>
+    String(resposta || '').trim(),
+  )
+  const temRespostasEntrevista = respostasEntrevista.some(Boolean)
 
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -254,7 +258,30 @@ function CasoCard({
         <span>Atualizado em {dataRecife(caso.last_seen_at)}</span>
       </div>
 
-      {caso.regra_candidata && (
+      {temRespostasEntrevista && (
+        <section
+          aria-label="Respostas da entrevista guiada"
+          className="mt-3 rounded-lg border border-violet-100 bg-violet-50/60 p-3"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+            Respostas da entrevista guiada
+          </p>
+          <ol className="mt-2 space-y-3">
+            {perguntasEntrevista.map((pergunta, indice) => (
+              <li key={pergunta} className="rounded-md border border-violet-100 bg-white p-3">
+                <p className="text-xs font-semibold leading-relaxed text-slate-600">
+                  Etapa {indice + 1} · {pergunta}
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-800">
+                  {respostasEntrevista[indice] || 'Não respondida.'}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {!temRespostasEntrevista && caso.regra_candidata && (
         <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
             Orientação proposta
