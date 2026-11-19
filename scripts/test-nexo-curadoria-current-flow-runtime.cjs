@@ -75,7 +75,7 @@ const n4RuntimeGate = new MockRecord('com_parametros', 'parameter-n4-runtime', {
   valor: JSON.stringify({
     gate_version: 'pmais_nexo_curadoria_homologacao_n4_runtime_v1',
     batch_id: '20261118-a1',
-    preview_host: 'backend-isolado-pmais-43b9c.shrd03-1.internal.goskip.dev',
+    execution_surface: 'shared_production_assisted',
     evidence_refs: [
       'n4-homologacao-20261118-a1:routine-1',
       'n4-homologacao-20261118-a1:routine-2',
@@ -374,16 +374,18 @@ const isolatedProductionAttempt = invoke(
 assert.equal(isolatedProductionAttempt.status, 403)
 assert.equal(collections.com_nexo_curadoria_casos.length, 2)
 
-const spoofedPreviewOriginAttempt = invoke(
+const omittedHostPreviewAttempt = invoke(
   {
     dry_run: true,
     modo: 'homologacao_isolada_n4',
     evidencia_refs: isolatedRefs,
   },
   'https://backend-isolado-pmais-43b9c--preview.goskip.app',
-  'backend-isolado-pmais-43b9c.goskip.app',
+  '',
 )
-assert.equal(spoofedPreviewOriginAttempt.status, 403)
+assert.equal(omittedHostPreviewAttempt.status, 200)
+assert.equal(omittedHostPreviewAttempt.payload.execution_scope, 'homologacao_isolada_n4')
+assert.equal(omittedHostPreviewAttempt.payload.selected_evidence_refs, 3)
 
 collections.com_parametros.splice(collections.com_parametros.indexOf(n4RuntimeGate), 1)
 const missingRuntimeGateAttempt = invoke({
@@ -799,12 +801,12 @@ const productionProcessorAttempt = invokeProcessor(
 assert.equal(productionProcessorAttempt.status, 403)
 assert.equal(outbox.getString('status'), 'pendente')
 
-const spoofedProcessorAttempt = invokeProcessor(
-  scopedProcessorBody,
+const omittedHostWithoutConfirmation = invokeProcessor(
+  { ...scopedProcessorBody, confirmacao_homologacao: '' },
   'https://backend-isolado-pmais-43b9c--preview.goskip.app',
-  'backend-isolado-pmais-43b9c.goskip.app',
+  '',
 )
-assert.equal(spoofedProcessorAttempt.status, 403)
+assert.equal(omittedHostWithoutConfirmation.status, 400)
 assert.equal(outbox.getString('status'), 'pendente')
 
 collections.com_parametros.splice(collections.com_parametros.indexOf(n4RuntimeGate), 1)

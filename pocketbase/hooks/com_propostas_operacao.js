@@ -4559,7 +4559,7 @@
     var N4_HOMOLOGATION_MODE = 'homologacao_isolada_n4'
     var N4_HOMOLOGATION_CONFIRMATION = 'APLICAR_HOMOLOGACAO_ISOLADA_N4'
     var PREVIEW_ORIGIN = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
-    var PREVIEW_HOST = 'backend-isolado-pmais-43b9c.shrd03-1.internal.goskip.dev'
+    var N4_EXECUTION_SURFACE = 'shared_production_assisted'
     var N4_ALLOWED_EVIDENCE_REFS = {
       'n4-homologacao-20261118-a1:routine-1': true,
       'n4-homologacao-20261118-a1:routine-2': true,
@@ -4984,12 +4984,10 @@
         evidenceRefsN4.push(evidenceRefN4)
       }
       var requestOriginN4 = ''
-      var requestHostN4 = ''
       try {
         requestOriginN4 = String(e.request.header.get('Origin') || '')
-        requestHostN4 = String(e.request.header.get('Host') || '').toLowerCase()
       } catch (_) {}
-      if (requestOriginN4 !== PREVIEW_ORIGIN || requestHostN4 !== PREVIEW_HOST)
+      if (requestOriginN4 !== PREVIEW_ORIGIN)
         return e.forbiddenError('Homologacao N4 disponivel somente no Preview')
       var runtimeGateRowsN4 = carregar($app, 'com_parametros')
       var runtimeGateRecordN4 = null
@@ -5013,10 +5011,10 @@
         Number(runtimeGateRecordN4.get('versao')) !== 1 ||
         !runtimeGateValueN4 ||
         Object.keys(runtimeGateValueN4).sort().join('|') !==
-          'batch_id|evidence_refs|gate_version|preview_host' ||
+          'batch_id|evidence_refs|execution_surface|gate_version' ||
         runtimeGateValueN4.gate_version !== 'pmais_nexo_curadoria_homologacao_n4_runtime_v1' ||
         runtimeGateValueN4.batch_id !== '20261118-a1' ||
-        runtimeGateValueN4.preview_host !== PREVIEW_HOST ||
+        runtimeGateValueN4.execution_surface !== N4_EXECUTION_SURFACE ||
         !Array.isArray(runtimeGateRefsN4) ||
         runtimeGateRefsN4.join('|') !== Object.keys(N4_ALLOWED_EVIDENCE_REFS).join('|')
       )
@@ -7662,17 +7660,14 @@
     }
 
     var requestOrigin = ''
-    var requestHost = ''
     var runtimeGateIdOutbox = ''
     var runtimeGateCanonicalOutbox = ''
     try {
       requestOrigin = String(e.request.header.get('Origin') || '')
-      requestHost = String(e.request.header.get('Host') || '').toLowerCase()
     } catch (_) {}
     if (
       executionScopeOutbox === 'homologacao_isolada_n4' &&
-      (requestOrigin !== 'https://backend-isolado-pmais-43b9c--preview.goskip.app' ||
-        requestHost !== 'backend-isolado-pmais-43b9c.shrd03-1.internal.goskip.dev')
+      requestOrigin !== 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
     )
       return e.forbiddenError('Homologacao N4 disponivel somente no Preview')
     if (executionScopeOutbox === 'homologacao_isolada_n4') {
@@ -7708,11 +7703,10 @@
         Number(runtimeGateRecordOutbox.get('versao')) !== 1 ||
         !runtimeGateValueOutbox ||
         Object.keys(runtimeGateValueOutbox).sort().join('|') !==
-          'batch_id|evidence_refs|gate_version|preview_host' ||
+          'batch_id|evidence_refs|execution_surface|gate_version' ||
         runtimeGateValueOutbox.gate_version !== 'pmais_nexo_curadoria_homologacao_n4_runtime_v1' ||
         runtimeGateValueOutbox.batch_id !== '20261118-a1' ||
-        runtimeGateValueOutbox.preview_host !==
-          'backend-isolado-pmais-43b9c.shrd03-1.internal.goskip.dev' ||
+        runtimeGateValueOutbox.execution_surface !== 'shared_production_assisted' ||
         !Array.isArray(runtimeGateValueOutbox.evidence_refs) ||
         runtimeGateValueOutbox.evidence_refs.join('|') !== expectedRuntimeGateRefsOutbox.join('|')
       )
