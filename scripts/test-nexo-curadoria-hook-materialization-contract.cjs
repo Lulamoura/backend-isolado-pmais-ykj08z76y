@@ -464,5 +464,10 @@ assert(
     processorCallback.indexOf('var response = $http.send'),
   'reparo legado deve persistir o hash canônico antes do HTTP',
 )
+assert.match(
+  processorCallback,
+  /executionScopeOutbox === 'publicacao_humana'[\s\S]*committedHumanOutbox[\s\S]*scopedOutboxCaseMap\[committedHumanOutbox\.id\]\s*=\s*nexoCuradoriaCasosTexto\(\s*committedHumanOutbox,\s*'caso_id',?\s*\)[\s\S]*outboxPublicacaoHumanaValido/,
+  'publicação humana deve vincular a outbox solicitada ao caso autoritativo antes de validar o escopo',
+)
 
 console.log('Curadoria hook materialization contract: PASS')

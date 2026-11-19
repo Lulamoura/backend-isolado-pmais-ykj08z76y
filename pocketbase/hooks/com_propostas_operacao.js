@@ -11519,6 +11519,12 @@
           return e.json(409, { ok: false, error: 'ESCOPO_PUBLICACAO_HUMANA_AMBIGUO' })
         committedHumanOutbox = todas[choi]
       }
+      if (!committedHumanOutbox)
+        return e.json(409, { ok: false, error: 'ESCOPO_PUBLICACAO_HUMANA_INVALIDO' })
+      scopedOutboxCaseMap[committedHumanOutbox.id] = nexoCuradoriaCasosTexto(
+        committedHumanOutbox,
+        'caso_id',
+      )
       if (
         committedHumanOutbox &&
         nexoCuradoriaCasosTexto(committedHumanOutbox, 'status') === 'processado'
