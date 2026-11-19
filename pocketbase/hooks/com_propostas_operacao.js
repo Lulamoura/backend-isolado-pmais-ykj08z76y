@@ -6006,7 +6006,19 @@
           limitsN7.max_open_human_exceptions ||
         preview.casos_legados_ambiguos !== 0)
     )
-      return e.json(409, { ok: false, error: 'PROJECAO_OPERACAO_N7_EXCEDE_LIMITES' })
+      return e.json(409, {
+        ok: false,
+        error: 'PROJECAO_OPERACAO_N7_EXCEDE_LIMITES',
+        projection: {
+          casos_novos: preview.casos_novos,
+          casos_atualizados: preview.casos_atualizados,
+          evidencias_novas: preview.evidencias_novas,
+          human_exceptions_new: preview.human_exceptions_new,
+          open_human_exceptions_before: preview.open_human_exceptions_before,
+          casos_legados_ambiguos: preview.casos_legados_ambiguos,
+        },
+        volume_limits: limitsN7,
+      })
     if (dryRun) {
       return e.json(200, {
         ok: true,
@@ -8189,7 +8201,19 @@
               limitsN7.max_open_human_exceptions ||
             preview.casos_legados_ambiguos !== 0)
         )
-          return e.json(409, { ok: false, error: 'PROJECAO_OPERACAO_N7_EXCEDE_LIMITES' })
+          return e.json(409, {
+            ok: false,
+            error: 'PROJECAO_OPERACAO_N7_EXCEDE_LIMITES',
+            projection: {
+              casos_novos: preview.casos_novos,
+              casos_atualizados: preview.casos_atualizados,
+              evidencias_novas: preview.evidencias_novas,
+              human_exceptions_new: preview.human_exceptions_new,
+              open_human_exceptions_before: preview.open_human_exceptions_before,
+              casos_legados_ambiguos: preview.casos_legados_ambiguos,
+            },
+            volume_limits: limitsN7,
+          })
         if (dryRun) {
           return e.json(200, {
             ok: true,

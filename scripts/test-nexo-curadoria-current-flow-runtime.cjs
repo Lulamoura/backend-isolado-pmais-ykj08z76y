@@ -707,6 +707,39 @@ assert.equal(n7DryRun.payload.automatic_cases, 0)
 assert.equal(JSON.stringify(n7PreActivationCase.values), n7PreActivationSnapshot)
 assert.equal(JSON.stringify(n7PreNamespaceCase.values), n7PreNamespaceSnapshot)
 
+const n7DiagnosticOpenCases = Array.from(
+  { length: 3 },
+  (_, index) =>
+    new MockRecord('com_nexo_curadoria_casos', `n7diagopen${String(index).padStart(5, '0')}`, {
+      ...n7PreActivationCase.values,
+      fingerprint: crypto.createHash('sha256').update(`n7-diagnostic-open-${index}`).digest('hex'),
+      status: 'aguardando_direcao',
+      human_review_required: true,
+      origin_worker_identity: N7_WORKER_ID,
+      created: `2026-11-19 10:11:0${index}.000Z`,
+    }),
+)
+collections.com_nexo_curadoria_casos.push(...n7DiagnosticOpenCases)
+const n7ExceededProjection = invoke({ dry_run: true, modo: 'operacao_continua_n7' })
+assert.equal(n7ExceededProjection.status, 409)
+assert.equal(n7ExceededProjection.payload.error, 'PROJECAO_OPERACAO_N7_EXCEDE_LIMITES')
+assert.deepEqual(Object.keys(n7ExceededProjection.payload.projection).sort(), [
+  'casos_atualizados',
+  'casos_legados_ambiguos',
+  'casos_novos',
+  'evidencias_novas',
+  'human_exceptions_new',
+  'open_human_exceptions_before',
+])
+assert.equal(n7ExceededProjection.payload.projection.open_human_exceptions_before >= 3, true)
+assert.equal(n7ExceededProjection.payload.projection.human_exceptions_new >= 1, true)
+assert.deepEqual(n7ExceededProjection.payload.volume_limits, N7_LIMITS)
+assert.equal(JSON.stringify(n7ExceededProjection.payload).includes('n7diagopen'), false)
+collections.com_nexo_curadoria_casos.splice(
+  collections.com_nexo_curadoria_casos.indexOf(n7DiagnosticOpenCases[0]),
+  n7DiagnosticOpenCases.length,
+)
+
 collections.com_parametros.splice(collections.com_parametros.indexOf(n7RuntimeGate), 1)
 const n7MissingGate = invoke({ dry_run: true, modo: 'operacao_continua_n7' })
 assert.equal(n7MissingGate.status, 503)
