@@ -79,13 +79,13 @@ for (const route of routes) {
 
 assert.equal(
   occurrences(establishedHook, 'function nexoCuradoriaCasosPerfil(e)'),
-  4,
-  'as quatro rotas autenticadas devem materializar o helper de autorização localmente',
+  5,
+  'as quatro rotas autenticadas e o worker de outbox devem materializar o helper de autorização localmente',
 )
 assert.equal(
   occurrences(establishedHook, "$app.findRecordById('users', authActorId)"),
-  4,
-  'cada helper local deve validar o ator pelo registro canônico em users',
+  5,
+  'cada helper materializado deve validar o ator pelo registro canônico em users',
 )
 assert.equal(
   occurrences(establishedHook, 'actor.collection'),

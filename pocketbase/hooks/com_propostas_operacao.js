@@ -4562,6 +4562,15 @@
     var N6_BATCH_CONFIRMATION = 'APLICAR_LOTE_GOVERNADO_N6'
     var N6_GATE_KEY = 'nexo.curadoria.lote_n6_runtime_v1'
     var N6_GATE_VERSION = 'pmais_nexo_curadoria_lote_n6_runtime_v1'
+    var N7_MODE = 'operacao_continua_n7'
+    var N7_CONFIRMATION = 'APLICAR_OPERACAO_CONTINUA_N7'
+    var N7_GATE_KEY = 'nexo.curadoria.operacao_n7_runtime_v1'
+    var N7_SWITCH_KEY = 'nexo.curadoria.operacao_n7_switch_v1'
+    var N7_GATE_VERSION = 'pmais_nexo_curadoria_operacao_n7_runtime_v1'
+    var N7_WORKER_ID = 'nexo-curadoria-n7'
+    var N7_ACTIVATION_CUTOFF_CREATED = '2026-11-19 10:10:58.360Z'
+    var N7_ACTIVATION_CUTOFF_ID = '8k78ljeajfeuwxn'
+    var N7_MAX_PENDING_RECORDS = 200
     var PREVIEW_ORIGIN = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
     var N4_EXECUTION_SURFACE = 'shared_production_assisted'
     var N4_ALLOWED_EVIDENCE_REFS = {
@@ -4949,19 +4958,30 @@
       return payload
     }
 
+    var internalWorkerN7 = !!(e && e.nexoCuradoriaInternalN7 === true)
     var actor = e.auth
-    if (!actor || !actor.getBool('ativo_comercial'))
-      return e.forbiddenError('Usuario comercial necessario')
     var slug = ''
-    try {
-      var perfil = $app.findRecordById('com_perfis', actor.getString('perfil_id'))
-      if (!perfil.getBool('ativo')) return e.forbiddenError('Perfil comercial inativo')
-      slug = perfil.getString('slug') || ''
-    } catch (_) {
-      return e.forbiddenError('Perfil comercial necessario')
+    if (internalWorkerN7) {
+      actor = {
+        id: N7_WORKER_ID,
+        getBool: function (name) {
+          return name === 'ativo_comercial'
+        },
+      }
+      slug = 'superadministrador'
+    } else {
+      if (!actor || !actor.getBool('ativo_comercial'))
+        return e.forbiddenError('Usuario comercial necessario')
+      try {
+        var perfil = $app.findRecordById('com_perfis', actor.getString('perfil_id'))
+        if (!perfil.getBool('ativo')) return e.forbiddenError('Perfil comercial inativo')
+        slug = perfil.getString('slug') || ''
+      } catch (_) {
+        return e.forbiddenError('Perfil comercial necessario')
+      }
+      if (slug !== 'superadministrador' && slug !== 'leitura-executiva')
+        return e.forbiddenError('Perfil executivo necessario')
     }
-    if (slug !== 'superadministrador' && slug !== 'leitura-executiva')
-      return e.forbiddenError('Perfil executivo necessario')
 
     var body = e.requestInfo().body || {}
     var dryRun = body.dry_run !== false
@@ -4974,9 +4994,29 @@
     var ledgerIdsN6Map = {}
     var ledgerIdsN6Hash = {}
     var runtimeGateCanonicalN6 = ''
+    var runtimeGateCanonicalN7 = ''
+    var runtimeGateValueN7 = null
+    var runtimeSwitchCanonicalN7 = ''
+    var activationCutoffN7 = null
+    var limitsN7 = null
+    var selectedLedgerRecordsN7 = 0
+    var untouchedBeforeActivationN7 = 0
+    var ledgerSnapshotN7 = {}
+    var workerStateN7 = null
+    var workerStateCanonicalN7 = ''
+    var workerCursorN7 = null
+    var nextWorkerCursorN7 = null
+    var pendingLedgerIdsN7 = []
+    var pendingLedgerHashesN7 = {}
+    var nextPendingLedgerIdsN7 = []
+    var nextPendingLedgerHashesN7 = {}
+    var leaseOwnerN7 = ''
     var requestedMode = String(body.modo || '')
+    if (internalWorkerN7 && requestedMode !== N7_MODE)
+      return e.json(403, { ok: false, error: 'WORKER_OPERACAO_N7_ESCOPO_INVALIDO' })
     if (
       requestedMode !== N6_BATCH_MODE &&
+      requestedMode !== N7_MODE &&
       (requestedMode || typeof body.evidencia_refs !== 'undefined')
     ) {
       if (requestedMode !== N4_HOMOLOGATION_MODE || !Array.isArray(body.evidencia_refs))
@@ -5102,6 +5142,174 @@
       if (!dryRun && String(body.confirmacao_lote_n6 || '') !== N6_BATCH_CONFIRMATION)
         return e.json(400, { ok: false, error: 'CONFIRMACAO_LOTE_N6_NECESSARIA' })
       executionScope = N6_BATCH_MODE
+    } else if (requestedMode === N7_MODE) {
+      if (typeof body.ledger_ids !== 'undefined' || typeof body.evidencia_refs !== 'undefined')
+        return e.json(400, { ok: false, error: 'ESCOPO_OPERACAO_N7_INVALIDO' })
+      var requestOriginN7 = ''
+      try {
+        requestOriginN7 = String(e.request.header.get('Origin') || '')
+      } catch (_) {}
+      if (!internalWorkerN7 && requestOriginN7 !== PREVIEW_ORIGIN)
+        return e.forbiddenError('Operacao N7 assistida disponivel somente no Preview')
+      var runtimeParametersN7 = carregar($app, 'com_parametros')
+      var runtimeGateRecordN7 = null
+      var runtimeGateCountN7 = 0
+      for (var n7g = 0; n7g < runtimeParametersN7.length; n7g++) {
+        if (texto(runtimeParametersN7[n7g], 'chave') !== N7_GATE_KEY) continue
+        runtimeGateCountN7++
+        runtimeGateRecordN7 = runtimeParametersN7[n7g]
+      }
+      try {
+        runtimeGateValueN7 = JSON.parse(texto(runtimeGateRecordN7, 'valor'))
+      } catch (_) {}
+      var runtimeGateLimitsN7 = runtimeGateValueN7 && runtimeGateValueN7.limits
+      var runtimeGateCutoffN7 = runtimeGateValueN7 && runtimeGateValueN7.activation_cutoff
+      var integrityHashN7 = ''
+      if (runtimeGateValueN7 && runtimeGateLimitsN7 && runtimeGateCutoffN7) {
+        integrityHashN7 = String(
+          $security.sha256(
+            [
+              String(runtimeGateValueN7.gate_version || ''),
+              String(runtimeGateCutoffN7.created || ''),
+              String(runtimeGateCutoffN7.id || ''),
+              String(runtimeGateValueN7.classifier_policy_version || ''),
+              String(runtimeGateValueN7.execution_surface || ''),
+              String(runtimeGateValueN7.worker_identity || ''),
+              jsonCanonico(runtimeGateLimitsN7),
+            ].join('|'),
+          ),
+        )
+      }
+      if (
+        runtimeGateCountN7 !== 1 ||
+        !runtimeGateRecordN7 ||
+        !runtimeGateRecordN7.getBool('ativo') ||
+        texto(runtimeGateRecordN7, 'tipo') !== 'json_imutavel' ||
+        Number(runtimeGateRecordN7.get('versao')) !== 1 ||
+        !runtimeGateValueN7 ||
+        Object.keys(runtimeGateValueN7).sort().join('|') !==
+          'activation_cutoff|classifier_policy_version|execution_surface|gate_version|integrity_hash|limits|worker_identity' ||
+        !runtimeGateCutoffN7 ||
+        Object.keys(runtimeGateCutoffN7).sort().join('|') !== 'created|id' ||
+        !dataPocketBaseValida(runtimeGateCutoffN7.created) ||
+        !/^[a-z0-9]{15}$/.test(String(runtimeGateCutoffN7.id || '')) ||
+        String(runtimeGateCutoffN7.created || '') !== N7_ACTIVATION_CUTOFF_CREATED ||
+        String(runtimeGateCutoffN7.id || '') !== N7_ACTIVATION_CUTOFF_ID ||
+        !runtimeGateLimitsN7 ||
+        Object.keys(runtimeGateLimitsN7).sort().join('|') !==
+          'max_ledger_records|max_new_cases|max_new_evidence|max_new_human_exceptions|max_open_human_exceptions|max_updated_cases' ||
+        runtimeGateLimitsN7.max_ledger_records !== 100 ||
+        runtimeGateLimitsN7.max_new_cases !== 5 ||
+        runtimeGateLimitsN7.max_updated_cases !== 20 ||
+        runtimeGateLimitsN7.max_new_evidence !== 100 ||
+        runtimeGateLimitsN7.max_new_human_exceptions !== 1 ||
+        runtimeGateLimitsN7.max_open_human_exceptions !== 3 ||
+        runtimeGateValueN7.gate_version !== N7_GATE_VERSION ||
+        runtimeGateValueN7.classifier_policy_version !== FLOW_POLICY_VERSION ||
+        runtimeGateValueN7.execution_surface !== N4_EXECUTION_SURFACE ||
+        runtimeGateValueN7.worker_identity !== N7_WORKER_ID ||
+        runtimeGateValueN7.integrity_hash !== integrityHashN7
+      )
+        return e.json(503, { ok: false, error: 'GATE_OPERACAO_N7_INDISPONIVEL' })
+      runtimeGateCanonicalN7 = jsonCanonico(runtimeGateValueN7)
+      activationCutoffN7 = runtimeGateCutoffN7
+      limitsN7 = runtimeGateLimitsN7
+      var workerStateRowsN7 = []
+      try {
+        workerStateRowsN7 = carregar($app, 'com_nexo_curadoria_worker_estado')
+      } catch (_) {
+        return e.json(503, { ok: false, error: 'ESTADO_WORKER_OPERACAO_N7_INDISPONIVEL' })
+      }
+      if (workerStateRowsN7.length > 1)
+        return e.json(503, { ok: false, error: 'ESTADO_WORKER_OPERACAO_N7_AMBIGUO' })
+      workerStateN7 = workerStateRowsN7.length === 1 ? workerStateRowsN7[0] : null
+      workerCursorN7 = {
+        created: workerStateN7
+          ? texto(workerStateN7, 'cursor_created')
+          : activationCutoffN7.created,
+        id: workerStateN7 ? texto(workerStateN7, 'cursor_id') : activationCutoffN7.id,
+      }
+      pendingLedgerIdsN7 = workerStateN7 ? lerArray(workerStateN7, 'pending_ledger_ids') : []
+      pendingLedgerHashesN7 = workerStateN7
+        ? valor(workerStateN7, 'pending_ledger_hashes') || {}
+        : {}
+      if (
+        !Array.isArray(pendingLedgerIdsN7) ||
+        pendingLedgerIdsN7.length > N7_MAX_PENDING_RECORDS ||
+        !pendingLedgerHashesN7 ||
+        typeof pendingLedgerHashesN7 !== 'object' ||
+        Array.isArray(pendingLedgerHashesN7)
+      )
+        return e.json(503, { ok: false, error: 'ACUMULADOR_WORKER_OPERACAO_N7_INVALIDO' })
+      var pendingLedgerSeenN7 = {}
+      for (var n7pi = 0; n7pi < pendingLedgerIdsN7.length; n7pi++) {
+        var pendingLedgerIdN7 = String(pendingLedgerIdsN7[n7pi] || '')
+        if (
+          !/^[a-z0-9]{15}$/.test(pendingLedgerIdN7) ||
+          pendingLedgerSeenN7[pendingLedgerIdN7] ||
+          !/^[a-f0-9]{64}$/.test(String(pendingLedgerHashesN7[pendingLedgerIdN7] || ''))
+        )
+          return e.json(503, { ok: false, error: 'ACUMULADOR_WORKER_OPERACAO_N7_INVALIDO' })
+        pendingLedgerSeenN7[pendingLedgerIdN7] = true
+      }
+      if (
+        Object.keys(pendingLedgerHashesN7).sort().join('|') !==
+        pendingLedgerIdsN7.slice().sort().join('|')
+      )
+        return e.json(503, { ok: false, error: 'ACUMULADOR_WORKER_OPERACAO_N7_INVALIDO' })
+      if (
+        (workerStateN7 &&
+          (texto(workerStateN7, 'worker_identity') !== N7_WORKER_ID ||
+            texto(workerStateN7, 'gate_version') !== N7_GATE_VERSION)) ||
+        !dataPocketBaseValida(workerCursorN7.created) ||
+        !/^[a-z0-9]{15}$/.test(workerCursorN7.id) ||
+        workerCursorN7.created < activationCutoffN7.created ||
+        (workerCursorN7.created === activationCutoffN7.created &&
+          workerCursorN7.id < activationCutoffN7.id)
+      )
+        return e.json(503, { ok: false, error: 'ESTADO_WORKER_OPERACAO_N7_INVALIDO' })
+      workerStateCanonicalN7 = workerStateN7
+        ? jsonCanonico({
+            id: String(workerStateN7.id || ''),
+            worker_identity: texto(workerStateN7, 'worker_identity'),
+            gate_version: texto(workerStateN7, 'gate_version'),
+            cursor_created: texto(workerStateN7, 'cursor_created'),
+            cursor_id: texto(workerStateN7, 'cursor_id'),
+            pending_ledger_ids: lerArray(workerStateN7, 'pending_ledger_ids'),
+            pending_ledger_hashes: valor(workerStateN7, 'pending_ledger_hashes') || {},
+            lease_owner: texto(workerStateN7, 'lease_owner'),
+            lease_expires_at: texto(workerStateN7, 'lease_expires_at'),
+          })
+        : ''
+      nextWorkerCursorN7 = { created: workerCursorN7.created, id: workerCursorN7.id }
+      if (!dryRun) {
+        if (String(body.confirmacao_operacao_n7 || '') !== N7_CONFIRMATION)
+          return e.json(400, { ok: false, error: 'CONFIRMACAO_OPERACAO_N7_NECESSARIA' })
+        var runtimeSwitchRecordN7 = null
+        var runtimeSwitchCountN7 = 0
+        for (var n7s = 0; n7s < runtimeParametersN7.length; n7s++) {
+          if (texto(runtimeParametersN7[n7s], 'chave') !== N7_SWITCH_KEY) continue
+          runtimeSwitchCountN7++
+          runtimeSwitchRecordN7 = runtimeParametersN7[n7s]
+        }
+        if (
+          runtimeSwitchCountN7 !== 1 ||
+          !runtimeSwitchRecordN7 ||
+          !runtimeSwitchRecordN7.getBool('ativo') ||
+          texto(runtimeSwitchRecordN7, 'tipo') !== 'booleano' ||
+          Number(runtimeSwitchRecordN7.get('versao') || 0) !== 1 ||
+          texto(runtimeSwitchRecordN7, 'valor') !== 'true'
+        )
+          return e.json(503, { ok: false, error: 'WORKER_OPERACAO_N7_DESLIGADO' })
+        runtimeSwitchCanonicalN7 = jsonCanonico({
+          id: String(runtimeSwitchRecordN7.id || ''),
+          ativo: runtimeSwitchRecordN7.getBool('ativo'),
+          tipo: texto(runtimeSwitchRecordN7, 'tipo'),
+          valor: texto(runtimeSwitchRecordN7, 'valor'),
+          versao: Number(runtimeSwitchRecordN7.get('versao') || 0),
+        })
+      }
+      executionScope = N7_MODE
     } else if (requestedMode && requestedMode !== N4_HOMOLOGATION_MODE) {
       return e.json(400, { ok: false, error: 'ESCOPO_CONSOLIDACAO_INVALIDO' })
     }
@@ -5197,6 +5405,58 @@
           return e.json(409, { ok: false, error: 'LEDGER_LOTE_N6_AUSENTE' })
       }
       ledgerCorrente = ledgerLoteN6
+    }
+    if (executionScope === N7_MODE) {
+      var ledgerOperacaoN7 = []
+      var ledgerNovoN7 = []
+      var ledgerPorIdN7 = {}
+      for (var n7li = 0; n7li < ledgerCorrente.length; n7li++) {
+        if (!posteriorAoCorte(ledgerCorrente[n7li], activationCutoffN7)) {
+          untouchedBeforeActivationN7++
+          continue
+        }
+        var n7LedgerId = String(ledgerCorrente[n7li].id || '')
+        if (!/^[a-z0-9]{15}$/.test(n7LedgerId) || ledgerPorIdN7[n7LedgerId])
+          return e.json(409, { ok: false, error: 'LEDGER_OPERACAO_N7_INVALIDO' })
+        ledgerPorIdN7[n7LedgerId] = ledgerCorrente[n7li]
+        if (posteriorAoCorte(ledgerCorrente[n7li], workerCursorN7))
+          ledgerNovoN7.push(ledgerCorrente[n7li])
+      }
+      for (var n7pai = 0; n7pai < pendingLedgerIdsN7.length; n7pai++) {
+        var pendingIdN7 = pendingLedgerIdsN7[n7pai]
+        var pendingRecordN7 = ledgerPorIdN7[pendingIdN7]
+        if (
+          !pendingRecordN7 ||
+          hashLedgerHomologacaoN4(pendingRecordN7) !== pendingLedgerHashesN7[pendingIdN7]
+        )
+          return e.json(409, { ok: false, error: 'ACUMULADOR_WORKER_OPERACAO_N7_ALTERADO' })
+        ledgerOperacaoN7.push(pendingRecordN7)
+      }
+      ledgerNovoN7.sort(function (a, b) {
+        var ac = texto(a, 'created')
+        var bc = texto(b, 'created')
+        if (ac !== bc) return ac < bc ? -1 : 1
+        return String(a.id || '') < String(b.id || '') ? -1 : 1
+      })
+      ledgerNovoN7 = ledgerNovoN7.slice(0, limitsN7.max_ledger_records)
+      for (var n7ni = 0; n7ni < ledgerNovoN7.length; n7ni++)
+        ledgerOperacaoN7.push(ledgerNovoN7[n7ni])
+      for (var n7si = 0; n7si < ledgerOperacaoN7.length; n7si++) {
+        var selectedN7Id = String(ledgerOperacaoN7[n7si].id || '')
+        ledgerSnapshotN7[selectedN7Id] = hashLedgerHomologacaoN4(ledgerOperacaoN7[n7si])
+      }
+      var newLedgerRecordsN7 = ledgerNovoN7.length
+      selectedLedgerRecordsN7 = ledgerOperacaoN7.length
+      if (selectedLedgerRecordsN7 > limitsN7.max_ledger_records)
+        return e.json(409, { ok: false, error: 'LIMITE_LEDGER_OPERACAO_N7_EXCEDIDO' })
+      if (newLedgerRecordsN7) {
+        var lastSelectedN7 = ledgerNovoN7[newLedgerRecordsN7 - 1]
+        nextWorkerCursorN7 = {
+          created: texto(lastSelectedN7, 'created'),
+          id: String(lastSelectedN7.id || ''),
+        }
+      }
+      ledgerCorrente = ledgerOperacaoN7
     }
     ledgerRows = ledgerCorrente
 
@@ -5361,6 +5621,19 @@
           ].join('|'),
         ),
       )
+      if (executionScope === N7_MODE) {
+        fingerprint = String(
+          $security.sha256(
+            [
+              'curadoria-operacao-n7-v1',
+              activationCutoffN7.created,
+              activationCutoffN7.id,
+              fingerprint,
+            ].join('|'),
+          ),
+        )
+        fingerprintLegado = ''
+      }
       var evidenciaHash = String(
         $security.sha256(
           [
@@ -5433,6 +5706,7 @@
       var resumo = limparTexto(texto(ledger, 'fato'), 1000)
       if (resumo) grupo.resumos.push(resumo)
       grupo.evidencias.push({
+        ledger_id: String(ledger.id || ''),
         hash: evidenciaHash,
         fonte_tipo: texto(ledger, 'fonte') || 'comercial',
         fonte_ref: evidenciaRef,
@@ -5483,8 +5757,18 @@
       var regraAtivaPorRecorrencia = {}
       var evidenciasExistentes = {}
       var transicoesExistentes = {}
+      var openHumanExceptions = 0
       for (var ci = 0; ci < casos.length; ci++) {
         casoPorFingerprint[texto(casos[ci], 'fingerprint')] = casos[ci]
+        var currentCaseStatus = texto(casos[ci], 'status')
+        if (
+          !!valor(casos[ci], 'human_review_required') &&
+          (currentCaseStatus === 'aberto_curadoria' ||
+            currentCaseStatus === 'em_entrevista' ||
+            currentCaseStatus === 'aguardando_gestao' ||
+            currentCaseStatus === 'aguardando_direcao')
+        )
+          openHumanExceptions++
         if (
           texto(casos[ci], 'status') === 'aprovado' &&
           texto(casos[ci], 'conhecimento_status') === 'ativo'
@@ -5504,26 +5788,30 @@
         regra_ativa_por_recorrencia: regraAtivaPorRecorrencia,
         evidencias_existentes: evidenciasExistentes,
         transicoes_existentes: transicoesExistentes,
+        open_human_exceptions: openHumanExceptions,
       }
     }
 
     function resolverCasoExistente(estado, grupo) {
+      var caseCutoff =
+        executionScope === N7_MODE ? activationCutoffN7 : politicaFluxoCorrente.cutoff
       var direto = estado.caso_por_fingerprint[grupo.fingerprint]
-      if (direto && !posteriorAoCorte(direto, politicaFluxoCorrente.cutoff)) {
+      if (direto && !posteriorAoCorte(direto, caseCutoff)) {
         grupo.historical_fingerprint = grupo.fingerprint
         grupo.fingerprint = String(
           $security.sha256(
             [
-              'curadoria-fluxo-corrente-v1',
-              politicaFluxoCorrente.cutoff.created,
-              politicaFluxoCorrente.cutoff.id,
+              executionScope === N7_MODE
+                ? 'curadoria-operacao-n7-isolated-v1'
+                : 'curadoria-fluxo-corrente-v1',
+              caseCutoff.created,
+              caseCutoff.id,
               grupo.fingerprint,
             ].join('|'),
           ),
         )
         direto = estado.caso_por_fingerprint[grupo.fingerprint]
-        if (direto && !posteriorAoCorte(direto, politicaFluxoCorrente.cutoff))
-          return { caso: null, ambiguo: true }
+        if (direto && !posteriorAoCorte(direto, caseCutoff)) return { caso: null, ambiguo: true }
       }
       var candidatos = []
       var vistos = {}
@@ -5531,12 +5819,7 @@
       var aliases = grupo.fingerprints_legados || []
       for (var i = 0; i < aliases.length; i++) {
         var candidato = estado.caso_por_fingerprint[aliases[i]]
-        if (
-          !candidato ||
-          vistos[candidato.id] ||
-          !posteriorAoCorte(candidato, politicaFluxoCorrente.cutoff)
-        )
-          continue
+        if (!candidato || vistos[candidato.id] || !posteriorAoCorte(candidato, caseCutoff)) continue
         vistos[candidato.id] = true
         candidatos.push(candidato)
       }
@@ -5606,6 +5889,8 @@
         casos_atualizados: 0,
         evidencias_novas: 0,
         casos_legados_ambiguos: 0,
+        human_exceptions_new: 0,
+        open_human_exceptions_before: estado.open_human_exceptions,
         classification_counts: {
           ledger_records: {
             discarded_noise: noiseIgnored,
@@ -5648,6 +5933,7 @@
         var caso = resolucao.caso
         if (!caso) {
           result.casos_novos++
+          if (!grupo.automatico) result.human_exceptions_new++
           result.evidencias_novas += grupo.evidencias.length
           continue
         }
@@ -5675,6 +5961,23 @@
     } catch (_) {
       return e.json(503, { ok: false, error: 'CURADORIA_INDISPONIVEL' })
     }
+    if (executionScope === N7_MODE) {
+      var nextPendingMapN7 = {}
+      for (var n7gi = 0; n7gi < listaGrupos.length; n7gi++) {
+        var pendingGroupN7 = listaGrupos[n7gi]
+        if (pendingGroupN7.destino_n2 !== 'hypothesis_waiting_evidence') continue
+        for (var n7gei = 0; n7gei < pendingGroupN7.evidencias.length; n7gei++) {
+          var pendingEvidenceIdN7 = String(pendingGroupN7.evidencias[n7gei].ledger_id || '')
+          if (!pendingEvidenceIdN7 || nextPendingMapN7[pendingEvidenceIdN7]) continue
+          nextPendingMapN7[pendingEvidenceIdN7] = true
+          nextPendingLedgerIdsN7.push(pendingEvidenceIdN7)
+          nextPendingLedgerHashesN7[pendingEvidenceIdN7] = ledgerSnapshotN7[pendingEvidenceIdN7]
+        }
+      }
+      nextPendingLedgerIdsN7.sort()
+      if (nextPendingLedgerIdsN7.length > N7_MAX_PENDING_RECORDS)
+        return e.json(409, { ok: false, error: 'LIMITE_ACUMULADOR_OPERACAO_N7_EXCEDIDO' })
+    }
     if (
       executionScope === N6_BATCH_MODE &&
       (preview.classification_counts.ledger_records.discarded_noise !== 0 ||
@@ -5693,6 +5996,17 @@
         ))
     )
       return e.json(409, { ok: false, error: 'PROJECAO_LOTE_N6_DIVERGENTE' })
+    if (
+      executionScope === N7_MODE &&
+      (preview.casos_novos > limitsN7.max_new_cases ||
+        preview.casos_atualizados > limitsN7.max_updated_cases ||
+        preview.evidencias_novas > limitsN7.max_new_evidence ||
+        preview.human_exceptions_new > limitsN7.max_new_human_exceptions ||
+        preview.open_human_exceptions_before + preview.human_exceptions_new >
+          limitsN7.max_open_human_exceptions ||
+        preview.casos_legados_ambiguos !== 0)
+    )
+      return e.json(409, { ok: false, error: 'PROJECAO_OPERACAO_N7_EXCEDE_LIMITES' })
     if (dryRun) {
       return e.json(200, {
         ok: true,
@@ -5718,6 +6032,85 @@
         execution_scope: executionScope,
         selected_evidence_refs: evidenceRefsN4.length,
         selected_ledger_ids: ledgerIdsN6.length,
+        selected_ledger_records: selectedLedgerRecordsN7,
+        activation_cutoff: activationCutoffN7,
+        untouched_before_activation: untouchedBeforeActivationN7,
+        volume_limits: limitsN7,
+        human_exceptions_new: preview.human_exceptions_new,
+        open_human_exceptions_before: preview.open_human_exceptions_before,
+      })
+    }
+
+    if (executionScope === N7_MODE && !dryRun) {
+      var existingLeaseOwnerN7 = workerStateN7 ? texto(workerStateN7, 'lease_owner') : ''
+      var existingLeaseExpiryN7 = workerStateN7 ? texto(workerStateN7, 'lease_expires_at') : ''
+      var existingLeaseExpiryMsN7 = existingLeaseExpiryN7
+        ? new Date(existingLeaseExpiryN7).getTime()
+        : 0
+      if (
+        existingLeaseOwnerN7 &&
+        existingLeaseExpiryMsN7 &&
+        isFinite(existingLeaseExpiryMsN7) &&
+        existingLeaseExpiryMsN7 > new Date().getTime()
+      )
+        return e.json(409, { ok: false, error: 'WORKER_OPERACAO_N7_OCUPADO' })
+      leaseOwnerN7 = String(
+        $security.sha256(
+          [N7_WORKER_ID, String(Date.now()), workerCursorN7.created, workerCursorN7.id].join('|'),
+        ),
+      )
+      try {
+        $app.runInTransaction(function (leaseTxN7) {
+          var leaseRowsN7 = carregar(leaseTxN7, 'com_nexo_curadoria_worker_estado')
+          if (leaseRowsN7.length > 1) throw new Error('ESTADO_WORKER_OPERACAO_N7_AMBIGUO')
+          var leaseStateN7 = leaseRowsN7.length === 1 ? leaseRowsN7[0] : null
+          var leaseStateCanonicalN7 = leaseStateN7
+            ? jsonCanonico({
+                id: String(leaseStateN7.id || ''),
+                worker_identity: texto(leaseStateN7, 'worker_identity'),
+                gate_version: texto(leaseStateN7, 'gate_version'),
+                cursor_created: texto(leaseStateN7, 'cursor_created'),
+                cursor_id: texto(leaseStateN7, 'cursor_id'),
+                pending_ledger_ids: lerArray(leaseStateN7, 'pending_ledger_ids'),
+                pending_ledger_hashes: valor(leaseStateN7, 'pending_ledger_hashes') || {},
+                lease_owner: texto(leaseStateN7, 'lease_owner'),
+                lease_expires_at: texto(leaseStateN7, 'lease_expires_at'),
+              })
+            : ''
+          if (leaseStateCanonicalN7 !== workerStateCanonicalN7)
+            throw new Error('ESTADO_WORKER_OPERACAO_N7_ALTERADO')
+          if (!leaseStateN7) {
+            leaseStateN7 = new Record(
+              leaseTxN7.findCollectionByNameOrId('com_nexo_curadoria_worker_estado'),
+            )
+            leaseStateN7.set('processed_records', 0)
+            leaseStateN7.set('last_result_code', 'lease_acquired')
+            leaseStateN7.set('last_executed_at', new Date())
+          }
+          leaseStateN7.set('worker_identity', N7_WORKER_ID)
+          leaseStateN7.set('gate_version', N7_GATE_VERSION)
+          leaseStateN7.set('cursor_created', workerCursorN7.created)
+          leaseStateN7.set('cursor_id', workerCursorN7.id)
+          leaseStateN7.set('pending_ledger_ids', pendingLedgerIdsN7)
+          leaseStateN7.set('pending_ledger_hashes', pendingLedgerHashesN7)
+          leaseStateN7.set('lease_owner', leaseOwnerN7)
+          leaseStateN7.set('lease_expires_at', new Date(new Date().getTime() + 120 * 1000))
+          leaseTxN7.save(leaseStateN7)
+          workerStateN7 = leaseStateN7
+        })
+      } catch (_) {
+        return e.json(409, { ok: false, error: 'LEASE_WORKER_OPERACAO_N7_FALHOU' })
+      }
+      workerStateCanonicalN7 = jsonCanonico({
+        id: String(workerStateN7.id || ''),
+        worker_identity: texto(workerStateN7, 'worker_identity'),
+        gate_version: texto(workerStateN7, 'gate_version'),
+        cursor_created: texto(workerStateN7, 'cursor_created'),
+        cursor_id: texto(workerStateN7, 'cursor_id'),
+        pending_ledger_ids: lerArray(workerStateN7, 'pending_ledger_ids'),
+        pending_ledger_hashes: valor(workerStateN7, 'pending_ledger_hashes') || {},
+        lease_owner: texto(workerStateN7, 'lease_owner'),
+        lease_expires_at: texto(workerStateN7, 'lease_expires_at'),
       })
     }
 
@@ -5803,6 +6196,99 @@
           var txPreviewN6 = planejar(tx)
           if (jsonCanonico(txPreviewN6) !== jsonCanonico(preview))
             throw new Error('PROJECAO_LOTE_N6_ALTERADA')
+        }
+        if (executionScope === N7_MODE) {
+          var txParametersN7 = carregar(tx, 'com_parametros')
+          var txGateCountN7 = 0
+          var txSwitchCountN7 = 0
+          for (var txp7 = 0; txp7 < txParametersN7.length; txp7++) {
+            var txParameterKeyN7 = texto(txParametersN7[txp7], 'chave')
+            if (txParameterKeyN7 === N7_GATE_KEY) {
+              txGateCountN7++
+              var txGateValueN7 = null
+              try {
+                txGateValueN7 = JSON.parse(texto(txParametersN7[txp7], 'valor'))
+              } catch (_) {}
+              if (
+                !txParametersN7[txp7].getBool('ativo') ||
+                texto(txParametersN7[txp7], 'tipo') !== 'json_imutavel' ||
+                Number(txParametersN7[txp7].get('versao')) !== 1 ||
+                !txGateValueN7 ||
+                jsonCanonico(txGateValueN7) !== runtimeGateCanonicalN7
+              )
+                throw new Error('GATE_OPERACAO_N7_ALTERADO')
+            }
+            if (txParameterKeyN7 === N7_SWITCH_KEY) {
+              txSwitchCountN7++
+              var txSwitchCanonicalN7 = jsonCanonico({
+                id: String(txParametersN7[txp7].id || ''),
+                ativo: txParametersN7[txp7].getBool('ativo'),
+                tipo: texto(txParametersN7[txp7], 'tipo'),
+                valor: texto(txParametersN7[txp7], 'valor'),
+                versao: Number(txParametersN7[txp7].get('versao') || 0),
+              })
+              if (txSwitchCanonicalN7 !== runtimeSwitchCanonicalN7)
+                throw new Error('SWITCH_OPERACAO_N7_ALTERADO')
+            }
+          }
+          if (txGateCountN7 !== 1 || txSwitchCountN7 !== 1)
+            throw new Error('CONTROLES_OPERACAO_N7_ALTERADOS')
+          var txWorkerStateRowsN7 = carregar(tx, 'com_nexo_curadoria_worker_estado')
+          if (txWorkerStateRowsN7.length > 1) throw new Error('ESTADO_WORKER_OPERACAO_N7_ALTERADO')
+          var txWorkerStateN7 = txWorkerStateRowsN7.length === 1 ? txWorkerStateRowsN7[0] : null
+          var txWorkerStateCanonicalN7 = txWorkerStateN7
+            ? jsonCanonico({
+                id: String(txWorkerStateN7.id || ''),
+                worker_identity: texto(txWorkerStateN7, 'worker_identity'),
+                gate_version: texto(txWorkerStateN7, 'gate_version'),
+                cursor_created: texto(txWorkerStateN7, 'cursor_created'),
+                cursor_id: texto(txWorkerStateN7, 'cursor_id'),
+                pending_ledger_ids: lerArray(txWorkerStateN7, 'pending_ledger_ids'),
+                pending_ledger_hashes: valor(txWorkerStateN7, 'pending_ledger_hashes') || {},
+                lease_owner: texto(txWorkerStateN7, 'lease_owner'),
+                lease_expires_at: texto(txWorkerStateN7, 'lease_expires_at'),
+              })
+            : ''
+          if (txWorkerStateCanonicalN7 !== workerStateCanonicalN7)
+            throw new Error('ESTADO_WORKER_OPERACAO_N7_ALTERADO')
+          var txLedgerRowsN7 = carregar(tx, 'com_ledger_comercial')
+          var txLedgerByIdN7 = {}
+          var txNewLedgerN7 = []
+          var txSelectedLedgerN7 = []
+          for (var txl7 = 0; txl7 < txLedgerRowsN7.length; txl7++) {
+            if (!posteriorAoCorte(txLedgerRowsN7[txl7], activationCutoffN7)) continue
+            var txLedgerIdN7 = String(txLedgerRowsN7[txl7].id || '')
+            if (!/^[a-z0-9]{15}$/.test(txLedgerIdN7) || txLedgerByIdN7[txLedgerIdN7])
+              throw new Error('LEDGER_OPERACAO_N7_ALTERADO')
+            txLedgerByIdN7[txLedgerIdN7] = txLedgerRowsN7[txl7]
+            if (posteriorAoCorte(txLedgerRowsN7[txl7], workerCursorN7))
+              txNewLedgerN7.push(txLedgerRowsN7[txl7])
+          }
+          for (var txpai = 0; txpai < pendingLedgerIdsN7.length; txpai++) {
+            var txPendingIdN7 = pendingLedgerIdsN7[txpai]
+            if (!txLedgerByIdN7[txPendingIdN7]) throw new Error('LEDGER_OPERACAO_N7_ALTERADO')
+            txSelectedLedgerN7.push(txLedgerByIdN7[txPendingIdN7])
+          }
+          txNewLedgerN7.sort(function (a, b) {
+            var ac = texto(a, 'created')
+            var bc = texto(b, 'created')
+            if (ac !== bc) return ac < bc ? -1 : 1
+            return String(a.id || '') < String(b.id || '') ? -1 : 1
+          })
+          txNewLedgerN7 = txNewLedgerN7.slice(0, limitsN7.max_ledger_records)
+          for (var txn7i = 0; txn7i < txNewLedgerN7.length; txn7i++)
+            txSelectedLedgerN7.push(txNewLedgerN7[txn7i])
+          var txLedgerSnapshotN7 = {}
+          for (var txs7 = 0; txs7 < txSelectedLedgerN7.length; txs7++) {
+            var txSelectedIdN7 = String(txSelectedLedgerN7[txs7].id || '')
+            if (txLedgerSnapshotN7[txSelectedIdN7]) throw new Error('LEDGER_OPERACAO_N7_ALTERADO')
+            txLedgerSnapshotN7[txSelectedIdN7] = hashLedgerHomologacaoN4(txSelectedLedgerN7[txs7])
+          }
+          if (jsonCanonico(txLedgerSnapshotN7) !== jsonCanonico(ledgerSnapshotN7))
+            throw new Error('LEDGER_OPERACAO_N7_ALTERADO')
+          var txPreviewN7 = planejar(tx)
+          if (jsonCanonico(txPreviewN7) !== jsonCanonico(preview))
+            throw new Error('PROJECAO_OPERACAO_N7_ALTERADA')
         }
         var estado = estadoAtual(tx)
         for (var gi = 0; gi < listaGrupos.length; gi++) {
@@ -5894,6 +6380,7 @@
               caso.set('approved_at', new Date())
             }
             caso.set('created_by', grupo.automatico ? AUTOMATIC_AGENT_ID : actor.id)
+            if (executionScope === N7_MODE) caso.set('origin_worker_identity', N7_WORKER_ID)
             caso.set('updated_by', grupo.automatico ? AUTOMATIC_AGENT_ID : actor.id)
             caso.set('first_seen_at', grupo.first_seen_at || new Date())
             caso.set('last_seen_at', grupo.last_seen_at || new Date())
@@ -6136,6 +6623,50 @@
             }
           }
         }
+        if (executionScope === N7_MODE) {
+          var workerStateToSaveN7 = workerStateN7
+          if (!workerStateToSaveN7)
+            workerStateToSaveN7 = new Record(
+              tx.findCollectionByNameOrId('com_nexo_curadoria_worker_estado'),
+            )
+          workerStateToSaveN7.set('worker_identity', N7_WORKER_ID)
+          workerStateToSaveN7.set('gate_version', N7_GATE_VERSION)
+          workerStateToSaveN7.set('cursor_created', nextWorkerCursorN7.created)
+          workerStateToSaveN7.set('cursor_id', nextWorkerCursorN7.id)
+          workerStateToSaveN7.set('pending_ledger_ids', nextPendingLedgerIdsN7)
+          workerStateToSaveN7.set('pending_ledger_hashes', nextPendingLedgerHashesN7)
+          workerStateToSaveN7.set('lease_owner', '')
+          workerStateToSaveN7.set('lease_expires_at', null)
+          workerStateToSaveN7.set('processed_records', selectedLedgerRecordsN7)
+          workerStateToSaveN7.set('last_result_code', 'applied')
+          workerStateToSaveN7.set('last_executed_at', new Date())
+          tx.save(workerStateToSaveN7)
+          var executionN7 = new Record(tx.findCollectionByNameOrId('com_nexo_curadoria_execucoes'))
+          executionN7.set('worker_identity', N7_WORKER_ID)
+          executionN7.set('result_code', 'applied')
+          executionN7.set('execution_scope', N7_MODE)
+          executionN7.set('activation_cutoff_created', activationCutoffN7.created)
+          executionN7.set('activation_cutoff_id', activationCutoffN7.id)
+          executionN7.set(
+            'ledger_snapshot_hash',
+            String($security.sha256(jsonCanonico(ledgerSnapshotN7))),
+          )
+          executionN7.set('selected_ledger_records', selectedLedgerRecordsN7)
+          executionN7.set('cases_created', criados)
+          executionN7.set('cases_updated', atualizados)
+          executionN7.set('evidence_created', evidenciasCriadas)
+          executionN7.set('transitions_created', transicoesCriadas)
+          executionN7.set('outbox_created', publicacoesEnfileiradas)
+          executionN7.set('outbox_processed', 0)
+          executionN7.set('outbox_failed', 0)
+          executionN7.set('outbox_invalidated', 0)
+          executionN7.set('automatic_cases', automaticCases)
+          executionN7.set('human_exceptions', humanExceptions)
+          executionN7.set('human_exceptions_new', preview.human_exceptions_new)
+          executionN7.set('open_human_exceptions_before', preview.open_human_exceptions_before)
+          executionN7.set('executed_at', new Date())
+          tx.save(executionN7)
+        }
       })
     } catch (_) {
       return e.json(500, { ok: false, error: 'FALHA_CONSOLIDACAO_CURADORIA' })
@@ -6166,8 +6697,2255 @@
       execution_scope: executionScope,
       selected_evidence_refs: evidenceRefsN4.length,
       selected_ledger_ids: ledgerIdsN6.length,
+      selected_ledger_records: selectedLedgerRecordsN7,
+      activation_cutoff: activationCutoffN7,
+      untouched_before_activation: untouchedBeforeActivationN7,
+      volume_limits: limitsN7,
+      human_exceptions_new: preview.human_exceptions_new,
+      open_human_exceptions_before: preview.open_human_exceptions_before,
     })
   })
+
+  if (typeof cronAdd === 'function') {
+    cronAdd('nexo_curadoria_operacao_n7_5m', '*/5 * * * *', function () {
+      function nexoCuradoriaConsolidarHandler(e) {
+        var CONFIRMACAO_APLICACAO = 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL'
+        var MIN_RECORRENCIAS_COMUNS = 3
+        var FLOW_POLICY_KEY = 'nexo.curadoria.fluxo_corrente_v1'
+        var FLOW_POLICY_VERSION = 'pmais_nexo_auto_promotion_policy_v1'
+        var AUTOMATIC_SCHEMA_VERSION = 'pmais_nexo_curadoria_conhecimento_automatico_v1'
+        var AUTOMATIC_AGENT_ID = 'nexo-curadoria-automatico'
+        var N4_HOMOLOGATION_MODE = 'homologacao_isolada_n4'
+        var N4_HOMOLOGATION_CONFIRMATION = 'APLICAR_HOMOLOGACAO_ISOLADA_N4'
+        var N6_BATCH_MODE = 'lote_governado_n6'
+        var N6_BATCH_CONFIRMATION = 'APLICAR_LOTE_GOVERNADO_N6'
+        var N6_GATE_KEY = 'nexo.curadoria.lote_n6_runtime_v1'
+        var N6_GATE_VERSION = 'pmais_nexo_curadoria_lote_n6_runtime_v1'
+        var N7_MODE = 'operacao_continua_n7'
+        var N7_CONFIRMATION = 'APLICAR_OPERACAO_CONTINUA_N7'
+        var N7_GATE_KEY = 'nexo.curadoria.operacao_n7_runtime_v1'
+        var N7_SWITCH_KEY = 'nexo.curadoria.operacao_n7_switch_v1'
+        var N7_GATE_VERSION = 'pmais_nexo_curadoria_operacao_n7_runtime_v1'
+        var N7_WORKER_ID = 'nexo-curadoria-n7'
+        var N7_ACTIVATION_CUTOFF_CREATED = '2026-11-19 10:10:58.360Z'
+        var N7_ACTIVATION_CUTOFF_ID = '8k78ljeajfeuwxn'
+        var N7_MAX_PENDING_RECORDS = 200
+        var PREVIEW_ORIGIN = 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
+        var N4_EXECUTION_SURFACE = 'shared_production_assisted'
+        var N4_ALLOWED_EVIDENCE_REFS = {
+          'n4-homologacao-20261118-a1:routine-1': true,
+          'n4-homologacao-20261118-a1:routine-2': true,
+          'n4-homologacao-20261118-a1:routine-3': true,
+          'n4-homologacao-20261118-a1:conflict-1': true,
+        }
+
+        function jsonCanonico(value) {
+          if (value === null || typeof value !== 'object') return JSON.stringify(value)
+          var partes = []
+          if (Array.isArray(value)) {
+            for (var ai = 0; ai < value.length; ai++) partes.push(jsonCanonico(value[ai]))
+            return '[' + partes.join(',') + ']'
+          }
+          var chaves = Object.keys(value).sort()
+          for (var oi = 0; oi < chaves.length; oi++)
+            partes.push(JSON.stringify(chaves[oi]) + ':' + jsonCanonico(value[chaves[oi]]))
+          return '{' + partes.join(',') + '}'
+        }
+
+        function dataPocketBaseValida(value) {
+          var match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{3})Z$/.exec(
+            String(value || ''),
+          )
+          if (!match) return false
+          var year = Number(match[1])
+          var month = Number(match[2])
+          var day = Number(match[3])
+          var hour = Number(match[4])
+          var minute = Number(match[5])
+          var second = Number(match[6])
+          if (month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) return false
+          var leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+          var days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+          return day >= 1 && day <= days[month - 1]
+        }
+
+        function lerPoliticaFluxoCorrente(app) {
+          var parametro = app.findFirstRecordByData('com_parametros', 'chave', FLOW_POLICY_KEY)
+          var politica = JSON.parse(parametro.getString('valor') || '{}')
+          var cutoff = politica.cutoff || {}
+          var integrityHash = String(
+            $security.sha256(
+              [
+                FLOW_POLICY_VERSION,
+                String(cutoff.created || ''),
+                String(cutoff.id || ''),
+                AUTOMATIC_SCHEMA_VERSION,
+                AUTOMATIC_AGENT_ID,
+              ].join('|'),
+            ),
+          )
+          if (
+            !parametro.getBool('ativo') ||
+            parametro.getString('tipo') !== 'json_imutavel' ||
+            Number(parametro.getInt('versao') || 0) !== 1 ||
+            politica.policy_version !== FLOW_POLICY_VERSION ||
+            politica.automatic_schema_version !== AUTOMATIC_SCHEMA_VERSION ||
+            politica.automatic_agent_id !== AUTOMATIC_AGENT_ID ||
+            !dataPocketBaseValida(cutoff.created) ||
+            !/^[a-z0-9]{15}$/.test(String(cutoff.id || '')) ||
+            politica.integrity_hash !== integrityHash
+          )
+            throw new Error('POLITICA_FLUXO_CORRENTE_INVALIDA')
+          return politica
+        }
+
+        function posteriorAoCorte(record, cutoff) {
+          var created = texto(record, 'created')
+          if (!created) return false
+          if (created > cutoff.created) return true
+          return created === cutoff.created && String(record.id || '') > cutoff.id
+        }
+
+        function texto(record, field) {
+          if (!record) return ''
+          try {
+            return record.getString(field) || ''
+          } catch (_) {
+            return ''
+          }
+        }
+
+        function valor(record, field) {
+          if (!record) return null
+          try {
+            return record.get(field)
+          } catch (_) {
+            return null
+          }
+        }
+
+        function normalizar(value) {
+          return String(value || '')
+            .toLowerCase()
+            .replace(/[áàâãä]/g, 'a')
+            .replace(/[éèêë]/g, 'e')
+            .replace(/[íìîï]/g, 'i')
+            .replace(/[óòôõö]/g, 'o')
+            .replace(/[úùûü]/g, 'u')
+            .replace(/ç/g, 'c')
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim()
+        }
+
+        function limparTexto(value, max) {
+          var out = String(value || '')
+            .replace(/<br\s*\/?\s*>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+          if (max && out.length > max) out = out.slice(0, max - 1).trim() + '…'
+          return out
+        }
+
+        function contemDadoProtegido(value) {
+          var text = String(value || '')
+          if (!text) return false
+          if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)) return true
+          if (/\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}/.test(text)) return true
+          if (/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(text)) return true
+          if (/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/.test(text)) return true
+          if (
+            /(api[_-]?key|access[_-]?token|authorization|bearer|senha|password|secret|aws[_-]?(?:secret[_-]?access[_-]?key|session[_-]?token))\s*[:=]\s*\S{6,}/i.test(
+              text,
+            )
+          )
+            return true
+          if (/\bbearer\s+[A-Za-z0-9._~+/-]{10,}/i.test(text)) return true
+          if (/\bgh[pousr]_[A-Za-z0-9]{20,}\b/.test(text)) return true
+          if (/\bgithub_pat_[A-Za-z0-9_]{20,}\b/.test(text)) return true
+          if (/\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b/.test(text)) return true
+          if (/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/.test(text)) return true
+          if (/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/.test(text))
+            return true
+          if (/https?:\/\/[^\s/:]+:[^\s/@]+@/i.test(text)) return true
+          return /-----BEGIN [A-Z ]*PRIVATE KEY-----/i.test(text)
+        }
+
+        function carregar(app, collectionName) {
+          var out = []
+          var offset = 0
+          var limite = 500
+          while (true) {
+            var page = app.findRecordsByFilter(collectionName, "id != ''", '+id', limite, offset)
+            for (var i = 0; i < page.length; i++) out.push(page[i])
+            if (page.length < limite) return out
+            offset += page.length
+          }
+        }
+
+        function inclui(base, termos) {
+          for (var i = 0; i < termos.length; i++) {
+            if (base.indexOf(termos[i]) !== -1) return true
+          }
+          return false
+        }
+
+        function assuntoELimites(record) {
+          var base = normalizar(
+            [texto(record, 'fato'), texto(record, 'observacao'), texto(record, 'tipo_evento')].join(
+              ' ',
+            ),
+          )
+          var sensiveis = []
+          if (
+            inclui(base, [
+              'preco',
+              'desconto',
+              'reajuste',
+              'margem',
+              'comissao',
+              'condicao comercial',
+            ])
+          )
+            sensiveis.push('preco_ou_desconto')
+          if (inclui(base, ['contrato', 'clausula', 'multa', 'promessa', 'garantia']))
+            sensiveis.push('contrato_ou_promessa_sensivel')
+          if (
+            inclui(base, ['lgpd', 'dado pessoal', 'dados pessoais', 'consentimento', 'vazamento'])
+          )
+            sensiveis.push('lgpd_ou_dados_pessoais')
+          if (inclui(base, ['politica comercial', 'regra comercial', 'mudanca de regra']))
+            sensiveis.push('politica_comercial')
+          if (inclui(base, ['ipcp', 'indicador', 'ranking', 'meta comercial']))
+            sensiveis.push('indicador_ou_ipcp')
+          if (inclui(base, ['fraude', 'denuncia', 'conflito de interesse', 'reclamacao grave']))
+            sensiveis.push('integridade_ou_conflito')
+          var risco = normalizar(texto(record, 'risco'))
+          if (risco === 'alto' || risco === 'critico') sensiveis.push('risco_alto')
+
+          var assunto = ''
+          if (sensiveis.length) assunto = sensiveis[0]
+          else if (
+            inclui(base, ['prefere', 'preferencia', 'resumo objetivo', 'forma de comunicar'])
+          )
+            assunto = 'preferencia_comunicacao'
+          else if (inclui(base, ['objecao', 'resistencia', 'nao concorda']))
+            assunto = 'objecao_comercial'
+          else if (inclui(base, ['prazo', 'data limite', 'vencimento', 'deadline']))
+            assunto = 'prazo_ou_compromisso'
+          else if (inclui(base, ['follow up', 'retorno', 'retomar contato'])) assunto = 'followup'
+          else if (inclui(base, ['proposta', 'escopo', 'orcamento'])) assunto = 'proposta'
+          else if (inclui(base, ['reuniao', 'agenda', 'encontro'])) assunto = 'reuniao'
+          else {
+            var tipo = normalizar(texto(record, 'tipo_evento')).replace(/\s+/g, '_')
+            assunto = tipo && tipo !== 'mensagem' ? tipo.slice(0, 120) : 'sinal_comercial'
+          }
+          return { assunto: assunto, sensiveis: sensiveis }
+        }
+
+        function arrayUnico(values) {
+          var out = []
+          var seen = {}
+          for (var i = 0; i < values.length; i++) {
+            var value = String(values[i] || '').trim()
+            if (value && !seen[value]) {
+              seen[value] = true
+              out.push(value)
+            }
+          }
+          out.sort()
+          return out
+        }
+
+        function lerArray(record, field) {
+          var raw = []
+          try {
+            raw = valor(record, field) || []
+          } catch (_) {}
+          var byteBuffer = raw && typeof raw === 'object' && raw.length > 0
+          if (byteBuffer) {
+            for (var i = 0; i < raw.length; i++) {
+              if (
+                typeof raw[i] !== 'number' ||
+                raw[i] < 0 ||
+                raw[i] > 255 ||
+                Math.floor(raw[i]) !== raw[i]
+              ) {
+                byteBuffer = false
+                break
+              }
+            }
+          }
+          var decoded
+          if (byteBuffer) {
+            try {
+              decoded = JSON.parse(String(raw))
+            } catch (_) {}
+            if (Array.isArray(decoded)) return decoded
+          }
+          if (Array.isArray(raw)) return raw
+          if (typeof raw === 'string') {
+            try {
+              decoded = JSON.parse(raw)
+            } catch (_) {
+              decoded = []
+            }
+          }
+          return Array.isArray(decoded) ? decoded : []
+        }
+
+        function numero(record, field) {
+          try {
+            return Number(record.getInt(field) || 0)
+          } catch (_) {
+            return Number(texto(record, field) || 0)
+          }
+        }
+
+        function revisaoVencida(caso) {
+          var nextReviewAt = texto(caso, 'next_review_at')
+          if (!nextReviewAt) return false
+          var nextReviewMs = new Date(nextReviewAt).getTime()
+          return isFinite(nextReviewMs) && nextReviewMs <= new Date().getTime()
+        }
+
+        function evidenciaExigeRevisao(record) {
+          var revisaoStatus = normalizar(texto(record, 'revisao_status')).replace(/\s+/g, '_')
+          return (
+            revisaoStatus === 'contradicao_material' ||
+            revisaoStatus === 'mudanca_material' ||
+            revisaoStatus === 'revisao_necessaria' ||
+            revisaoStatus === 'reabrir' ||
+            revisaoStatus === 'vencida'
+          )
+        }
+
+        function hashLedgerHomologacaoN4(record) {
+          var fields = [
+            'fonte',
+            'evidencia_ref',
+            'status',
+            'occurred_at',
+            'created',
+            'fato',
+            'observacao',
+            'tipo_evento',
+            'risco',
+            'negocio_id',
+            'negocio_ref',
+            'empresa_nome',
+            'contato_nome',
+            'responsavel',
+            'responsavel_id',
+            'equipe_id',
+            'destino_sugerido',
+            'confianca',
+            'promocao_modo',
+            'revisao_status',
+          ]
+          var projection = { id: record.id }
+          for (var i = 0; i < fields.length; i++) projection[fields[i]] = texto(record, fields[i])
+          return String($security.sha256(jsonCanonico(projection)))
+        }
+
+        function gatilhoReabertura(caso, novasEvidencias) {
+          var status = texto(caso, 'status')
+          var encerrado =
+            status === 'aprovado' ||
+            status === 'rejeitado' ||
+            status === 'retirado' ||
+            status === 'sem_acao'
+          if (!encerrado) return ''
+          if (revisaoVencida(caso)) return 'revisao_vencida'
+          if (!novasEvidencias || !novasEvidencias.length) return ''
+          for (var i = 0; i < novasEvidencias.length; i++) {
+            if (novasEvidencias[i].revisao_material) return 'materialidade_estruturada'
+          }
+          return ''
+        }
+
+        function deveReabrir(caso, novasEvidencias) {
+          return !!gatilhoReabertura(caso, novasEvidencias)
+        }
+
+        function tituloAssunto(assunto) {
+          var labels = {
+            preferencia_comunicacao: 'Preferência de comunicação',
+            objecao_comercial: 'Objeção comercial recorrente',
+            prazo_ou_compromisso: 'Prazo ou compromisso comercial',
+            followup: 'Padrão de follow-up',
+            proposta: 'Aprendizado sobre proposta',
+            reuniao: 'Aprendizado de reunião',
+            preco_ou_desconto: 'Preço ou desconto — decisão executiva',
+            contrato_ou_promessa_sensivel: 'Contrato ou promessa sensível',
+            lgpd_ou_dados_pessoais: 'Proteção de dados e LGPD',
+            politica_comercial: 'Política comercial',
+            indicador_ou_ipcp: 'Indicador ou IPCP',
+            integridade_ou_conflito: 'Integridade ou conflito',
+          }
+          return labels[assunto] || 'Sinal comercial para curadoria'
+        }
+
+        function payloadAutomatico(caso, transicao, grupo, politica) {
+          var conhecimentoRef = String(
+            $security.sha256(
+              ['nexo-curadoria-conhecimento-v1', texto(caso, 'fingerprint') || caso.id].join('|'),
+            ),
+          )
+          var payload = {
+            schema_version: AUTOMATIC_SCHEMA_VERSION,
+            knowledge_ref: conhecimentoRef,
+            action: 'publicar',
+            case_revision: numero(caso, 'revisao'),
+            title: limparTexto(texto(caso, 'titulo'), 240),
+            regra: limparTexto(texto(caso, 'regra_candidata'), 4000),
+            exception: '',
+            rationale: limparTexto(texto(caso, 'motivo_curadoria'), 2000),
+            subject: limparTexto(texto(caso, 'assunto_chave'), 240),
+            scope_type: limparTexto(texto(caso, 'escopo_tipo'), 80),
+            sources: arrayUnico(grupo.fontes),
+            independent_cases: Number(grupo.recorrencia_contagem || 0),
+            independent_businesses: Number(grupo.recorrencia_contagem || 0),
+            independent_conversations: 0,
+            confidence: 1,
+            risk: 'baixo',
+          }
+          payload.policy_proof = {
+            proof_id: texto(transicao, 'transicao_chave'),
+            policy_version: politica.policy_version,
+            agent_id: AUTOMATIC_AGENT_ID,
+            knowledge_ref: conhecimentoRef,
+            action: 'publicar',
+            case_revision: numero(caso, 'revisao'),
+            content_sha256: String($security.sha256(jsonCanonico(payload))),
+            no_sensitive_data: !!grupo.safety_predicates.non_sensitive,
+            no_conflicts: !!grupo.safety_predicates.no_active_rule_conflict,
+            traceable: !!grupo.safety_predicates.traceable,
+            coherent: !!grupo.safety_predicates.coherent,
+            reversible: !!grupo.safety_predicates.reversible,
+          }
+          return payload
+        }
+
+        var internalWorkerN7 = !!(e && e.nexoCuradoriaInternalN7 === true)
+        var actor = e.auth
+        var slug = ''
+        if (internalWorkerN7) {
+          actor = {
+            id: N7_WORKER_ID,
+            getBool: function (name) {
+              return name === 'ativo_comercial'
+            },
+          }
+          slug = 'superadministrador'
+        } else {
+          if (!actor || !actor.getBool('ativo_comercial'))
+            return e.forbiddenError('Usuario comercial necessario')
+          try {
+            var perfil = $app.findRecordById('com_perfis', actor.getString('perfil_id'))
+            if (!perfil.getBool('ativo')) return e.forbiddenError('Perfil comercial inativo')
+            slug = perfil.getString('slug') || ''
+          } catch (_) {
+            return e.forbiddenError('Perfil comercial necessario')
+          }
+          if (slug !== 'superadministrador' && slug !== 'leitura-executiva')
+            return e.forbiddenError('Perfil executivo necessario')
+        }
+
+        var body = e.requestInfo().body || {}
+        var dryRun = body.dry_run !== false
+        var executionScope = 'fluxo_corrente'
+        var evidenceRefsN4 = []
+        var evidenceRefsN4Map = {}
+        var evidenceRefsN4Hash = {}
+        var runtimeGateCanonicalN4 = ''
+        var ledgerIdsN6 = []
+        var ledgerIdsN6Map = {}
+        var ledgerIdsN6Hash = {}
+        var runtimeGateCanonicalN6 = ''
+        var runtimeGateCanonicalN7 = ''
+        var runtimeGateValueN7 = null
+        var runtimeSwitchCanonicalN7 = ''
+        var activationCutoffN7 = null
+        var limitsN7 = null
+        var selectedLedgerRecordsN7 = 0
+        var untouchedBeforeActivationN7 = 0
+        var ledgerSnapshotN7 = {}
+        var workerStateN7 = null
+        var workerStateCanonicalN7 = ''
+        var workerCursorN7 = null
+        var nextWorkerCursorN7 = null
+        var pendingLedgerIdsN7 = []
+        var pendingLedgerHashesN7 = {}
+        var nextPendingLedgerIdsN7 = []
+        var nextPendingLedgerHashesN7 = {}
+        var leaseOwnerN7 = ''
+        var requestedMode = String(body.modo || '')
+        if (internalWorkerN7 && requestedMode !== N7_MODE)
+          return e.json(403, { ok: false, error: 'WORKER_OPERACAO_N7_ESCOPO_INVALIDO' })
+        if (
+          requestedMode !== N6_BATCH_MODE &&
+          requestedMode !== N7_MODE &&
+          (requestedMode || typeof body.evidencia_refs !== 'undefined')
+        ) {
+          if (requestedMode !== N4_HOMOLOGATION_MODE || !Array.isArray(body.evidencia_refs))
+            return e.json(400, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+          if (body.evidencia_refs.length < 1 || body.evidencia_refs.length > 12)
+            return e.json(400, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+          for (var eri = 0; eri < body.evidencia_refs.length; eri++) {
+            var evidenceRefN4 = String(body.evidencia_refs[eri] || '')
+            if (
+              !/^n4-homologacao-[a-z0-9-]{1,80}:[a-z0-9-]{1,80}$/.test(evidenceRefN4) ||
+              !N4_ALLOWED_EVIDENCE_REFS[evidenceRefN4] ||
+              evidenceRefsN4Map[evidenceRefN4]
+            )
+              return e.json(400, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+            evidenceRefsN4Map[evidenceRefN4] = true
+            evidenceRefsN4.push(evidenceRefN4)
+          }
+          var requestOriginN4 = ''
+          try {
+            requestOriginN4 = String(e.request.header.get('Origin') || '')
+          } catch (_) {}
+          if (requestOriginN4 !== PREVIEW_ORIGIN)
+            return e.forbiddenError('Homologacao N4 disponivel somente no Preview')
+          var runtimeGateRowsN4 = carregar($app, 'com_parametros')
+          var runtimeGateRecordN4 = null
+          var runtimeGateCountN4 = 0
+          for (var rgi = 0; rgi < runtimeGateRowsN4.length; rgi++) {
+            if (
+              texto(runtimeGateRowsN4[rgi], 'chave') !== 'nexo.curadoria.homologacao_n4_runtime_v1'
+            )
+              continue
+            runtimeGateCountN4++
+            runtimeGateRecordN4 = runtimeGateRowsN4[rgi]
+          }
+          var runtimeGateValueN4 = null
+          try {
+            runtimeGateValueN4 = JSON.parse(texto(runtimeGateRecordN4, 'valor'))
+          } catch (_) {}
+          var runtimeGateRefsN4 = runtimeGateValueN4 && runtimeGateValueN4.evidence_refs
+          if (
+            runtimeGateCountN4 !== 1 ||
+            !runtimeGateRecordN4 ||
+            !runtimeGateRecordN4.getBool('ativo') ||
+            texto(runtimeGateRecordN4, 'tipo') !== 'json_imutavel' ||
+            Number(runtimeGateRecordN4.get('versao')) !== 1 ||
+            !runtimeGateValueN4 ||
+            Object.keys(runtimeGateValueN4).sort().join('|') !==
+              'batch_id|evidence_refs|execution_surface|gate_version' ||
+            runtimeGateValueN4.gate_version !== 'pmais_nexo_curadoria_homologacao_n4_runtime_v1' ||
+            runtimeGateValueN4.batch_id !== '20261118-a1' ||
+            runtimeGateValueN4.execution_surface !== N4_EXECUTION_SURFACE ||
+            !Array.isArray(runtimeGateRefsN4) ||
+            runtimeGateRefsN4.join('|') !== Object.keys(N4_ALLOWED_EVIDENCE_REFS).join('|')
+          )
+            return e.json(503, { ok: false, error: 'GATE_HOMOLOGACAO_N4_INDISPONIVEL' })
+          runtimeGateCanonicalN4 = jsonCanonico(runtimeGateValueN4)
+          if (
+            !dryRun &&
+            String(body.confirmacao_homologacao || '') !== N4_HOMOLOGATION_CONFIRMATION
+          )
+            return e.json(400, { ok: false, error: 'CONFIRMACAO_HOMOLOGACAO_NECESSARIA' })
+          executionScope = N4_HOMOLOGATION_MODE
+        }
+        if (requestedMode === N6_BATCH_MODE) {
+          if (
+            requestedMode !== N6_BATCH_MODE ||
+            !Array.isArray(body.ledger_ids) ||
+            typeof body.evidencia_refs !== 'undefined'
+          )
+            return e.json(400, { ok: false, error: 'ESCOPO_LOTE_N6_INVALIDO' })
+          if (body.ledger_ids.length < 1 || body.ledger_ids.length > 12)
+            return e.json(400, { ok: false, error: 'ESCOPO_LOTE_N6_INVALIDO' })
+          for (var n6i = 0; n6i < body.ledger_ids.length; n6i++) {
+            var ledgerIdN6 = String(body.ledger_ids[n6i] || '')
+            if (!/^[a-z0-9]{15}$/.test(ledgerIdN6) || ledgerIdsN6Map[ledgerIdN6])
+              return e.json(400, { ok: false, error: 'ESCOPO_LOTE_N6_INVALIDO' })
+            ledgerIdsN6Map[ledgerIdN6] = true
+            ledgerIdsN6.push(ledgerIdN6)
+          }
+          var requestOriginN6 = ''
+          try {
+            requestOriginN6 = String(e.request.header.get('Origin') || '')
+          } catch (_) {}
+          if (requestOriginN6 !== PREVIEW_ORIGIN)
+            return e.forbiddenError('Lote N6 disponivel somente no Preview')
+          var runtimeGateRowsN6 = carregar($app, 'com_parametros')
+          var runtimeGateRecordN6 = null
+          var runtimeGateCountN6 = 0
+          for (var n6g = 0; n6g < runtimeGateRowsN6.length; n6g++) {
+            if (texto(runtimeGateRowsN6[n6g], 'chave') !== N6_GATE_KEY) continue
+            runtimeGateCountN6++
+            runtimeGateRecordN6 = runtimeGateRowsN6[n6g]
+          }
+          var runtimeGateValueN6 = null
+          try {
+            runtimeGateValueN6 = JSON.parse(texto(runtimeGateRecordN6, 'valor'))
+          } catch (_) {}
+          var runtimeGateIdsN6 = runtimeGateValueN6 && runtimeGateValueN6.ledger_ids
+          var runtimeGateHashesN6 = runtimeGateValueN6 && runtimeGateValueN6.ledger_hashes
+          if (
+            runtimeGateCountN6 !== 1 ||
+            !runtimeGateRecordN6 ||
+            !runtimeGateRecordN6.getBool('ativo') ||
+            texto(runtimeGateRecordN6, 'tipo') !== 'json_imutavel' ||
+            Number(runtimeGateRecordN6.get('versao')) !== 1 ||
+            !runtimeGateValueN6 ||
+            Object.keys(runtimeGateValueN6).sort().join('|') !==
+              'batch_id|execution_surface|expected_classification|expected_group_count|gate_version|ledger_hashes|ledger_ids' ||
+            runtimeGateValueN6.gate_version !== N6_GATE_VERSION ||
+            runtimeGateValueN6.expected_classification !== 'direction_exception' ||
+            runtimeGateValueN6.expected_group_count !== 1 ||
+            !/^20[0-9]{6}-[a-z0-9-]{1,40}$/.test(String(runtimeGateValueN6.batch_id || '')) ||
+            runtimeGateValueN6.execution_surface !== N4_EXECUTION_SURFACE ||
+            !Array.isArray(runtimeGateIdsN6) ||
+            runtimeGateIdsN6.join('|') !== ledgerIdsN6.join('|') ||
+            !runtimeGateHashesN6 ||
+            Array.isArray(runtimeGateHashesN6) ||
+            Object.keys(runtimeGateHashesN6).sort().join('|') !==
+              ledgerIdsN6.slice().sort().join('|')
+          )
+            return e.json(503, { ok: false, error: 'GATE_LOTE_N6_INDISPONIVEL' })
+          for (var n6h = 0; n6h < ledgerIdsN6.length; n6h++) {
+            var expectedHashN6 = String(runtimeGateHashesN6[ledgerIdsN6[n6h]] || '')
+            if (!/^[a-f0-9]{64}$/.test(expectedHashN6))
+              return e.json(503, { ok: false, error: 'GATE_LOTE_N6_INDISPONIVEL' })
+            ledgerIdsN6Hash[ledgerIdsN6[n6h]] = expectedHashN6
+          }
+          runtimeGateCanonicalN6 = jsonCanonico(runtimeGateValueN6)
+          if (!dryRun && String(body.confirmacao_lote_n6 || '') !== N6_BATCH_CONFIRMATION)
+            return e.json(400, { ok: false, error: 'CONFIRMACAO_LOTE_N6_NECESSARIA' })
+          executionScope = N6_BATCH_MODE
+        } else if (requestedMode === N7_MODE) {
+          if (typeof body.ledger_ids !== 'undefined' || typeof body.evidencia_refs !== 'undefined')
+            return e.json(400, { ok: false, error: 'ESCOPO_OPERACAO_N7_INVALIDO' })
+          var requestOriginN7 = ''
+          try {
+            requestOriginN7 = String(e.request.header.get('Origin') || '')
+          } catch (_) {}
+          if (!internalWorkerN7 && requestOriginN7 !== PREVIEW_ORIGIN)
+            return e.forbiddenError('Operacao N7 assistida disponivel somente no Preview')
+          var runtimeParametersN7 = carregar($app, 'com_parametros')
+          var runtimeGateRecordN7 = null
+          var runtimeGateCountN7 = 0
+          for (var n7g = 0; n7g < runtimeParametersN7.length; n7g++) {
+            if (texto(runtimeParametersN7[n7g], 'chave') !== N7_GATE_KEY) continue
+            runtimeGateCountN7++
+            runtimeGateRecordN7 = runtimeParametersN7[n7g]
+          }
+          try {
+            runtimeGateValueN7 = JSON.parse(texto(runtimeGateRecordN7, 'valor'))
+          } catch (_) {}
+          var runtimeGateLimitsN7 = runtimeGateValueN7 && runtimeGateValueN7.limits
+          var runtimeGateCutoffN7 = runtimeGateValueN7 && runtimeGateValueN7.activation_cutoff
+          var integrityHashN7 = ''
+          if (runtimeGateValueN7 && runtimeGateLimitsN7 && runtimeGateCutoffN7) {
+            integrityHashN7 = String(
+              $security.sha256(
+                [
+                  String(runtimeGateValueN7.gate_version || ''),
+                  String(runtimeGateCutoffN7.created || ''),
+                  String(runtimeGateCutoffN7.id || ''),
+                  String(runtimeGateValueN7.classifier_policy_version || ''),
+                  String(runtimeGateValueN7.execution_surface || ''),
+                  String(runtimeGateValueN7.worker_identity || ''),
+                  jsonCanonico(runtimeGateLimitsN7),
+                ].join('|'),
+              ),
+            )
+          }
+          if (
+            runtimeGateCountN7 !== 1 ||
+            !runtimeGateRecordN7 ||
+            !runtimeGateRecordN7.getBool('ativo') ||
+            texto(runtimeGateRecordN7, 'tipo') !== 'json_imutavel' ||
+            Number(runtimeGateRecordN7.get('versao')) !== 1 ||
+            !runtimeGateValueN7 ||
+            Object.keys(runtimeGateValueN7).sort().join('|') !==
+              'activation_cutoff|classifier_policy_version|execution_surface|gate_version|integrity_hash|limits|worker_identity' ||
+            !runtimeGateCutoffN7 ||
+            Object.keys(runtimeGateCutoffN7).sort().join('|') !== 'created|id' ||
+            !dataPocketBaseValida(runtimeGateCutoffN7.created) ||
+            !/^[a-z0-9]{15}$/.test(String(runtimeGateCutoffN7.id || '')) ||
+            String(runtimeGateCutoffN7.created || '') !== N7_ACTIVATION_CUTOFF_CREATED ||
+            String(runtimeGateCutoffN7.id || '') !== N7_ACTIVATION_CUTOFF_ID ||
+            !runtimeGateLimitsN7 ||
+            Object.keys(runtimeGateLimitsN7).sort().join('|') !==
+              'max_ledger_records|max_new_cases|max_new_evidence|max_new_human_exceptions|max_open_human_exceptions|max_updated_cases' ||
+            runtimeGateLimitsN7.max_ledger_records !== 100 ||
+            runtimeGateLimitsN7.max_new_cases !== 5 ||
+            runtimeGateLimitsN7.max_updated_cases !== 20 ||
+            runtimeGateLimitsN7.max_new_evidence !== 100 ||
+            runtimeGateLimitsN7.max_new_human_exceptions !== 1 ||
+            runtimeGateLimitsN7.max_open_human_exceptions !== 3 ||
+            runtimeGateValueN7.gate_version !== N7_GATE_VERSION ||
+            runtimeGateValueN7.classifier_policy_version !== FLOW_POLICY_VERSION ||
+            runtimeGateValueN7.execution_surface !== N4_EXECUTION_SURFACE ||
+            runtimeGateValueN7.worker_identity !== N7_WORKER_ID ||
+            runtimeGateValueN7.integrity_hash !== integrityHashN7
+          )
+            return e.json(503, { ok: false, error: 'GATE_OPERACAO_N7_INDISPONIVEL' })
+          runtimeGateCanonicalN7 = jsonCanonico(runtimeGateValueN7)
+          activationCutoffN7 = runtimeGateCutoffN7
+          limitsN7 = runtimeGateLimitsN7
+          var workerStateRowsN7 = []
+          try {
+            workerStateRowsN7 = carregar($app, 'com_nexo_curadoria_worker_estado')
+          } catch (_) {
+            return e.json(503, { ok: false, error: 'ESTADO_WORKER_OPERACAO_N7_INDISPONIVEL' })
+          }
+          if (workerStateRowsN7.length > 1)
+            return e.json(503, { ok: false, error: 'ESTADO_WORKER_OPERACAO_N7_AMBIGUO' })
+          workerStateN7 = workerStateRowsN7.length === 1 ? workerStateRowsN7[0] : null
+          workerCursorN7 = {
+            created: workerStateN7
+              ? texto(workerStateN7, 'cursor_created')
+              : activationCutoffN7.created,
+            id: workerStateN7 ? texto(workerStateN7, 'cursor_id') : activationCutoffN7.id,
+          }
+          pendingLedgerIdsN7 = workerStateN7 ? lerArray(workerStateN7, 'pending_ledger_ids') : []
+          pendingLedgerHashesN7 = workerStateN7
+            ? valor(workerStateN7, 'pending_ledger_hashes') || {}
+            : {}
+          if (
+            !Array.isArray(pendingLedgerIdsN7) ||
+            pendingLedgerIdsN7.length > N7_MAX_PENDING_RECORDS ||
+            !pendingLedgerHashesN7 ||
+            typeof pendingLedgerHashesN7 !== 'object' ||
+            Array.isArray(pendingLedgerHashesN7)
+          )
+            return e.json(503, { ok: false, error: 'ACUMULADOR_WORKER_OPERACAO_N7_INVALIDO' })
+          var pendingLedgerSeenN7 = {}
+          for (var n7pi = 0; n7pi < pendingLedgerIdsN7.length; n7pi++) {
+            var pendingLedgerIdN7 = String(pendingLedgerIdsN7[n7pi] || '')
+            if (
+              !/^[a-z0-9]{15}$/.test(pendingLedgerIdN7) ||
+              pendingLedgerSeenN7[pendingLedgerIdN7] ||
+              !/^[a-f0-9]{64}$/.test(String(pendingLedgerHashesN7[pendingLedgerIdN7] || ''))
+            )
+              return e.json(503, { ok: false, error: 'ACUMULADOR_WORKER_OPERACAO_N7_INVALIDO' })
+            pendingLedgerSeenN7[pendingLedgerIdN7] = true
+          }
+          if (
+            Object.keys(pendingLedgerHashesN7).sort().join('|') !==
+            pendingLedgerIdsN7.slice().sort().join('|')
+          )
+            return e.json(503, { ok: false, error: 'ACUMULADOR_WORKER_OPERACAO_N7_INVALIDO' })
+          if (
+            (workerStateN7 &&
+              (texto(workerStateN7, 'worker_identity') !== N7_WORKER_ID ||
+                texto(workerStateN7, 'gate_version') !== N7_GATE_VERSION)) ||
+            !dataPocketBaseValida(workerCursorN7.created) ||
+            !/^[a-z0-9]{15}$/.test(workerCursorN7.id) ||
+            workerCursorN7.created < activationCutoffN7.created ||
+            (workerCursorN7.created === activationCutoffN7.created &&
+              workerCursorN7.id < activationCutoffN7.id)
+          )
+            return e.json(503, { ok: false, error: 'ESTADO_WORKER_OPERACAO_N7_INVALIDO' })
+          workerStateCanonicalN7 = workerStateN7
+            ? jsonCanonico({
+                id: String(workerStateN7.id || ''),
+                worker_identity: texto(workerStateN7, 'worker_identity'),
+                gate_version: texto(workerStateN7, 'gate_version'),
+                cursor_created: texto(workerStateN7, 'cursor_created'),
+                cursor_id: texto(workerStateN7, 'cursor_id'),
+                pending_ledger_ids: lerArray(workerStateN7, 'pending_ledger_ids'),
+                pending_ledger_hashes: valor(workerStateN7, 'pending_ledger_hashes') || {},
+                lease_owner: texto(workerStateN7, 'lease_owner'),
+                lease_expires_at: texto(workerStateN7, 'lease_expires_at'),
+              })
+            : ''
+          nextWorkerCursorN7 = { created: workerCursorN7.created, id: workerCursorN7.id }
+          if (!dryRun) {
+            if (String(body.confirmacao_operacao_n7 || '') !== N7_CONFIRMATION)
+              return e.json(400, { ok: false, error: 'CONFIRMACAO_OPERACAO_N7_NECESSARIA' })
+            var runtimeSwitchRecordN7 = null
+            var runtimeSwitchCountN7 = 0
+            for (var n7s = 0; n7s < runtimeParametersN7.length; n7s++) {
+              if (texto(runtimeParametersN7[n7s], 'chave') !== N7_SWITCH_KEY) continue
+              runtimeSwitchCountN7++
+              runtimeSwitchRecordN7 = runtimeParametersN7[n7s]
+            }
+            if (
+              runtimeSwitchCountN7 !== 1 ||
+              !runtimeSwitchRecordN7 ||
+              !runtimeSwitchRecordN7.getBool('ativo') ||
+              texto(runtimeSwitchRecordN7, 'tipo') !== 'booleano' ||
+              Number(runtimeSwitchRecordN7.get('versao') || 0) !== 1 ||
+              texto(runtimeSwitchRecordN7, 'valor') !== 'true'
+            )
+              return e.json(503, { ok: false, error: 'WORKER_OPERACAO_N7_DESLIGADO' })
+            runtimeSwitchCanonicalN7 = jsonCanonico({
+              id: String(runtimeSwitchRecordN7.id || ''),
+              ativo: runtimeSwitchRecordN7.getBool('ativo'),
+              tipo: texto(runtimeSwitchRecordN7, 'tipo'),
+              valor: texto(runtimeSwitchRecordN7, 'valor'),
+              versao: Number(runtimeSwitchRecordN7.get('versao') || 0),
+            })
+          }
+          executionScope = N7_MODE
+        } else if (requestedMode && requestedMode !== N4_HOMOLOGATION_MODE) {
+          return e.json(400, { ok: false, error: 'ESCOPO_CONSOLIDACAO_INVALIDO' })
+        }
+        if (!dryRun && slug !== 'superadministrador')
+          return e.forbiddenError('Superadministrador necessario para aplicar consolidacao')
+        if (!dryRun && String(body.confirmacao || '') !== CONFIRMACAO_APLICACAO)
+          return e.json(400, { ok: false, error: 'CONFIRMACAO_NECESSARIA' })
+
+        var politicaFluxoCorrente = null
+        try {
+          politicaFluxoCorrente = lerPoliticaFluxoCorrente($app)
+        } catch (_) {
+          return e.json(503, { ok: false, error: 'POLITICA_FLUXO_CORRENTE_INVALIDA' })
+        }
+
+        var ledgerRows = []
+        try {
+          ledgerRows = carregar($app, 'com_ledger_comercial')
+        } catch (_) {
+          return e.json(503, { ok: false, error: 'LEDGER_INDISPONIVEL' })
+        }
+        var historicalUntouched = 0
+        // Deployment marker: forces Preview to rematerialize the N1 snapshot hook artifact.
+        var historicalSnapshotLines = []
+        var historicalPeriodStart = ''
+        var historicalPeriodEnd = ''
+        var historicalSnapshotValid = true
+        var ledgerCorrente = []
+        for (var lci = 0; lci < ledgerRows.length; lci++) {
+          if (posteriorAoCorte(ledgerRows[lci], politicaFluxoCorrente.cutoff)) {
+            ledgerCorrente.push(ledgerRows[lci])
+          } else {
+            historicalUntouched++
+            var historicalId = String(ledgerRows[lci].id || '')
+            var historicalOccurredAt = texto(ledgerRows[lci], 'occurred_at')
+            if (!historicalId || !dataPocketBaseValida(historicalOccurredAt)) {
+              historicalSnapshotValid = false
+            } else {
+              historicalSnapshotLines.push(historicalId + '|' + historicalOccurredAt)
+              if (!historicalPeriodStart || historicalOccurredAt < historicalPeriodStart)
+                historicalPeriodStart = historicalOccurredAt
+              if (!historicalPeriodEnd || historicalOccurredAt > historicalPeriodEnd)
+                historicalPeriodEnd = historicalOccurredAt
+            }
+          }
+        }
+        if (!historicalSnapshotValid || historicalSnapshotLines.length !== historicalUntouched)
+          return e.json(503, { ok: false, error: 'PROVA_PASSIVO_HISTORICO_INDISPONIVEL' })
+        historicalSnapshotLines.sort()
+        var historicalSnapshot = {
+          count: historicalUntouched,
+          period_start: historicalPeriodStart || null,
+          period_end: historicalPeriodEnd || null,
+          sha256: String($security.sha256(historicalSnapshotLines.join('\n'))),
+          canonicalization: 'id|occurred_at\\n sorted by id; UTF-8; no trailing newline',
+        }
+        if (executionScope === N4_HOMOLOGATION_MODE) {
+          var ledgerHomologacao = []
+          var evidenceRefsN4Found = {}
+          for (var lhi = 0; lhi < ledgerCorrente.length; lhi++) {
+            var ledgerEvidenceRefN4 = texto(ledgerCorrente[lhi], 'evidencia_ref')
+            if (!evidenceRefsN4Map[ledgerEvidenceRefN4]) continue
+            if (texto(ledgerCorrente[lhi], 'fonte') !== 'homologacao_n4')
+              return e.json(409, { ok: false, error: 'FONTE_HOMOLOGACAO_INVALIDA' })
+            if (evidenceRefsN4Found[ledgerEvidenceRefN4])
+              return e.json(409, { ok: false, error: 'ESCOPO_HOMOLOGACAO_AMBIGUO' })
+            evidenceRefsN4Found[ledgerEvidenceRefN4] = true
+            evidenceRefsN4Hash[ledgerEvidenceRefN4] = hashLedgerHomologacaoN4(ledgerCorrente[lhi])
+            ledgerHomologacao.push(ledgerCorrente[lhi])
+          }
+          for (var erf = 0; erf < evidenceRefsN4.length; erf++) {
+            if (!evidenceRefsN4Found[evidenceRefsN4[erf]])
+              return e.json(409, { ok: false, error: 'EVIDENCIA_HOMOLOGACAO_AUSENTE' })
+          }
+          ledgerCorrente = ledgerHomologacao
+        }
+        if (executionScope === N6_BATCH_MODE) {
+          var ledgerLoteN6 = []
+          var ledgerIdsN6Found = {}
+          for (var n6li = 0; n6li < ledgerCorrente.length; n6li++) {
+            var currentLedgerIdN6 = String(ledgerCorrente[n6li].id || '')
+            if (!ledgerIdsN6Map[currentLedgerIdN6]) continue
+            if (ledgerIdsN6Found[currentLedgerIdN6])
+              return e.json(409, { ok: false, error: 'ESCOPO_LOTE_N6_AMBIGUO' })
+            ledgerIdsN6Found[currentLedgerIdN6] = true
+            var currentHashN6 = hashLedgerHomologacaoN4(ledgerCorrente[n6li])
+            if (currentHashN6 !== ledgerIdsN6Hash[currentLedgerIdN6])
+              return e.json(409, { ok: false, error: 'LEDGER_LOTE_N6_ALTERADO' })
+            ledgerLoteN6.push(ledgerCorrente[n6li])
+          }
+          for (var n6lf = 0; n6lf < ledgerIdsN6.length; n6lf++) {
+            if (!ledgerIdsN6Found[ledgerIdsN6[n6lf]])
+              return e.json(409, { ok: false, error: 'LEDGER_LOTE_N6_AUSENTE' })
+          }
+          ledgerCorrente = ledgerLoteN6
+        }
+        if (executionScope === N7_MODE) {
+          var ledgerOperacaoN7 = []
+          var ledgerNovoN7 = []
+          var ledgerPorIdN7 = {}
+          for (var n7li = 0; n7li < ledgerCorrente.length; n7li++) {
+            if (!posteriorAoCorte(ledgerCorrente[n7li], activationCutoffN7)) {
+              untouchedBeforeActivationN7++
+              continue
+            }
+            var n7LedgerId = String(ledgerCorrente[n7li].id || '')
+            if (!/^[a-z0-9]{15}$/.test(n7LedgerId) || ledgerPorIdN7[n7LedgerId])
+              return e.json(409, { ok: false, error: 'LEDGER_OPERACAO_N7_INVALIDO' })
+            ledgerPorIdN7[n7LedgerId] = ledgerCorrente[n7li]
+            if (posteriorAoCorte(ledgerCorrente[n7li], workerCursorN7))
+              ledgerNovoN7.push(ledgerCorrente[n7li])
+          }
+          for (var n7pai = 0; n7pai < pendingLedgerIdsN7.length; n7pai++) {
+            var pendingIdN7 = pendingLedgerIdsN7[n7pai]
+            var pendingRecordN7 = ledgerPorIdN7[pendingIdN7]
+            if (
+              !pendingRecordN7 ||
+              hashLedgerHomologacaoN4(pendingRecordN7) !== pendingLedgerHashesN7[pendingIdN7]
+            )
+              return e.json(409, { ok: false, error: 'ACUMULADOR_WORKER_OPERACAO_N7_ALTERADO' })
+            ledgerOperacaoN7.push(pendingRecordN7)
+          }
+          ledgerNovoN7.sort(function (a, b) {
+            var ac = texto(a, 'created')
+            var bc = texto(b, 'created')
+            if (ac !== bc) return ac < bc ? -1 : 1
+            return String(a.id || '') < String(b.id || '') ? -1 : 1
+          })
+          ledgerNovoN7 = ledgerNovoN7.slice(0, limitsN7.max_ledger_records)
+          for (var n7ni = 0; n7ni < ledgerNovoN7.length; n7ni++)
+            ledgerOperacaoN7.push(ledgerNovoN7[n7ni])
+          for (var n7si = 0; n7si < ledgerOperacaoN7.length; n7si++) {
+            var selectedN7Id = String(ledgerOperacaoN7[n7si].id || '')
+            ledgerSnapshotN7[selectedN7Id] = hashLedgerHomologacaoN4(ledgerOperacaoN7[n7si])
+          }
+          var newLedgerRecordsN7 = ledgerNovoN7.length
+          selectedLedgerRecordsN7 = ledgerOperacaoN7.length
+          if (selectedLedgerRecordsN7 > limitsN7.max_ledger_records)
+            return e.json(409, { ok: false, error: 'LIMITE_LEDGER_OPERACAO_N7_EXCEDIDO' })
+          if (newLedgerRecordsN7) {
+            var lastSelectedN7 = ledgerNovoN7[newLedgerRecordsN7 - 1]
+            nextWorkerCursorN7 = {
+              created: texto(lastSelectedN7, 'created'),
+              id: String(lastSelectedN7.id || ''),
+            }
+          }
+          ledgerCorrente = ledgerOperacaoN7
+        }
+        ledgerRows = ledgerCorrente
+
+        var automaticCases = 0
+        var humanExceptions = 0
+        var noiseIgnored = 0
+        var operationalHistoryRecords = 0
+        var grupos = {}
+        var escoposPorRecorrencia = {}
+        var negocioRefPorId = {}
+        var negocioIdComRefAmbigua = {}
+        var negocioIdPorRef = {}
+        var negocioRefComIdAmbiguo = {}
+        for (var nmi = 0; nmi < ledgerRows.length; nmi++) {
+          var ledgerMapeamento = ledgerRows[nmi]
+          if (texto(ledgerMapeamento, 'status') === 'descartado') continue
+          var negocioIdMapeamento = normalizar(texto(ledgerMapeamento, 'negocio_id'))
+          var negocioRefMapeamento = normalizar(texto(ledgerMapeamento, 'negocio_ref'))
+          if (!negocioIdMapeamento || !negocioRefMapeamento) continue
+          if (
+            negocioRefPorId[negocioIdMapeamento] &&
+            negocioRefPorId[negocioIdMapeamento] !== negocioRefMapeamento
+          )
+            negocioIdComRefAmbigua[negocioIdMapeamento] = true
+          else negocioRefPorId[negocioIdMapeamento] = negocioRefMapeamento
+          if (
+            negocioIdPorRef[negocioRefMapeamento] &&
+            negocioIdPorRef[negocioRefMapeamento] !== negocioIdMapeamento
+          )
+            negocioRefComIdAmbiguo[negocioRefMapeamento] = true
+          else negocioIdPorRef[negocioRefMapeamento] = negocioIdMapeamento
+        }
+        for (var li = 0; li < ledgerRows.length; li++) {
+          var ledger = ledgerRows[li]
+          if (texto(ledger, 'status') === 'descartado') {
+            noiseIgnored++
+            continue
+          }
+          var analise = assuntoELimites(ledger)
+          if (contemDadoProtegido(texto(ledger, 'fato'))) analise.sensiveis.push('dado_protegido')
+          var destinoOrigem = texto(ledger, 'destino_sugerido')
+          var risco = normalizar(texto(ledger, 'risco'))
+          var sensivel = analise.sensiveis.length > 0
+          var negocioId = texto(ledger, 'negocio_id')
+          var negocioRef = texto(ledger, 'negocio_ref')
+          var negocioIdNormalizado = normalizar(negocioId)
+          var negocioRefNormalizado = normalizar(negocioRef)
+          var negocioRefCanonico = negocioRefNormalizado
+          if (negocioIdNormalizado && negocioIdComRefAmbigua[negocioIdNormalizado])
+            negocioRefCanonico = ''
+          else if (negocioIdNormalizado && negocioRefPorId[negocioIdNormalizado])
+            negocioRefCanonico = negocioRefPorId[negocioIdNormalizado]
+          var empresaNome = texto(ledger, 'empresa_nome')
+          var evidenciaRefInformada = texto(ledger, 'evidencia_ref')
+          var evidenciaRef = evidenciaRefInformada || ledger.id
+          var escopoOriginal = negocioRef || empresaNome
+          var negocioIdCanonico = negocioIdNormalizado
+          var aliasAmbiguoSemId = Boolean(
+            !negocioIdCanonico &&
+            negocioRefNormalizado &&
+            negocioRefComIdAmbiguo[negocioRefNormalizado],
+          )
+          if (
+            !negocioIdCanonico &&
+            negocioRefNormalizado &&
+            !negocioRefComIdAmbiguo[negocioRefNormalizado] &&
+            negocioIdPorRef[negocioRefNormalizado]
+          )
+            negocioIdCanonico = negocioIdPorRef[negocioRefNormalizado]
+          var escopoIndependente = negocioIdCanonico
+            ? 'negocio_id|' + negocioIdCanonico
+            : aliasAmbiguoSemId
+              ? ''
+              : negocioRefCanonico
+                ? 'negocio_ref|' + negocioRefCanonico
+                : empresaNome
+                  ? 'empresa|' + normalizar(empresaNome)
+                  : ''
+          var traceable = Boolean(
+            texto(ledger, 'fonte') &&
+            evidenciaRefInformada &&
+            (texto(ledger, 'occurred_at') || texto(ledger, 'created')) &&
+            limparTexto(texto(ledger, 'fato'), 2400),
+          )
+          var structuredConflict = evidenciaExigeRevisao(ledger)
+          var equipeId = texto(ledger, 'equipe_id')
+          var coherent =
+            normalizar(texto(ledger, 'confianca')) === 'alta' &&
+            risco === 'baixo' &&
+            destinoOrigem === 'historico' &&
+            texto(ledger, 'promocao_modo') === 'promover_baixo_risco' &&
+            !structuredConflict
+          var automatico =
+            traceable && !sensivel && coherent && Boolean(equipeId) && Boolean(escopoIndependente)
+          var excecaoHumana =
+            sensivel ||
+            structuredConflict ||
+            destinoOrigem === 'curadoria' ||
+            risco === 'medio' ||
+            risco === 'alto' ||
+            risco === 'critico'
+          if (!equipeId && traceable && escopoIndependente && (coherent || excecaoHumana))
+            excecaoHumana = true
+          if ((!traceable && !sensivel) || (!escopoIndependente && !sensivel && !excecaoHumana)) {
+            noiseIgnored++
+            continue
+          }
+          if (!automatico && !excecaoHumana && normalizar(texto(ledger, 'confianca')) !== 'baixa') {
+            if (destinoOrigem === 'historico' && normalizar(texto(ledger, 'confianca')) === 'alta')
+              operationalHistoryRecords++
+            else noiseIgnored++
+            continue
+          }
+
+          if (sensivel && !escopoIndependente)
+            escopoIndependente = 'evidencia|' + normalizar(evidenciaRef)
+          var agrupamentoRef = equipeId || 'organizacao'
+          var escopoTipo = sensivel
+            ? negocioRef
+              ? 'negocio'
+              : empresaNome
+                ? 'empresa'
+                : 'evidencia'
+            : equipeId
+              ? 'equipe'
+              : 'organizacao'
+          var escopoRef = sensivel ? escopoOriginal || evidenciaRef : agrupamentoRef
+          var escopoLegadoTipo = negocioRef ? 'negocio' : empresaNome ? 'empresa' : ''
+          var escopoLegadoRef = negocioRef || empresaNome
+          var fingerprintLegado =
+            escopoLegadoTipo && executionScope !== N4_HOMOLOGATION_MODE
+              ? String(
+                  $security.sha256(
+                    ['curadoria-caso-v1', escopoLegadoTipo, escopoLegadoRef, analise.assunto].join(
+                      '|',
+                    ),
+                  ),
+                )
+              : ''
+          var recorrenciaChave = String(
+            $security.sha256(
+              [
+                executionScope === N4_HOMOLOGATION_MODE
+                  ? 'curadoria-recorrencia-homologacao-n4-v1'
+                  : 'curadoria-recorrencia-v2',
+                agrupamentoRef,
+                analise.assunto,
+              ].join('|'),
+            ),
+          )
+          var fingerprint = String(
+            $security.sha256(
+              [
+                executionScope === N4_HOMOLOGATION_MODE
+                  ? 'curadoria-caso-homologacao-n4-v1'
+                  : sensivel && escopoTipo !== 'evidencia'
+                    ? 'curadoria-caso-v1'
+                    : sensivel
+                      ? 'curadoria-caso-sensivel-sem-vinculo-v1'
+                      : 'curadoria-padrao-v2',
+                escopoTipo,
+                escopoRef,
+                analise.assunto,
+              ].join('|'),
+            ),
+          )
+          if (executionScope === N7_MODE) {
+            fingerprint = String(
+              $security.sha256(
+                [
+                  'curadoria-operacao-n7-v1',
+                  activationCutoffN7.created,
+                  activationCutoffN7.id,
+                  fingerprint,
+                ].join('|'),
+              ),
+            )
+            fingerprintLegado = ''
+          }
+          var evidenciaHash = String(
+            $security.sha256(
+              [
+                'curadoria-evidencia-v1',
+                texto(ledger, 'fonte'),
+                evidenciaRef,
+                texto(ledger, 'occurred_at'),
+                limparTexto(texto(ledger, 'fato'), 2400),
+              ].join('|'),
+            ),
+          )
+          if (!grupos[fingerprint]) {
+            grupos[fingerprint] = {
+              fingerprint: fingerprint,
+              recorrencia_chave: recorrenciaChave,
+              assunto_chave: analise.assunto,
+              escopo_tipo: escopoTipo,
+              escopo_ref: escopoRef,
+              empresa_nome: sensivel ? texto(ledger, 'empresa_nome') : '',
+              contato_nome: sensivel ? texto(ledger, 'contato_nome') : '',
+              negocio_numero: sensivel ? texto(ledger, 'negocio_ref') : '',
+              negocio_titulo: '',
+              responsavel_nome: sensivel ? texto(ledger, 'responsavel') : '',
+              responsavel_id: sensivel ? texto(ledger, 'responsavel_id') : '',
+              equipe_id: equipeId,
+              negocio_id: sensivel ? texto(ledger, 'negocio_id') : texto(ledger, 'negocio_id'),
+              automatico: automatico,
+              excecao_humana: excecaoHumana,
+              structured_conflict: structuredConflict,
+              human_signal: excecaoHumana,
+              history_only:
+                destinoOrigem === 'historico' &&
+                !texto(ledger, 'promocao_modo') &&
+                normalizar(texto(ledger, 'confianca')) !== 'baixa',
+              safety_predicates: {
+                traceable: traceable,
+                non_sensitive: !sensivel,
+                coherent: coherent,
+                reversible: texto(ledger, 'promocao_modo') === 'promover_baixo_risco',
+                no_active_rule_conflict: true,
+              },
+              fingerprints_legados: [],
+              fontes: [],
+              sensiveis: [],
+              evidencias: [],
+              resumos: [],
+              first_seen_at: texto(ledger, 'occurred_at') || texto(ledger, 'created'),
+              last_seen_at: texto(ledger, 'occurred_at') || texto(ledger, 'created'),
+            }
+          }
+          var grupo = grupos[fingerprint]
+          if (!automatico) grupo.automatico = false
+          if (excecaoHumana) grupo.excecao_humana = true
+          if (structuredConflict) grupo.structured_conflict = true
+          if (excecaoHumana) grupo.human_signal = true
+          grupo.history_only =
+            grupo.history_only &&
+            destinoOrigem === 'historico' &&
+            !texto(ledger, 'promocao_modo') &&
+            normalizar(texto(ledger, 'confianca')) !== 'baixa'
+          grupo.safety_predicates.traceable = grupo.safety_predicates.traceable && traceable
+          grupo.safety_predicates.non_sensitive = grupo.safety_predicates.non_sensitive && !sensivel
+          grupo.safety_predicates.coherent = grupo.safety_predicates.coherent && coherent
+          grupo.safety_predicates.reversible =
+            grupo.safety_predicates.reversible &&
+            texto(ledger, 'promocao_modo') === 'promover_baixo_risco'
+          if (fingerprintLegado) grupo.fingerprints_legados.push(fingerprintLegado)
+          grupo.fontes.push(texto(ledger, 'fonte') || 'comercial')
+          grupo.sensiveis = grupo.sensiveis.concat(analise.sensiveis)
+          var resumo = limparTexto(texto(ledger, 'fato'), 1000)
+          if (resumo) grupo.resumos.push(resumo)
+          grupo.evidencias.push({
+            ledger_id: String(ledger.id || ''),
+            hash: evidenciaHash,
+            fonte_tipo: texto(ledger, 'fonte') || 'comercial',
+            fonte_ref: evidenciaRef,
+            resumo_factual: resumo,
+            occurred_at: texto(ledger, 'occurred_at') || texto(ledger, 'created'),
+            revisao_material: evidenciaExigeRevisao(ledger),
+          })
+          var momento = texto(ledger, 'occurred_at') || texto(ledger, 'created')
+          if (momento && (!grupo.first_seen_at || momento < grupo.first_seen_at))
+            grupo.first_seen_at = momento
+          if (momento && (!grupo.last_seen_at || momento > grupo.last_seen_at))
+            grupo.last_seen_at = momento
+          if (!escoposPorRecorrencia[recorrenciaChave]) escoposPorRecorrencia[recorrenciaChave] = {}
+          if (escopoIndependente) escoposPorRecorrencia[recorrenciaChave][escopoIndependente] = true
+        }
+
+        var listaGrupos = []
+        automaticCases = 0
+        humanExceptions = 0
+        for (var fp in grupos) {
+          var itemGrupo = grupos[fp]
+          itemGrupo.fingerprints_legados = arrayUnico(itemGrupo.fingerprints_legados)
+          itemGrupo.fontes = arrayUnico(itemGrupo.fontes)
+          itemGrupo.sensiveis = arrayUnico(itemGrupo.sensiveis)
+          var evidenciasUnicas = []
+          var hashesVistos = {}
+          for (var ei = 0; ei < itemGrupo.evidencias.length; ei++) {
+            var ev = itemGrupo.evidencias[ei]
+            if (hashesVistos[ev.hash]) continue
+            hashesVistos[ev.hash] = true
+            evidenciasUnicas.push(ev)
+          }
+          itemGrupo.evidencias = evidenciasUnicas
+          itemGrupo.recorrencia_contagem = Object.keys(
+            escoposPorRecorrencia[itemGrupo.recorrencia_chave] || {},
+          ).length
+          listaGrupos.push(itemGrupo)
+        }
+        listaGrupos.sort(function (a, b) {
+          return a.fingerprint < b.fingerprint ? -1 : a.fingerprint > b.fingerprint ? 1 : 0
+        })
+
+        function estadoAtual(app) {
+          var casos = carregar(app, 'com_nexo_curadoria_casos')
+          var evidencias = carregar(app, 'com_nexo_curadoria_evidencias')
+          var transicoes = carregar(app, 'com_nexo_curadoria_transicoes')
+          var casoPorFingerprint = {}
+          var regraAtivaPorRecorrencia = {}
+          var evidenciasExistentes = {}
+          var transicoesExistentes = {}
+          var openHumanExceptions = 0
+          for (var ci = 0; ci < casos.length; ci++) {
+            casoPorFingerprint[texto(casos[ci], 'fingerprint')] = casos[ci]
+            var currentCaseStatus = texto(casos[ci], 'status')
+            if (
+              !!valor(casos[ci], 'human_review_required') &&
+              (currentCaseStatus === 'aberto_curadoria' ||
+                currentCaseStatus === 'em_entrevista' ||
+                currentCaseStatus === 'aguardando_gestao' ||
+                currentCaseStatus === 'aguardando_direcao')
+            )
+              openHumanExceptions++
+            if (
+              texto(casos[ci], 'status') === 'aprovado' &&
+              texto(casos[ci], 'conhecimento_status') === 'ativo'
+            ) {
+              var chaveRegraAtiva = texto(casos[ci], 'recorrencia_chave')
+              if (chaveRegraAtiva) regraAtivaPorRecorrencia[chaveRegraAtiva] = casos[ci]
+            }
+          }
+          for (var evi = 0; evi < evidencias.length; evi++)
+            evidenciasExistentes[
+              texto(evidencias[evi], 'caso_id') + '|' + texto(evidencias[evi], 'evidencia_hash')
+            ] = true
+          for (var ti = 0; ti < transicoes.length; ti++)
+            transicoesExistentes[texto(transicoes[ti], 'transicao_chave')] = true
+          return {
+            caso_por_fingerprint: casoPorFingerprint,
+            regra_ativa_por_recorrencia: regraAtivaPorRecorrencia,
+            evidencias_existentes: evidenciasExistentes,
+            transicoes_existentes: transicoesExistentes,
+            open_human_exceptions: openHumanExceptions,
+          }
+        }
+
+        function resolverCasoExistente(estado, grupo) {
+          var caseCutoff =
+            executionScope === N7_MODE ? activationCutoffN7 : politicaFluxoCorrente.cutoff
+          var direto = estado.caso_por_fingerprint[grupo.fingerprint]
+          if (direto && !posteriorAoCorte(direto, caseCutoff)) {
+            grupo.historical_fingerprint = grupo.fingerprint
+            grupo.fingerprint = String(
+              $security.sha256(
+                [
+                  executionScope === N7_MODE
+                    ? 'curadoria-operacao-n7-isolated-v1'
+                    : 'curadoria-fluxo-corrente-v1',
+                  caseCutoff.created,
+                  caseCutoff.id,
+                  grupo.fingerprint,
+                ].join('|'),
+              ),
+            )
+            direto = estado.caso_por_fingerprint[grupo.fingerprint]
+            if (direto && !posteriorAoCorte(direto, caseCutoff))
+              return { caso: null, ambiguo: true }
+          }
+          var candidatos = []
+          var vistos = {}
+          if (direto) vistos[direto.id] = true
+          var aliases = grupo.fingerprints_legados || []
+          for (var i = 0; i < aliases.length; i++) {
+            var candidato = estado.caso_por_fingerprint[aliases[i]]
+            if (!candidato || vistos[candidato.id] || !posteriorAoCorte(candidato, caseCutoff))
+              continue
+            vistos[candidato.id] = true
+            candidatos.push(candidato)
+          }
+          candidatos.sort(function (a, b) {
+            return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+          })
+          if (direto)
+            return {
+              caso: direto,
+              ambiguo: candidatos.length > 0,
+            }
+          return {
+            caso: candidatos.length === 1 ? candidatos[0] : null,
+            ambiguo: candidatos.length > 1,
+          }
+        }
+
+        function aplicarConflitoRegraAtiva(estado, grupo) {
+          var ativa = estado.regra_ativa_por_recorrencia[grupo.recorrencia_chave]
+          if (
+            grupo.automatico &&
+            ativa &&
+            texto(ativa, 'fingerprint') !== grupo.fingerprint &&
+            texto(ativa, 'fingerprint') !== String(grupo.historical_fingerprint || '')
+          ) {
+            grupo.automatico = false
+            grupo.excecao_humana = true
+            grupo.direction_required = true
+            grupo.safety_predicates.no_active_rule_conflict = false
+          }
+        }
+
+        function classificarGrupoN2(estado, grupo) {
+          aplicarConflitoRegraAtiva(estado, grupo)
+          if (grupo.sensiveis.length) return 'direction_exception'
+          if (!grupo.safety_predicates.traceable) return 'discarded_noise'
+          if (!grupo.equipe_id)
+            return grupo.human_signal ? 'direction_exception' : 'discarded_noise'
+          if (grupo.structured_conflict || grupo.direction_required) return 'direction_exception'
+          if (grupo.recorrencia_contagem < MIN_RECORRENCIAS_COMUNS)
+            return grupo.history_only ? 'operational_history' : 'hypothesis_waiting_evidence'
+          if (
+            grupo.automatico &&
+            grupo.safety_predicates.non_sensitive &&
+            grupo.safety_predicates.coherent &&
+            grupo.safety_predicates.reversible &&
+            grupo.safety_predicates.no_active_rule_conflict
+          )
+            return 'automatic_promotion'
+          if (grupo.human_signal) return 'management_exception'
+          return grupo.history_only ? 'operational_history' : 'hypothesis_waiting_evidence'
+        }
+
+        function exigeEscaladaDirecaoN2(caso, grupo) {
+          return Boolean(
+            caso &&
+            grupo.direction_required &&
+            (texto(caso, 'alcada') !== 'direcao' ||
+              !valor(caso, 'human_review_required') ||
+              !!valor(caso, 'automatic_promotion_allowed')),
+          )
+        }
+
+        function planejar(app) {
+          var estado = estadoAtual(app)
+          var result = {
+            casos_novos: 0,
+            casos_atualizados: 0,
+            evidencias_novas: 0,
+            casos_legados_ambiguos: 0,
+            human_exceptions_new: 0,
+            open_human_exceptions_before: estado.open_human_exceptions,
+            classification_counts: {
+              ledger_records: {
+                discarded_noise: noiseIgnored,
+                operational_history: operationalHistoryRecords,
+              },
+              consolidated_groups: {
+                hypothesis_waiting_evidence: 0,
+                automatic_promotion: 0,
+                management_exception: 0,
+                direction_exception: 0,
+              },
+            },
+          }
+          automaticCases = 0
+          humanExceptions = 0
+          for (var gi = 0; gi < listaGrupos.length; gi++) {
+            var grupo = listaGrupos[gi]
+            var destinoN2 = classificarGrupoN2(estado, grupo)
+            grupo.destino_n2 = destinoN2
+            if (destinoN2 === 'discarded_noise') {
+              result.classification_counts.ledger_records.discarded_noise += grupo.evidencias.length
+              continue
+            }
+            if (destinoN2 === 'operational_history') {
+              result.classification_counts.ledger_records.operational_history +=
+                grupo.evidencias.length
+              continue
+            }
+            result.classification_counts.consolidated_groups[destinoN2]++
+            if (destinoN2 === 'hypothesis_waiting_evidence') continue
+            grupo.automatico = destinoN2 === 'automatic_promotion'
+            grupo.excecao_humana = !grupo.automatico
+            grupo.direction_required = destinoN2 === 'direction_exception'
+            if (grupo.automatico) automaticCases++
+            else humanExceptions++
+            var resolucao = resolverCasoExistente(estado, grupo)
+            if (resolucao.ambiguo) {
+              result.casos_legados_ambiguos++
+              continue
+            }
+            var caso = resolucao.caso
+            if (!caso) {
+              result.casos_novos++
+              if (!grupo.automatico) result.human_exceptions_new++
+              result.evidencias_novas += grupo.evidencias.length
+              continue
+            }
+            var novas = []
+            for (var gei = 0; gei < grupo.evidencias.length; gei++) {
+              if (!estado.evidencias_existentes[caso.id + '|' + grupo.evidencias[gei].hash])
+                novas.push(grupo.evidencias[gei])
+            }
+            var recorrenciaMudou =
+              numero(caso, 'recorrencia_contagem') !== grupo.recorrencia_contagem
+            if (
+              novas.length ||
+              recorrenciaMudou ||
+              deveReabrir(caso, novas) ||
+              exigeEscaladaDirecaoN2(caso, grupo)
+            )
+              result.casos_atualizados++
+            result.evidencias_novas += novas.length
+          }
+          return result
+        }
+
+        var preview = null
+        try {
+          preview = planejar($app)
+        } catch (_) {
+          return e.json(503, { ok: false, error: 'CURADORIA_INDISPONIVEL' })
+        }
+        if (executionScope === N7_MODE) {
+          var nextPendingMapN7 = {}
+          for (var n7gi = 0; n7gi < listaGrupos.length; n7gi++) {
+            var pendingGroupN7 = listaGrupos[n7gi]
+            if (pendingGroupN7.destino_n2 !== 'hypothesis_waiting_evidence') continue
+            for (var n7gei = 0; n7gei < pendingGroupN7.evidencias.length; n7gei++) {
+              var pendingEvidenceIdN7 = String(pendingGroupN7.evidencias[n7gei].ledger_id || '')
+              if (!pendingEvidenceIdN7 || nextPendingMapN7[pendingEvidenceIdN7]) continue
+              nextPendingMapN7[pendingEvidenceIdN7] = true
+              nextPendingLedgerIdsN7.push(pendingEvidenceIdN7)
+              nextPendingLedgerHashesN7[pendingEvidenceIdN7] = ledgerSnapshotN7[pendingEvidenceIdN7]
+            }
+          }
+          nextPendingLedgerIdsN7.sort()
+          if (nextPendingLedgerIdsN7.length > N7_MAX_PENDING_RECORDS)
+            return e.json(409, { ok: false, error: 'LIMITE_ACUMULADOR_OPERACAO_N7_EXCEDIDO' })
+        }
+        if (
+          executionScope === N6_BATCH_MODE &&
+          (preview.classification_counts.ledger_records.discarded_noise !== 0 ||
+            preview.classification_counts.ledger_records.operational_history !== 0 ||
+            preview.classification_counts.consolidated_groups.direction_exception !== 1 ||
+            preview.classification_counts.consolidated_groups.management_exception !== 0 ||
+            preview.classification_counts.consolidated_groups.automatic_promotion !== 0 ||
+            preview.classification_counts.consolidated_groups.hypothesis_waiting_evidence !== 0 ||
+            !(
+              (preview.casos_novos === 1 &&
+                preview.casos_atualizados === 0 &&
+                preview.evidencias_novas === ledgerIdsN6.length) ||
+              (preview.casos_novos === 0 &&
+                preview.casos_atualizados === 0 &&
+                preview.evidencias_novas === 0)
+            ))
+        )
+          return e.json(409, { ok: false, error: 'PROJECAO_LOTE_N6_DIVERGENTE' })
+        if (
+          executionScope === N7_MODE &&
+          (preview.casos_novos > limitsN7.max_new_cases ||
+            preview.casos_atualizados > limitsN7.max_updated_cases ||
+            preview.evidencias_novas > limitsN7.max_new_evidence ||
+            preview.human_exceptions_new > limitsN7.max_new_human_exceptions ||
+            preview.open_human_exceptions_before + preview.human_exceptions_new >
+              limitsN7.max_open_human_exceptions ||
+            preview.casos_legados_ambiguos !== 0)
+        )
+          return e.json(409, { ok: false, error: 'PROJECAO_OPERACAO_N7_EXCEDE_LIMITES' })
+        if (dryRun) {
+          return e.json(200, {
+            ok: true,
+            dry_run: true,
+            casos_novos: preview.casos_novos,
+            casos_atualizados: preview.casos_atualizados,
+            evidencias_novas: preview.evidencias_novas,
+            casos_legados_ambiguos: preview.casos_legados_ambiguos,
+            policy_version: politicaFluxoCorrente.policy_version,
+            cutoff: politicaFluxoCorrente.cutoff,
+            historical_untouched: historicalUntouched,
+            historical_snapshot: historicalSnapshot,
+            automatic_cases: automaticCases,
+            human_exceptions: humanExceptions,
+            noise_ignored: preview.classification_counts.ledger_records.discarded_noise,
+            classification_counts: preview.classification_counts,
+            guardrails: {
+              no_mutation: true,
+              no_send: true,
+              no_publication: true,
+            },
+            automatic_send_allowed: false,
+            execution_scope: executionScope,
+            selected_evidence_refs: evidenceRefsN4.length,
+            selected_ledger_ids: ledgerIdsN6.length,
+            selected_ledger_records: selectedLedgerRecordsN7,
+            activation_cutoff: activationCutoffN7,
+            untouched_before_activation: untouchedBeforeActivationN7,
+            volume_limits: limitsN7,
+            human_exceptions_new: preview.human_exceptions_new,
+            open_human_exceptions_before: preview.open_human_exceptions_before,
+          })
+        }
+
+        if (executionScope === N7_MODE && !dryRun) {
+          var existingLeaseOwnerN7 = workerStateN7 ? texto(workerStateN7, 'lease_owner') : ''
+          var existingLeaseExpiryN7 = workerStateN7 ? texto(workerStateN7, 'lease_expires_at') : ''
+          var existingLeaseExpiryMsN7 = existingLeaseExpiryN7
+            ? new Date(existingLeaseExpiryN7).getTime()
+            : 0
+          if (
+            existingLeaseOwnerN7 &&
+            existingLeaseExpiryMsN7 &&
+            isFinite(existingLeaseExpiryMsN7) &&
+            existingLeaseExpiryMsN7 > new Date().getTime()
+          )
+            return e.json(409, { ok: false, error: 'WORKER_OPERACAO_N7_OCUPADO' })
+          leaseOwnerN7 = String(
+            $security.sha256(
+              [N7_WORKER_ID, String(Date.now()), workerCursorN7.created, workerCursorN7.id].join(
+                '|',
+              ),
+            ),
+          )
+          try {
+            $app.runInTransaction(function (leaseTxN7) {
+              var leaseRowsN7 = carregar(leaseTxN7, 'com_nexo_curadoria_worker_estado')
+              if (leaseRowsN7.length > 1) throw new Error('ESTADO_WORKER_OPERACAO_N7_AMBIGUO')
+              var leaseStateN7 = leaseRowsN7.length === 1 ? leaseRowsN7[0] : null
+              var leaseStateCanonicalN7 = leaseStateN7
+                ? jsonCanonico({
+                    id: String(leaseStateN7.id || ''),
+                    worker_identity: texto(leaseStateN7, 'worker_identity'),
+                    gate_version: texto(leaseStateN7, 'gate_version'),
+                    cursor_created: texto(leaseStateN7, 'cursor_created'),
+                    cursor_id: texto(leaseStateN7, 'cursor_id'),
+                    pending_ledger_ids: lerArray(leaseStateN7, 'pending_ledger_ids'),
+                    pending_ledger_hashes: valor(leaseStateN7, 'pending_ledger_hashes') || {},
+                    lease_owner: texto(leaseStateN7, 'lease_owner'),
+                    lease_expires_at: texto(leaseStateN7, 'lease_expires_at'),
+                  })
+                : ''
+              if (leaseStateCanonicalN7 !== workerStateCanonicalN7)
+                throw new Error('ESTADO_WORKER_OPERACAO_N7_ALTERADO')
+              if (!leaseStateN7) {
+                leaseStateN7 = new Record(
+                  leaseTxN7.findCollectionByNameOrId('com_nexo_curadoria_worker_estado'),
+                )
+                leaseStateN7.set('processed_records', 0)
+                leaseStateN7.set('last_result_code', 'lease_acquired')
+                leaseStateN7.set('last_executed_at', new Date())
+              }
+              leaseStateN7.set('worker_identity', N7_WORKER_ID)
+              leaseStateN7.set('gate_version', N7_GATE_VERSION)
+              leaseStateN7.set('cursor_created', workerCursorN7.created)
+              leaseStateN7.set('cursor_id', workerCursorN7.id)
+              leaseStateN7.set('pending_ledger_ids', pendingLedgerIdsN7)
+              leaseStateN7.set('pending_ledger_hashes', pendingLedgerHashesN7)
+              leaseStateN7.set('lease_owner', leaseOwnerN7)
+              leaseStateN7.set('lease_expires_at', new Date(new Date().getTime() + 120 * 1000))
+              leaseTxN7.save(leaseStateN7)
+              workerStateN7 = leaseStateN7
+            })
+          } catch (_) {
+            return e.json(409, { ok: false, error: 'LEASE_WORKER_OPERACAO_N7_FALHOU' })
+          }
+          workerStateCanonicalN7 = jsonCanonico({
+            id: String(workerStateN7.id || ''),
+            worker_identity: texto(workerStateN7, 'worker_identity'),
+            gate_version: texto(workerStateN7, 'gate_version'),
+            cursor_created: texto(workerStateN7, 'cursor_created'),
+            cursor_id: texto(workerStateN7, 'cursor_id'),
+            pending_ledger_ids: lerArray(workerStateN7, 'pending_ledger_ids'),
+            pending_ledger_hashes: valor(workerStateN7, 'pending_ledger_hashes') || {},
+            lease_owner: texto(workerStateN7, 'lease_owner'),
+            lease_expires_at: texto(workerStateN7, 'lease_expires_at'),
+          })
+        }
+
+        var criados = 0
+        var atualizados = 0
+        var evidenciasCriadas = 0
+        var transicoesCriadas = 0
+        var casosLegadosAmbiguos = 0
+        var publicacoesEnfileiradas = 0
+        try {
+          $app.runInTransaction(function (tx) {
+            if (executionScope === N4_HOMOLOGATION_MODE) {
+              var txParametersN4 = carregar(tx, 'com_parametros')
+              var txGateCountN4 = 0
+              for (var txpi = 0; txpi < txParametersN4.length; txpi++) {
+                if (
+                  texto(txParametersN4[txpi], 'chave') !==
+                  'nexo.curadoria.homologacao_n4_runtime_v1'
+                )
+                  continue
+                txGateCountN4++
+                var txGateValueN4 = null
+                try {
+                  txGateValueN4 = JSON.parse(texto(txParametersN4[txpi], 'valor'))
+                } catch (_) {}
+                if (
+                  !txParametersN4[txpi].getBool('ativo') ||
+                  texto(txParametersN4[txpi], 'tipo') !== 'json_imutavel' ||
+                  Number(txParametersN4[txpi].get('versao')) !== 1 ||
+                  !txGateValueN4 ||
+                  jsonCanonico(txGateValueN4) !== runtimeGateCanonicalN4
+                )
+                  throw new Error('GATE_HOMOLOGACAO_N4_ALTERADO')
+              }
+              if (txGateCountN4 !== 1) throw new Error('GATE_HOMOLOGACAO_N4_ALTERADO')
+              var txLedgerN4 = carregar(tx, 'com_ledger_comercial')
+              var txEvidenceCountN4 = {}
+              for (var txli = 0; txli < txLedgerN4.length; txli++) {
+                var txEvidenceRefN4 = texto(txLedgerN4[txli], 'evidencia_ref')
+                if (!evidenceRefsN4Map[txEvidenceRefN4]) continue
+                txEvidenceCountN4[txEvidenceRefN4] =
+                  Number(txEvidenceCountN4[txEvidenceRefN4] || 0) + 1
+                if (
+                  texto(txLedgerN4[txli], 'fonte') !== 'homologacao_n4' ||
+                  hashLedgerHomologacaoN4(txLedgerN4[txli]) !== evidenceRefsN4Hash[txEvidenceRefN4]
+                )
+                  throw new Error('ESCOPO_HOMOLOGACAO_ALTERADO')
+              }
+              for (var txeri = 0; txeri < evidenceRefsN4.length; txeri++) {
+                if (txEvidenceCountN4[evidenceRefsN4[txeri]] !== 1)
+                  throw new Error('ESCOPO_HOMOLOGACAO_ALTERADO')
+              }
+            }
+            if (executionScope === N6_BATCH_MODE) {
+              var txParametersN6 = carregar(tx, 'com_parametros')
+              var txGateCountN6 = 0
+              for (var txp6 = 0; txp6 < txParametersN6.length; txp6++) {
+                if (texto(txParametersN6[txp6], 'chave') !== N6_GATE_KEY) continue
+                txGateCountN6++
+                var txGateValueN6 = null
+                try {
+                  txGateValueN6 = JSON.parse(texto(txParametersN6[txp6], 'valor'))
+                } catch (_) {}
+                if (
+                  !txParametersN6[txp6].getBool('ativo') ||
+                  texto(txParametersN6[txp6], 'tipo') !== 'json_imutavel' ||
+                  Number(txParametersN6[txp6].get('versao')) !== 1 ||
+                  !txGateValueN6 ||
+                  jsonCanonico(txGateValueN6) !== runtimeGateCanonicalN6
+                )
+                  throw new Error('GATE_LOTE_N6_ALTERADO')
+              }
+              if (txGateCountN6 !== 1) throw new Error('GATE_LOTE_N6_ALTERADO')
+              var txLedgerN6 = carregar(tx, 'com_ledger_comercial')
+              var txLedgerCountN6 = {}
+              for (var txl6 = 0; txl6 < txLedgerN6.length; txl6++) {
+                var txLedgerIdN6 = String(txLedgerN6[txl6].id || '')
+                if (!ledgerIdsN6Map[txLedgerIdN6]) continue
+                txLedgerCountN6[txLedgerIdN6] = Number(txLedgerCountN6[txLedgerIdN6] || 0) + 1
+                if (hashLedgerHomologacaoN4(txLedgerN6[txl6]) !== ledgerIdsN6Hash[txLedgerIdN6])
+                  throw new Error('ESCOPO_LOTE_N6_ALTERADO')
+              }
+              for (var txl6i = 0; txl6i < ledgerIdsN6.length; txl6i++) {
+                if (txLedgerCountN6[ledgerIdsN6[txl6i]] !== 1)
+                  throw new Error('ESCOPO_LOTE_N6_ALTERADO')
+              }
+              var txPreviewN6 = planejar(tx)
+              if (jsonCanonico(txPreviewN6) !== jsonCanonico(preview))
+                throw new Error('PROJECAO_LOTE_N6_ALTERADA')
+            }
+            if (executionScope === N7_MODE) {
+              var txParametersN7 = carregar(tx, 'com_parametros')
+              var txGateCountN7 = 0
+              var txSwitchCountN7 = 0
+              for (var txp7 = 0; txp7 < txParametersN7.length; txp7++) {
+                var txParameterKeyN7 = texto(txParametersN7[txp7], 'chave')
+                if (txParameterKeyN7 === N7_GATE_KEY) {
+                  txGateCountN7++
+                  var txGateValueN7 = null
+                  try {
+                    txGateValueN7 = JSON.parse(texto(txParametersN7[txp7], 'valor'))
+                  } catch (_) {}
+                  if (
+                    !txParametersN7[txp7].getBool('ativo') ||
+                    texto(txParametersN7[txp7], 'tipo') !== 'json_imutavel' ||
+                    Number(txParametersN7[txp7].get('versao')) !== 1 ||
+                    !txGateValueN7 ||
+                    jsonCanonico(txGateValueN7) !== runtimeGateCanonicalN7
+                  )
+                    throw new Error('GATE_OPERACAO_N7_ALTERADO')
+                }
+                if (txParameterKeyN7 === N7_SWITCH_KEY) {
+                  txSwitchCountN7++
+                  var txSwitchCanonicalN7 = jsonCanonico({
+                    id: String(txParametersN7[txp7].id || ''),
+                    ativo: txParametersN7[txp7].getBool('ativo'),
+                    tipo: texto(txParametersN7[txp7], 'tipo'),
+                    valor: texto(txParametersN7[txp7], 'valor'),
+                    versao: Number(txParametersN7[txp7].get('versao') || 0),
+                  })
+                  if (txSwitchCanonicalN7 !== runtimeSwitchCanonicalN7)
+                    throw new Error('SWITCH_OPERACAO_N7_ALTERADO')
+                }
+              }
+              if (txGateCountN7 !== 1 || txSwitchCountN7 !== 1)
+                throw new Error('CONTROLES_OPERACAO_N7_ALTERADOS')
+              var txWorkerStateRowsN7 = carregar(tx, 'com_nexo_curadoria_worker_estado')
+              if (txWorkerStateRowsN7.length > 1)
+                throw new Error('ESTADO_WORKER_OPERACAO_N7_ALTERADO')
+              var txWorkerStateN7 = txWorkerStateRowsN7.length === 1 ? txWorkerStateRowsN7[0] : null
+              var txWorkerStateCanonicalN7 = txWorkerStateN7
+                ? jsonCanonico({
+                    id: String(txWorkerStateN7.id || ''),
+                    worker_identity: texto(txWorkerStateN7, 'worker_identity'),
+                    gate_version: texto(txWorkerStateN7, 'gate_version'),
+                    cursor_created: texto(txWorkerStateN7, 'cursor_created'),
+                    cursor_id: texto(txWorkerStateN7, 'cursor_id'),
+                    pending_ledger_ids: lerArray(txWorkerStateN7, 'pending_ledger_ids'),
+                    pending_ledger_hashes: valor(txWorkerStateN7, 'pending_ledger_hashes') || {},
+                    lease_owner: texto(txWorkerStateN7, 'lease_owner'),
+                    lease_expires_at: texto(txWorkerStateN7, 'lease_expires_at'),
+                  })
+                : ''
+              if (txWorkerStateCanonicalN7 !== workerStateCanonicalN7)
+                throw new Error('ESTADO_WORKER_OPERACAO_N7_ALTERADO')
+              var txLedgerRowsN7 = carregar(tx, 'com_ledger_comercial')
+              var txLedgerByIdN7 = {}
+              var txNewLedgerN7 = []
+              var txSelectedLedgerN7 = []
+              for (var txl7 = 0; txl7 < txLedgerRowsN7.length; txl7++) {
+                if (!posteriorAoCorte(txLedgerRowsN7[txl7], activationCutoffN7)) continue
+                var txLedgerIdN7 = String(txLedgerRowsN7[txl7].id || '')
+                if (!/^[a-z0-9]{15}$/.test(txLedgerIdN7) || txLedgerByIdN7[txLedgerIdN7])
+                  throw new Error('LEDGER_OPERACAO_N7_ALTERADO')
+                txLedgerByIdN7[txLedgerIdN7] = txLedgerRowsN7[txl7]
+                if (posteriorAoCorte(txLedgerRowsN7[txl7], workerCursorN7))
+                  txNewLedgerN7.push(txLedgerRowsN7[txl7])
+              }
+              for (var txpai = 0; txpai < pendingLedgerIdsN7.length; txpai++) {
+                var txPendingIdN7 = pendingLedgerIdsN7[txpai]
+                if (!txLedgerByIdN7[txPendingIdN7]) throw new Error('LEDGER_OPERACAO_N7_ALTERADO')
+                txSelectedLedgerN7.push(txLedgerByIdN7[txPendingIdN7])
+              }
+              txNewLedgerN7.sort(function (a, b) {
+                var ac = texto(a, 'created')
+                var bc = texto(b, 'created')
+                if (ac !== bc) return ac < bc ? -1 : 1
+                return String(a.id || '') < String(b.id || '') ? -1 : 1
+              })
+              txNewLedgerN7 = txNewLedgerN7.slice(0, limitsN7.max_ledger_records)
+              for (var txn7i = 0; txn7i < txNewLedgerN7.length; txn7i++)
+                txSelectedLedgerN7.push(txNewLedgerN7[txn7i])
+              var txLedgerSnapshotN7 = {}
+              for (var txs7 = 0; txs7 < txSelectedLedgerN7.length; txs7++) {
+                var txSelectedIdN7 = String(txSelectedLedgerN7[txs7].id || '')
+                if (txLedgerSnapshotN7[txSelectedIdN7])
+                  throw new Error('LEDGER_OPERACAO_N7_ALTERADO')
+                txLedgerSnapshotN7[txSelectedIdN7] = hashLedgerHomologacaoN4(
+                  txSelectedLedgerN7[txs7],
+                )
+              }
+              if (jsonCanonico(txLedgerSnapshotN7) !== jsonCanonico(ledgerSnapshotN7))
+                throw new Error('LEDGER_OPERACAO_N7_ALTERADO')
+              var txPreviewN7 = planejar(tx)
+              if (jsonCanonico(txPreviewN7) !== jsonCanonico(preview))
+                throw new Error('PROJECAO_OPERACAO_N7_ALTERADA')
+            }
+            var estado = estadoAtual(tx)
+            for (var gi = 0; gi < listaGrupos.length; gi++) {
+              var grupo = listaGrupos[gi]
+              var destinoN2 = classificarGrupoN2(estado, grupo)
+              if (
+                destinoN2 !== 'automatic_promotion' &&
+                destinoN2 !== 'management_exception' &&
+                destinoN2 !== 'direction_exception'
+              )
+                continue
+              grupo.automatico = destinoN2 === 'automatic_promotion'
+              grupo.excecao_humana = !grupo.automatico
+              grupo.direction_required = destinoN2 === 'direction_exception'
+              var resolucao = resolverCasoExistente(estado, grupo)
+              if (resolucao.ambiguo) {
+                casosLegadosAmbiguos++
+                continue
+              }
+              var caso = resolucao.caso
+              var novoCaso = !caso
+              if (novoCaso) {
+                caso = new Record(tx.findCollectionByNameOrId('com_nexo_curadoria_casos'))
+                caso.set('fingerprint', grupo.fingerprint)
+                caso.set('revisao', 1)
+                caso.set(
+                  'status',
+                  grupo.automatico
+                    ? 'aprovado'
+                    : grupo.direction_required
+                      ? 'aguardando_direcao'
+                      : 'aberto_curadoria',
+                )
+                caso.set('fonte_principal', grupo.fontes[0] || 'comercial')
+                caso.set('fontes', grupo.fontes)
+                caso.set('escopo_tipo', grupo.escopo_tipo)
+                caso.set('escopo_ref', grupo.escopo_ref)
+                caso.set('empresa_nome', grupo.empresa_nome)
+                caso.set('contato_nome', grupo.contato_nome)
+                caso.set('negocio_numero', grupo.negocio_numero)
+                caso.set('negocio_titulo', grupo.negocio_titulo)
+                caso.set('responsavel_nome', grupo.responsavel_nome)
+                caso.set('responsavel_id', grupo.responsavel_id)
+                caso.set('equipe_id', grupo.equipe_id)
+                caso.set('negocio_id', grupo.negocio_id)
+                caso.set('assunto_chave', grupo.assunto_chave)
+                caso.set('recorrencia_chave', grupo.recorrencia_chave)
+                caso.set('titulo', tituloAssunto(grupo.assunto_chave))
+                caso.set('resumo_factual', arrayUnico(grupo.resumos).slice(0, 3).join(' | '))
+                caso.set(
+                  'motivo_curadoria',
+                  grupo.automatico
+                    ? 'Rotina clara, rastreável, não sensível e reversível aprovada pela política do agente Nexo.'
+                    : !grupo.safety_predicates.no_active_rule_conflict
+                      ? 'Há conflito com orientação ativa e a decisão exige revisão humana.'
+                      : grupo.sensiveis.length
+                        ? 'O caso contém matéria sensível e exige decisão executiva.'
+                        : 'O caso contém conflito ou evidência insuficiente e exige revisão humana.',
+                )
+                caso.set(
+                  'regra_candidata',
+                  grupo.automatico ? arrayUnico(grupo.resumos).slice(0, 1).join('') : '',
+                )
+                caso.set('evidencia_contagem', grupo.evidencias.length)
+                caso.set('casos_independentes', grupo.recorrencia_contagem)
+                caso.set('recorrencia_contagem', grupo.recorrencia_contagem)
+                caso.set(
+                  'evidencia_hashes',
+                  grupo.evidencias.map(function (ev) {
+                    return ev.hash
+                  }),
+                )
+                caso.set('risco_classe', grupo.direction_required ? 'alto' : 'baixo')
+                caso.set('alcada', grupo.direction_required ? 'direcao' : 'gestao_comercial')
+                caso.set('sensivel_motivos', grupo.sensiveis)
+                caso.set(
+                  'confianca',
+                  grupo.automatico ? 'alta' : grupo.evidencias.length > 1 ? 'media' : 'baixa',
+                )
+                caso.set('human_review_required', !grupo.automatico)
+                caso.set('automatic_promotion_allowed', !!grupo.automatico)
+                caso.set(
+                  'conhecimento_status',
+                  grupo.automatico ? 'pendente_publicacao' : 'nao_publicado',
+                )
+                if (grupo.automatico) {
+                  caso.set('validado_por', AUTOMATIC_AGENT_ID)
+                  caso.set('decisao_em', new Date())
+                  caso.set('approved_at', new Date())
+                }
+                caso.set('created_by', grupo.automatico ? AUTOMATIC_AGENT_ID : actor.id)
+                if (executionScope === N7_MODE) caso.set('origin_worker_identity', N7_WORKER_ID)
+                caso.set('updated_by', grupo.automatico ? AUTOMATIC_AGENT_ID : actor.id)
+                caso.set('first_seen_at', grupo.first_seen_at || new Date())
+                caso.set('last_seen_at', grupo.last_seen_at || new Date())
+                tx.save(caso)
+                estado.caso_por_fingerprint[grupo.fingerprint] = caso
+                criados++
+              }
+
+              var novasEvidencias = []
+              for (var gei = 0; gei < grupo.evidencias.length; gei++) {
+                var grupoEvidencia = grupo.evidencias[gei]
+                var evidenciaKey = caso.id + '|' + grupoEvidencia.hash
+                if (!estado.evidencias_existentes[evidenciaKey])
+                  novasEvidencias.push(grupoEvidencia)
+              }
+              var reabertura = null
+              var recorrenciaMudou =
+                numero(caso, 'recorrencia_contagem') !== grupo.recorrencia_contagem
+              var gatilho = !novoCaso ? gatilhoReabertura(caso, novasEvidencias) : ''
+              var reabrirCaso = !!gatilho
+              var escaladaDirecao = !novoCaso && exigeEscaladaDirecaoN2(caso, grupo)
+              if (
+                !novoCaso &&
+                (novasEvidencias.length || recorrenciaMudou || reabrirCaso || escaladaDirecao)
+              ) {
+                var hashes = arrayUnico(
+                  lerArray(caso, 'evidencia_hashes').concat(
+                    novasEvidencias.map(function (ev) {
+                      return ev.hash
+                    }),
+                  ),
+                )
+                if (novasEvidencias.length) {
+                  caso.set('fontes', arrayUnico(lerArray(caso, 'fontes').concat(grupo.fontes)))
+                  caso.set('evidencia_hashes', hashes)
+                  caso.set('evidencia_contagem', hashes.length)
+                  caso.set('last_seen_at', grupo.last_seen_at || new Date())
+                }
+                caso.set('casos_independentes', grupo.recorrencia_contagem)
+                caso.set('recorrencia_contagem', grupo.recorrencia_contagem)
+                if (grupo.responsavel_id) caso.set('responsavel_id', grupo.responsavel_id)
+                if (grupo.equipe_id) caso.set('equipe_id', grupo.equipe_id)
+                if (grupo.negocio_id) caso.set('negocio_id', grupo.negocio_id)
+                if (grupo.direction_required) {
+                  caso.set('alcada', 'direcao')
+                  caso.set('risco_classe', 'alto')
+                  caso.set('human_review_required', true)
+                  caso.set('automatic_promotion_allowed', false)
+                }
+                caso.set('resumo_factual', arrayUnico(grupo.resumos).slice(0, 3).join(' | '))
+                caso.set(
+                  'confianca',
+                  hashes.length >= 3 || grupo.recorrencia_contagem >= 3
+                    ? 'alta'
+                    : hashes.length >= 2 || grupo.recorrencia_contagem >= 2
+                      ? 'media'
+                      : 'baixa',
+                )
+                var statusAnterior = texto(caso, 'status')
+                var revisaoAtual = numero(caso, 'revisao')
+                var casoEmRevisao =
+                  statusAnterior === 'aberto_curadoria' ||
+                  statusAnterior === 'em_entrevista' ||
+                  statusAnterior === 'aguardando_gestao' ||
+                  statusAnterior === 'aguardando_direcao'
+                var novaRevisao = revisaoAtual
+                if (reabrirCaso || casoEmRevisao || escaladaDirecao) {
+                  novaRevisao = revisaoAtual + 1
+                  caso.set('revisao', novaRevisao)
+                }
+                if (reabrirCaso || escaladaDirecao) {
+                  var statusReaberto = grupo.direction_required
+                    ? 'aguardando_direcao'
+                    : 'aberto_curadoria'
+                  caso.set('status', statusReaberto)
+                  caso.set('next_review_at', null)
+                  var conhecimentoStatusAnterior = texto(caso, 'conhecimento_status')
+                  if (
+                    conhecimentoStatusAnterior === 'ativo' ||
+                    conhecimentoStatusAnterior === 'pendente_publicacao'
+                  )
+                    caso.set('conhecimento_status', 'revisao_necessaria')
+                  reabertura = {
+                    status_anterior: statusAnterior,
+                    status_novo: statusReaberto,
+                    revisao: novaRevisao,
+                    gatilho: gatilho || 'escalada_direcao_n2',
+                  }
+                  try {
+                    var operacoesAntigas = carregar(tx, 'com_nexo_curadoria_outbox')
+                    for (var oai = 0; oai < operacoesAntigas.length; oai++) {
+                      var operacaoAntiga = operacoesAntigas[oai]
+                      if (texto(operacaoAntiga, 'caso_id') !== caso.id) continue
+                      var statusOperacao = texto(operacaoAntiga, 'status')
+                      if (
+                        statusOperacao !== 'pendente' &&
+                        statusOperacao !== 'erro' &&
+                        statusOperacao !== 'processando'
+                      )
+                        continue
+                      operacaoAntiga.set('status', 'supersedido')
+                      operacaoAntiga.set(
+                        'superseded_by',
+                        'evidencia-revisao-' + String(novaRevisao),
+                      )
+                      operacaoAntiga.set('processed_at', new Date())
+                      tx.save(operacaoAntiga)
+                    }
+                  } catch (_) {}
+                }
+                caso.set('updated_by', actor.id)
+                tx.save(caso)
+                atualizados++
+              }
+
+              for (var nei = 0; nei < novasEvidencias.length; nei++) {
+                var nova = novasEvidencias[nei]
+                var evidencia = new Record(
+                  tx.findCollectionByNameOrId('com_nexo_curadoria_evidencias'),
+                )
+                evidencia.set('caso_id', caso.id)
+                evidencia.set('fonte_tipo', nova.fonte_tipo)
+                evidencia.set('fonte_ref', nova.fonte_ref)
+                evidencia.set('evidencia_hash', nova.hash)
+                evidencia.set('escopo_ref', grupo.escopo_ref)
+                evidencia.set('resumo_factual', nova.resumo_factual)
+                evidencia.set('metadados', {
+                  payload_bruto: false,
+                  revisao_material: !!nova.revisao_material,
+                })
+                evidencia.set('occurred_at', nova.occurred_at || new Date())
+                tx.save(evidencia)
+                estado.evidencias_existentes[caso.id + '|' + nova.hash] = true
+                evidenciasCriadas++
+              }
+
+              if (novoCaso) {
+                var statusNovo = texto(caso, 'status')
+                var chaveTransicao = String(
+                  $security.sha256(
+                    ['curadoria-transicao-v1', grupo.fingerprint, 'inicial', statusNovo].join('|'),
+                  ),
+                )
+                if (!estado.transicoes_existentes[chaveTransicao]) {
+                  var transicao = new Record(
+                    tx.findCollectionByNameOrId('com_nexo_curadoria_transicoes'),
+                  )
+                  transicao.set('caso_id', caso.id)
+                  transicao.set('transicao_chave', chaveTransicao)
+                  transicao.set('status_anterior', '')
+                  transicao.set('status_novo', statusNovo)
+                  transicao.set('ator_id', grupo.automatico ? AUTOMATIC_AGENT_ID : actor.id)
+                  transicao.set(
+                    'motivo',
+                    grupo.automatico
+                      ? 'Rotina aprovada automaticamente pela política governada do agente Nexo.'
+                      : 'Exceção criada pela consolidação governada do Ledger Comercial.',
+                  )
+                  transicao.set(
+                    'metadados',
+                    grupo.automatico
+                      ? {
+                          automatico: true,
+                          promocao: true,
+                          decision_mode: 'agent_policy',
+                          agent_id: AUTOMATIC_AGENT_ID,
+                          role: 'curador_comercial',
+                          policy_version: politicaFluxoCorrente.policy_version,
+                          acao: 'aprovar_automatico',
+                          revisao_anterior: 0,
+                          revisao_nova: 1,
+                        }
+                      : { automatico: true, promocao: false },
+                  )
+                  transicao.set('ocorreu_em', new Date())
+                  tx.save(transicao)
+                  estado.transicoes_existentes[chaveTransicao] = true
+                  transicoesCriadas++
+
+                  if (grupo.automatico) {
+                    var payloadAuto = payloadAutomatico(
+                      caso,
+                      transicao,
+                      grupo,
+                      politicaFluxoCorrente,
+                    )
+                    var payloadAutoBody = jsonCanonico(payloadAuto)
+                    var idempotencyAuto = String(
+                      $security.sha256(
+                        ['curadoria-outbox-agent-policy-v1', caso.id, '1', 'publicar'].join('|'),
+                      ),
+                    )
+                    var outboxAuto = new Record(
+                      tx.findCollectionByNameOrId('com_nexo_curadoria_outbox'),
+                    )
+                    outboxAuto.set('caso_id', caso.id)
+                    outboxAuto.set('decisao_id', transicao.id)
+                    outboxAuto.set('acao', 'publicar_automatico')
+                    outboxAuto.set('idempotency_key', idempotencyAuto)
+                    outboxAuto.set('status', 'pendente')
+                    outboxAuto.set('tentativas', 0)
+                    outboxAuto.set('tentativas_ciclo', 0)
+                    outboxAuto.set('retry_count', 0)
+                    outboxAuto.set('last_error', '')
+                    outboxAuto.set('payload_hash', String($security.sha256(payloadAutoBody)))
+                    outboxAuto.set('payload_json', payloadAuto)
+                    outboxAuto.set('caso_revisao', 1)
+                    outboxAuto.set('requested_at', new Date())
+                    tx.save(outboxAuto)
+                    publicacoesEnfileiradas++
+                  }
+                }
+              } else if (reabertura) {
+                var chaveReabertura = String(
+                  $security.sha256(
+                    [
+                      'curadoria-transicao-v1',
+                      grupo.fingerprint,
+                      'reabertura',
+                      String(reabertura.revisao),
+                      reabertura.status_novo,
+                    ].join('|'),
+                  ),
+                )
+                if (!estado.transicoes_existentes[chaveReabertura]) {
+                  var transicaoReabertura = new Record(
+                    tx.findCollectionByNameOrId('com_nexo_curadoria_transicoes'),
+                  )
+                  transicaoReabertura.set('caso_id', caso.id)
+                  transicaoReabertura.set('transicao_chave', chaveReabertura)
+                  transicaoReabertura.set('status_anterior', reabertura.status_anterior)
+                  transicaoReabertura.set('status_novo', reabertura.status_novo)
+                  transicaoReabertura.set('ator_id', actor.id)
+                  transicaoReabertura.set(
+                    'motivo',
+                    reabertura.gatilho === 'revisao_vencida'
+                      ? 'Caso reaberto por revisão programada vencida.'
+                      : reabertura.gatilho === 'escalada_direcao_n2'
+                        ? 'Caso escalado para alçada executiva pela matriz governada N2.'
+                        : 'Caso reaberto por materialidade estruturada em nova evidência.',
+                  )
+                  transicaoReabertura.set('metadados', {
+                    automatico: true,
+                    promocao: false,
+                    revisao: reabertura.revisao,
+                    gatilho: reabertura.gatilho,
+                  })
+                  transicaoReabertura.set('ocorreu_em', new Date())
+                  tx.save(transicaoReabertura)
+                  estado.transicoes_existentes[chaveReabertura] = true
+                  transicoesCriadas++
+                }
+              }
+            }
+            if (executionScope === N7_MODE) {
+              var workerStateToSaveN7 = workerStateN7
+              if (!workerStateToSaveN7)
+                workerStateToSaveN7 = new Record(
+                  tx.findCollectionByNameOrId('com_nexo_curadoria_worker_estado'),
+                )
+              workerStateToSaveN7.set('worker_identity', N7_WORKER_ID)
+              workerStateToSaveN7.set('gate_version', N7_GATE_VERSION)
+              workerStateToSaveN7.set('cursor_created', nextWorkerCursorN7.created)
+              workerStateToSaveN7.set('cursor_id', nextWorkerCursorN7.id)
+              workerStateToSaveN7.set('pending_ledger_ids', nextPendingLedgerIdsN7)
+              workerStateToSaveN7.set('pending_ledger_hashes', nextPendingLedgerHashesN7)
+              workerStateToSaveN7.set('lease_owner', '')
+              workerStateToSaveN7.set('lease_expires_at', null)
+              workerStateToSaveN7.set('processed_records', selectedLedgerRecordsN7)
+              workerStateToSaveN7.set('last_result_code', 'applied')
+              workerStateToSaveN7.set('last_executed_at', new Date())
+              tx.save(workerStateToSaveN7)
+              var executionN7 = new Record(
+                tx.findCollectionByNameOrId('com_nexo_curadoria_execucoes'),
+              )
+              executionN7.set('worker_identity', N7_WORKER_ID)
+              executionN7.set('result_code', 'applied')
+              executionN7.set('execution_scope', N7_MODE)
+              executionN7.set('activation_cutoff_created', activationCutoffN7.created)
+              executionN7.set('activation_cutoff_id', activationCutoffN7.id)
+              executionN7.set(
+                'ledger_snapshot_hash',
+                String($security.sha256(jsonCanonico(ledgerSnapshotN7))),
+              )
+              executionN7.set('selected_ledger_records', selectedLedgerRecordsN7)
+              executionN7.set('cases_created', criados)
+              executionN7.set('cases_updated', atualizados)
+              executionN7.set('evidence_created', evidenciasCriadas)
+              executionN7.set('transitions_created', transicoesCriadas)
+              executionN7.set('outbox_created', publicacoesEnfileiradas)
+              executionN7.set('outbox_processed', 0)
+              executionN7.set('outbox_failed', 0)
+              executionN7.set('outbox_invalidated', 0)
+              executionN7.set('automatic_cases', automaticCases)
+              executionN7.set('human_exceptions', humanExceptions)
+              executionN7.set('human_exceptions_new', preview.human_exceptions_new)
+              executionN7.set('open_human_exceptions_before', preview.open_human_exceptions_before)
+              executionN7.set('executed_at', new Date())
+              tx.save(executionN7)
+            }
+          })
+        } catch (_) {
+          return e.json(500, { ok: false, error: 'FALHA_CONSOLIDACAO_CURADORIA' })
+        }
+
+        return e.json(200, {
+          ok: true,
+          dry_run: false,
+          casos_criados: criados,
+          casos_atualizados: atualizados,
+          evidencias_criadas: evidenciasCriadas,
+          transicoes_criadas: transicoesCriadas,
+          casos_legados_ambiguos: casosLegadosAmbiguos,
+          policy_version: politicaFluxoCorrente.policy_version,
+          cutoff: politicaFluxoCorrente.cutoff,
+          historical_untouched: historicalUntouched,
+          automatic_cases: automaticCases,
+          human_exceptions: humanExceptions,
+          noise_ignored: preview.classification_counts.ledger_records.discarded_noise,
+          classification_counts: preview.classification_counts,
+          guardrails: {
+            no_send: true,
+            no_publication: true,
+          },
+          automatic_send_allowed: false,
+          publicacao_enfileirada: publicacoesEnfileiradas > 0,
+          promocao_automatica_realizada: false,
+          execution_scope: executionScope,
+          selected_evidence_refs: evidenceRefsN4.length,
+          selected_ledger_ids: ledgerIdsN6.length,
+          selected_ledger_records: selectedLedgerRecordsN7,
+          activation_cutoff: activationCutoffN7,
+          untouched_before_activation: untouchedBeforeActivationN7,
+          volume_limits: limitsN7,
+          human_exceptions_new: preview.human_exceptions_new,
+          open_human_exceptions_before: preview.open_human_exceptions_before,
+        })
+      }
+
+      var cronResponseN7 = null
+      nexoCuradoriaConsolidarHandler({
+        nexoCuradoriaInternalN7: true,
+        auth: null,
+        requestInfo: function () {
+          return {
+            body: {
+              dry_run: false,
+              modo: 'operacao_continua_n7',
+              confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+              confirmacao_operacao_n7: 'APLICAR_OPERACAO_CONTINUA_N7',
+            },
+          }
+        },
+        request: {
+          header: {
+            get: function (_) {
+              return ''
+            },
+          },
+        },
+        json: function (status, payload) {
+          cronResponseN7 = { status: status, payload: payload }
+          return cronResponseN7
+        },
+        forbiddenError: function (_) {
+          cronResponseN7 = { status: 403, payload: { error: 'WORKER_OPERACAO_N7_FORBIDDEN' } }
+          return cronResponseN7
+        },
+      })
+      return cronResponseN7
+    })
+  }
 
   routerAdd('POST', '/backend/v1/nexo/curadoria/fontes/{source}/eventos/{eventId}', function (e) {
     function nexoCuradoriaCasosTexto(record, field) {
@@ -7654,7 +10432,10 @@
       }
     }
 
-    var acesso = nexoCuradoriaCasosPerfil(e)
+    var internalOutboxN7 = !!(e && e.nexoCuradoriaInternalOutboxN7 === true)
+    var acesso = internalOutboxN7
+      ? { actor: { id: 'nexo-curadoria-outbox-n7' }, slug: 'superadministrador' }
+      : nexoCuradoriaCasosPerfil(e)
     if (!acesso || acesso.slug !== 'superadministrador')
       return e.forbiddenError('Superadministrador necessario para publicar conhecimento')
 
@@ -7667,7 +10448,16 @@
     var scopedOutboxIdMap = {}
     var scopedOutboxCaseMap = {}
     var requestedOutboxMode = String(bodyRequest.modo || '')
-    if (requestedOutboxMode || typeof bodyRequest.outbox_ids !== 'undefined') {
+    if (requestedOutboxMode === 'operacao_continua_n7') {
+      if (
+        !internalOutboxN7 ||
+        typeof bodyRequest.outbox_ids !== 'undefined' ||
+        Number(bodyRequest.limite) !== 5
+      )
+        return e.json(400, { ok: false, error: 'ESCOPO_OUTBOX_N7_INVALIDO' })
+      executionScopeOutbox = 'operacao_continua_n7'
+      limite = 5
+    } else if (requestedOutboxMode || typeof bodyRequest.outbox_ids !== 'undefined') {
       if (
         requestedOutboxMode !== 'homologacao_isolada_n4' ||
         !Array.isArray(bodyRequest.outbox_ids) ||
@@ -7770,7 +10560,7 @@
       return scheme + '://' + authority + deploymentPath
     }
 
-    function nexoCuradoriaGatewayConfig(requestOrigin) {
+    function nexoCuradoriaGatewayConfig(requestOrigin, automaticOnly) {
       var origin = String(requestOrigin || '')
       var gatewayBase = ''
       var gatewayKey = ''
@@ -7782,9 +10572,11 @@
       var automaticAgentId = ''
       if (origin === 'https://backend-isolado-pmais-43b9c--preview.goskip.app') {
         gatewayBase = nexoCuradoriaGatewayBase(secretValue('PMAIS_CURADORIA_PREVIEW_GATEWAY_URL'))
-        gatewayKey = secretValue('PMAIS_CURADORIA_API_KEY')
-        gatewaySecret = secretValue('PMAIS_CURADORIA_HMAC_SECRET')
-        approvalSecret = secretValue('PMAIS_CURADORIA_APPROVAL_SECRET')
+        if (!automaticOnly) {
+          gatewayKey = secretValue('PMAIS_CURADORIA_API_KEY')
+          gatewaySecret = secretValue('PMAIS_CURADORIA_HMAC_SECRET')
+          approvalSecret = secretValue('PMAIS_CURADORIA_APPROVAL_SECRET')
+        }
         automaticGatewayKey = secretValue('PMAIS_CURADORIA_AUTOMATIC_API_KEY')
         automaticGatewaySecret = secretValue('PMAIS_CURADORIA_AUTOMATIC_HMAC_SECRET')
         automaticPolicySecret = secretValue('PMAIS_CURADORIA_AUTOMATIC_POLICY_SECRET')
@@ -7794,9 +10586,11 @@
         origin === 'https://backend-isolado-pmais-43b9c.goskip.app'
       ) {
         gatewayBase = nexoCuradoriaGatewayBase(secretValue('PMAIS_CURADORIA_PROD_GATEWAY_URL'))
-        gatewayKey = secretValue('PMAIS_CURADORIA_PROD_API_KEY')
-        gatewaySecret = secretValue('PMAIS_CURADORIA_PROD_HMAC_SECRET')
-        approvalSecret = secretValue('PMAIS_CURADORIA_PROD_APPROVAL_SECRET')
+        if (!automaticOnly) {
+          gatewayKey = secretValue('PMAIS_CURADORIA_PROD_API_KEY')
+          gatewaySecret = secretValue('PMAIS_CURADORIA_PROD_HMAC_SECRET')
+          approvalSecret = secretValue('PMAIS_CURADORIA_PROD_APPROVAL_SECRET')
+        }
         automaticGatewayKey = secretValue('PMAIS_CURADORIA_PROD_AUTOMATIC_API_KEY')
         automaticGatewaySecret = secretValue('PMAIS_CURADORIA_PROD_AUTOMATIC_HMAC_SECRET')
         automaticPolicySecret = secretValue('PMAIS_CURADORIA_PROD_AUTOMATIC_POLICY_SECRET')
@@ -7804,7 +10598,17 @@
       } else {
         return null
       }
-      if (!gatewayBase || !gatewayKey || !gatewaySecret || !approvalSecret) return null
+      if (
+        automaticOnly &&
+        (!gatewayBase ||
+          !automaticGatewayKey ||
+          !automaticGatewaySecret ||
+          !automaticPolicySecret ||
+          !automaticAgentId)
+      )
+        return null
+      if (!automaticOnly && (!gatewayBase || !gatewayKey || !gatewaySecret || !approvalSecret))
+        return null
       return {
         gatewayBase: gatewayBase,
         gatewayKey: gatewayKey,
@@ -7820,9 +10624,103 @@
     var requestOrigin = ''
     var runtimeGateIdOutbox = ''
     var runtimeGateCanonicalOutbox = ''
+    var runtimeGateCanonicalOutboxN7 = ''
+    var runtimeSwitchCanonicalOutboxN7 = ''
     try {
       requestOrigin = String(e.request.header.get('Origin') || '')
     } catch (_) {}
+    if (internalOutboxN7) requestOrigin = 'https://comercial.pmaisservicos.com.br'
+    var activationCutoffOutboxN7 = null
+    if (executionScopeOutbox === 'operacao_continua_n7') {
+      var controlsOutboxN7 = nexoCuradoriaCasosCarregar($app, 'com_parametros')
+      var gateOutboxN7 = null
+      var switchOutboxN7 = null
+      var gateCountOutboxN7 = 0
+      var switchCountOutboxN7 = 0
+      for (var con7i = 0; con7i < controlsOutboxN7.length; con7i++) {
+        var controlKeyOutboxN7 = nexoCuradoriaCasosTexto(controlsOutboxN7[con7i], 'chave')
+        if (controlKeyOutboxN7 === 'nexo.curadoria.operacao_n7_runtime_v1') {
+          gateCountOutboxN7++
+          gateOutboxN7 = controlsOutboxN7[con7i]
+        }
+        if (controlKeyOutboxN7 === 'nexo.curadoria.outbox_n7_switch_v1') {
+          switchCountOutboxN7++
+          switchOutboxN7 = controlsOutboxN7[con7i]
+        }
+      }
+      var gateValueOutboxN7 = null
+      try {
+        gateValueOutboxN7 = JSON.parse(nexoCuradoriaCasosTexto(gateOutboxN7, 'valor'))
+      } catch (_) {}
+      var cutoffOutboxN7 = gateValueOutboxN7 ? gateValueOutboxN7.activation_cutoff : null
+      var limitsOutboxN7 = gateValueOutboxN7 ? gateValueOutboxN7.limits : null
+      var integrityOutboxN7 = gateValueOutboxN7
+        ? String(
+            $security.sha256(
+              [
+                gateValueOutboxN7.gate_version,
+                cutoffOutboxN7 ? cutoffOutboxN7.created : '',
+                cutoffOutboxN7 ? cutoffOutboxN7.id : '',
+                gateValueOutboxN7.classifier_policy_version,
+                gateValueOutboxN7.execution_surface,
+                gateValueOutboxN7.worker_identity,
+                nexoCuradoriaJsonCanonico(limitsOutboxN7),
+              ].join('|'),
+            ),
+          )
+        : ''
+      if (
+        gateCountOutboxN7 !== 1 ||
+        switchCountOutboxN7 !== 1 ||
+        !gateOutboxN7 ||
+        !gateOutboxN7.getBool('ativo') ||
+        nexoCuradoriaCasosTexto(gateOutboxN7, 'tipo') !== 'json_imutavel' ||
+        Number(gateOutboxN7.get('versao')) !== 1 ||
+        !gateValueOutboxN7 ||
+        Object.keys(gateValueOutboxN7).sort().join('|') !==
+          'activation_cutoff|classifier_policy_version|execution_surface|gate_version|integrity_hash|limits|worker_identity' ||
+        gateValueOutboxN7.gate_version !== 'pmais_nexo_curadoria_operacao_n7_runtime_v1' ||
+        gateValueOutboxN7.classifier_policy_version !== 'pmais_nexo_auto_promotion_policy_v1' ||
+        gateValueOutboxN7.execution_surface !== 'shared_production_assisted' ||
+        gateValueOutboxN7.worker_identity !== 'nexo-curadoria-n7' ||
+        gateValueOutboxN7.integrity_hash !== integrityOutboxN7 ||
+        !cutoffOutboxN7 ||
+        Object.keys(cutoffOutboxN7).sort().join('|') !== 'created|id' ||
+        !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(
+          String(cutoffOutboxN7.created || ''),
+        ) ||
+        !/^[a-z0-9]{15}$/.test(String(cutoffOutboxN7.id || '')) ||
+        String(cutoffOutboxN7.created || '') !== '2026-11-19 10:10:58.360Z' ||
+        String(cutoffOutboxN7.id || '') !== '8k78ljeajfeuwxn' ||
+        !limitsOutboxN7 ||
+        Object.keys(limitsOutboxN7).sort().join('|') !==
+          'max_ledger_records|max_new_cases|max_new_evidence|max_new_human_exceptions|max_open_human_exceptions|max_updated_cases' ||
+        limitsOutboxN7.max_ledger_records !== 100 ||
+        limitsOutboxN7.max_new_cases !== 5 ||
+        limitsOutboxN7.max_updated_cases !== 20 ||
+        limitsOutboxN7.max_new_evidence !== 100 ||
+        limitsOutboxN7.max_new_human_exceptions !== 1 ||
+        limitsOutboxN7.max_open_human_exceptions !== 3
+      )
+        return e.json(503, { ok: false, error: 'GATE_OUTBOX_N7_INDISPONIVEL' })
+      if (
+        !switchOutboxN7 ||
+        !switchOutboxN7.getBool('ativo') ||
+        nexoCuradoriaCasosTexto(switchOutboxN7, 'tipo') !== 'booleano' ||
+        Number(switchOutboxN7.get('versao') || 0) !== 1 ||
+        nexoCuradoriaCasosTexto(switchOutboxN7, 'valor') !== 'true'
+      )
+        return e.json(503, { ok: false, error: 'WORKER_OUTBOX_N7_DESLIGADO' })
+      activationCutoffOutboxN7 = cutoffOutboxN7
+      runtimeGateCanonicalOutboxN7 = nexoCuradoriaJsonCanonico(gateValueOutboxN7)
+      runtimeSwitchCanonicalOutboxN7 = nexoCuradoriaJsonCanonico({
+        id: String(switchOutboxN7.id || ''),
+        ativo: switchOutboxN7.getBool('ativo'),
+        tipo: nexoCuradoriaCasosTexto(switchOutboxN7, 'tipo'),
+        valor: nexoCuradoriaCasosTexto(switchOutboxN7, 'valor'),
+        versao: Number(switchOutboxN7.get('versao') || 0),
+      })
+    }
     if (
       executionScopeOutbox === 'homologacao_isolada_n4' &&
       requestOrigin !== 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
@@ -7873,6 +10771,46 @@
       runtimeGateCanonicalOutbox = nexoCuradoriaJsonCanonico(runtimeGateValueOutbox)
     }
     function runtimeGateOutboxValido(app) {
+      if (executionScopeOutbox === 'operacao_continua_n7') {
+        var controlsN7 = nexoCuradoriaCasosCarregar(app, 'com_parametros')
+        var currentGateN7 = null
+        var currentSwitchN7 = null
+        var currentGateCountN7 = 0
+        var currentSwitchCountN7 = 0
+        for (var c7i = 0; c7i < controlsN7.length; c7i++) {
+          var currentKeyN7 = nexoCuradoriaCasosTexto(controlsN7[c7i], 'chave')
+          if (currentKeyN7 === 'nexo.curadoria.operacao_n7_runtime_v1') {
+            currentGateCountN7++
+            currentGateN7 = controlsN7[c7i]
+          }
+          if (currentKeyN7 === 'nexo.curadoria.outbox_n7_switch_v1') {
+            currentSwitchCountN7++
+            currentSwitchN7 = controlsN7[c7i]
+          }
+        }
+        var currentGateValueN7 = null
+        try {
+          currentGateValueN7 = JSON.parse(nexoCuradoriaCasosTexto(currentGateN7, 'valor'))
+        } catch (_) {}
+        var currentSwitchCanonicalN7 = currentSwitchN7
+          ? nexoCuradoriaJsonCanonico({
+              id: String(currentSwitchN7.id || ''),
+              ativo: currentSwitchN7.getBool('ativo'),
+              tipo: nexoCuradoriaCasosTexto(currentSwitchN7, 'tipo'),
+              valor: nexoCuradoriaCasosTexto(currentSwitchN7, 'valor'),
+              versao: Number(currentSwitchN7.get('versao') || 0),
+            })
+          : ''
+        return Boolean(
+          currentGateCountN7 === 1 &&
+          currentSwitchCountN7 === 1 &&
+          currentGateN7 &&
+          currentGateN7.getBool('ativo') &&
+          currentGateValueN7 &&
+          nexoCuradoriaJsonCanonico(currentGateValueN7) === runtimeGateCanonicalOutboxN7 &&
+          currentSwitchCanonicalN7 === runtimeSwitchCanonicalOutboxN7,
+        )
+      }
       if (executionScopeOutbox !== 'homologacao_isolada_n4') return true
       var rows = nexoCuradoriaCasosCarregar(app, 'com_parametros')
       var found = null
@@ -7900,7 +10838,7 @@
       } catch (_) {}
       return Boolean(parsed && nexoCuradoriaJsonCanonico(parsed) === runtimeGateCanonicalOutbox)
     }
-    var gatewayConfig = nexoCuradoriaGatewayConfig(requestOrigin)
+    var gatewayConfig = nexoCuradoriaGatewayConfig(requestOrigin, internalOutboxN7)
     if (!gatewayConfig) return e.json(503, { ok: false, error: 'GATEWAY_NAO_CONFIGURADO' })
     var gatewayBase = gatewayConfig.gatewayBase
     var gatewayKey = gatewayConfig.gatewayKey
@@ -7922,6 +10860,27 @@
         status === 'invalidado' ||
         status === 'falha_permanente'
       )
+    }
+    function outboxCaseN7Valido(app, item) {
+      if (executionScopeOutbox !== 'operacao_continua_n7') return true
+      try {
+        var caseN7 = app.findRecordById(
+          'com_nexo_curadoria_casos',
+          nexoCuradoriaCasosTexto(item, 'caso_id'),
+        )
+        var createdN7 = nexoCuradoriaCasosTexto(caseN7, 'created')
+        var idN7 = String(caseN7.id || '')
+        var afterCutoffN7 =
+          createdN7 > activationCutoffOutboxN7.created ||
+          (createdN7 === activationCutoffOutboxN7.created && idN7 > activationCutoffOutboxN7.id)
+        return (
+          afterCutoffN7 &&
+          nexoCuradoriaCasosTexto(caseN7, 'origin_worker_identity') === 'nexo-curadoria-n7' &&
+          nexoCuradoriaCasosTexto(item, 'acao') === 'publicar_automatico'
+        )
+      } catch (_) {
+        return false
+      }
     }
     try {
       todas = nexoCuradoriaCasosCarregar($app, 'com_nexo_curadoria_outbox')
@@ -7969,6 +10928,7 @@
     var casoComOperacaoAnterior = {}
     var agoraMs = new Date().getTime()
     for (var i = 0; i < todas.length; i++) {
+      if (!outboxCaseN7Valido($app, todas[i])) continue
       var statusOutbox = nexoCuradoriaCasosTexto(todas[i], 'status')
       if (statusTerminal(statusOutbox)) continue
       var leaseAtual = nexoCuradoriaCasosTexto(todas[i], 'claim_expires_at')
@@ -8007,6 +10967,47 @@
     })
     pendentes = pendentes.slice(0, limite)
 
+    var metricOutboxN7 = null
+    if (executionScopeOutbox === 'operacao_continua_n7') {
+      try {
+        $app.runInTransaction(function (metricStartTxN7) {
+          metricOutboxN7 = new Record(
+            metricStartTxN7.findCollectionByNameOrId('com_nexo_curadoria_execucoes'),
+          )
+          var selectedOutboxIdsN7 = []
+          for (var msi = 0; msi < pendentes.length; msi++)
+            selectedOutboxIdsN7.push(String(pendentes[msi].id || ''))
+          selectedOutboxIdsN7.sort()
+          metricOutboxN7.set('worker_identity', 'nexo-curadoria-outbox-n7')
+          metricOutboxN7.set('result_code', 'started')
+          metricOutboxN7.set('execution_scope', 'operacao_continua_n7_outbox')
+          metricOutboxN7.set('activation_cutoff_created', activationCutoffOutboxN7.created)
+          metricOutboxN7.set('activation_cutoff_id', activationCutoffOutboxN7.id)
+          metricOutboxN7.set(
+            'ledger_snapshot_hash',
+            String($security.sha256(selectedOutboxIdsN7.join('|'))),
+          )
+          metricOutboxN7.set('selected_ledger_records', 0)
+          metricOutboxN7.set('cases_created', 0)
+          metricOutboxN7.set('cases_updated', 0)
+          metricOutboxN7.set('evidence_created', 0)
+          metricOutboxN7.set('transitions_created', 0)
+          metricOutboxN7.set('outbox_created', 0)
+          metricOutboxN7.set('outbox_processed', 0)
+          metricOutboxN7.set('outbox_failed', 0)
+          metricOutboxN7.set('outbox_invalidated', 0)
+          metricOutboxN7.set('automatic_cases', 0)
+          metricOutboxN7.set('human_exceptions', 0)
+          metricOutboxN7.set('human_exceptions_new', 0)
+          metricOutboxN7.set('open_human_exceptions_before', 0)
+          metricOutboxN7.set('executed_at', new Date())
+          metricStartTxN7.save(metricOutboxN7)
+        })
+      } catch (_) {
+        return e.json(503, { ok: false, error: 'METRICAS_OUTBOX_N7_INDISPONIVEIS' })
+      }
+    }
+
     var result = { processados: 0, falhas: 0, ignorados: 0, invalidados: 0 }
     for (var pi = 0; pi < pendentes.length; pi++) {
       var item = pendentes[pi]
@@ -8016,6 +11017,7 @@
         $app.runInTransaction(function (tx) {
           if (!runtimeGateOutboxValido(tx)) throw new Error('GATE_HOMOLOGACAO_N4_ALTERADO')
           var atualClaim = tx.findRecordById('com_nexo_curadoria_outbox', item.id)
+          if (!outboxCaseN7Valido(tx, atualClaim)) throw new Error('ESCOPO_OUTBOX_N7_INVALIDO')
           if (executionScopeOutbox === 'homologacao_isolada_n4') {
             var casoIdClaim = nexoCuradoriaCasosTexto(atualClaim, 'caso_id')
             if (
@@ -8069,14 +11071,32 @@
         var payloadHash = ''
         $app.runInTransaction(function (tx) {
           var atualPreHttp = tx.findRecordById('com_nexo_curadoria_outbox', item.id)
-          if (!runtimeGateOutboxValido(tx)) {
+          if (!outboxCaseN7Valido(tx, atualPreHttp)) {
             atualPreHttp.set('status', 'invalidado')
-            atualPreHttp.set('last_error', 'GATE_HOMOLOGACAO_N4_ALTERADO')
+            atualPreHttp.set('last_error', 'ESCOPO_OUTBOX_N7_INVALIDO')
             atualPreHttp.set('processed_at', new Date())
             atualPreHttp.set('claim_token', '')
             atualPreHttp.set('claim_expires_at', null)
             tx.save(atualPreHttp)
             result.invalidados++
+            return
+          }
+          if (!runtimeGateOutboxValido(tx)) {
+            if (executionScopeOutbox === 'operacao_continua_n7') {
+              atualPreHttp.set('status', 'pendente')
+              atualPreHttp.set('last_error', 'WORKER_OUTBOX_N7_PAUSADO')
+              atualPreHttp.set('processed_at', null)
+              atualPreHttp.set('claimed_at', null)
+              result.ignorados++
+            } else {
+              atualPreHttp.set('status', 'invalidado')
+              atualPreHttp.set('last_error', 'GATE_HOMOLOGACAO_N4_ALTERADO')
+              atualPreHttp.set('processed_at', new Date())
+              result.invalidados++
+            }
+            atualPreHttp.set('claim_token', '')
+            atualPreHttp.set('claim_expires_at', null)
+            tx.save(atualPreHttp)
             return
           }
           if (
@@ -8518,6 +11538,7 @@
       var estadoFinal = nexoCuradoriaCasosCarregar($app, 'com_nexo_curadoria_outbox')
       var agoraFinal = new Date().getTime()
       for (var efi = 0; efi < estadoFinal.length; efi++) {
+        if (!outboxCaseN7Valido($app, estadoFinal[efi])) continue
         var statusFinal = nexoCuradoriaCasosTexto(estadoFinal[efi], 'status')
         if (statusFinal !== 'pendente' && statusFinal !== 'erro') continue
         pendentesRestantes++
@@ -8528,6 +11549,25 @@
     } catch (_) {
       pendentesRestantes = Math.max(0, pendentes.length - result.processados)
       emBackoff = emBackoffInicial
+    }
+    if (executionScopeOutbox === 'operacao_continua_n7') {
+      try {
+        $app.runInTransaction(function (metricTxN7) {
+          var metricOutboxFinalN7 = metricTxN7.findRecordById(
+            'com_nexo_curadoria_execucoes',
+            metricOutboxN7.id,
+          )
+          metricOutboxFinalN7.set('result_code', result.falhas ? 'failed' : 'applied')
+          metricOutboxFinalN7.set('outbox_processed', result.processados)
+          metricOutboxFinalN7.set('outbox_failed', result.falhas)
+          metricOutboxFinalN7.set('outbox_invalidated', result.invalidados)
+          metricOutboxFinalN7.set('automatic_cases', result.processados)
+          metricOutboxFinalN7.set('executed_at', new Date())
+          metricTxN7.save(metricOutboxFinalN7)
+        })
+      } catch (_) {
+        return e.json(500, { ok: false, error: 'METRICA_OUTBOX_N7_INDISPONIVEL' })
+      }
     }
     return e.json(200, {
       ok: result.falhas === 0,
@@ -8542,4 +11582,1475 @@
       execution_scope: executionScopeOutbox,
     })
   })
+
+  if (typeof cronAdd === 'function') {
+    cronAdd('nexo_curadoria_outbox_n7_5m', '2-59/5 * * * *', function () {
+      function nexoCuradoriaOutboxHandler(e) {
+        function nexoCuradoriaCasosTexto(record, field) {
+          if (!record) return ''
+          try {
+            return record.getString(field) || ''
+          } catch (_) {
+            return ''
+          }
+        }
+
+        function nexoCuradoriaCasosNumero(record, field) {
+          try {
+            return Number(record.getInt(field) || 0)
+          } catch (_) {
+            return Number(nexoCuradoriaCasosTexto(record, field) || 0)
+          }
+        }
+
+        function nexoCuradoriaJsonCanonico(value) {
+          if (value === null || typeof value !== 'object') return JSON.stringify(value)
+          var partes = []
+          if (Array.isArray(value)) {
+            for (var ai = 0; ai < value.length; ai++) {
+              var itemSerializado = nexoCuradoriaJsonCanonico(value[ai])
+              partes.push(typeof itemSerializado === 'undefined' ? 'null' : itemSerializado)
+            }
+            return '[' + partes.join(',') + ']'
+          }
+          var chaves = Object.keys(value).sort()
+          for (var oi = 0; oi < chaves.length; oi++) {
+            var valorSerializado = nexoCuradoriaJsonCanonico(value[chaves[oi]])
+            if (typeof valorSerializado === 'undefined') continue
+            partes.push(JSON.stringify(chaves[oi]) + ':' + valorSerializado)
+          }
+          return '{' + partes.join(',') + '}'
+        }
+
+        function nexoCuradoriaCasosArray(record, field) {
+          var originalRaw = []
+          try {
+            originalRaw = record.get(field) || []
+          } catch (_) {}
+          var byteBuffer = originalRaw && typeof originalRaw === 'object' && originalRaw.length > 0
+          if (byteBuffer) {
+            for (var i = 0; i < originalRaw.length; i++) {
+              if (
+                typeof originalRaw[i] !== 'number' ||
+                originalRaw[i] < 0 ||
+                originalRaw[i] > 255 ||
+                Math.floor(originalRaw[i]) !== originalRaw[i]
+              ) {
+                byteBuffer = false
+                break
+              }
+            }
+          }
+          var decodedRaw
+          if (byteBuffer) {
+            try {
+              decodedRaw = JSON.parse(String(originalRaw))
+            } catch (_) {}
+            if (Array.isArray(decodedRaw)) return decodedRaw
+          }
+          if (Array.isArray(originalRaw)) return originalRaw
+          if (typeof originalRaw === 'string') {
+            try {
+              decodedRaw = JSON.parse(originalRaw)
+            } catch (_) {
+              decodedRaw = []
+            }
+          }
+          return Array.isArray(decodedRaw) ? decodedRaw : []
+        }
+
+        function nexoCuradoriaCasosObjeto(record, field) {
+          var originalRaw = null
+          try {
+            originalRaw = record.get(field)
+          } catch (_) {}
+          if (typeof originalRaw === 'string') {
+            try {
+              originalRaw = JSON.parse(originalRaw)
+            } catch (_) {
+              return null
+            }
+          } else if (Array.isArray(originalRaw) && originalRaw.length > 0) {
+            var byteBuffer = true
+            for (var i = 0; i < originalRaw.length; i++) {
+              if (
+                typeof originalRaw[i] !== 'number' ||
+                originalRaw[i] < 0 ||
+                originalRaw[i] > 255 ||
+                Math.floor(originalRaw[i]) !== originalRaw[i]
+              ) {
+                byteBuffer = false
+                break
+              }
+            }
+            if (byteBuffer) {
+              try {
+                originalRaw = JSON.parse(String(originalRaw))
+              } catch (_) {
+                return null
+              }
+            }
+          }
+          return originalRaw && typeof originalRaw === 'object' && !Array.isArray(originalRaw)
+            ? originalRaw
+            : null
+        }
+
+        function nexoCuradoriaCasosLimpar(value, max) {
+          var out = String(value || '')
+            .replace(/<br\s*\/?\s*>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+          if (max && out.length > max) out = out.slice(0, max)
+          return out
+        }
+
+        function nexoCuradoriaPayloadConhecimento(caso, transicao, acao, revisao) {
+          var respostasConhecimento = nexoCuradoriaCasosArray(caso, 'entrevista_respostas')
+          var conhecimentoRef = String(
+            $security.sha256(
+              [
+                'nexo-curadoria-conhecimento-v1',
+                nexoCuradoriaCasosTexto(caso, 'fingerprint') || caso.id,
+              ].join('|'),
+            ),
+          )
+          var atorAprovacaoId = String(
+            $security.sha256(
+              ['curadoria-ator-v1', nexoCuradoriaCasosTexto(transicao, 'ator_id')].join('|'),
+            ),
+          )
+          var confiancaTexto = nexoCuradoriaCasosTexto(caso, 'confianca')
+          var confiancaNumerica =
+            confiancaTexto === 'alta' ? 0.9 : confiancaTexto === 'media' ? 0.6 : 0.3
+          return {
+            schema_version: 'pmais_nexo_curadoria_conhecimento_v1',
+            knowledge_ref: conhecimentoRef,
+            action: acao,
+            case_revision: revisao,
+            title: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'titulo'), 240),
+            regra: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'regra_candidata'), 4000),
+            exception: nexoCuradoriaCasosLimpar(respostasConhecimento[1], 2000),
+            rationale: nexoCuradoriaCasosLimpar(
+              nexoCuradoriaCasosTexto(caso, 'decisao_observacao') || respostasConhecimento[3],
+              2000,
+            ),
+            subject: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'assunto_chave'), 240),
+            scope_type: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'escopo_tipo'), 80),
+            sources: nexoCuradoriaCasosArray(caso, 'fontes'),
+            independent_cases: nexoCuradoriaCasosNumero(caso, 'recorrencia_contagem'),
+            independent_businesses: nexoCuradoriaCasosNumero(caso, 'recorrencia_contagem'),
+            independent_conversations: 0,
+            confidence: confiancaNumerica,
+            risk: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'risco_classe'), 80),
+            approval: {
+              approval_id: nexoCuradoriaCasosTexto(transicao, 'transicao_chave'),
+              case_ref: conhecimentoRef,
+              case_revision: revisao,
+              actor_id: atorAprovacaoId,
+              actor_profile: 'curadoria',
+              authority: 'curadoria_conhecimento_comercial',
+              action: acao,
+              app_id: 'pmais_comercial',
+            },
+          }
+        }
+
+        function nexoCuradoriaPayloadAutomatico(caso, transicao, revisao, politica) {
+          var conhecimentoRef = String(
+            $security.sha256(
+              [
+                'nexo-curadoria-conhecimento-v1',
+                nexoCuradoriaCasosTexto(caso, 'fingerprint') || caso.id,
+              ].join('|'),
+            ),
+          )
+          var payload = {
+            schema_version: 'pmais_nexo_curadoria_conhecimento_automatico_v1',
+            knowledge_ref: conhecimentoRef,
+            action: 'publicar',
+            case_revision: revisao,
+            title: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'titulo'), 240),
+            regra: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'regra_candidata'), 4000),
+            exception: '',
+            rationale: nexoCuradoriaCasosLimpar(
+              nexoCuradoriaCasosTexto(caso, 'motivo_curadoria'),
+              2000,
+            ),
+            subject: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'assunto_chave'), 240),
+            scope_type: nexoCuradoriaCasosLimpar(nexoCuradoriaCasosTexto(caso, 'escopo_tipo'), 80),
+            sources: nexoCuradoriaCasosArray(caso, 'fontes'),
+            independent_cases: nexoCuradoriaCasosNumero(caso, 'recorrencia_contagem'),
+            independent_businesses: nexoCuradoriaCasosNumero(caso, 'recorrencia_contagem'),
+            independent_conversations: 0,
+            confidence: 1,
+            risk: 'baixo',
+          }
+          payload.policy_proof = {
+            proof_id: nexoCuradoriaCasosTexto(transicao, 'transicao_chave'),
+            policy_version: politica.policy_version,
+            agent_id: 'nexo-curadoria-automatico',
+            knowledge_ref: conhecimentoRef,
+            action: 'publicar',
+            case_revision: revisao,
+            content_sha256: String($security.sha256(nexoCuradoriaJsonCanonico(payload))),
+            no_sensitive_data: true,
+            no_conflicts: true,
+            traceable: true,
+            coherent: true,
+            reversible: true,
+          }
+          return payload
+        }
+
+        function nexoCuradoriaCasosPerfil(e) {
+          var authActor = e.auth
+          var authActorId = authActor ? String(authActor.id || '') : ''
+          if (!authActorId) return null
+          try {
+            var actor = $app.findRecordById('users', authActorId)
+            if (!actor || String(actor.id || '') !== authActorId) return null
+            if (!actor.getBool('ativo_comercial')) return null
+            var perfilId = actor.getString('perfil_id') || ''
+            if (!perfilId) return null
+            var perfil = $app.findRecordById('com_perfis', perfilId)
+            if (!perfil.getBool('ativo')) return null
+            var slug = perfil.getString('slug') || ''
+            if (
+              slug !== 'superadministrador' &&
+              slug !== 'leitura-executiva' &&
+              slug !== 'gestor-comercial'
+            )
+              return null
+            return {
+              actor: actor,
+              slug: slug,
+              visao_executiva: slug === 'superadministrador' || slug === 'leitura-executiva',
+              pode_escrever: slug === 'superadministrador' || slug === 'gestor-comercial',
+              pode_decidir_direcao: slug === 'superadministrador',
+            }
+          } catch (_) {
+            return null
+          }
+        }
+
+        function nexoCuradoriaCasosCarregar(app, collectionName) {
+          var out = []
+          var offset = 0
+          var limit = 500
+          while (true) {
+            var page = app.findRecordsByFilter(collectionName, "id != ''", '-id', limit, offset)
+            for (var i = 0; i < page.length; i++) out.push(page[i])
+            if (page.length < limit) return out
+            offset += page.length
+          }
+        }
+
+        var internalOutboxN7 = !!(e && e.nexoCuradoriaInternalOutboxN7 === true)
+        var acesso = internalOutboxN7
+          ? { actor: { id: 'nexo-curadoria-outbox-n7' }, slug: 'superadministrador' }
+          : nexoCuradoriaCasosPerfil(e)
+        if (!acesso || acesso.slug !== 'superadministrador')
+          return e.forbiddenError('Superadministrador necessario para publicar conhecimento')
+
+        var bodyRequest = e.requestInfo().body || {}
+        var limite = Number(bodyRequest.limite || 10)
+        if (!isFinite(limite)) limite = 10
+        limite = Math.max(1, Math.min(25, Math.floor(limite)))
+        var executionScopeOutbox = 'fluxo_corrente'
+        var scopedOutboxIds = []
+        var scopedOutboxIdMap = {}
+        var scopedOutboxCaseMap = {}
+        var requestedOutboxMode = String(bodyRequest.modo || '')
+        if (requestedOutboxMode === 'operacao_continua_n7') {
+          if (
+            !internalOutboxN7 ||
+            typeof bodyRequest.outbox_ids !== 'undefined' ||
+            Number(bodyRequest.limite) !== 5
+          )
+            return e.json(400, { ok: false, error: 'ESCOPO_OUTBOX_N7_INVALIDO' })
+          executionScopeOutbox = 'operacao_continua_n7'
+          limite = 5
+        } else if (requestedOutboxMode || typeof bodyRequest.outbox_ids !== 'undefined') {
+          if (
+            requestedOutboxMode !== 'homologacao_isolada_n4' ||
+            !Array.isArray(bodyRequest.outbox_ids) ||
+            bodyRequest.outbox_ids.length < 1 ||
+            bodyRequest.outbox_ids.length > 12 ||
+            String(bodyRequest.confirmacao_homologacao || '') !==
+              'PROCESSAR_OUTBOX_HOMOLOGACAO_ISOLADA_N4'
+          )
+            return e.json(400, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+          for (var soi = 0; soi < bodyRequest.outbox_ids.length; soi++) {
+            var scopedOutboxId = String(bodyRequest.outbox_ids[soi] || '')
+            if (!/^[a-z0-9-]{1,80}$/.test(scopedOutboxId) || scopedOutboxIdMap[scopedOutboxId])
+              return e.json(400, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+            scopedOutboxIdMap[scopedOutboxId] = true
+            scopedOutboxIds.push(scopedOutboxId)
+          }
+          executionScopeOutbox = 'homologacao_isolada_n4'
+        }
+
+        function secretValue(name) {
+          try {
+            return $secrets.get(name) || ''
+          } catch (_) {
+            try {
+              return $os.getenv(name) || ''
+            } catch (_) {
+              return ''
+            }
+          }
+        }
+
+        function nexoCuradoriaGatewayBase(value) {
+          var raw = String(value || '').trim()
+          if (!raw || /[\s?#\\]/.test(raw)) return ''
+          var match = raw.match(/^(https?):\/\/([^/]+)(\/.*)?$/i)
+          if (!match) return ''
+
+          var scheme = match[1].toLowerCase()
+          var authority = match[2]
+          if (!authority || authority.indexOf('@') >= 0) return ''
+
+          var host = ''
+          var port = ''
+          if (authority.charAt(0) === '[') {
+            var bracketEnd = authority.indexOf(']')
+            if (bracketEnd < 2) return ''
+            host = authority.slice(1, bracketEnd)
+            var bracketSuffix = authority.slice(bracketEnd + 1)
+            if (bracketSuffix) {
+              if (!/^:[0-9]+$/.test(bracketSuffix)) return ''
+              port = bracketSuffix.slice(1)
+            }
+            if (host.toLowerCase() !== '::1') return ''
+          } else {
+            if (authority.indexOf(':') !== authority.lastIndexOf(':')) return ''
+            var colon = authority.lastIndexOf(':')
+            if (colon >= 0) {
+              host = authority.slice(0, colon)
+              port = authority.slice(colon + 1)
+              if (!port) return ''
+            } else {
+              host = authority
+            }
+            if (
+              !host ||
+              host.length > 253 ||
+              !/^[a-z0-9.-]+$/i.test(host) ||
+              host.indexOf('..') >= 0
+            )
+              return ''
+            var labels = host.split('.')
+            for (var li = 0; li < labels.length; li++) {
+              if (
+                !labels[li] ||
+                labels[li].length > 63 ||
+                labels[li].charAt(0) === '-' ||
+                labels[li].charAt(labels[li].length - 1) === '-'
+              )
+                return ''
+            }
+          }
+          if (port) {
+            if (!/^[0-9]+$/.test(port)) return ''
+            var portNumber = Number(port)
+            if (!isFinite(portNumber) || portNumber < 1 || portNumber > 65535) return ''
+          }
+          var lowerHost = host.toLowerCase()
+          if (
+            scheme === 'http' &&
+            lowerHost !== 'localhost' &&
+            lowerHost !== '127.0.0.1' &&
+            lowerHost !== '::1'
+          )
+            return ''
+
+          var deploymentPath = match[3] || ''
+          if (deploymentPath.indexOf('//') >= 0) return ''
+          if (deploymentPath && !/^\/[a-z0-9._~!$&()*+,;=:@/-]*$/i.test(deploymentPath)) return ''
+          var segments = deploymentPath.split('/')
+          for (var si = 0; si < segments.length; si++) {
+            if (segments[si] === '.' || segments[si] === '..') return ''
+          }
+          deploymentPath = deploymentPath.replace(/\/+$/, '')
+          if (/\/v1$/i.test(deploymentPath)) deploymentPath = deploymentPath.slice(0, -3)
+          return scheme + '://' + authority + deploymentPath
+        }
+
+        function nexoCuradoriaGatewayConfig(requestOrigin, automaticOnly) {
+          var origin = String(requestOrigin || '')
+          var gatewayBase = ''
+          var gatewayKey = ''
+          var gatewaySecret = ''
+          var approvalSecret = ''
+          var automaticGatewayKey = ''
+          var automaticGatewaySecret = ''
+          var automaticPolicySecret = ''
+          var automaticAgentId = ''
+          if (origin === 'https://backend-isolado-pmais-43b9c--preview.goskip.app') {
+            gatewayBase = nexoCuradoriaGatewayBase(
+              secretValue('PMAIS_CURADORIA_PREVIEW_GATEWAY_URL'),
+            )
+            if (!automaticOnly) {
+              gatewayKey = secretValue('PMAIS_CURADORIA_API_KEY')
+              gatewaySecret = secretValue('PMAIS_CURADORIA_HMAC_SECRET')
+              approvalSecret = secretValue('PMAIS_CURADORIA_APPROVAL_SECRET')
+            }
+            automaticGatewayKey = secretValue('PMAIS_CURADORIA_AUTOMATIC_API_KEY')
+            automaticGatewaySecret = secretValue('PMAIS_CURADORIA_AUTOMATIC_HMAC_SECRET')
+            automaticPolicySecret = secretValue('PMAIS_CURADORIA_AUTOMATIC_POLICY_SECRET')
+            automaticAgentId = secretValue('PMAIS_CURADORIA_AUTOMATIC_AGENT_ID')
+          } else if (
+            origin === 'https://comercial.pmaisservicos.com.br' ||
+            origin === 'https://backend-isolado-pmais-43b9c.goskip.app'
+          ) {
+            gatewayBase = nexoCuradoriaGatewayBase(secretValue('PMAIS_CURADORIA_PROD_GATEWAY_URL'))
+            if (!automaticOnly) {
+              gatewayKey = secretValue('PMAIS_CURADORIA_PROD_API_KEY')
+              gatewaySecret = secretValue('PMAIS_CURADORIA_PROD_HMAC_SECRET')
+              approvalSecret = secretValue('PMAIS_CURADORIA_PROD_APPROVAL_SECRET')
+            }
+            automaticGatewayKey = secretValue('PMAIS_CURADORIA_PROD_AUTOMATIC_API_KEY')
+            automaticGatewaySecret = secretValue('PMAIS_CURADORIA_PROD_AUTOMATIC_HMAC_SECRET')
+            automaticPolicySecret = secretValue('PMAIS_CURADORIA_PROD_AUTOMATIC_POLICY_SECRET')
+            automaticAgentId = secretValue('PMAIS_CURADORIA_PROD_AUTOMATIC_AGENT_ID')
+          } else {
+            return null
+          }
+          if (
+            automaticOnly &&
+            (!gatewayBase ||
+              !automaticGatewayKey ||
+              !automaticGatewaySecret ||
+              !automaticPolicySecret ||
+              !automaticAgentId)
+          )
+            return null
+          if (!automaticOnly && (!gatewayBase || !gatewayKey || !gatewaySecret || !approvalSecret))
+            return null
+          return {
+            gatewayBase: gatewayBase,
+            gatewayKey: gatewayKey,
+            gatewaySecret: gatewaySecret,
+            approvalSecret: approvalSecret,
+            automaticGatewayKey: automaticGatewayKey,
+            automaticGatewaySecret: automaticGatewaySecret,
+            automaticPolicySecret: automaticPolicySecret,
+            automaticAgentId: automaticAgentId,
+          }
+        }
+
+        var requestOrigin = ''
+        var runtimeGateIdOutbox = ''
+        var runtimeGateCanonicalOutbox = ''
+        var runtimeGateCanonicalOutboxN7 = ''
+        var runtimeSwitchCanonicalOutboxN7 = ''
+        try {
+          requestOrigin = String(e.request.header.get('Origin') || '')
+        } catch (_) {}
+        if (internalOutboxN7) requestOrigin = 'https://comercial.pmaisservicos.com.br'
+        var activationCutoffOutboxN7 = null
+        if (executionScopeOutbox === 'operacao_continua_n7') {
+          var controlsOutboxN7 = nexoCuradoriaCasosCarregar($app, 'com_parametros')
+          var gateOutboxN7 = null
+          var switchOutboxN7 = null
+          var gateCountOutboxN7 = 0
+          var switchCountOutboxN7 = 0
+          for (var con7i = 0; con7i < controlsOutboxN7.length; con7i++) {
+            var controlKeyOutboxN7 = nexoCuradoriaCasosTexto(controlsOutboxN7[con7i], 'chave')
+            if (controlKeyOutboxN7 === 'nexo.curadoria.operacao_n7_runtime_v1') {
+              gateCountOutboxN7++
+              gateOutboxN7 = controlsOutboxN7[con7i]
+            }
+            if (controlKeyOutboxN7 === 'nexo.curadoria.outbox_n7_switch_v1') {
+              switchCountOutboxN7++
+              switchOutboxN7 = controlsOutboxN7[con7i]
+            }
+          }
+          var gateValueOutboxN7 = null
+          try {
+            gateValueOutboxN7 = JSON.parse(nexoCuradoriaCasosTexto(gateOutboxN7, 'valor'))
+          } catch (_) {}
+          var cutoffOutboxN7 = gateValueOutboxN7 ? gateValueOutboxN7.activation_cutoff : null
+          var limitsOutboxN7 = gateValueOutboxN7 ? gateValueOutboxN7.limits : null
+          var integrityOutboxN7 = gateValueOutboxN7
+            ? String(
+                $security.sha256(
+                  [
+                    gateValueOutboxN7.gate_version,
+                    cutoffOutboxN7 ? cutoffOutboxN7.created : '',
+                    cutoffOutboxN7 ? cutoffOutboxN7.id : '',
+                    gateValueOutboxN7.classifier_policy_version,
+                    gateValueOutboxN7.execution_surface,
+                    gateValueOutboxN7.worker_identity,
+                    nexoCuradoriaJsonCanonico(limitsOutboxN7),
+                  ].join('|'),
+                ),
+              )
+            : ''
+          if (
+            gateCountOutboxN7 !== 1 ||
+            switchCountOutboxN7 !== 1 ||
+            !gateOutboxN7 ||
+            !gateOutboxN7.getBool('ativo') ||
+            nexoCuradoriaCasosTexto(gateOutboxN7, 'tipo') !== 'json_imutavel' ||
+            Number(gateOutboxN7.get('versao')) !== 1 ||
+            !gateValueOutboxN7 ||
+            Object.keys(gateValueOutboxN7).sort().join('|') !==
+              'activation_cutoff|classifier_policy_version|execution_surface|gate_version|integrity_hash|limits|worker_identity' ||
+            gateValueOutboxN7.gate_version !== 'pmais_nexo_curadoria_operacao_n7_runtime_v1' ||
+            gateValueOutboxN7.classifier_policy_version !== 'pmais_nexo_auto_promotion_policy_v1' ||
+            gateValueOutboxN7.execution_surface !== 'shared_production_assisted' ||
+            gateValueOutboxN7.worker_identity !== 'nexo-curadoria-n7' ||
+            gateValueOutboxN7.integrity_hash !== integrityOutboxN7 ||
+            !cutoffOutboxN7 ||
+            Object.keys(cutoffOutboxN7).sort().join('|') !== 'created|id' ||
+            !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(
+              String(cutoffOutboxN7.created || ''),
+            ) ||
+            !/^[a-z0-9]{15}$/.test(String(cutoffOutboxN7.id || '')) ||
+            String(cutoffOutboxN7.created || '') !== '2026-11-19 10:10:58.360Z' ||
+            String(cutoffOutboxN7.id || '') !== '8k78ljeajfeuwxn' ||
+            !limitsOutboxN7 ||
+            Object.keys(limitsOutboxN7).sort().join('|') !==
+              'max_ledger_records|max_new_cases|max_new_evidence|max_new_human_exceptions|max_open_human_exceptions|max_updated_cases' ||
+            limitsOutboxN7.max_ledger_records !== 100 ||
+            limitsOutboxN7.max_new_cases !== 5 ||
+            limitsOutboxN7.max_updated_cases !== 20 ||
+            limitsOutboxN7.max_new_evidence !== 100 ||
+            limitsOutboxN7.max_new_human_exceptions !== 1 ||
+            limitsOutboxN7.max_open_human_exceptions !== 3
+          )
+            return e.json(503, { ok: false, error: 'GATE_OUTBOX_N7_INDISPONIVEL' })
+          if (
+            !switchOutboxN7 ||
+            !switchOutboxN7.getBool('ativo') ||
+            nexoCuradoriaCasosTexto(switchOutboxN7, 'tipo') !== 'booleano' ||
+            Number(switchOutboxN7.get('versao') || 0) !== 1 ||
+            nexoCuradoriaCasosTexto(switchOutboxN7, 'valor') !== 'true'
+          )
+            return e.json(503, { ok: false, error: 'WORKER_OUTBOX_N7_DESLIGADO' })
+          activationCutoffOutboxN7 = cutoffOutboxN7
+          runtimeGateCanonicalOutboxN7 = nexoCuradoriaJsonCanonico(gateValueOutboxN7)
+          runtimeSwitchCanonicalOutboxN7 = nexoCuradoriaJsonCanonico({
+            id: String(switchOutboxN7.id || ''),
+            ativo: switchOutboxN7.getBool('ativo'),
+            tipo: nexoCuradoriaCasosTexto(switchOutboxN7, 'tipo'),
+            valor: nexoCuradoriaCasosTexto(switchOutboxN7, 'valor'),
+            versao: Number(switchOutboxN7.get('versao') || 0),
+          })
+        }
+        if (
+          executionScopeOutbox === 'homologacao_isolada_n4' &&
+          requestOrigin !== 'https://backend-isolado-pmais-43b9c--preview.goskip.app'
+        )
+          return e.forbiddenError('Homologacao N4 disponivel somente no Preview')
+        if (executionScopeOutbox === 'homologacao_isolada_n4') {
+          var runtimeGateRowsOutbox = nexoCuradoriaCasosCarregar($app, 'com_parametros')
+          var runtimeGateRecordOutbox = null
+          var runtimeGateCountOutbox = 0
+          for (var rgoi = 0; rgoi < runtimeGateRowsOutbox.length; rgoi++) {
+            if (
+              nexoCuradoriaCasosTexto(runtimeGateRowsOutbox[rgoi], 'chave') !==
+              'nexo.curadoria.homologacao_n4_runtime_v1'
+            )
+              continue
+            runtimeGateCountOutbox++
+            runtimeGateRecordOutbox = runtimeGateRowsOutbox[rgoi]
+          }
+          var runtimeGateValueOutbox = null
+          try {
+            runtimeGateValueOutbox = JSON.parse(
+              nexoCuradoriaCasosTexto(runtimeGateRecordOutbox, 'valor'),
+            )
+          } catch (_) {}
+          var expectedRuntimeGateRefsOutbox = [
+            'n4-homologacao-20261118-a1:routine-1',
+            'n4-homologacao-20261118-a1:routine-2',
+            'n4-homologacao-20261118-a1:routine-3',
+            'n4-homologacao-20261118-a1:conflict-1',
+          ]
+          if (
+            runtimeGateCountOutbox !== 1 ||
+            !runtimeGateRecordOutbox ||
+            !runtimeGateRecordOutbox.getBool('ativo') ||
+            nexoCuradoriaCasosTexto(runtimeGateRecordOutbox, 'tipo') !== 'json_imutavel' ||
+            Number(runtimeGateRecordOutbox.get('versao')) !== 1 ||
+            !runtimeGateValueOutbox ||
+            Object.keys(runtimeGateValueOutbox).sort().join('|') !==
+              'batch_id|evidence_refs|execution_surface|gate_version' ||
+            runtimeGateValueOutbox.gate_version !==
+              'pmais_nexo_curadoria_homologacao_n4_runtime_v1' ||
+            runtimeGateValueOutbox.batch_id !== '20261118-a1' ||
+            runtimeGateValueOutbox.execution_surface !== 'shared_production_assisted' ||
+            !Array.isArray(runtimeGateValueOutbox.evidence_refs) ||
+            runtimeGateValueOutbox.evidence_refs.join('|') !==
+              expectedRuntimeGateRefsOutbox.join('|')
+          )
+            return e.json(503, { ok: false, error: 'GATE_HOMOLOGACAO_N4_INDISPONIVEL' })
+          runtimeGateIdOutbox = runtimeGateRecordOutbox.id
+          runtimeGateCanonicalOutbox = nexoCuradoriaJsonCanonico(runtimeGateValueOutbox)
+        }
+        function runtimeGateOutboxValido(app) {
+          if (executionScopeOutbox === 'operacao_continua_n7') {
+            var controlsN7 = nexoCuradoriaCasosCarregar(app, 'com_parametros')
+            var currentGateN7 = null
+            var currentSwitchN7 = null
+            var currentGateCountN7 = 0
+            var currentSwitchCountN7 = 0
+            for (var c7i = 0; c7i < controlsN7.length; c7i++) {
+              var currentKeyN7 = nexoCuradoriaCasosTexto(controlsN7[c7i], 'chave')
+              if (currentKeyN7 === 'nexo.curadoria.operacao_n7_runtime_v1') {
+                currentGateCountN7++
+                currentGateN7 = controlsN7[c7i]
+              }
+              if (currentKeyN7 === 'nexo.curadoria.outbox_n7_switch_v1') {
+                currentSwitchCountN7++
+                currentSwitchN7 = controlsN7[c7i]
+              }
+            }
+            var currentGateValueN7 = null
+            try {
+              currentGateValueN7 = JSON.parse(nexoCuradoriaCasosTexto(currentGateN7, 'valor'))
+            } catch (_) {}
+            var currentSwitchCanonicalN7 = currentSwitchN7
+              ? nexoCuradoriaJsonCanonico({
+                  id: String(currentSwitchN7.id || ''),
+                  ativo: currentSwitchN7.getBool('ativo'),
+                  tipo: nexoCuradoriaCasosTexto(currentSwitchN7, 'tipo'),
+                  valor: nexoCuradoriaCasosTexto(currentSwitchN7, 'valor'),
+                  versao: Number(currentSwitchN7.get('versao') || 0),
+                })
+              : ''
+            return Boolean(
+              currentGateCountN7 === 1 &&
+              currentSwitchCountN7 === 1 &&
+              currentGateN7 &&
+              currentGateN7.getBool('ativo') &&
+              currentGateValueN7 &&
+              nexoCuradoriaJsonCanonico(currentGateValueN7) === runtimeGateCanonicalOutboxN7 &&
+              currentSwitchCanonicalN7 === runtimeSwitchCanonicalOutboxN7,
+            )
+          }
+          if (executionScopeOutbox !== 'homologacao_isolada_n4') return true
+          var rows = nexoCuradoriaCasosCarregar(app, 'com_parametros')
+          var found = null
+          var count = 0
+          for (var rvi = 0; rvi < rows.length; rvi++) {
+            if (
+              nexoCuradoriaCasosTexto(rows[rvi], 'chave') !==
+              'nexo.curadoria.homologacao_n4_runtime_v1'
+            )
+              continue
+            count++
+            found = rows[rvi]
+          }
+          if (
+            count !== 1 ||
+            !found ||
+            found.id !== runtimeGateIdOutbox ||
+            !found.getBool('ativo') ||
+            nexoCuradoriaCasosTexto(found, 'tipo') !== 'json_imutavel' ||
+            Number(found.get('versao')) !== 1
+          )
+            return false
+          var parsed = null
+          try {
+            parsed = JSON.parse(nexoCuradoriaCasosTexto(found, 'valor'))
+          } catch (_) {}
+          return Boolean(parsed && nexoCuradoriaJsonCanonico(parsed) === runtimeGateCanonicalOutbox)
+        }
+        var gatewayConfig = nexoCuradoriaGatewayConfig(requestOrigin, internalOutboxN7)
+        if (!gatewayConfig) return e.json(503, { ok: false, error: 'GATEWAY_NAO_CONFIGURADO' })
+        var gatewayBase = gatewayConfig.gatewayBase
+        var gatewayKey = gatewayConfig.gatewayKey
+        var gatewaySecret = gatewayConfig.gatewaySecret
+        var approvalSecret = gatewayConfig.approvalSecret
+        var automaticGatewayKey = gatewayConfig.automaticGatewayKey
+        var automaticGatewaySecret = gatewayConfig.automaticGatewaySecret
+        var automaticPolicySecret = gatewayConfig.automaticPolicySecret
+        var automaticAgentId = gatewayConfig.automaticAgentId
+
+        var pendentes = []
+        var todas = []
+        var emBackoffInicial = 0
+        var bloqueadosOrdem = 0
+        function statusTerminal(status) {
+          return (
+            status === 'processado' ||
+            status === 'supersedido' ||
+            status === 'invalidado' ||
+            status === 'falha_permanente'
+          )
+        }
+        function outboxCaseN7Valido(app, item) {
+          if (executionScopeOutbox !== 'operacao_continua_n7') return true
+          try {
+            var caseN7 = app.findRecordById(
+              'com_nexo_curadoria_casos',
+              nexoCuradoriaCasosTexto(item, 'caso_id'),
+            )
+            var createdN7 = nexoCuradoriaCasosTexto(caseN7, 'created')
+            var idN7 = String(caseN7.id || '')
+            var afterCutoffN7 =
+              createdN7 > activationCutoffOutboxN7.created ||
+              (createdN7 === activationCutoffOutboxN7.created && idN7 > activationCutoffOutboxN7.id)
+            return (
+              afterCutoffN7 &&
+              nexoCuradoriaCasosTexto(caseN7, 'origin_worker_identity') === 'nexo-curadoria-n7' &&
+              nexoCuradoriaCasosTexto(item, 'acao') === 'publicar_automatico'
+            )
+          } catch (_) {
+            return false
+          }
+        }
+        try {
+          todas = nexoCuradoriaCasosCarregar($app, 'com_nexo_curadoria_outbox')
+        } catch (_) {
+          return e.json(503, { ok: false, error: 'OUTBOX_INDISPONIVEL' })
+        }
+        if (executionScopeOutbox === 'homologacao_isolada_n4') {
+          var scopedOutboxFound = {}
+          for (var sori = 0; sori < todas.length; sori++) {
+            if (!scopedOutboxIdMap[todas[sori].id]) continue
+            if (scopedOutboxFound[todas[sori].id])
+              return e.json(409, { ok: false, error: 'ESCOPO_HOMOLOGACAO_AMBIGUO' })
+            var scopedCase = null
+            try {
+              scopedCase = $app.findRecordById(
+                'com_nexo_curadoria_casos',
+                nexoCuradoriaCasosTexto(todas[sori], 'caso_id'),
+              )
+            } catch (_) {}
+            if (
+              !scopedCase ||
+              nexoCuradoriaCasosTexto(scopedCase, 'fonte_principal') !== 'homologacao_n4'
+            )
+              return e.json(409, { ok: false, error: 'ESCOPO_HOMOLOGACAO_INVALIDO' })
+            scopedOutboxFound[todas[sori].id] = true
+            scopedOutboxCaseMap[todas[sori].id] = nexoCuradoriaCasosTexto(todas[sori], 'caso_id')
+          }
+          for (var sofi = 0; sofi < scopedOutboxIds.length; sofi++) {
+            if (!scopedOutboxFound[scopedOutboxIds[sofi]])
+              return e.json(409, { ok: false, error: 'OUTBOX_HOMOLOGACAO_AUSENTE' })
+          }
+        }
+        todas.sort(function (a, b) {
+          var ac = nexoCuradoriaCasosTexto(a, 'caso_id')
+          var bc = nexoCuradoriaCasosTexto(b, 'caso_id')
+          if (ac !== bc) return ac < bc ? -1 : 1
+          var ar = nexoCuradoriaCasosNumero(a, 'caso_revisao')
+          var br = nexoCuradoriaCasosNumero(b, 'caso_revisao')
+          if (ar !== br) return ar - br
+          var ad = nexoCuradoriaCasosTexto(a, 'requested_at')
+          var bd = nexoCuradoriaCasosTexto(b, 'requested_at')
+          if (ad !== bd) return ad < bd ? -1 : 1
+          return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+        })
+        var casoComOperacaoAnterior = {}
+        var agoraMs = new Date().getTime()
+        for (var i = 0; i < todas.length; i++) {
+          if (!outboxCaseN7Valido($app, todas[i])) continue
+          var statusOutbox = nexoCuradoriaCasosTexto(todas[i], 'status')
+          if (statusTerminal(statusOutbox)) continue
+          var leaseAtual = nexoCuradoriaCasosTexto(todas[i], 'claim_expires_at')
+          var leaseAtualMs = leaseAtual ? new Date(leaseAtual).getTime() : 0
+          var claimAtivo =
+            statusOutbox === 'processando' &&
+            leaseAtualMs &&
+            isFinite(leaseAtualMs) &&
+            leaseAtualMs > agoraMs
+          var claimExpirado = statusOutbox === 'processando' && !claimAtivo
+          var casoIdOutbox = nexoCuradoriaCasosTexto(todas[i], 'caso_id')
+          if (casoComOperacaoAnterior[casoIdOutbox]) {
+            if (
+              executionScopeOutbox === 'homologacao_isolada_n4' &&
+              !scopedOutboxIdMap[todas[i].id]
+            )
+              continue
+            bloqueadosOrdem++
+            continue
+          }
+          casoComOperacaoAnterior[casoIdOutbox] = true
+          if (executionScopeOutbox === 'homologacao_isolada_n4' && !scopedOutboxIdMap[todas[i].id])
+            continue
+          if (claimAtivo) continue
+          if (statusOutbox !== 'pendente' && statusOutbox !== 'erro' && !claimExpirado) continue
+          var nextAttempt = nexoCuradoriaCasosTexto(todas[i], 'next_attempt_at')
+          var nextAttemptMs = nextAttempt ? new Date(nextAttempt).getTime() : 0
+          if (nextAttemptMs && isFinite(nextAttemptMs) && nextAttemptMs > agoraMs) {
+            emBackoffInicial++
+            continue
+          }
+          pendentes.push(todas[i])
+        }
+        pendentes.sort(function (a, b) {
+          var ad = nexoCuradoriaCasosTexto(a, 'requested_at')
+          var bd = nexoCuradoriaCasosTexto(b, 'requested_at')
+          if (ad !== bd) return ad < bd ? -1 : 1
+          return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+        })
+        pendentes = pendentes.slice(0, limite)
+
+        var metricOutboxN7 = null
+        if (executionScopeOutbox === 'operacao_continua_n7') {
+          try {
+            $app.runInTransaction(function (metricStartTxN7) {
+              metricOutboxN7 = new Record(
+                metricStartTxN7.findCollectionByNameOrId('com_nexo_curadoria_execucoes'),
+              )
+              var selectedOutboxIdsN7 = []
+              for (var msi = 0; msi < pendentes.length; msi++)
+                selectedOutboxIdsN7.push(String(pendentes[msi].id || ''))
+              selectedOutboxIdsN7.sort()
+              metricOutboxN7.set('worker_identity', 'nexo-curadoria-outbox-n7')
+              metricOutboxN7.set('result_code', 'started')
+              metricOutboxN7.set('execution_scope', 'operacao_continua_n7_outbox')
+              metricOutboxN7.set('activation_cutoff_created', activationCutoffOutboxN7.created)
+              metricOutboxN7.set('activation_cutoff_id', activationCutoffOutboxN7.id)
+              metricOutboxN7.set(
+                'ledger_snapshot_hash',
+                String($security.sha256(selectedOutboxIdsN7.join('|'))),
+              )
+              metricOutboxN7.set('selected_ledger_records', 0)
+              metricOutboxN7.set('cases_created', 0)
+              metricOutboxN7.set('cases_updated', 0)
+              metricOutboxN7.set('evidence_created', 0)
+              metricOutboxN7.set('transitions_created', 0)
+              metricOutboxN7.set('outbox_created', 0)
+              metricOutboxN7.set('outbox_processed', 0)
+              metricOutboxN7.set('outbox_failed', 0)
+              metricOutboxN7.set('outbox_invalidated', 0)
+              metricOutboxN7.set('automatic_cases', 0)
+              metricOutboxN7.set('human_exceptions', 0)
+              metricOutboxN7.set('human_exceptions_new', 0)
+              metricOutboxN7.set('open_human_exceptions_before', 0)
+              metricOutboxN7.set('executed_at', new Date())
+              metricStartTxN7.save(metricOutboxN7)
+            })
+          } catch (_) {
+            return e.json(503, { ok: false, error: 'METRICAS_OUTBOX_N7_INDISPONIVEIS' })
+          }
+        }
+
+        var result = { processados: 0, falhas: 0, ignorados: 0, invalidados: 0 }
+        for (var pi = 0; pi < pendentes.length; pi++) {
+          var item = pendentes[pi]
+          var claimToken = ''
+          var claimedItem = null
+          try {
+            $app.runInTransaction(function (tx) {
+              if (!runtimeGateOutboxValido(tx)) throw new Error('GATE_HOMOLOGACAO_N4_ALTERADO')
+              var atualClaim = tx.findRecordById('com_nexo_curadoria_outbox', item.id)
+              if (!outboxCaseN7Valido(tx, atualClaim)) throw new Error('ESCOPO_OUTBOX_N7_INVALIDO')
+              if (executionScopeOutbox === 'homologacao_isolada_n4') {
+                var casoIdClaim = nexoCuradoriaCasosTexto(atualClaim, 'caso_id')
+                if (
+                  !scopedOutboxIdMap[atualClaim.id] ||
+                  scopedOutboxCaseMap[atualClaim.id] !== casoIdClaim
+                )
+                  throw new Error('ESCOPO_HOMOLOGACAO_INVALIDO')
+                var casoClaim = tx.findRecordById('com_nexo_curadoria_casos', casoIdClaim)
+                if (nexoCuradoriaCasosTexto(casoClaim, 'fonte_principal') !== 'homologacao_n4')
+                  throw new Error('ESCOPO_HOMOLOGACAO_INVALIDO')
+              }
+              var statusClaim = nexoCuradoriaCasosTexto(atualClaim, 'status')
+              var claimExpira = nexoCuradoriaCasosTexto(atualClaim, 'claim_expires_at')
+              var claimExpiraMs = claimExpira ? new Date(claimExpira).getTime() : 0
+              var leaseExpirado =
+                statusClaim === 'processando' &&
+                (!claimExpiraMs ||
+                  !isFinite(claimExpiraMs) ||
+                  claimExpiraMs <= new Date().getTime())
+              if (statusClaim !== 'pendente' && statusClaim !== 'erro' && !leaseExpirado)
+                throw new Error('CLAIM_INDISPONIVEL')
+              var nextClaim = nexoCuradoriaCasosTexto(atualClaim, 'next_attempt_at')
+              if (nextClaim && new Date(nextClaim).getTime() > new Date().getTime())
+                throw new Error('CLAIM_EM_BACKOFF')
+              claimToken = String(
+                $security.sha256(
+                  [
+                    'curadoria-outbox-claim-v1',
+                    atualClaim.id,
+                    String(Date.now()),
+                    acesso.actor.id,
+                    String(nexoCuradoriaCasosNumero(atualClaim, 'tentativas')),
+                  ].join('|'),
+                ),
+              )
+              var claimedAt = new Date()
+              atualClaim.set('status', 'processando')
+              atualClaim.set('claim_token', claimToken)
+              atualClaim.set('claimed_at', claimedAt)
+              atualClaim.set('claim_expires_at', new Date(claimedAt.getTime() + 60 * 1000))
+              tx.save(atualClaim)
+              claimedItem = atualClaim
+            })
+          } catch (_) {
+            result.ignorados++
+            continue
+          }
+          item = claimedItem
+          try {
+            var preHttpValido = false
+            var payload = null
+            var payloadBody = ''
+            var payloadHash = ''
+            $app.runInTransaction(function (tx) {
+              var atualPreHttp = tx.findRecordById('com_nexo_curadoria_outbox', item.id)
+              if (!outboxCaseN7Valido(tx, atualPreHttp)) {
+                atualPreHttp.set('status', 'invalidado')
+                atualPreHttp.set('last_error', 'ESCOPO_OUTBOX_N7_INVALIDO')
+                atualPreHttp.set('processed_at', new Date())
+                atualPreHttp.set('claim_token', '')
+                atualPreHttp.set('claim_expires_at', null)
+                tx.save(atualPreHttp)
+                result.invalidados++
+                return
+              }
+              if (!runtimeGateOutboxValido(tx)) {
+                if (executionScopeOutbox === 'operacao_continua_n7') {
+                  atualPreHttp.set('status', 'pendente')
+                  atualPreHttp.set('last_error', 'WORKER_OUTBOX_N7_PAUSADO')
+                  atualPreHttp.set('processed_at', null)
+                  atualPreHttp.set('claimed_at', null)
+                  result.ignorados++
+                } else {
+                  atualPreHttp.set('status', 'invalidado')
+                  atualPreHttp.set('last_error', 'GATE_HOMOLOGACAO_N4_ALTERADO')
+                  atualPreHttp.set('processed_at', new Date())
+                  result.invalidados++
+                }
+                atualPreHttp.set('claim_token', '')
+                atualPreHttp.set('claim_expires_at', null)
+                tx.save(atualPreHttp)
+                return
+              }
+              if (
+                nexoCuradoriaCasosTexto(atualPreHttp, 'status') !== 'processando' ||
+                nexoCuradoriaCasosTexto(atualPreHttp, 'claim_token') !== claimToken ||
+                nexoCuradoriaCasosTexto(atualPreHttp, 'superseded_by')
+              )
+                return
+              var casoAtualOutbox = tx.findRecordById(
+                'com_nexo_curadoria_casos',
+                nexoCuradoriaCasosTexto(atualPreHttp, 'caso_id'),
+              )
+              if (
+                executionScopeOutbox === 'homologacao_isolada_n4' &&
+                (!scopedOutboxIdMap[atualPreHttp.id] ||
+                  scopedOutboxCaseMap[atualPreHttp.id] !==
+                    nexoCuradoriaCasosTexto(atualPreHttp, 'caso_id') ||
+                  nexoCuradoriaCasosTexto(casoAtualOutbox, 'fonte_principal') !== 'homologacao_n4')
+              ) {
+                atualPreHttp.set('status', 'invalidado')
+                atualPreHttp.set('last_error', 'ESCOPO_HOMOLOGACAO_INVALIDO')
+                atualPreHttp.set('processed_at', new Date())
+                atualPreHttp.set('claim_token', '')
+                atualPreHttp.set('claim_expires_at', null)
+                tx.save(atualPreHttp)
+                result.invalidados++
+                return
+              }
+              // Revalida o claim após ler o caso: uma supersessão pode intercalar nessa leitura.
+              if (
+                nexoCuradoriaCasosTexto(atualPreHttp, 'status') !== 'processando' ||
+                nexoCuradoriaCasosTexto(atualPreHttp, 'claim_token') !== claimToken ||
+                nexoCuradoriaCasosTexto(atualPreHttp, 'superseded_by')
+              )
+                return
+              if (
+                nexoCuradoriaCasosNumero(casoAtualOutbox, 'revisao') !==
+                nexoCuradoriaCasosNumero(atualPreHttp, 'caso_revisao')
+              ) {
+                atualPreHttp.set('status', 'invalidado')
+                atualPreHttp.set('last_error', 'REVISAO_SUPERADA')
+                atualPreHttp.set('processed_at', new Date())
+                atualPreHttp.set('claim_token', '')
+                atualPreHttp.set('claim_expires_at', null)
+                tx.save(atualPreHttp)
+                result.invalidados++
+                return
+              }
+              var casoIdAutoritativo = nexoCuradoriaCasosTexto(atualPreHttp, 'caso_id')
+              var decisaoIdAutoritativa = nexoCuradoriaCasosTexto(atualPreHttp, 'decisao_id')
+              var acaoAutoritativa = nexoCuradoriaCasosTexto(atualPreHttp, 'acao')
+              var revisaoAutoritativa = nexoCuradoriaCasosNumero(atualPreHttp, 'caso_revisao')
+              if (!casoIdAutoritativo || !decisaoIdAutoritativa || !revisaoAutoritativa)
+                throw new Error('PAYLOAD_INVALIDO')
+              var idempotencyKeyAutoritativa = String(
+                $security.sha256(
+                  [
+                    'curadoria-outbox-v1',
+                    casoIdAutoritativo,
+                    String(revisaoAutoritativa),
+                    acaoAutoritativa,
+                  ].join('|'),
+                ),
+              )
+              if (acaoAutoritativa === 'publicar_automatico')
+                idempotencyKeyAutoritativa = String(
+                  $security.sha256(
+                    [
+                      'curadoria-outbox-agent-policy-v1',
+                      casoIdAutoritativo,
+                      String(revisaoAutoritativa),
+                      'publicar',
+                    ].join('|'),
+                  ),
+                )
+              if (
+                nexoCuradoriaCasosTexto(atualPreHttp, 'idempotency_key') !==
+                idempotencyKeyAutoritativa
+              )
+                throw new Error('IDEMPOTENCY_KEY_INVALIDA')
+              var transicaoAutoritativa = tx.findRecordById(
+                'com_nexo_curadoria_transicoes',
+                decisaoIdAutoritativa,
+              )
+              var metadadosTransicao = nexoCuradoriaCasosObjeto(transicaoAutoritativa, 'metadados')
+              var acaoTransicao = metadadosTransicao ? String(metadadosTransicao.acao || '') : ''
+              var revisaoAnteriorTransicao = metadadosTransicao
+                ? Number(metadadosTransicao.revisao_anterior)
+                : NaN
+              var revisaoNovaTransicao = metadadosTransicao
+                ? Number(metadadosTransicao.revisao_nova)
+                : NaN
+              var statusNovoTransicao = nexoCuradoriaCasosTexto(
+                transicaoAutoritativa,
+                'status_novo',
+              )
+              var vinculoAcaoValido =
+                (acaoAutoritativa === 'publicar_automatico' &&
+                  acaoTransicao === 'aprovar_automatico' &&
+                  statusNovoTransicao === 'aprovado' &&
+                  nexoCuradoriaCasosTexto(transicaoAutoritativa, 'ator_id') ===
+                    'nexo-curadoria-automatico' &&
+                  metadadosTransicao &&
+                  metadadosTransicao.decision_mode === 'agent_policy' &&
+                  metadadosTransicao.agent_id === 'nexo-curadoria-automatico' &&
+                  metadadosTransicao.role === 'curador_comercial') ||
+                (acaoAutoritativa === 'publicar' &&
+                  acaoTransicao === 'aprovar' &&
+                  statusNovoTransicao === 'aprovado') ||
+                (acaoAutoritativa === 'retirar' &&
+                  ((acaoTransicao === 'retirar' && statusNovoTransicao === 'retirado') ||
+                    (acaoTransicao === 'rejeitar' && statusNovoTransicao === 'rejeitado')))
+              if (
+                nexoCuradoriaCasosTexto(transicaoAutoritativa, 'caso_id') !== casoIdAutoritativo ||
+                !nexoCuradoriaCasosTexto(transicaoAutoritativa, 'transicao_chave') ||
+                !nexoCuradoriaCasosTexto(transicaoAutoritativa, 'ator_id') ||
+                revisaoAnteriorTransicao !== revisaoAutoritativa - 1 ||
+                revisaoNovaTransicao !== revisaoAutoritativa ||
+                !vinculoAcaoValido
+              )
+                throw new Error('PAYLOAD_INVALIDO')
+              var payloadAutoritativo = null
+              var payloadAutoritativoBody = ''
+              if (acaoAutoritativa !== 'publicar_automatico') {
+                payloadAutoritativo = nexoCuradoriaPayloadConhecimento(
+                  casoAtualOutbox,
+                  transicaoAutoritativa,
+                  acaoAutoritativa,
+                  revisaoAutoritativa,
+                )
+                payloadAutoritativoBody = nexoCuradoriaJsonCanonico(payloadAutoritativo)
+              }
+              payload = atualPreHttp.get('payload_json') || {}
+              if (typeof payload === 'string') {
+                try {
+                  payload = JSON.parse(payload)
+                } catch (_) {
+                  throw new Error('PAYLOAD_INVALIDO')
+                }
+              }
+              var payloadByteBuffer = Array.isArray(payload) && payload.length > 0
+              if (payloadByteBuffer) {
+                for (var pbi = 0; pbi < payload.length; pbi++) {
+                  if (
+                    typeof payload[pbi] !== 'number' ||
+                    payload[pbi] < 0 ||
+                    payload[pbi] > 255 ||
+                    Math.floor(payload[pbi]) !== payload[pbi]
+                  ) {
+                    payloadByteBuffer = false
+                    break
+                  }
+                }
+              }
+              if (payloadByteBuffer) {
+                var decodedPayload
+                try {
+                  decodedPayload = JSON.parse(String(payload))
+                } catch (_) {}
+                if (
+                  decodedPayload &&
+                  typeof decodedPayload === 'object' &&
+                  !Array.isArray(decodedPayload)
+                )
+                  payload = decodedPayload
+              }
+              if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+                throw new Error('PAYLOAD_INVALIDO')
+              payloadBody = nexoCuradoriaJsonCanonico(payload)
+              if (acaoAutoritativa === 'publicar_automatico') {
+                var parametroPolitica = tx.findFirstRecordByData(
+                  'com_parametros',
+                  'chave',
+                  'nexo.curadoria.fluxo_corrente_v1',
+                )
+                var politicaAtual = JSON.parse(parametroPolitica.getString('valor') || '{}')
+                var cutoffAtual = politicaAtual.cutoff || {}
+                var policyHashAtual = String(
+                  $security.sha256(
+                    [
+                      'pmais_nexo_auto_promotion_policy_v1',
+                      String(cutoffAtual.created || ''),
+                      String(cutoffAtual.id || ''),
+                      'pmais_nexo_curadoria_conhecimento_automatico_v1',
+                      'nexo-curadoria-automatico',
+                    ].join('|'),
+                  ),
+                )
+                var policyProof = payload.policy_proof || {}
+                var automaticContent = {}
+                var automaticPayloadKeys = Object.keys(payload)
+                for (var apk = 0; apk < automaticPayloadKeys.length; apk++) {
+                  if (automaticPayloadKeys[apk] !== 'policy_proof')
+                    automaticContent[automaticPayloadKeys[apk]] = payload[automaticPayloadKeys[apk]]
+                }
+                if (
+                  !parametroPolitica.getBool('ativo') ||
+                  parametroPolitica.getString('tipo') !== 'json_imutavel' ||
+                  Number(parametroPolitica.getInt('versao') || 0) !== 1 ||
+                  politicaAtual.policy_version !== 'pmais_nexo_auto_promotion_policy_v1' ||
+                  politicaAtual.automatic_schema_version !==
+                    'pmais_nexo_curadoria_conhecimento_automatico_v1' ||
+                  politicaAtual.automatic_agent_id !== 'nexo-curadoria-automatico' ||
+                  politicaAtual.integrity_hash !== policyHashAtual ||
+                  payload.schema_version !== 'pmais_nexo_curadoria_conhecimento_automatico_v1' ||
+                  payload.action !== 'publicar' ||
+                  Number(payload.case_revision) !== revisaoAutoritativa ||
+                  !payload.title ||
+                  !payload.regra ||
+                  policyProof.proof_id !==
+                    nexoCuradoriaCasosTexto(transicaoAutoritativa, 'transicao_chave') ||
+                  policyProof.policy_version !== 'pmais_nexo_auto_promotion_policy_v1' ||
+                  policyProof.agent_id !== 'nexo-curadoria-automatico' ||
+                  policyProof.knowledge_ref !== payload.knowledge_ref ||
+                  policyProof.action !== payload.action ||
+                  Number(policyProof.case_revision) !== Number(payload.case_revision) ||
+                  policyProof.content_sha256 !==
+                    String($security.sha256(nexoCuradoriaJsonCanonico(automaticContent))) ||
+                  policyProof.no_sensitive_data !== true ||
+                  policyProof.no_conflicts !== true ||
+                  policyProof.traceable !== true ||
+                  policyProof.coherent !== true ||
+                  policyProof.reversible !== true ||
+                  !casoAtualOutbox.getBool('automatic_promotion_allowed') ||
+                  casoAtualOutbox.getBool('human_review_required') ||
+                  nexoCuradoriaCasosTexto(casoAtualOutbox, 'status') !== 'aprovado'
+                )
+                  throw new Error('PAYLOAD_AUTOMATICO_INVALIDO')
+                payloadAutoritativo = nexoCuradoriaPayloadAutomatico(
+                  casoAtualOutbox,
+                  transicaoAutoritativa,
+                  revisaoAutoritativa,
+                  politicaAtual,
+                )
+                payloadAutoritativoBody = nexoCuradoriaJsonCanonico(payloadAutoritativo)
+                if (payloadBody !== payloadAutoritativoBody)
+                  throw new Error('PAYLOAD_AUTOMATICO_INVALIDO')
+              } else if (payloadBody !== payloadAutoritativoBody)
+                throw new Error('PAYLOAD_INVALIDO')
+              payloadHash = String($security.sha256(payloadBody))
+              var payloadHashPersistido = nexoCuradoriaCasosTexto(atualPreHttp, 'payload_hash')
+              if (payloadHash !== payloadHashPersistido) {
+                if (acaoAutoritativa === 'publicar_automatico')
+                  throw new Error('PAYLOAD_HASH_DIVERGENTE')
+                var payloadHashLegado = String(
+                  $security.sha256(JSON.stringify(payloadAutoritativo)),
+                )
+                if (payloadHashPersistido !== payloadHashLegado)
+                  throw new Error('PAYLOAD_HASH_DIVERGENTE')
+                atualPreHttp.set('payload_hash', payloadHash)
+                tx.save(atualPreHttp)
+              }
+              item = atualPreHttp
+              preHttpValido = true
+            })
+            if (!preHttpValido) continue
+            var timestamp = String(Math.floor(Date.now() / 1000))
+            var isAutomaticPayload = !!payload.policy_proof
+            if (
+              isAutomaticPayload &&
+              (!automaticGatewayKey ||
+                !automaticGatewaySecret ||
+                !automaticPolicySecret ||
+                !automaticAgentId ||
+                automaticAgentId !== 'nexo-curadoria-automatico' ||
+                automaticAgentId !== payload.policy_proof.agent_id)
+            )
+              throw new Error('GATEWAY_AUTOMATICO_NAO_CONFIGURADO')
+            var signature = $security.hs256(
+              timestamp + '.' + payloadBody,
+              isAutomaticPayload ? automaticGatewaySecret : gatewaySecret,
+            )
+            var approval = payload.approval || {}
+            var approvalSignature = ''
+            if (!isAutomaticPayload) {
+              var approvalCanonical = nexoCuradoriaJsonCanonico({
+                action: approval.action,
+                actor_id: approval.actor_id,
+                actor_profile: approval.actor_profile,
+                app_id: approval.app_id,
+                approval_id: approval.approval_id,
+                authority: approval.authority,
+                case_ref: approval.case_ref,
+                case_revision: approval.case_revision,
+              })
+              approvalSignature = $security.hs256(
+                approvalCanonical + '.' + payloadHash,
+                approvalSecret,
+              )
+            }
+            var gatewayHeaders = {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+              'x-pmais-api-key': isAutomaticPayload ? automaticGatewayKey : gatewayKey,
+              'x-pmais-timestamp': timestamp,
+              'x-pmais-signature': signature,
+              'x-pmais-idempotency-key': nexoCuradoriaCasosTexto(item, 'idempotency_key'),
+              'x-pmais-payload-hash': payloadHash,
+            }
+            if (isAutomaticPayload) {
+              gatewayHeaders['x-pmais-agent-id'] = payload.policy_proof.agent_id
+              gatewayHeaders['x-pmais-policy-signature'] = $security.hs256(
+                nexoCuradoriaJsonCanonico(payload.policy_proof),
+                automaticPolicySecret,
+              )
+            } else gatewayHeaders['x-pmais-approval-signature'] = approvalSignature
+            var response = $http.send({
+              url:
+                gatewayBase +
+                (isAutomaticPayload
+                  ? '/v1/comercial/nexo/curadoria/conhecimento/automatico'
+                  : '/v1/comercial/nexo/curadoria/conhecimento'),
+              method: 'POST',
+              headers: gatewayHeaders,
+              body: payloadBody,
+              timeout: 30,
+            })
+            var responseJson = response.json || {}
+            var readbackAutomaticoValido =
+              !isAutomaticPayload ||
+              (responseJson.authorization_type === 'automatic_policy' &&
+                responseJson.policy_proof_id === payload.policy_proof.proof_id &&
+                responseJson.policy_version === payload.policy_proof.policy_version &&
+                responseJson.agent_id === 'nexo-curadoria-automatico' &&
+                responseJson.agent_id === payload.policy_proof.agent_id)
+            var readbackHumanoValido =
+              isAutomaticPayload ||
+              (responseJson.approval_id === approval.approval_id &&
+                responseJson.actor &&
+                responseJson.actor.actor_id === approval.actor_id &&
+                responseJson.actor.actor_profile === approval.actor_profile &&
+                responseJson.actor.authority === approval.authority &&
+                responseJson.actor.app_id === approval.app_id)
+            if (
+              response.statusCode < 200 ||
+              response.statusCode >= 300 ||
+              !responseJson.ok ||
+              !responseJson.readback_confirmed ||
+              responseJson.payload_hash !== payloadHash ||
+              responseJson.knowledge_ref !== payload.knowledge_ref ||
+              responseJson.action !== payload.action ||
+              Number(responseJson.case_revision) !== Number(payload.case_revision) ||
+              !readbackAutomaticoValido ||
+              !readbackHumanoValido ||
+              !responseJson.audit_id ||
+              !responseJson.version
+            )
+              throw new Error('GATEWAY_READBACK_INVALIDO')
+
+            var confirmado = false
+            $app.runInTransaction(function (tx) {
+              var atual = tx.findRecordById('com_nexo_curadoria_outbox', item.id)
+              var statusAtual = nexoCuradoriaCasosTexto(atual, 'status')
+              if (
+                statusAtual !== 'processando' ||
+                nexoCuradoriaCasosTexto(atual, 'claim_token') !== claimToken ||
+                nexoCuradoriaCasosTexto(atual, 'superseded_by')
+              )
+                return
+              var caso = tx.findRecordById(
+                'com_nexo_curadoria_casos',
+                nexoCuradoriaCasosTexto(atual, 'caso_id'),
+              )
+              if (
+                nexoCuradoriaCasosNumero(caso, 'revisao') !==
+                nexoCuradoriaCasosNumero(atual, 'caso_revisao')
+              ) {
+                atual.set('status', 'invalidado')
+                atual.set('last_error', 'REVISAO_SUPERADA_APOS_HTTP')
+                atual.set('processed_at', new Date())
+                atual.set('claim_token', '')
+                atual.set('claim_expires_at', null)
+                tx.save(atual)
+                result.invalidados++
+                return
+              }
+              atual.set('status', 'processado')
+              atual.set('tentativas', nexoCuradoriaCasosNumero(atual, 'tentativas') + 1)
+              atual.set('tentativas_ciclo', nexoCuradoriaCasosNumero(atual, 'tentativas_ciclo') + 1)
+              atual.set('last_attempt_at', new Date())
+              atual.set('next_attempt_at', null)
+              atual.set('last_error', '')
+              atual.set('audit_id', nexoCuradoriaCasosLimpar(responseJson.audit_id, 160))
+              atual.set('target_version', nexoCuradoriaCasosLimpar(responseJson.version, 160))
+              atual.set('processed_at', new Date())
+              atual.set('claim_token', '')
+              atual.set('claim_expires_at', null)
+              tx.save(atual)
+
+              caso.set(
+                'conhecimento_status',
+                nexoCuradoriaCasosTexto(atual, 'acao') === 'publicar' ||
+                  nexoCuradoriaCasosTexto(atual, 'acao') === 'publicar_automatico'
+                  ? 'ativo'
+                  : 'retirado',
+              )
+              caso.set(
+                'conhecimento_audit_id',
+                nexoCuradoriaCasosLimpar(responseJson.audit_id, 160),
+              )
+              caso.set('conhecimento_versao', nexoCuradoriaCasosLimpar(responseJson.version, 160))
+              tx.save(caso)
+              confirmado = true
+            })
+            if (confirmado) result.processados++
+            else result.ignorados++
+          } catch (err) {
+            var falhaConfirmada = false
+            try {
+              $app.runInTransaction(function (tx) {
+                var itemAtual = tx.findRecordById('com_nexo_curadoria_outbox', item.id)
+                if (
+                  nexoCuradoriaCasosTexto(itemAtual, 'status') !== 'processando' ||
+                  nexoCuradoriaCasosTexto(itemAtual, 'claim_token') !== claimToken ||
+                  nexoCuradoriaCasosTexto(itemAtual, 'superseded_by')
+                )
+                  return
+                var tentativas = nexoCuradoriaCasosNumero(itemAtual, 'tentativas') + 1
+                var tentativasCiclo = nexoCuradoriaCasosNumero(itemAtual, 'tentativas_ciclo') + 1
+                var agoraTentativa = new Date()
+                itemAtual.set('tentativas', tentativas)
+                itemAtual.set('tentativas_ciclo', tentativasCiclo)
+                itemAtual.set('last_attempt_at', agoraTentativa)
+                itemAtual.set('status', tentativasCiclo >= 5 ? 'falha_permanente' : 'erro')
+                itemAtual.set(
+                  'next_attempt_at',
+                  tentativasCiclo >= 5
+                    ? null
+                    : new Date(
+                        agoraTentativa.getTime() +
+                          Math.min(3600, Math.pow(2, tentativasCiclo) * 30) * 1000,
+                      ),
+                )
+                itemAtual.set(
+                  'last_error',
+                  nexoCuradoriaCasosLimpar(err && err.message ? err.message : err, 400),
+                )
+                itemAtual.set('claim_token', '')
+                itemAtual.set('claim_expires_at', null)
+                tx.save(itemAtual)
+                falhaConfirmada = true
+              })
+            } catch (_) {}
+            if (falhaConfirmada) result.falhas++
+            else result.ignorados++
+          }
+        }
+
+        var pendentesRestantes = 0
+        var emBackoff = 0
+        try {
+          var estadoFinal = nexoCuradoriaCasosCarregar($app, 'com_nexo_curadoria_outbox')
+          var agoraFinal = new Date().getTime()
+          for (var efi = 0; efi < estadoFinal.length; efi++) {
+            if (!outboxCaseN7Valido($app, estadoFinal[efi])) continue
+            var statusFinal = nexoCuradoriaCasosTexto(estadoFinal[efi], 'status')
+            if (statusFinal !== 'pendente' && statusFinal !== 'erro') continue
+            pendentesRestantes++
+            var nextFinal = nexoCuradoriaCasosTexto(estadoFinal[efi], 'next_attempt_at')
+            var nextFinalMs = nextFinal ? new Date(nextFinal).getTime() : 0
+            if (nextFinalMs && isFinite(nextFinalMs) && nextFinalMs > agoraFinal) emBackoff++
+          }
+        } catch (_) {
+          pendentesRestantes = Math.max(0, pendentes.length - result.processados)
+          emBackoff = emBackoffInicial
+        }
+        if (executionScopeOutbox === 'operacao_continua_n7') {
+          try {
+            $app.runInTransaction(function (metricTxN7) {
+              var metricOutboxFinalN7 = metricTxN7.findRecordById(
+                'com_nexo_curadoria_execucoes',
+                metricOutboxN7.id,
+              )
+              metricOutboxFinalN7.set('result_code', result.falhas ? 'failed' : 'applied')
+              metricOutboxFinalN7.set('outbox_processed', result.processados)
+              metricOutboxFinalN7.set('outbox_failed', result.falhas)
+              metricOutboxFinalN7.set('outbox_invalidated', result.invalidados)
+              metricOutboxFinalN7.set('automatic_cases', result.processados)
+              metricOutboxFinalN7.set('executed_at', new Date())
+              metricTxN7.save(metricOutboxFinalN7)
+            })
+          } catch (_) {
+            return e.json(500, { ok: false, error: 'METRICA_OUTBOX_N7_INDISPONIVEL' })
+          }
+        }
+        return e.json(200, {
+          ok: result.falhas === 0,
+          processados: result.processados,
+          falhas: result.falhas,
+          ignorados: result.ignorados,
+          invalidados: result.invalidados,
+          bloqueados_ordem: bloqueadosOrdem,
+          em_backoff: emBackoff,
+          pendentes_restantes: pendentesRestantes,
+          automatic_send_allowed: false,
+          execution_scope: executionScopeOutbox,
+        })
+      }
+
+      var cronResponseOutboxN7 = null
+      nexoCuradoriaOutboxHandler({
+        nexoCuradoriaInternalOutboxN7: true,
+        auth: null,
+        requestInfo: function () {
+          return { body: { modo: 'operacao_continua_n7', limite: 5 } }
+        },
+        request: {
+          header: {
+            get: function (_) {
+              return ''
+            },
+          },
+        },
+        json: function (status, payload) {
+          cronResponseOutboxN7 = { status: status, payload: payload }
+          return cronResponseOutboxN7
+        },
+        forbiddenError: function (_) {
+          cronResponseOutboxN7 = { status: 403, payload: { error: 'WORKER_OUTBOX_N7_FORBIDDEN' } }
+          return cronResponseOutboxN7
+        },
+      })
+      return cronResponseOutboxN7
+    })
+  }
 })()

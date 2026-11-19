@@ -9,6 +9,21 @@ const AUTOMATIC_SCHEMA_VERSION = 'pmais_nexo_curadoria_conhecimento_automatico_v
 const AUTOMATIC_AGENT_ID = 'nexo-curadoria-automatico'
 const CUTOFF_CREATED = '2026-10-20 10:00:00.000Z'
 const CUTOFF_ID = 'zzzzzzzzzzzzzzz'
+const N7_GATE_KEY = 'nexo.curadoria.operacao_n7_runtime_v1'
+const N7_SWITCH_KEY = 'nexo.curadoria.operacao_n7_switch_v1'
+const N7_OUTBOX_SWITCH_KEY = 'nexo.curadoria.outbox_n7_switch_v1'
+const N7_GATE_VERSION = 'pmais_nexo_curadoria_operacao_n7_runtime_v1'
+const N7_WORKER_ID = 'nexo-curadoria-n7'
+const N7_CUTOFF_CREATED = '2026-11-19 10:10:58.360Z'
+const N7_CUTOFF_ID = '8k78ljeajfeuwxn'
+const N7_LIMITS = {
+  max_ledger_records: 100,
+  max_new_cases: 5,
+  max_updated_cases: 20,
+  max_new_evidence: 100,
+  max_new_human_exceptions: 1,
+  max_open_human_exceptions: 3,
+}
 
 function canonicalJson(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
@@ -197,6 +212,49 @@ const n6RuntimeGate = new MockRecord('com_parametros', 'parameter-n6-runtime', {
   tipo: 'json_imutavel',
   versao: 1,
 })
+const n7GateValue = {
+  gate_version: N7_GATE_VERSION,
+  execution_surface: 'shared_production_assisted',
+  activation_cutoff: { created: N7_CUTOFF_CREATED, id: N7_CUTOFF_ID },
+  classifier_policy_version: POLICY_VERSION,
+  worker_identity: N7_WORKER_ID,
+  limits: N7_LIMITS,
+}
+n7GateValue.integrity_hash = crypto
+  .createHash('sha256')
+  .update(
+    [
+      n7GateValue.gate_version,
+      n7GateValue.activation_cutoff.created,
+      n7GateValue.activation_cutoff.id,
+      n7GateValue.classifier_policy_version,
+      n7GateValue.execution_surface,
+      n7GateValue.worker_identity,
+      canonicalJson(n7GateValue.limits),
+    ].join('|'),
+  )
+  .digest('hex')
+const n7RuntimeGate = new MockRecord('com_parametros', 'parameter-n7-runtime', {
+  chave: N7_GATE_KEY,
+  valor: JSON.stringify(n7GateValue),
+  ativo: true,
+  tipo: 'json_imutavel',
+  versao: 1,
+})
+const n7RuntimeSwitch = new MockRecord('com_parametros', 'parameter-n7-switch', {
+  chave: N7_SWITCH_KEY,
+  valor: 'false',
+  ativo: true,
+  tipo: 'booleano',
+  versao: 1,
+})
+const n7OutboxRuntimeSwitch = new MockRecord('com_parametros', 'parameter-n7-outbox-switch', {
+  chave: N7_OUTBOX_SWITCH_KEY,
+  valor: 'false',
+  ativo: true,
+  tipo: 'booleano',
+  versao: 1,
+})
 
 const activeRule = new MockRecord('com_nexo_curadoria_casos', 'active-followup-rule', {
   fingerprint: 'legacy-active-followup-rule',
@@ -236,16 +294,26 @@ const historicalMatchingSnapshot = JSON.stringify(historicalMatchingCase.values)
 const collections = {
   users: [actor],
   com_perfis: [profile],
-  com_parametros: [parameter, n4RuntimeGate, n6RuntimeGate],
+  com_parametros: [
+    parameter,
+    n4RuntimeGate,
+    n6RuntimeGate,
+    n7RuntimeGate,
+    n7RuntimeSwitch,
+    n7OutboxRuntimeSwitch,
+  ],
   com_ledger_comercial: rows,
   com_nexo_curadoria_casos: [activeRule, historicalMatchingCase],
   com_nexo_curadoria_evidencias: [],
   com_nexo_curadoria_transicoes: [],
   com_nexo_curadoria_outbox: [],
+  com_nexo_curadoria_execucoes: [],
+  com_nexo_curadoria_worker_estado: [],
 }
 let nextId = 1
 let saves = 0
 let beforeTransaction = null
+let failSaveCollection = ''
 function records(name) {
   if (!collections[name]) collections[name] = []
   return collections[name]
@@ -271,12 +339,13 @@ const app = {
     return { name }
   },
   save(record) {
+    if (record.collection.name === failSaveCollection) throw new Error('synthetic save failure')
     saves++
     const target = records(record.collection.name)
     if (!record.id) {
       record.id = `generated-${nextId++}`
       if (record.collection.name === 'com_nexo_curadoria_casos' && !record.getString('created'))
-        record.set('created', '2026-10-21 00:00:00.000Z')
+        record.set('created', '2026-11-19 11:00:00.000Z')
       target.push(record)
     }
   },
@@ -289,6 +358,7 @@ function RecordCtor(collection) {
   return new MockRecord(collection, '', {})
 }
 const routes = {}
+const crons = {}
 const automaticSecrets = {
   PMAIS_CURADORIA_PREVIEW_GATEWAY_URL: 'https://agents.example.test/preview/nexo',
   PMAIS_CURADORIA_API_KEY: 'human-key-unused',
@@ -298,8 +368,17 @@ const automaticSecrets = {
   PMAIS_CURADORIA_AUTOMATIC_HMAC_SECRET: 'automatic-preview-transport-secret',
   PMAIS_CURADORIA_AUTOMATIC_POLICY_SECRET: 'automatic-preview-policy-secret',
   PMAIS_CURADORIA_AUTOMATIC_AGENT_ID: AUTOMATIC_AGENT_ID,
+  PMAIS_CURADORIA_PROD_GATEWAY_URL: 'https://agents.example.test/production/nexo',
+  PMAIS_CURADORIA_PROD_API_KEY: 'human-prod-key-unused',
+  PMAIS_CURADORIA_PROD_HMAC_SECRET: 'human-prod-secret-unused',
+  PMAIS_CURADORIA_PROD_APPROVAL_SECRET: 'human-prod-approval-unused',
+  PMAIS_CURADORIA_PROD_AUTOMATIC_API_KEY: 'automatic-prod-key',
+  PMAIS_CURADORIA_PROD_AUTOMATIC_HMAC_SECRET: 'automatic-prod-transport-secret',
+  PMAIS_CURADORIA_PROD_AUTOMATIC_POLICY_SECRET: 'automatic-prod-policy-secret',
+  PMAIS_CURADORIA_PROD_AUTOMATIC_AGENT_ID: AUTOMATIC_AGENT_ID,
 }
 const gatewayCalls = []
+const secretReads = []
 const context = {
   console,
   Date,
@@ -307,7 +386,12 @@ const context = {
   Math,
   Record: RecordCtor,
   $app: app,
-  $os: { getenv: (name) => automaticSecrets[name] || '' },
+  $os: {
+    getenv: (name) => {
+      secretReads.push(name)
+      return automaticSecrets[name] || ''
+    },
+  },
   $http: {
     send(request) {
       const outboundPayload = JSON.parse(request.body)
@@ -341,12 +425,21 @@ const context = {
   routerAdd(method, path, callback) {
     routes[`${method} ${path}`] = callback
   },
+  cronAdd(name, schedule, callback) {
+    crons[name] = { schedule, callback }
+  },
 }
 vm.createContext(context)
 const hookSource = fs.readFileSync('pocketbase/hooks/com_propostas_operacao.js', 'utf8')
 vm.runInContext(hookSource, context)
 const route = routes['POST /backend/v1/nexo/curadoria/casos/consolidar']
 assert(route, 'current-flow consolidation route must exist')
+const n7Cron = crons.nexo_curadoria_operacao_n7_5m
+assert(n7Cron, 'N7 consolidation cron must exist')
+assert.equal(n7Cron.schedule, '*/5 * * * *')
+const n7OutboxCron = crons.nexo_curadoria_outbox_n7_5m
+assert(n7OutboxCron, 'N7 outbox cron must exist')
+assert.equal(n7OutboxCron.schedule, '2-59/5 * * * *')
 function invoke(
   body,
   origin = 'https://backend-isolado-pmais-43b9c--preview.goskip.app',
@@ -559,6 +652,373 @@ n6RuntimeGate.set('valor', n6GateValueBeforeNoise)
 collections.com_nexo_curadoria_casos.splice(n6CaseCountBefore)
 collections.com_nexo_curadoria_evidencias.splice(n6EvidenceCountBefore)
 collections.com_nexo_curadoria_transicoes.splice(n6TransitionCountBefore)
+
+const n7Before = ledger('n7before0000001', '2026-11-19 10:10:58.359Z', {
+  fato: 'Cliente pediu desconto antes da ativação N7.',
+})
+const n7Post = ledger('n7post000000001', '2026-11-19 10:11:00.000Z', {
+  fato: 'Cliente pediu desconto depois da ativação N7.',
+})
+const n7OldBaseFingerprint = crypto
+  .createHash('sha256')
+  .update(`curadoria-caso-v1|negocio|${n7Post.getString('negocio_ref')}|preco_ou_desconto`)
+  .digest('hex')
+const n7PreActivationCase = new MockRecord('com_nexo_curadoria_casos', 'n7precase000001', {
+  fingerprint: n7OldBaseFingerprint,
+  recorrencia_chave: crypto
+    .createHash('sha256')
+    .update('curadoria-recorrencia-v2|equipe-comercial|preco_ou_desconto')
+    .digest('hex'),
+  revisao: 4,
+  status: 'aguardando_direcao',
+  conhecimento_status: 'nao_publicado',
+  evidencia_hashes: ['pre-n7-evidence'],
+  evidencia_contagem: 1,
+  recorrencia_contagem: 1,
+  alcada: 'direcao',
+  human_review_required: true,
+  automatic_promotion_allowed: false,
+  created: '2026-11-19 10:10:58.359Z',
+})
+const n7PreActivationSnapshot = JSON.stringify(n7PreActivationCase.values)
+const n7NamespacedFingerprint = crypto
+  .createHash('sha256')
+  .update(
+    ['curadoria-operacao-n7-v1', N7_CUTOFF_CREATED, N7_CUTOFF_ID, n7OldBaseFingerprint].join('|'),
+  )
+  .digest('hex')
+const n7PreNamespaceCase = new MockRecord('com_nexo_curadoria_casos', 'n7namespace0001', {
+  ...n7PreActivationCase.values,
+  fingerprint: n7NamespacedFingerprint,
+})
+const n7PreNamespaceSnapshot = JSON.stringify(n7PreNamespaceCase.values)
+collections.com_ledger_comercial.push(n7Before, n7Post)
+collections.com_nexo_curadoria_casos.push(n7PreActivationCase, n7PreNamespaceCase)
+
+const n7DryRun = invoke({ dry_run: true, modo: 'operacao_continua_n7' })
+assert.equal(n7DryRun.status, 200)
+assert.equal(n7DryRun.payload.execution_scope, 'operacao_continua_n7')
+assert.deepEqual(n7DryRun.payload.activation_cutoff, n7GateValue.activation_cutoff)
+assert.equal(n7DryRun.payload.selected_ledger_records, 1)
+assert.equal(n7DryRun.payload.casos_novos, 1)
+assert.equal(n7DryRun.payload.casos_atualizados, 0)
+assert.equal(n7DryRun.payload.human_exceptions, 1)
+assert.equal(n7DryRun.payload.automatic_cases, 0)
+assert.equal(JSON.stringify(n7PreActivationCase.values), n7PreActivationSnapshot)
+assert.equal(JSON.stringify(n7PreNamespaceCase.values), n7PreNamespaceSnapshot)
+
+collections.com_parametros.splice(collections.com_parametros.indexOf(n7RuntimeGate), 1)
+const n7MissingGate = invoke({ dry_run: true, modo: 'operacao_continua_n7' })
+assert.equal(n7MissingGate.status, 503)
+assert.equal(n7MissingGate.payload.error, 'GATE_OPERACAO_N7_INDISPONIVEL')
+collections.com_parametros.push(n7RuntimeGate)
+
+const n7GateValueBeforeCutoffTamper = n7RuntimeGate.getString('valor')
+const n7WrongCutoffGate = {
+  ...n7GateValue,
+  activation_cutoff: { created: '2026-11-19 10:10:58.361Z', id: N7_CUTOFF_ID },
+}
+n7WrongCutoffGate.integrity_hash = crypto
+  .createHash('sha256')
+  .update(
+    [
+      n7WrongCutoffGate.gate_version,
+      n7WrongCutoffGate.activation_cutoff.created,
+      n7WrongCutoffGate.activation_cutoff.id,
+      n7WrongCutoffGate.classifier_policy_version,
+      n7WrongCutoffGate.execution_surface,
+      n7WrongCutoffGate.worker_identity,
+      canonicalJson(n7WrongCutoffGate.limits),
+    ].join('|'),
+  )
+  .digest('hex')
+n7RuntimeGate.set('valor', JSON.stringify(n7WrongCutoffGate))
+const n7WellFormedWrongCutoff = invoke({ dry_run: true, modo: 'operacao_continua_n7' })
+assert.equal(n7WellFormedWrongCutoff.status, 503)
+assert.equal(n7WellFormedWrongCutoff.payload.error, 'GATE_OPERACAO_N7_INDISPONIVEL')
+n7OutboxRuntimeSwitch.set('valor', 'true')
+const n7OutboxWellFormedWrongCutoff = n7OutboxCron.callback()
+assert.equal(n7OutboxWellFormedWrongCutoff.status, 503)
+assert.equal(n7OutboxWellFormedWrongCutoff.payload.error, 'GATE_OUTBOX_N7_INDISPONIVEL')
+n7OutboxRuntimeSwitch.set('valor', 'false')
+n7RuntimeGate.set('valor', n7GateValueBeforeCutoffTamper)
+
+const n7DisabledApply = invoke({
+  dry_run: false,
+  modo: 'operacao_continua_n7',
+  confirmacao: 'APLICAR_CONSOLIDACAO_CURADORIA_COMERCIAL',
+  confirmacao_operacao_n7: 'APLICAR_OPERACAO_CONTINUA_N7',
+})
+assert.equal(n7DisabledApply.status, 503)
+assert.equal(n7DisabledApply.payload.error, 'WORKER_OPERACAO_N7_DESLIGADO')
+const n7DisabledCronSaves = saves
+const n7DisabledCronExecutions = collections.com_nexo_curadoria_execucoes.length
+const n7DisabledCron = n7Cron.callback()
+assert.equal(n7DisabledCron.status, 503)
+assert.equal(n7DisabledCron.payload.error, 'WORKER_OPERACAO_N7_DESLIGADO')
+assert.equal(saves, n7DisabledCronSaves)
+assert.equal(collections.com_nexo_curadoria_execucoes.length, n7DisabledCronExecutions)
+const n7DisabledOutboxCalls = gatewayCalls.length
+const n7DisabledOutbox = n7OutboxCron.callback()
+assert.equal(n7DisabledOutbox.status, 503)
+assert.equal(n7DisabledOutbox.payload.error, 'WORKER_OUTBOX_N7_DESLIGADO')
+assert.equal(gatewayCalls.length, n7DisabledOutboxCalls)
+
+n7RuntimeSwitch.set('valor', 'true')
+n7RuntimeSwitch.set('versao', 2)
+const n7WrongSwitchVersion = n7Cron.callback()
+assert.equal(n7WrongSwitchVersion.status, 503)
+assert.equal(n7WrongSwitchVersion.payload.error, 'WORKER_OPERACAO_N7_DESLIGADO')
+n7RuntimeSwitch.set('valor', 'false')
+n7RuntimeSwitch.set('versao', 1)
+
+n7OutboxRuntimeSwitch.set('valor', 'true')
+n7OutboxRuntimeSwitch.set('versao', 2)
+const n7WrongOutboxSwitchVersion = n7OutboxCron.callback()
+assert.equal(n7WrongOutboxSwitchVersion.status, 503)
+assert.equal(n7WrongOutboxSwitchVersion.payload.error, 'WORKER_OUTBOX_N7_DESLIGADO')
+n7OutboxRuntimeSwitch.set('valor', 'false')
+n7OutboxRuntimeSwitch.set('versao', 1)
+
+n7RuntimeSwitch.set('valor', 'true')
+const n7CaseCountBefore = collections.com_nexo_curadoria_casos.length
+const n7EvidenceCountBefore = collections.com_nexo_curadoria_evidencias.length
+const n7TransitionCountBefore = collections.com_nexo_curadoria_transicoes.length
+const n7OutboxCountBefore = collections.com_nexo_curadoria_outbox.length
+const n7ExecutionCountBefore = collections.com_nexo_curadoria_execucoes.length
+const n7Apply = n7Cron.callback()
+assert.equal(n7Apply.status, 200)
+assert.equal(n7Apply.payload.casos_criados, 1)
+assert.equal(n7Apply.payload.casos_atualizados, 0)
+assert.equal(n7Apply.payload.evidencias_criadas, 1)
+assert.equal(collections.com_nexo_curadoria_outbox.length, n7OutboxCountBefore)
+assert.equal(JSON.stringify(n7PreActivationCase.values), n7PreActivationSnapshot)
+assert.equal(JSON.stringify(n7PreNamespaceCase.values), n7PreNamespaceSnapshot)
+const n7CreatedCase = collections.com_nexo_curadoria_casos.at(-1)
+assert.notEqual(n7CreatedCase.getString('fingerprint'), n7OldBaseFingerprint)
+assert.equal(n7CreatedCase.getString('status'), 'aguardando_direcao')
+assert.equal(n7CreatedCase.getString('created_by'), N7_WORKER_ID)
+assert.equal(collections.com_nexo_curadoria_execucoes.length, n7ExecutionCountBefore + 1)
+const n7Execution = collections.com_nexo_curadoria_execucoes.at(-1)
+assert.equal(n7Execution.getString('worker_identity'), N7_WORKER_ID)
+assert.equal(n7Execution.getString('result_code'), 'applied')
+assert.equal(n7Execution.getInt('selected_ledger_records'), 1)
+assert.equal(n7Execution.getInt('cases_created'), 1)
+assert.equal(n7Execution.getInt('evidence_created'), 1)
+assert.equal(n7Execution.getString('activation_cutoff_created'), N7_CUTOFF_CREATED)
+assert.equal(n7Execution.getString('activation_cutoff_id'), N7_CUTOFF_ID)
+assert.equal(collections.com_nexo_curadoria_worker_estado.length, 1)
+const n7WorkerState = collections.com_nexo_curadoria_worker_estado[0]
+assert.equal(n7WorkerState.getString('worker_identity'), N7_WORKER_ID)
+assert.equal(n7WorkerState.getString('cursor_created'), n7Post.getString('created'))
+assert.equal(n7WorkerState.getString('cursor_id'), n7Post.id)
+assert.equal(n7WorkerState.getString('lease_owner'), '')
+
+const n7Replay = n7Cron.callback()
+assert.equal(n7Replay.status, 200)
+assert.equal(n7Replay.payload.casos_criados, 0)
+assert.equal(n7Replay.payload.casos_atualizados, 0)
+assert.equal(n7Replay.payload.evidencias_criadas, 0)
+assert.equal(collections.com_nexo_curadoria_casos.length, n7CaseCountBefore + 1)
+assert.equal(collections.com_nexo_curadoria_evidencias.length, n7EvidenceCountBefore + 1)
+assert.equal(collections.com_nexo_curadoria_transicoes.length, n7TransitionCountBefore + 1)
+assert.equal(collections.com_nexo_curadoria_execucoes.length, n7ExecutionCountBefore + 2)
+assert.equal(collections.com_nexo_curadoria_execucoes.at(-1).getInt('selected_ledger_records'), 0)
+assert.equal(collections.com_nexo_curadoria_execucoes.at(-1).getInt('cases_created'), 0)
+assert.equal(collections.com_nexo_curadoria_execucoes.at(-1).getInt('evidence_created'), 0)
+
+n7WorkerState.set('lease_owner', 'other-n7-worker')
+n7WorkerState.set('lease_expires_at', new Date(Date.now() + 60_000).toISOString())
+const n7BusyExecutionCount = collections.com_nexo_curadoria_execucoes.length
+const n7Busy = n7Cron.callback()
+assert.equal(n7Busy.status, 409)
+assert.equal(n7Busy.payload.error, 'WORKER_OPERACAO_N7_OCUPADO')
+assert.equal(collections.com_nexo_curadoria_execucoes.length, n7BusyExecutionCount)
+n7WorkerState.set('lease_owner', 'other-n7-worker')
+n7WorkerState.set('lease_expires_at', new Date(Date.now() - 60_000).toISOString())
+const n7ExpiredLease = n7Cron.callback()
+assert.equal(n7ExpiredLease.status, 200)
+assert.equal(n7WorkerState.getString('lease_owner'), '')
+assert.equal(n7WorkerState.getString('lease_expires_at'), '')
+
+n7WorkerState.set('lease_owner', '')
+n7WorkerState.set('lease_expires_at', null)
+
+const n7PendingOne = ledger('n7pending000001', '2026-11-19 10:12:00.000Z', {
+  negocio_id: 'negocio-n7-pending-1',
+  negocio_ref: 'N7-PENDING-1',
+  fato: 'A reunião comercial deve ser alinhada no início da semana.',
+  tipo_evento: 'rotina_reuniao',
+})
+const n7PendingTwo = ledger('n7pending000002', '2026-11-19 10:13:00.000Z', {
+  negocio_id: 'negocio-n7-pending-2',
+  negocio_ref: 'N7-PENDING-2',
+  fato: 'A reunião comercial deve ser alinhada no início da semana.',
+  tipo_evento: 'rotina_reuniao',
+})
+collections.com_ledger_comercial.push(n7PendingOne, n7PendingTwo)
+const n7CaseCountBeforePending = collections.com_nexo_curadoria_casos.length
+const n7OutboxCountBeforePending = collections.com_nexo_curadoria_outbox.length
+const n7PendingCycle = n7Cron.callback()
+assert.equal(n7PendingCycle.status, 200, JSON.stringify(n7PendingCycle.payload))
+assert.equal(n7PendingCycle.payload.casos_criados, 0)
+assert.equal(collections.com_nexo_curadoria_casos.length, n7CaseCountBeforePending)
+assert.equal(collections.com_nexo_curadoria_outbox.length, n7OutboxCountBeforePending)
+assert.deepEqual(n7WorkerState.get('pending_ledger_ids'), [n7PendingOne.id, n7PendingTwo.id])
+assert.equal(n7WorkerState.getString('cursor_id'), n7PendingTwo.id)
+
+const n7PendingThree = ledger('n7pending000003', '2026-11-19 10:14:00.000Z', {
+  negocio_id: 'negocio-n7-pending-3',
+  negocio_ref: 'N7-PENDING-3',
+  fato: 'A reunião comercial deve ser alinhada no início da semana.',
+  tipo_evento: 'rotina_reuniao',
+})
+collections.com_ledger_comercial.push(n7PendingThree)
+const n7CompletedRecurrence = n7Cron.callback()
+assert.equal(n7CompletedRecurrence.status, 200)
+assert.equal(n7CompletedRecurrence.payload.casos_criados, 1)
+assert.equal(n7CompletedRecurrence.payload.evidencias_criadas, 3)
+assert.equal(collections.com_nexo_curadoria_outbox.length, n7OutboxCountBeforePending + 1)
+assert.deepEqual(n7WorkerState.get('pending_ledger_ids'), [])
+assert.equal(n7WorkerState.getString('cursor_id'), n7PendingThree.id)
+
+const n7CapacityRecords = []
+const n7CapacityHashes = {}
+for (let i = 0; i < 100; i++) {
+  const id = `n7cap${String(i).padStart(10, '0')}`
+  const created = new Date(Date.parse('2026-11-19T11:00:00.000Z') + i * 1000)
+    .toISOString()
+    .replace('T', ' ')
+  const record = ledger(id, created, {
+    negocio_id: `negocio-n7-cap-${i}`,
+    negocio_ref: `N7-CAP-${i}`,
+    fato: 'A reunião comercial deve ser alinhada no início da semana.',
+    tipo_evento: 'rotina_reuniao',
+  })
+  n7CapacityRecords.push(record)
+  n7CapacityHashes[id] = ledgerHash(record)
+}
+const n7CapacityNew = ledger('n7capacitynew01', '2026-11-19 11:02:00.000Z', {
+  negocio_id: 'negocio-n7-cap-new',
+  negocio_ref: 'N7-CAP-NEW',
+  fato: 'A reunião comercial deve ser alinhada no início da semana.',
+  tipo_evento: 'rotina_reuniao',
+})
+collections.com_ledger_comercial.push(...n7CapacityRecords, n7CapacityNew)
+n7WorkerState.set(
+  'pending_ledger_ids',
+  n7CapacityRecords.map((record) => record.id),
+)
+n7WorkerState.set('pending_ledger_hashes', n7CapacityHashes)
+n7WorkerState.set('cursor_created', n7CapacityRecords.at(-1).getString('created'))
+n7WorkerState.set('cursor_id', n7CapacityRecords.at(-1).id)
+const n7CapacityExceeded = n7Cron.callback()
+assert.equal(n7CapacityExceeded.status, 409)
+assert.equal(n7CapacityExceeded.payload.error, 'LIMITE_LEDGER_OPERACAO_N7_EXCEDIDO')
+assert.equal(n7WorkerState.getString('lease_owner'), '')
+assert.equal(n7WorkerState.getString('lease_expires_at'), '')
+collections.com_ledger_comercial.splice(
+  collections.com_ledger_comercial.indexOf(n7CapacityRecords[0]),
+  n7CapacityRecords.length + 1,
+)
+n7WorkerState.set('pending_ledger_ids', [])
+n7WorkerState.set('pending_ledger_hashes', {})
+n7WorkerState.set('cursor_created', n7PendingThree.getString('created'))
+n7WorkerState.set('cursor_id', n7PendingThree.id)
+
+const n7AutomaticCase = collections.com_nexo_curadoria_casos.at(-1)
+const n7AutomaticOutbox = collections.com_nexo_curadoria_outbox.at(-1)
+assert.equal(n7AutomaticCase.getString('origin_worker_identity'), N7_WORKER_ID)
+assert.equal(n7AutomaticOutbox.getString('status'), 'pendente')
+const n7GatewayCallsBeforeOutbox = gatewayCalls.length
+n7OutboxRuntimeSwitch.set('valor', 'true')
+let n7OutboxTransactionsDuringClaim = 0
+beforeTransaction = () => {
+  n7OutboxTransactionsDuringClaim++
+  if (n7OutboxTransactionsDuringClaim === 3) n7OutboxRuntimeSwitch.set('valor', 'false')
+}
+const n7OutboxChangedControl = n7OutboxCron.callback()
+assert.equal(n7OutboxChangedControl.status, 200)
+assert.equal(n7OutboxChangedControl.payload.processados, 0)
+assert.equal(gatewayCalls.length, n7GatewayCallsBeforeOutbox)
+assert.equal(n7AutomaticOutbox.getString('status'), 'pendente')
+assert.equal(n7AutomaticOutbox.getString('last_error'), 'WORKER_OUTBOX_N7_PAUSADO')
+beforeTransaction = null
+n7OutboxRuntimeSwitch.set('valor', 'true')
+const n7HumanOutbox = new MockRecord('com_nexo_curadoria_outbox', 'n7humanoutbox01', {
+  ...n7AutomaticOutbox.values,
+  acao: 'publicar',
+  status: 'pendente',
+  requested_at: '2026-11-19 10:14:30.000Z',
+  claim_token: '',
+  claimed_at: null,
+  claim_expires_at: null,
+  processed_at: null,
+  last_error: '',
+})
+collections.com_nexo_curadoria_outbox.push(n7HumanOutbox)
+failSaveCollection = 'com_nexo_curadoria_execucoes'
+const n7OutboxMetricUnavailableCalls = gatewayCalls.length
+const n7OutboxMetricUnavailable = n7OutboxCron.callback()
+assert.equal(n7OutboxMetricUnavailable.status, 503)
+assert.equal(n7OutboxMetricUnavailable.payload.error, 'METRICAS_OUTBOX_N7_INDISPONIVEIS')
+assert.equal(gatewayCalls.length, n7OutboxMetricUnavailableCalls)
+assert.equal(n7AutomaticOutbox.getString('status'), 'pendente')
+failSaveCollection = ''
+secretReads.splice(0)
+const n7OutboxApply = n7OutboxCron.callback()
+assert.equal(n7OutboxApply.status, 200, JSON.stringify(n7OutboxApply.payload))
+assert.equal(n7OutboxApply.payload.processados, 1)
+assert.equal(n7OutboxApply.payload.execution_scope, 'operacao_continua_n7')
+assert.equal(gatewayCalls.length, n7GatewayCallsBeforeOutbox + 1)
+assert.equal(n7HumanOutbox.getString('status'), 'pendente')
+assert.equal(secretReads.includes('PMAIS_CURADORIA_PROD_API_KEY'), false)
+assert.equal(secretReads.includes('PMAIS_CURADORIA_PROD_HMAC_SECRET'), false)
+assert.equal(secretReads.includes('PMAIS_CURADORIA_PROD_APPROVAL_SECRET'), false)
+assert.equal(
+  gatewayCalls.at(-1).url,
+  'https://agents.example.test/production/nexo/v1/comercial/nexo/curadoria/conhecimento/automatico',
+)
+assert.equal(gatewayCalls.at(-1).headers['x-pmais-api-key'], 'automatic-prod-key')
+assert.equal(gatewayCalls.at(-1).headers['x-pmais-agent-id'], AUTOMATIC_AGENT_ID)
+assert.equal(
+  Object.prototype.hasOwnProperty.call(gatewayCalls.at(-1).headers, 'x-pmais-approval-signature'),
+  false,
+)
+assert.equal(n7AutomaticOutbox.getString('status'), 'processado')
+assert.equal(n7AutomaticCase.getString('conhecimento_status'), 'ativo')
+const n7OutboxMetric = collections.com_nexo_curadoria_execucoes.at(-1)
+assert.equal(n7OutboxMetric.getString('worker_identity'), 'nexo-curadoria-outbox-n7')
+assert.equal(n7OutboxMetric.getInt('outbox_processed'), 1)
+assert.equal(n7OutboxMetric.getInt('outbox_failed'), 0)
+const n7OutboxReplayCalls = gatewayCalls.length
+const n7OutboxReplay = n7OutboxCron.callback()
+assert.equal(n7OutboxReplay.status, 200)
+assert.equal(n7OutboxReplay.payload.processados, 0)
+assert.equal(gatewayCalls.length, n7OutboxReplayCalls)
+n7OutboxRuntimeSwitch.set('valor', 'false')
+gatewayCalls.splice(n7GatewayCallsBeforeOutbox)
+
+n7RuntimeSwitch.set('valor', 'false')
+collections.com_nexo_curadoria_casos.splice(n7CaseCountBefore)
+collections.com_nexo_curadoria_evidencias.splice(n7EvidenceCountBefore)
+collections.com_nexo_curadoria_transicoes.splice(n7TransitionCountBefore)
+collections.com_nexo_curadoria_outbox.splice(n7OutboxCountBefore)
+collections.com_nexo_curadoria_execucoes.splice(n7ExecutionCountBefore)
+collections.com_nexo_curadoria_worker_estado.splice(0)
+collections.com_nexo_curadoria_casos.splice(
+  collections.com_nexo_curadoria_casos.indexOf(n7PreActivationCase),
+  1,
+)
+collections.com_nexo_curadoria_casos.splice(
+  collections.com_nexo_curadoria_casos.indexOf(n7PreNamespaceCase),
+  1,
+)
+collections.com_ledger_comercial.splice(collections.com_ledger_comercial.indexOf(n7Before), 1)
+collections.com_ledger_comercial.splice(collections.com_ledger_comercial.indexOf(n7Post), 1)
+collections.com_ledger_comercial.splice(collections.com_ledger_comercial.indexOf(n7PendingOne), 1)
+collections.com_ledger_comercial.splice(collections.com_ledger_comercial.indexOf(n7PendingTwo), 1)
+collections.com_ledger_comercial.splice(collections.com_ledger_comercial.indexOf(n7PendingThree), 1)
 
 const isolatedRefs = [
   'n4-homologacao-20261118-a1:routine-1',
