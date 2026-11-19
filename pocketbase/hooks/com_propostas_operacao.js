@@ -4832,15 +4832,28 @@
       } catch (_) {}
       if (Array.isArray(raw)) return null
       var decoded = null
-      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      if (raw && typeof raw === 'object' && typeof raw.length === 'number') {
+        var bytes = ''
+        for (var i = 0; i < raw.length; i++) {
+          if (
+            typeof raw[i] !== 'number' ||
+            raw[i] < 0 ||
+            raw[i] > 255 ||
+            Math.floor(raw[i]) !== raw[i]
+          )
+            return null
+          bytes += String.fromCharCode(raw[i])
+        }
+        try {
+          decoded = JSON.parse(bytes)
+        } catch (_) {
+          return null
+        }
+        return decoded && typeof decoded === 'object' && !Array.isArray(decoded) ? decoded : null
+      }
+      if (raw && typeof raw === 'object') {
         try {
           decoded = JSON.parse(JSON.stringify(raw))
-        } catch (_) {}
-        if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) return decoded
-      }
-      if (raw && typeof raw === 'object' && typeof raw.length === 'number' && raw.length > 0) {
-        try {
-          decoded = JSON.parse(String(raw))
         } catch (_) {}
         if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) return decoded
       }
@@ -7048,15 +7061,30 @@
           } catch (_) {}
           if (Array.isArray(raw)) return null
           var decoded = null
-          if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+          if (raw && typeof raw === 'object' && typeof raw.length === 'number') {
+            var bytes = ''
+            for (var i = 0; i < raw.length; i++) {
+              if (
+                typeof raw[i] !== 'number' ||
+                raw[i] < 0 ||
+                raw[i] > 255 ||
+                Math.floor(raw[i]) !== raw[i]
+              )
+                return null
+              bytes += String.fromCharCode(raw[i])
+            }
+            try {
+              decoded = JSON.parse(bytes)
+            } catch (_) {
+              return null
+            }
+            return decoded && typeof decoded === 'object' && !Array.isArray(decoded)
+              ? decoded
+              : null
+          }
+          if (raw && typeof raw === 'object') {
             try {
               decoded = JSON.parse(JSON.stringify(raw))
-            } catch (_) {}
-            if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) return decoded
-          }
-          if (raw && typeof raw === 'object' && typeof raw.length === 'number' && raw.length > 0) {
-            try {
-              decoded = JSON.parse(String(raw))
             } catch (_) {}
             if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) return decoded
           }

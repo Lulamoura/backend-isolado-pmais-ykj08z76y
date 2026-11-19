@@ -909,7 +909,7 @@ for (const invalidPendingHashes of ['{malformed', 'null', '[]', '1', ['{}']]) {
   assert.equal(n7InvalidAccumulator.payload.error, 'ACUMULADOR_WORKER_OPERACAO_N7_INVALIDO')
   assert.equal(collections.com_nexo_curadoria_casos.length, n7InvalidAccumulatorCaseCount)
 }
-n7WorkerState.set('pending_ledger_hashes', '{}')
+n7WorkerState.set('pending_ledger_hashes', Uint8Array.from([123, 125]))
 const n7ExpiredLease = n7Cron.callback()
 assert.equal(n7ExpiredLease.status, 200)
 assert.equal(n7WorkerState.getString('lease_owner'), '')
