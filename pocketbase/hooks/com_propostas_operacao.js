@@ -5198,7 +5198,11 @@
         !runtimeGateLimitsN7 ||
         Object.keys(runtimeGateLimitsN7).sort().join('|') !==
           'max_ledger_records|max_new_cases|max_new_evidence|max_new_human_exceptions|max_open_human_exceptions|max_updated_cases' ||
-        runtimeGateLimitsN7.max_ledger_records !== 100 ||
+        typeof runtimeGateLimitsN7.max_ledger_records !== 'number' ||
+        Math.floor(runtimeGateLimitsN7.max_ledger_records) !==
+          runtimeGateLimitsN7.max_ledger_records ||
+        runtimeGateLimitsN7.max_ledger_records < 1 ||
+        runtimeGateLimitsN7.max_ledger_records > 100 ||
         runtimeGateLimitsN7.max_new_cases !== 5 ||
         runtimeGateLimitsN7.max_updated_cases !== 20 ||
         runtimeGateLimitsN7.max_new_evidence !== 100 ||
@@ -7386,7 +7390,11 @@
             !runtimeGateLimitsN7 ||
             Object.keys(runtimeGateLimitsN7).sort().join('|') !==
               'max_ledger_records|max_new_cases|max_new_evidence|max_new_human_exceptions|max_open_human_exceptions|max_updated_cases' ||
-            runtimeGateLimitsN7.max_ledger_records !== 100 ||
+            typeof runtimeGateLimitsN7.max_ledger_records !== 'number' ||
+            Math.floor(runtimeGateLimitsN7.max_ledger_records) !==
+              runtimeGateLimitsN7.max_ledger_records ||
+            runtimeGateLimitsN7.max_ledger_records < 1 ||
+            runtimeGateLimitsN7.max_ledger_records > 100 ||
             runtimeGateLimitsN7.max_new_cases !== 5 ||
             runtimeGateLimitsN7.max_updated_cases !== 20 ||
             runtimeGateLimitsN7.max_new_evidence !== 100 ||

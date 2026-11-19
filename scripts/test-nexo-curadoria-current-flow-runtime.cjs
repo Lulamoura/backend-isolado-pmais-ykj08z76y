@@ -746,6 +746,37 @@ assert.equal(n7MissingGate.status, 503)
 assert.equal(n7MissingGate.payload.error, 'GATE_OPERACAO_N7_INDISPONIVEL')
 collections.com_parametros.push(n7RuntimeGate)
 
+const n7GateValueBeforeLimitProbe = n7RuntimeGate.getString('valor')
+function n7GateWithLedgerLimit(maxLedgerRecords) {
+  const value = {
+    ...n7GateValue,
+    limits: { ...N7_LIMITS, max_ledger_records: maxLedgerRecords },
+  }
+  value.integrity_hash = crypto
+    .createHash('sha256')
+    .update(
+      [
+        value.gate_version,
+        value.activation_cutoff.created,
+        value.activation_cutoff.id,
+        value.classifier_policy_version,
+        value.execution_surface,
+        value.worker_identity,
+        canonicalJson(value.limits),
+      ].join('|'),
+    )
+    .digest('hex')
+  return value
+}
+n7RuntimeGate.set('valor', JSON.stringify(n7GateWithLedgerLimit(25)))
+const n7LowerLedgerLimit = invoke({ dry_run: true, modo: 'operacao_continua_n7' })
+assert.equal(n7LowerLedgerLimit.status, 200)
+n7RuntimeGate.set('valor', JSON.stringify(n7GateWithLedgerLimit(101)))
+const n7ExcessiveLedgerLimit = invoke({ dry_run: true, modo: 'operacao_continua_n7' })
+assert.equal(n7ExcessiveLedgerLimit.status, 503)
+assert.equal(n7ExcessiveLedgerLimit.payload.error, 'GATE_OPERACAO_N7_INDISPONIVEL')
+n7RuntimeGate.set('valor', n7GateValueBeforeLimitProbe)
+
 const n7GateValueBeforeCutoffTamper = n7RuntimeGate.getString('valor')
 const n7WrongCutoffGate = {
   ...n7GateValue,
