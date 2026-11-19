@@ -829,7 +829,7 @@ assert.equal(n7DisabledOutbox.payload.error, 'WORKER_OUTBOX_N7_DESLIGADO')
 assert.equal(gatewayCalls.length, n7DisabledOutboxCalls)
 
 n7RuntimeSwitch.set('valor', 'true')
-n7RuntimeSwitch.set('versao', 2)
+n7RuntimeSwitch.set('versao', 0)
 const n7WrongSwitchVersion = n7Cron.callback()
 assert.equal(n7WrongSwitchVersion.status, 503)
 assert.equal(n7WrongSwitchVersion.payload.error, 'WORKER_OPERACAO_N7_DESLIGADO')
@@ -837,7 +837,7 @@ n7RuntimeSwitch.set('valor', 'false')
 n7RuntimeSwitch.set('versao', 1)
 
 n7OutboxRuntimeSwitch.set('valor', 'true')
-n7OutboxRuntimeSwitch.set('versao', 2)
+n7OutboxRuntimeSwitch.set('versao', 0)
 const n7WrongOutboxSwitchVersion = n7OutboxCron.callback()
 assert.equal(n7WrongOutboxSwitchVersion.status, 503)
 assert.equal(n7WrongOutboxSwitchVersion.payload.error, 'WORKER_OUTBOX_N7_DESLIGADO')
@@ -845,6 +845,7 @@ n7OutboxRuntimeSwitch.set('valor', 'false')
 n7OutboxRuntimeSwitch.set('versao', 1)
 
 n7RuntimeSwitch.set('valor', 'true')
+n7RuntimeSwitch.set('versao', 2)
 const n7CaseCountBefore = collections.com_nexo_curadoria_casos.length
 const n7EvidenceCountBefore = collections.com_nexo_curadoria_evidencias.length
 const n7TransitionCountBefore = collections.com_nexo_curadoria_transicoes.length
@@ -996,6 +997,7 @@ assert.equal(n7AutomaticCase.getString('origin_worker_identity'), N7_WORKER_ID)
 assert.equal(n7AutomaticOutbox.getString('status'), 'pendente')
 const n7GatewayCallsBeforeOutbox = gatewayCalls.length
 n7OutboxRuntimeSwitch.set('valor', 'true')
+n7OutboxRuntimeSwitch.set('versao', 2)
 let n7OutboxTransactionsDuringClaim = 0
 beforeTransaction = () => {
   n7OutboxTransactionsDuringClaim++

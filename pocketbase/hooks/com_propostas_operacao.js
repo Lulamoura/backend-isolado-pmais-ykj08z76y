@@ -5301,7 +5301,9 @@
           !runtimeSwitchRecordN7 ||
           !runtimeSwitchRecordN7.getBool('ativo') ||
           texto(runtimeSwitchRecordN7, 'tipo') !== 'booleano' ||
-          Number(runtimeSwitchRecordN7.get('versao') || 0) !== 1 ||
+          Number(runtimeSwitchRecordN7.get('versao') || 0) < 1 ||
+          Math.floor(Number(runtimeSwitchRecordN7.get('versao') || 0)) !==
+            Number(runtimeSwitchRecordN7.get('versao') || 0) ||
           texto(runtimeSwitchRecordN7, 'valor') !== 'true'
         )
           return e.json(503, { ok: false, error: 'WORKER_OPERACAO_N7_DESLIGADO' })
@@ -7493,7 +7495,9 @@
               !runtimeSwitchRecordN7 ||
               !runtimeSwitchRecordN7.getBool('ativo') ||
               texto(runtimeSwitchRecordN7, 'tipo') !== 'booleano' ||
-              Number(runtimeSwitchRecordN7.get('versao') || 0) !== 1 ||
+              Number(runtimeSwitchRecordN7.get('versao') || 0) < 1 ||
+              Math.floor(Number(runtimeSwitchRecordN7.get('versao') || 0)) !==
+                Number(runtimeSwitchRecordN7.get('versao') || 0) ||
               texto(runtimeSwitchRecordN7, 'valor') !== 'true'
             )
               return e.json(503, { ok: false, error: 'WORKER_OPERACAO_N7_DESLIGADO' })
@@ -10739,7 +10743,9 @@
         !switchOutboxN7 ||
         !switchOutboxN7.getBool('ativo') ||
         nexoCuradoriaCasosTexto(switchOutboxN7, 'tipo') !== 'booleano' ||
-        Number(switchOutboxN7.get('versao') || 0) !== 1 ||
+        Number(switchOutboxN7.get('versao') || 0) < 1 ||
+        Math.floor(Number(switchOutboxN7.get('versao') || 0)) !==
+          Number(switchOutboxN7.get('versao') || 0) ||
         nexoCuradoriaCasosTexto(switchOutboxN7, 'valor') !== 'true'
       )
         return e.json(503, { ok: false, error: 'WORKER_OUTBOX_N7_DESLIGADO' })
@@ -12162,7 +12168,9 @@
             !switchOutboxN7 ||
             !switchOutboxN7.getBool('ativo') ||
             nexoCuradoriaCasosTexto(switchOutboxN7, 'tipo') !== 'booleano' ||
-            Number(switchOutboxN7.get('versao') || 0) !== 1 ||
+            Number(switchOutboxN7.get('versao') || 0) < 1 ||
+            Math.floor(Number(switchOutboxN7.get('versao') || 0)) !==
+              Number(switchOutboxN7.get('versao') || 0) ||
             nexoCuradoriaCasosTexto(switchOutboxN7, 'valor') !== 'true'
           )
             return e.json(503, { ok: false, error: 'WORKER_OUTBOX_N7_DESLIGADO' })
