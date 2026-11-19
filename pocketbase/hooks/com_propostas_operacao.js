@@ -9799,6 +9799,43 @@
       return Array.isArray(decodedRaw) ? decodedRaw : []
     }
 
+    function nexoCuradoriaCasosObjeto(record, field) {
+      var originalRaw = null
+      try {
+        originalRaw = record.get(field)
+      } catch (_) {}
+      if (typeof originalRaw === 'string') {
+        try {
+          originalRaw = JSON.parse(originalRaw)
+        } catch (_) {
+          return null
+        }
+      } else if (Array.isArray(originalRaw) && originalRaw.length > 0) {
+        var byteBuffer = true
+        for (var i = 0; i < originalRaw.length; i++) {
+          if (
+            typeof originalRaw[i] !== 'number' ||
+            originalRaw[i] < 0 ||
+            originalRaw[i] > 255 ||
+            Math.floor(originalRaw[i]) !== originalRaw[i]
+          ) {
+            byteBuffer = false
+            break
+          }
+        }
+        if (byteBuffer) {
+          try {
+            originalRaw = JSON.parse(String(originalRaw))
+          } catch (_) {
+            return null
+          }
+        }
+      }
+      return originalRaw && typeof originalRaw === 'object' && !Array.isArray(originalRaw)
+        ? originalRaw
+        : null
+    }
+
     function nexoCuradoriaCasosLimpar(value, max) {
       var out = String(value || '')
         .replace(/<br\s*\/?\s*>/gi, '\n')
@@ -10285,7 +10322,15 @@
             } catch (_) {
               throw new Error('PUBLICACAO_RESULTADO_INDETERMINADO')
             }
-            var metadadosPublicacaoAnterior = decisaoPublicacaoAnterior.get('metadados') || {}
+            var metadadosPublicacaoAnterior = nexoCuradoriaCasosObjeto(
+              decisaoPublicacaoAnterior,
+              'metadados',
+            )
+            if (
+              !metadadosPublicacaoAnterior ||
+              String(metadadosPublicacaoAnterior.acao || '') !== 'publicar'
+            )
+              throw new Error('PUBLICACAO_RESULTADO_INDETERMINADO')
             if (String(metadadosPublicacaoAnterior.acao || '') === 'publicar') {
               if (
                 statusPublicacaoCaso === 'erro' ||
@@ -11474,7 +11519,8 @@
       if (!decisionId) return false
       try {
         var decision = app.findRecordById('com_nexo_curadoria_transicoes', decisionId)
-        var metadata = decision.get('metadados') || {}
+        var metadata = nexoCuradoriaCasosObjeto(decision, 'metadados')
+        if (!metadata) return true
         return String(metadata.acao || '') === 'publicar'
       } catch (_) {
         return true
@@ -11493,7 +11539,7 @@
           'com_nexo_curadoria_transicoes',
           nexoCuradoriaCasosTexto(item, 'decisao_id'),
         )
-        var decisionHumanMetadata = decisionHuman.get('metadados') || {}
+        var decisionHumanMetadata = nexoCuradoriaCasosObjeto(decisionHuman, 'metadados') || {}
         return (
           scopedOutboxCaseMap[item.id] === nexoCuradoriaCasosTexto(item, 'caso_id') &&
           String(decisionHumanMetadata.acao || '') === 'publicar' &&
@@ -11537,7 +11583,7 @@
           )
         } catch (_) {}
         var committedHumanMetadata = committedHumanDecision
-          ? committedHumanDecision.get('metadados') || {}
+          ? nexoCuradoriaCasosObjeto(committedHumanDecision, 'metadados') || {}
           : {}
         if (
           !committedHumanDecision ||
@@ -11614,7 +11660,9 @@
             nexoCuradoriaCasosTexto(todas[hsoi], 'caso_id'),
           )
         } catch (_) {}
-        var humanDecisionMetadata = humanDecision ? humanDecision.get('metadados') || {} : {}
+        var humanDecisionMetadata = humanDecision
+          ? nexoCuradoriaCasosObjeto(humanDecision, 'metadados') || {}
+          : {}
         if (
           !humanDecision ||
           !humanCase ||

@@ -469,5 +469,15 @@ assert.match(
   /executionScopeOutbox === 'publicacao_humana'[\s\S]*committedHumanOutbox[\s\S]*scopedOutboxCaseMap\[committedHumanOutbox\.id\]\s*=\s*nexoCuradoriaCasosTexto\(\s*committedHumanOutbox,\s*'caso_id',?\s*\)[\s\S]*outboxPublicacaoHumanaValido/,
   'publicação humana deve vincular a outbox solicitada ao caso autoritativo antes de validar o escopo',
 )
+assert.match(
+  processorCallback,
+  /var decisionHumanMetadata\s*=\s*nexoCuradoriaCasosObjeto\(\s*decisionHuman,\s*'metadados',?\s*\)\s*\|\|\s*\{\}/,
+  'publicação humana deve decodificar metadados JSONRaw da decisão no PocketBase 0.36',
+)
+assert.doesNotMatch(
+  establishedHook,
+  /\.get\('metadados'\)/,
+  'metadados de decisão não podem ser lidos sem decodificação JSONRaw no PocketBase 0.36',
+)
 
 console.log('Curadoria hook materialization contract: PASS')

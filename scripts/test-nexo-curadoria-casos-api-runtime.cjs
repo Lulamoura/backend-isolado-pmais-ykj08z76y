@@ -1094,6 +1094,8 @@ assert.equal(
   governedPublicationOutbox.get('payload_json').rationale,
   'Fundamento substantivo aprovado pela direção.',
 )
+const governedPublicationMetadata = governedPublicationTransition.get('metadados')
+governedPublicationTransition.set('metadados', jsonRawArray(governedPublicationMetadata))
 
 const outboxCountBeforePublicationReplay = outbox.length
 const publicationReplay = invokeTransition(superadmin, publishCase.id, {
@@ -1133,7 +1135,7 @@ const explicitPublishProcess = invokeOutbox(superadmin, previewAppOrigin, {
   limite: 1,
   confirmacao_publicacao: 'PUBLICAR_ORIENTACAO_NEXO',
 })
-assert.equal(explicitPublishProcess.status, 200)
+assert.equal(explicitPublishProcess.status, 200, JSON.stringify(explicitPublishProcess.payload))
 assert.equal(explicitPublishProcess.payload.processados, 1)
 assert.equal(explicitPublishProcess.payload.falhas, 0)
 assert.equal(gatewayCalls.length, callsBeforeExplicitPublish + 1)
@@ -1179,6 +1181,10 @@ assert.equal(ambiguousPublication.status, 200)
 const ambiguousOutbox = outbox.find((row) => row.id === ambiguousPublication.payload.outbox_id)
 ambiguousOutbox.set('status', 'erro')
 ambiguousOutbox.set('last_error', 'RESPOSTA_REMOTA_INDETERMINADA')
+const ambiguousTransition = transitions.find(
+  (row) => row.id === ambiguousOutbox.getString('decisao_id'),
+)
+ambiguousTransition.set('metadados', jsonRawArray(['metadados-invalidos']))
 for (const blockedAction of ['publicar', 'ajustar_publicacao', 'descartar_publicacao']) {
   const blocked = invokeTransition(superadmin, ambiguousCase.id, {
     acao: blockedAction,
