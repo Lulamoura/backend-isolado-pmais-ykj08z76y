@@ -18,6 +18,7 @@ import {
   type CasoCuradoriaComercial,
   type CuradoriaComercialResponse,
   listarCasosCuradoriaComercial,
+  processarPublicacaoCuradoriaComercial,
   transicionarCasoCuradoriaComercial,
 } from '@/services/nexo-curadoria'
 
@@ -37,6 +38,7 @@ const visoes = [
 ] as const
 
 type Visao = (typeof visoes)[number]['chave']
+type AcaoPublicacao = 'publicar' | 'ajustar_publicacao' | 'descartar_publicacao'
 
 const vazio: CuradoriaComercialResponse = {
   ok: true,
@@ -98,6 +100,7 @@ const statusRotulos: Record<string, string> = {
   aguardando_direcao: 'Aguardando direção',
   aprovado: 'Aprovado para uso operacional',
   rejeitado: 'Não aprovado',
+  descartado: 'Publicação descartada',
   retirado: 'Retirado de uso',
   sem_acao: 'Encerrado sem alteração',
 }
@@ -163,14 +166,18 @@ function CasoCard({
   visao,
   ocupado,
   somenteLeitura,
+  podeDecidirPublicacao,
   onEntrevistar,
+  onDecidirPublicacao,
   onTransicionar,
 }: {
   caso: CasoCuradoriaComercial
   visao: Visao
   ocupado: boolean
   somenteLeitura: boolean
+  podeDecidirPublicacao: boolean
   onEntrevistar: (caso: CasoCuradoriaComercial) => void
+  onDecidirPublicacao: (caso: CasoCuradoriaComercial, acao: AcaoPublicacao) => void
   onTransicionar: (
     caso: CasoCuradoriaComercial,
     acao: AcaoCasoCuradoriaComercial,
@@ -335,6 +342,34 @@ function CasoCard({
               </Button>
             </>
           )}
+          {visao === 'publicacao_pendente' && podeDecidirPublicacao && (
+            <>
+              <Button
+                size="sm"
+                onClick={() => onDecidirPublicacao(caso, 'publicar')}
+                disabled={ocupado}
+              >
+                Publicar orientação
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onDecidirPublicacao(caso, 'ajustar_publicacao')}
+                disabled={ocupado}
+              >
+                Ajustar antes de publicar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-rose-200 text-rose-700 hover:bg-rose-50"
+                onClick={() => onDecidirPublicacao(caso, 'descartar_publicacao')}
+                disabled={ocupado}
+              >
+                Descartar publicação
+              </Button>
+            </>
+          )}
           {visao === 'conhecimento_aprovado' && (
             <Button
               size="sm"
@@ -366,8 +401,10 @@ function CasoCard({
 
 export default function NexoCuradoriaComercialUnificada({
   somenteLeitura = false,
+  podeDecidirPublicacao = false,
 }: {
   somenteLeitura?: boolean
+  podeDecidirPublicacao?: boolean
 }) {
   const [dados, setDados] = useState<CuradoriaComercialResponse>(vazio)
   const [visao, setVisao] = useState<Visao>('para_tratar')
@@ -377,6 +414,9 @@ export default function NexoCuradoriaComercialUnificada({
   const [casoEntrevista, setCasoEntrevista] = useState<CasoCuradoriaComercial | null>(null)
   const [etapa, setEtapa] = useState(1)
   const [respostas, setRespostas] = useState<string[]>([])
+  const [casoPublicacao, setCasoPublicacao] = useState<CasoCuradoriaComercial | null>(null)
+  const [acaoPublicacao, setAcaoPublicacao] = useState<AcaoPublicacao | null>(null)
+  const [justificativaDescarte, setJustificativaDescarte] = useState('')
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -419,6 +459,77 @@ export default function NexoCuradoriaComercialUnificada({
       copia[etapa - 1] = valor
       return copia
     })
+  }
+
+  function abrirDecisaoPublicacao(caso: CasoCuradoriaComercial, acao: AcaoPublicacao) {
+    if (somenteLeitura || !podeDecidirPublicacao) return
+    setCasoPublicacao(caso)
+    setAcaoPublicacao(acao)
+    setJustificativaDescarte('')
+  }
+
+  function fecharDecisaoPublicacao() {
+    if (ocupado) return
+    setCasoPublicacao(null)
+    setAcaoPublicacao(null)
+    setJustificativaDescarte('')
+  }
+
+  async function confirmarDecisaoPublicacao() {
+    if (!casoPublicacao || !acaoPublicacao || somenteLeitura || !podeDecidirPublicacao) return
+    const motivoDescarte = justificativaDescarte.trim()
+    if (acaoPublicacao === 'descartar_publicacao' && motivoDescarte.length < 10) {
+      toast.error('Registre uma justificativa para descartar a publicação.')
+      return
+    }
+    const observacao =
+      acaoPublicacao === 'publicar'
+        ? 'Publicação confirmada pelo superadministrador.'
+        : acaoPublicacao === 'ajustar_publicacao'
+          ? 'Aprovação anterior invalidada para ajuste da orientação.'
+          : motivoDescarte
+    setOcupado(true)
+    try {
+      const resultado = await transicionarCasoCuradoriaComercial(casoPublicacao.id, {
+        acao: acaoPublicacao,
+        expected_revision: casoPublicacao.revisao,
+        regra_candidata: casoPublicacao.regra_candidata || '',
+        decisao_observacao: observacao,
+        ...(acaoPublicacao === 'publicar' ? { confirmacao_publicacao: true } : {}),
+      })
+      setCasoPublicacao(null)
+      setAcaoPublicacao(null)
+      setJustificativaDescarte('')
+      if (acaoPublicacao === 'publicar') {
+        if (!resultado.outbox_id) throw new Error('OUTBOX_PUBLICACAO_AUSENTE')
+        const processamento = await processarPublicacaoCuradoriaComercial(resultado.outbox_id)
+        if (
+          !processamento.ok ||
+          processamento.processados !== 1 ||
+          processamento.falhas !== 0 ||
+          processamento.invalidados !== 0
+        )
+          throw new Error('PUBLICACAO_NAO_CONFIRMADA')
+        toast.success('Orientação publicada e confirmada no conhecimento do Nexo.')
+      } else if (acaoPublicacao === 'ajustar_publicacao') {
+        abrirEntrevista(resultado.caso)
+        toast.success('Orientação reaberta para ajuste e nova aprovação.')
+      } else {
+        toast.success('Publicação descartada com justificativa registrada.')
+      }
+      await carregar()
+    } catch (error: any) {
+      if (error?.status === 409 || error?.message?.includes('REVISAO_DESATUALIZADA')) {
+        toast.error('Este caso mudou durante a decisão. A fila foi atualizada.')
+        await carregar()
+      } else if (acaoPublicacao === 'publicar') {
+        toast.error('A publicação não foi confirmada. O caso permanece pendente.')
+      } else {
+        toast.error('Não foi possível registrar esta decisão agora.')
+      }
+    } finally {
+      setOcupado(false)
+    }
   }
 
   async function executarTransicao(
@@ -584,7 +695,9 @@ export default function NexoCuradoriaComercialUnificada({
                 visao={visao}
                 ocupado={ocupado}
                 somenteLeitura={somenteLeitura}
+                podeDecidirPublicacao={podeDecidirPublicacao}
                 onEntrevistar={abrirEntrevista}
+                onDecidirPublicacao={abrirDecisaoPublicacao}
                 onTransicionar={(item, acao, observacao) =>
                   void executarTransicao(item, acao, observacao)
                 }
@@ -592,6 +705,95 @@ export default function NexoCuradoriaComercialUnificada({
             ))}
           </div>
         )
+      )}
+
+      {!somenteLeitura && podeDecidirPublicacao && casoPublicacao && acaoPublicacao && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={
+            acaoPublicacao === 'publicar'
+              ? 'Publicar orientação para o Nexo'
+              : acaoPublicacao === 'ajustar_publicacao'
+                ? 'Ajustar antes de publicar'
+                : 'Descartar publicação'
+          }
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">
+                  Decisão governada
+                </p>
+                <h2 className="mt-1 text-xl font-bold text-slate-900">
+                  {acaoPublicacao === 'publicar'
+                    ? 'Publicar orientação para o Nexo'
+                    : acaoPublicacao === 'ajustar_publicacao'
+                      ? 'Ajustar antes de publicar'
+                      : 'Descartar publicação'}
+                </h2>
+              </div>
+              <button
+                type="button"
+                aria-label="Fechar decisão"
+                onClick={fecharDecisaoPublicacao}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              {acaoPublicacao === 'publicar'
+                ? 'A orientação será enviada ao conhecimento operacional do Nexo. A publicação será confirmada por leitura de retorno.'
+                : acaoPublicacao === 'ajustar_publicacao'
+                  ? 'A aprovação atual será invalidada, as quatro respostas serão reabertas e uma nova aprovação será obrigatória.'
+                  : 'A orientação não será publicada. O caso e todas as respostas permanecerão preservados para auditoria.'}
+            </p>
+            {acaoPublicacao === 'descartar_publicacao' && (
+              <label className="mt-4 block text-xs font-semibold text-slate-700">
+                Justificativa obrigatória
+                <textarea
+                  value={justificativaDescarte}
+                  onChange={(event) => setJustificativaDescarte(event.target.value)}
+                  className="mt-1.5 min-h-24 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm font-normal text-slate-800 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                  placeholder="Explique por que esta orientação não deve ser publicada."
+                />
+              </label>
+            )}
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={fecharDecisaoPublicacao}
+                disabled={ocupado}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant={acaoPublicacao === 'descartar_publicacao' ? 'outline' : 'default'}
+                className={
+                  acaoPublicacao === 'descartar_publicacao'
+                    ? 'border-rose-200 text-rose-700 hover:bg-rose-50'
+                    : ''
+                }
+                onClick={() => void confirmarDecisaoPublicacao()}
+                disabled={
+                  ocupado ||
+                  (acaoPublicacao === 'descartar_publicacao' &&
+                    justificativaDescarte.trim().length < 10)
+                }
+              >
+                {acaoPublicacao === 'publicar'
+                  ? 'Confirmar publicação'
+                  : acaoPublicacao === 'ajustar_publicacao'
+                    ? 'Reabrir para ajuste'
+                    : 'Confirmar descarte'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {!somenteLeitura && casoEntrevista && (

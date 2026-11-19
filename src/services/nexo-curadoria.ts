@@ -102,6 +102,9 @@ export type AcaoCasoCuradoriaComercial =
   | 'encaminhar_gestao'
   | 'encaminhar_direcao'
   | 'aprovar'
+  | 'publicar'
+  | 'ajustar_publicacao'
+  | 'descartar_publicacao'
   | 'rejeitar'
   | 'retirar'
   | 'reabrir'
@@ -165,6 +168,7 @@ export interface TransicionarCasoCuradoriaComercialInput {
   decisao_observacao?: string
   entrevista_respostas?: string[]
   entrevista_etapa?: number
+  confirmacao_publicacao?: boolean
 }
 
 export interface TransicionarCasoCuradoriaComercialResponse {
@@ -173,6 +177,16 @@ export interface TransicionarCasoCuradoriaComercialResponse {
   caso: CasoCuradoriaComercial
   automatic_send_allowed: boolean
   promocao_automatica_realizada?: boolean
+  outbox_id?: string
+}
+
+export interface ProcessarPublicacaoCuradoriaComercialResponse {
+  ok: boolean
+  processados: number
+  falhas: number
+  ignorados: number
+  invalidados: number
+  idempotent_replay?: boolean
 }
 
 export async function listarCasosCuradoriaComercial(limite = 50) {
@@ -194,6 +208,23 @@ export async function transicionarCasoCuradoriaComercial(
     {
       method: 'POST',
       body: input,
+    },
+  )
+}
+
+export async function processarPublicacaoCuradoriaComercial(outboxId: string) {
+  const id = String(outboxId || '').trim()
+  if (!id) throw new Error('OUTBOX_CURADORIA_INVALIDA')
+  return pb.send<ProcessarPublicacaoCuradoriaComercialResponse>(
+    '/backend/v1/nexo/curadoria/outbox/processar',
+    {
+      method: 'POST',
+      body: {
+        modo: 'publicacao_humana',
+        outbox_ids: [id],
+        limite: 1,
+        confirmacao_publicacao: 'PUBLICAR_ORIENTACAO_NEXO',
+      },
     },
   )
 }

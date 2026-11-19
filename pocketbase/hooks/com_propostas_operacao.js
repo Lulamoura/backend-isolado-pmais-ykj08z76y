@@ -9693,7 +9693,10 @@
       )
         visaoDestino = 'conhecimento_aprovado'
       else if (
-        (status === 'rejeitado' || status === 'retirado' || status === 'sem_acao') &&
+        (status === 'rejeitado' ||
+          status === 'retirado' ||
+          status === 'descartado' ||
+          status === 'sem_acao') &&
         (acesso.visao_executiva || alcada === 'gestao_comercial') &&
         visoes.historico.length < limite
       )
@@ -10120,6 +10123,9 @@
       encaminhar_gestao: true,
       encaminhar_direcao: true,
       aprovar: true,
+      publicar: true,
+      ajustar_publicacao: true,
+      descartar_publicacao: true,
       rejeitar: true,
       retirar: true,
       reabrir: true,
@@ -10140,6 +10146,14 @@
     var respostas = []
     for (var ri = 0; ri < respostasRecebidas.length; ri++)
       respostas.push(nexoCuradoriaCasosLimpar(respostasRecebidas[ri], 2000))
+    var acaoPublicacaoGovernada =
+      acao === 'publicar' || acao === 'ajustar_publicacao' || acao === 'descartar_publicacao'
+    if (acaoPublicacaoGovernada && !acesso.pode_decidir_direcao)
+      return e.json(403, { ok: false, error: 'ALCADA_INSUFICIENTE' })
+    if (acao === 'publicar' && body.confirmacao_publicacao !== true)
+      return e.json(400, { ok: false, error: 'CONFIRMACAO_PUBLICACAO_NECESSARIA' })
+    if (acao === 'descartar_publicacao' && observacao.length < 10)
+      return e.json(400, { ok: false, error: 'JUSTIFICATIVA_DESCARTE_OBRIGATORIA' })
 
     var commandCanonicalLegacy = JSON.stringify({
       acao: acao,
@@ -10154,6 +10168,7 @@
       observacao: observacao,
       respostas: respostas,
       etapa: etapa,
+      confirmacao_publicacao: body.confirmacao_publicacao === true,
       revisao: expectedRevision,
     })
     var commandHash = String($security.sha256(commandCanonical))
@@ -10171,7 +10186,10 @@
       for (var ti = 0; ti < transicoes.length; ti++) {
         if (nexoCuradoriaCasosTexto(transicoes[ti], 'transicao_chave') === transitionKey) {
           var storedCommandHash = nexoCuradoriaCasosTexto(transicoes[ti], 'command_hash')
-          if (storedCommandHash !== commandHash && storedCommandHash !== commandHashLegacy)
+          if (
+            storedCommandHash !== commandHash &&
+            (acaoPublicacaoGovernada || storedCommandHash !== commandHashLegacy)
+          )
             return e.json(409, { ok: false, error: 'REPLAY_DIVERGENTE' })
           var replayCase = null
           try {
@@ -10190,17 +10208,33 @@
             !nexoCuradoriaCasoTransicaoPermitida(acesso, replayCase, '')
           )
             return e.forbiddenError('Perfil sem alçada para repetir esta transição')
+          var replayOutboxId = ''
+          if (acao === 'publicar') {
+            var replayOutboxRows = nexoCuradoriaCasosCarregar($app, 'com_nexo_curadoria_outbox')
+            for (var roi = 0; roi < replayOutboxRows.length; roi++) {
+              if (
+                nexoCuradoriaCasosTexto(replayOutboxRows[roi], 'decisao_id') ===
+                  transicoes[ti].id &&
+                nexoCuradoriaCasosTexto(replayOutboxRows[roi], 'acao') === 'publicar'
+              ) {
+                replayOutboxId = String(replayOutboxRows[roi].id || '')
+                break
+              }
+            }
+          }
           return e.json(200, {
             ok: true,
             idempotent_replay: true,
             caso: nexoCuradoriaCasoResposta(replayCase),
             automatic_send_allowed: false,
+            outbox_id: replayOutboxId || undefined,
           })
         }
       }
     } catch (_) {}
 
     var responseRecord = null
+    var responseOutboxId = ''
     try {
       $app.runInTransaction(function (tx) {
         var caso = tx.findRecordById('com_nexo_curadoria_casos', id)
@@ -10216,10 +10250,53 @@
           500,
           0,
         )
+        if (acaoPublicacaoGovernada) {
+          var publicacoesIndeterminadas = tx.findRecordsByFilter(
+            'com_nexo_curadoria_outbox',
+            "caso_id = '" +
+              caso.id.replace(/\\/g, '\\\\').replace(/'/g, "\\'") +
+              "' && acao = 'publicar' && (status = 'erro' || status = 'falha_permanente' || (status = 'pendente' && retry_count > 0))",
+            '-requested_at',
+            500,
+            0,
+          )
+          for (var pii = 0; pii < publicacoesIndeterminadas.length; pii++)
+            publicacoesCaso.push(publicacoesIndeterminadas[pii])
+        }
         var agoraTransicaoMs = new Date().getTime()
         for (var pci = 0; pci < publicacoesCaso.length; pci++) {
           if (nexoCuradoriaCasosTexto(publicacoesCaso[pci], 'caso_id') !== caso.id) continue
-          if (nexoCuradoriaCasosTexto(publicacoesCaso[pci], 'status') !== 'processando') continue
+          var statusPublicacaoCaso = nexoCuradoriaCasosTexto(publicacoesCaso[pci], 'status')
+          if (
+            acaoPublicacaoGovernada &&
+            nexoCuradoriaCasosTexto(publicacoesCaso[pci], 'acao') === 'publicar' &&
+            (statusPublicacaoCaso === 'erro' ||
+              statusPublicacaoCaso === 'falha_permanente' ||
+              statusPublicacaoCaso === 'processando' ||
+              (statusPublicacaoCaso === 'pendente' &&
+                nexoCuradoriaCasosNumero(publicacoesCaso[pci], 'retry_count') > 0))
+          ) {
+            var decisaoPublicacaoAnterior = null
+            try {
+              decisaoPublicacaoAnterior = tx.findRecordById(
+                'com_nexo_curadoria_transicoes',
+                nexoCuradoriaCasosTexto(publicacoesCaso[pci], 'decisao_id'),
+              )
+            } catch (_) {
+              throw new Error('PUBLICACAO_RESULTADO_INDETERMINADO')
+            }
+            var metadadosPublicacaoAnterior = decisaoPublicacaoAnterior.get('metadados') || {}
+            if (String(metadadosPublicacaoAnterior.acao || '') === 'publicar') {
+              if (
+                statusPublicacaoCaso === 'erro' ||
+                statusPublicacaoCaso === 'falha_permanente' ||
+                (statusPublicacaoCaso === 'pendente' &&
+                  nexoCuradoriaCasosNumero(publicacoesCaso[pci], 'retry_count') > 0)
+              )
+                throw new Error('PUBLICACAO_RESULTADO_INDETERMINADO')
+            }
+          }
+          if (statusPublicacaoCaso !== 'processando') continue
           if (!nexoCuradoriaCasosTexto(publicacoesCaso[pci], 'claim_token')) continue
           var claimExpiraTransicao = nexoCuradoriaCasosTexto(
             publicacoesCaso[pci],
@@ -10234,6 +10311,12 @@
             claimExpiraTransicaoMs > agoraTransicaoMs
           )
             throw new Error('PUBLICACAO_EM_ANDAMENTO')
+          if (
+            acaoPublicacaoGovernada &&
+            metadadosPublicacaoAnterior &&
+            String(metadadosPublicacaoAnterior.acao || '') === 'publicar'
+          )
+            throw new Error('PUBLICACAO_RESULTADO_INDETERMINADO')
         }
         var statusAnterior = nexoCuradoriaCasosTexto(caso, 'status')
         var conhecimentoStatusAnterior = nexoCuradoriaCasosTexto(caso, 'conhecimento_status')
@@ -10242,6 +10325,20 @@
         if (!nexoCuradoriaCasoTransicaoPermitida(acesso, caso, statusAnterior))
           throw new Error('ALCADA_INSUFICIENTE')
 
+        var revisaoPreservada = null
+        if (acao === 'ajustar_publicacao' || acao === 'descartar_publicacao') {
+          revisaoPreservada = {
+            revisao: revisaoAtual,
+            status: statusAnterior,
+            conhecimento_status: conhecimentoStatusAnterior,
+            regra_candidata: nexoCuradoriaCasosTexto(caso, 'regra_candidata'),
+            entrevista_respostas: nexoCuradoriaCasosArray(caso, 'entrevista_respostas'),
+            entrevista_etapa: nexoCuradoriaCasosNumero(caso, 'entrevista_etapa'),
+            decisao_observacao: nexoCuradoriaCasosTexto(caso, 'decisao_observacao'),
+            validado_por: nexoCuradoriaCasosTexto(caso, 'validado_por'),
+            approved_at: nexoCuradoriaCasosTexto(caso, 'approved_at'),
+          }
+        }
         var statusNovo = statusAnterior
         if (acao === 'salvar_rascunho') {
           if (
@@ -10296,6 +10393,27 @@
           caso.set('validado_por', acesso.actor.id)
           caso.set('decisao_em', new Date())
           caso.set('approved_at', new Date())
+        } else if (acao === 'publicar') {
+          if (statusAnterior !== 'aprovado' || conhecimentoStatusAnterior !== 'pendente_publicacao')
+            throw new Error('TRANSICAO_NAO_PERMITIDA')
+          if (!nexoCuradoriaCasosTexto(caso, 'regra_candidata'))
+            throw new Error('REGRA_OBRIGATORIA')
+          statusNovo = 'aprovado'
+        } else if (acao === 'ajustar_publicacao') {
+          if (statusAnterior !== 'aprovado' || conhecimentoStatusAnterior !== 'pendente_publicacao')
+            throw new Error('TRANSICAO_NAO_PERMITIDA')
+          statusNovo = 'em_entrevista'
+          caso.set('conhecimento_status', 'nao_publicado')
+          caso.set('validado_por', '')
+          caso.set('decisao_em', null)
+          caso.set('approved_at', null)
+        } else if (acao === 'descartar_publicacao') {
+          if (statusAnterior !== 'aprovado' || conhecimentoStatusAnterior !== 'pendente_publicacao')
+            throw new Error('TRANSICAO_NAO_PERMITIDA')
+          statusNovo = 'descartado'
+          caso.set('conhecimento_status', 'nao_publicado')
+          caso.set('validado_por', acesso.actor.id)
+          caso.set('decisao_em', new Date())
         } else if (acao === 'rejeitar') {
           if (
             statusAnterior !== 'aberto_curadoria' &&
@@ -10333,7 +10451,7 @@
           caso.set('next_review_at', null)
         }
 
-        if (observacao) caso.set('decisao_observacao', observacao)
+        if (observacao && acao !== 'publicar') caso.set('decisao_observacao', observacao)
         caso.set('status', statusNovo)
         caso.set('revisao', revisaoAtual + 1)
         caso.set('updated_by', acesso.actor.id)
@@ -10347,22 +10465,43 @@
         transicao.set('status_novo', statusNovo)
         transicao.set('ator_id', acesso.actor.id)
         transicao.set('motivo', observacao || 'Transição governada da Curadoria Comercial.')
-        transicao.set('metadados', {
+        var metadadosTransicaoNova = {
           acao: acao,
           revisao_anterior: revisaoAtual,
           revisao_nova: revisaoAtual + 1,
-        })
+        }
+        if (revisaoPreservada) metadadosTransicaoNova.revisao_preservada = revisaoPreservada
+        transicao.set('metadados', metadadosTransicaoNova)
         transicao.set('ocorreu_em', new Date())
         tx.save(transicao)
 
         var outboxAcao = ''
-        if (acao === 'aprovar') outboxAcao = 'publicar'
-        if (
-          acao === 'retirar' ||
-          (acao === 'rejeitar' &&
-            (statusAnterior === 'aprovado' || conhecimentoStatusAnterior === 'ativo'))
-        )
+        if (acao === 'aprovar' || acao === 'publicar') outboxAcao = 'publicar'
+        if (acao === 'retirar' || (acao === 'rejeitar' && conhecimentoStatusAnterior === 'ativo'))
           outboxAcao = 'retirar'
+
+        if (outboxAcao || acao === 'ajustar_publicacao' || acao === 'descartar_publicacao') {
+          var operacoesPendentes = nexoCuradoriaCasosCarregar(tx, 'com_nexo_curadoria_outbox')
+          for (var opi = 0; opi < operacoesPendentes.length; opi++) {
+            var operacaoPendente = operacoesPendentes[opi]
+            if (nexoCuradoriaCasosTexto(operacaoPendente, 'caso_id') !== caso.id) continue
+            var statusOperacaoPendente = nexoCuradoriaCasosTexto(operacaoPendente, 'status')
+            if (
+              statusOperacaoPendente !== 'pendente' &&
+              statusOperacaoPendente !== 'erro' &&
+              statusOperacaoPendente !== 'processando' &&
+              statusOperacaoPendente !== 'aguardando_confirmacao'
+            )
+              continue
+            operacaoPendente.set('status', 'supersedido')
+            operacaoPendente.set('superseded_by', transicao.id)
+            operacaoPendente.set('claim_token', '')
+            operacaoPendente.set('claim_expires_at', null)
+            operacaoPendente.set('processed_at', new Date())
+            tx.save(operacaoPendente)
+          }
+        }
+
         if (outboxAcao) {
           function nexoCuradoriaPayloadConhecimento(caso, transicao, acao, revisao) {
             var respostasConhecimento = nexoCuradoriaCasosArray(caso, 'entrevista_respostas')
@@ -10437,28 +10576,12 @@
               ['curadoria-outbox-v1', caso.id, String(revisaoNova), outboxAcao].join('|'),
             ),
           )
-          var operacoesAnteriores = nexoCuradoriaCasosCarregar(tx, 'com_nexo_curadoria_outbox')
-          for (var oai = 0; oai < operacoesAnteriores.length; oai++) {
-            var operacaoAnterior = operacoesAnteriores[oai]
-            if (nexoCuradoriaCasosTexto(operacaoAnterior, 'caso_id') !== caso.id) continue
-            var statusOperacaoAnterior = nexoCuradoriaCasosTexto(operacaoAnterior, 'status')
-            if (
-              statusOperacaoAnterior !== 'pendente' &&
-              statusOperacaoAnterior !== 'erro' &&
-              statusOperacaoAnterior !== 'processando'
-            )
-              continue
-            operacaoAnterior.set('status', 'supersedido')
-            operacaoAnterior.set('superseded_by', idempotencyKeyOutbox)
-            operacaoAnterior.set('processed_at', new Date())
-            tx.save(operacaoAnterior)
-          }
           var outbox = new Record(tx.findCollectionByNameOrId('com_nexo_curadoria_outbox'))
           outbox.set('caso_id', caso.id)
           outbox.set('decisao_id', transicao.id)
           outbox.set('acao', outboxAcao)
           outbox.set('idempotency_key', idempotencyKeyOutbox)
-          outbox.set('status', 'pendente')
+          outbox.set('status', acao === 'aprovar' ? 'aguardando_confirmacao' : 'pendente')
           outbox.set('tentativas', 0)
           outbox.set('tentativas_ciclo', 0)
           outbox.set('retry_count', 0)
@@ -10468,6 +10591,7 @@
           outbox.set('caso_revisao', revisaoNova)
           outbox.set('requested_at', new Date())
           tx.save(outbox)
+          responseOutboxId = String(outbox.id || '')
         }
         responseRecord = caso
       })
@@ -10477,6 +10601,8 @@
         return e.json(409, { ok: false, error: 'REVISAO_DESATUALIZADA' })
       if (message.indexOf('PUBLICACAO_EM_ANDAMENTO') !== -1)
         return e.json(409, { ok: false, error: 'PUBLICACAO_EM_ANDAMENTO' })
+      if (message.indexOf('PUBLICACAO_RESULTADO_INDETERMINADO') !== -1)
+        return e.json(409, { ok: false, error: 'PUBLICACAO_RESULTADO_INDETERMINADO' })
       if (message.indexOf('ALCADA_INSUFICIENTE') !== -1)
         return e.json(403, { ok: false, error: 'ALCADA_INSUFICIENTE' })
       if (message.indexOf('ESCOPO_INSUFICIENTE') !== -1)
@@ -10496,6 +10622,7 @@
       caso: nexoCuradoriaCasoResposta(responseRecord),
       automatic_send_allowed: false,
       promocao_automatica_realizada: false,
+      outbox_id: responseOutboxId || undefined,
     })
   })
 
@@ -10583,7 +10710,6 @@
         item.set('retry_count', retryCount)
         item.set('retry_requested_by', acesso.actor.id)
         item.set('retry_reason', motivo)
-        item.set('last_error', '')
         tx.save(item)
 
         var auditoria = new Record(
@@ -10899,6 +11025,22 @@
         return e.json(400, { ok: false, error: 'ESCOPO_OUTBOX_N7_INVALIDO' })
       executionScopeOutbox = 'operacao_continua_n7'
       limite = 5
+    } else if (requestedOutboxMode === 'publicacao_humana') {
+      if (
+        internalOutboxN7 ||
+        !Array.isArray(bodyRequest.outbox_ids) ||
+        bodyRequest.outbox_ids.length !== 1 ||
+        Number(bodyRequest.limite) !== 1 ||
+        String(bodyRequest.confirmacao_publicacao || '') !== 'PUBLICAR_ORIENTACAO_NEXO'
+      )
+        return e.json(400, { ok: false, error: 'ESCOPO_PUBLICACAO_HUMANA_INVALIDO' })
+      var humanPublicationOutboxId = String(bodyRequest.outbox_ids[0] || '')
+      if (!/^[a-z0-9-]{1,80}$/.test(humanPublicationOutboxId))
+        return e.json(400, { ok: false, error: 'ESCOPO_PUBLICACAO_HUMANA_INVALIDO' })
+      scopedOutboxIdMap[humanPublicationOutboxId] = true
+      scopedOutboxIds.push(humanPublicationOutboxId)
+      executionScopeOutbox = 'publicacao_humana'
+      limite = 1
     } else if (requestedOutboxMode || typeof bodyRequest.outbox_ids !== 'undefined') {
       if (
         requestedOutboxMode !== 'homologacao_isolada_n4' ||
@@ -11326,10 +11468,99 @@
         return false
       }
     }
+    function outboxPublicacaoHumanaObrigatoria(app, item) {
+      if (nexoCuradoriaCasosTexto(item, 'acao') !== 'publicar') return false
+      var decisionId = nexoCuradoriaCasosTexto(item, 'decisao_id')
+      if (!decisionId) return false
+      try {
+        var decision = app.findRecordById('com_nexo_curadoria_transicoes', decisionId)
+        var metadata = decision.get('metadados') || {}
+        return String(metadata.acao || '') === 'publicar'
+      } catch (_) {
+        return true
+      }
+    }
+    function outboxPublicacaoHumanaValido(app, item) {
+      if (executionScopeOutbox !== 'publicacao_humana') return true
+      try {
+        if (!scopedOutboxIdMap[item.id] || nexoCuradoriaCasosTexto(item, 'acao') !== 'publicar')
+          return false
+        var caseHuman = app.findRecordById(
+          'com_nexo_curadoria_casos',
+          nexoCuradoriaCasosTexto(item, 'caso_id'),
+        )
+        var decisionHuman = app.findRecordById(
+          'com_nexo_curadoria_transicoes',
+          nexoCuradoriaCasosTexto(item, 'decisao_id'),
+        )
+        var decisionHumanMetadata = decisionHuman.get('metadados') || {}
+        return (
+          scopedOutboxCaseMap[item.id] === nexoCuradoriaCasosTexto(item, 'caso_id') &&
+          String(decisionHumanMetadata.acao || '') === 'publicar' &&
+          nexoCuradoriaCasosTexto(caseHuman, 'status') === 'aprovado' &&
+          nexoCuradoriaCasosTexto(caseHuman, 'conhecimento_status') === 'pendente_publicacao' &&
+          nexoCuradoriaCasosNumero(caseHuman, 'revisao') ===
+            nexoCuradoriaCasosNumero(item, 'caso_revisao')
+        )
+      } catch (_) {
+        return false
+      }
+    }
     try {
       todas = nexoCuradoriaCasosCarregar($app, 'com_nexo_curadoria_outbox')
     } catch (_) {
       return e.json(503, { ok: false, error: 'OUTBOX_INDISPONIVEL' })
+    }
+    if (executionScopeOutbox === 'publicacao_humana') {
+      var committedHumanOutbox = null
+      for (var choi = 0; choi < todas.length; choi++) {
+        if (!scopedOutboxIdMap[todas[choi].id]) continue
+        if (committedHumanOutbox)
+          return e.json(409, { ok: false, error: 'ESCOPO_PUBLICACAO_HUMANA_AMBIGUO' })
+        committedHumanOutbox = todas[choi]
+      }
+      if (
+        committedHumanOutbox &&
+        nexoCuradoriaCasosTexto(committedHumanOutbox, 'status') === 'processado'
+      ) {
+        var committedHumanDecision = null
+        try {
+          committedHumanDecision = $app.findRecordById(
+            'com_nexo_curadoria_transicoes',
+            nexoCuradoriaCasosTexto(committedHumanOutbox, 'decisao_id'),
+          )
+        } catch (_) {}
+        var committedHumanMetadata = committedHumanDecision
+          ? committedHumanDecision.get('metadados') || {}
+          : {}
+        if (
+          !committedHumanDecision ||
+          nexoCuradoriaCasosTexto(committedHumanOutbox, 'acao') !== 'publicar' ||
+          String(committedHumanMetadata.acao || '') !== 'publicar' ||
+          nexoCuradoriaCasosTexto(committedHumanDecision, 'caso_id') !==
+            nexoCuradoriaCasosTexto(committedHumanOutbox, 'caso_id') ||
+          Number(committedHumanMetadata.revisao_nova || 0) !==
+            nexoCuradoriaCasosNumero(committedHumanOutbox, 'caso_revisao') ||
+          !nexoCuradoriaCasosTexto(committedHumanOutbox, 'idempotency_key') ||
+          !nexoCuradoriaCasosTexto(committedHumanOutbox, 'payload_hash') ||
+          !nexoCuradoriaCasosTexto(committedHumanOutbox, 'audit_id') ||
+          !nexoCuradoriaCasosTexto(committedHumanOutbox, 'target_version')
+        )
+          return e.json(409, { ok: false, error: 'RECIBO_PUBLICACAO_HUMANA_INVALIDO' })
+        return e.json(200, {
+          ok: true,
+          processados: 1,
+          falhas: 0,
+          ignorados: 0,
+          invalidados: 0,
+          bloqueados_ordem: 0,
+          em_backoff: 0,
+          pendentes_restantes: 0,
+          automatic_send_allowed: false,
+          execution_scope: 'publicacao_humana',
+          idempotent_replay: true,
+        })
+      }
     }
     if (executionScopeOutbox === 'homologacao_isolada_n4') {
       var scopedOutboxFound = {}
@@ -11357,6 +11588,43 @@
           return e.json(409, { ok: false, error: 'OUTBOX_HOMOLOGACAO_AUSENTE' })
       }
     }
+    if (executionScopeOutbox === 'publicacao_humana') {
+      var humanScopedOutboxFound = null
+      for (var hsoi = 0; hsoi < todas.length; hsoi++) {
+        if (!scopedOutboxIdMap[todas[hsoi].id]) continue
+        if (humanScopedOutboxFound)
+          return e.json(409, { ok: false, error: 'ESCOPO_PUBLICACAO_HUMANA_AMBIGUO' })
+        if (nexoCuradoriaCasosTexto(todas[hsoi], 'acao') !== 'publicar')
+          return e.json(409, { ok: false, error: 'ESCOPO_PUBLICACAO_HUMANA_INVALIDO' })
+        var humanDecision = null
+        var humanCase = null
+        try {
+          humanDecision = $app.findRecordById(
+            'com_nexo_curadoria_transicoes',
+            nexoCuradoriaCasosTexto(todas[hsoi], 'decisao_id'),
+          )
+          humanCase = $app.findRecordById(
+            'com_nexo_curadoria_casos',
+            nexoCuradoriaCasosTexto(todas[hsoi], 'caso_id'),
+          )
+        } catch (_) {}
+        var humanDecisionMetadata = humanDecision ? humanDecision.get('metadados') || {} : {}
+        if (
+          !humanDecision ||
+          !humanCase ||
+          String(humanDecisionMetadata.acao || '') !== 'publicar' ||
+          nexoCuradoriaCasosTexto(humanCase, 'status') !== 'aprovado' ||
+          nexoCuradoriaCasosTexto(humanCase, 'conhecimento_status') !== 'pendente_publicacao' ||
+          nexoCuradoriaCasosNumero(humanCase, 'revisao') !==
+            nexoCuradoriaCasosNumero(todas[hsoi], 'caso_revisao')
+        )
+          return e.json(409, { ok: false, error: 'ESCOPO_PUBLICACAO_HUMANA_INVALIDO' })
+        humanScopedOutboxFound = todas[hsoi]
+        scopedOutboxCaseMap[todas[hsoi].id] = nexoCuradoriaCasosTexto(todas[hsoi], 'caso_id')
+      }
+      if (!humanScopedOutboxFound)
+        return e.json(409, { ok: false, error: 'OUTBOX_PUBLICACAO_HUMANA_AUSENTE' })
+    }
     todas.sort(function (a, b) {
       var ac = nexoCuradoriaCasosTexto(a, 'caso_id')
       var bc = nexoCuradoriaCasosTexto(b, 'caso_id')
@@ -11373,6 +11641,11 @@
     var agoraMs = new Date().getTime()
     for (var i = 0; i < todas.length; i++) {
       if (!outboxCaseN7Valido($app, todas[i])) continue
+      if (
+        executionScopeOutbox === 'fluxo_corrente' &&
+        outboxPublicacaoHumanaObrigatoria($app, todas[i])
+      )
+        continue
       var statusOutbox = nexoCuradoriaCasosTexto(todas[i], 'status')
       if (statusTerminal(statusOutbox)) continue
       var leaseAtual = nexoCuradoriaCasosTexto(todas[i], 'claim_expires_at')
@@ -11385,14 +11658,12 @@
       var claimExpirado = statusOutbox === 'processando' && !claimAtivo
       var casoIdOutbox = nexoCuradoriaCasosTexto(todas[i], 'caso_id')
       if (casoComOperacaoAnterior[casoIdOutbox]) {
-        if (executionScopeOutbox === 'homologacao_isolada_n4' && !scopedOutboxIdMap[todas[i].id])
-          continue
+        if (scopedOutboxIds.length && !scopedOutboxIdMap[todas[i].id]) continue
         bloqueadosOrdem++
         continue
       }
       casoComOperacaoAnterior[casoIdOutbox] = true
-      if (executionScopeOutbox === 'homologacao_isolada_n4' && !scopedOutboxIdMap[todas[i].id])
-        continue
+      if (scopedOutboxIds.length && !scopedOutboxIdMap[todas[i].id]) continue
       if (claimAtivo) continue
       if (statusOutbox !== 'pendente' && statusOutbox !== 'erro' && !claimExpirado) continue
       var nextAttempt = nexoCuradoriaCasosTexto(todas[i], 'next_attempt_at')
@@ -11462,6 +11733,8 @@
           if (!runtimeGateOutboxValido(tx)) throw new Error('GATE_HOMOLOGACAO_N4_ALTERADO')
           var atualClaim = tx.findRecordById('com_nexo_curadoria_outbox', item.id)
           if (!outboxCaseN7Valido(tx, atualClaim)) throw new Error('ESCOPO_OUTBOX_N7_INVALIDO')
+          if (!outboxPublicacaoHumanaValido(tx, atualClaim))
+            throw new Error('ESCOPO_PUBLICACAO_HUMANA_INVALIDO')
           if (executionScopeOutbox === 'homologacao_isolada_n4') {
             var casoIdClaim = nexoCuradoriaCasosTexto(atualClaim, 'caso_id')
             if (
@@ -11518,6 +11791,16 @@
           if (!outboxCaseN7Valido(tx, atualPreHttp)) {
             atualPreHttp.set('status', 'invalidado')
             atualPreHttp.set('last_error', 'ESCOPO_OUTBOX_N7_INVALIDO')
+            atualPreHttp.set('processed_at', new Date())
+            atualPreHttp.set('claim_token', '')
+            atualPreHttp.set('claim_expires_at', null)
+            tx.save(atualPreHttp)
+            result.invalidados++
+            return
+          }
+          if (!outboxPublicacaoHumanaValido(tx, atualPreHttp)) {
+            atualPreHttp.set('status', 'invalidado')
+            atualPreHttp.set('last_error', 'ESCOPO_PUBLICACAO_HUMANA_INVALIDO')
             atualPreHttp.set('processed_at', new Date())
             atualPreHttp.set('claim_token', '')
             atualPreHttp.set('claim_expires_at', null)
@@ -11644,7 +11927,7 @@
               metadadosTransicao.agent_id === 'nexo-curadoria-automatico' &&
               metadadosTransicao.role === 'curador_comercial') ||
             (acaoAutoritativa === 'publicar' &&
-              acaoTransicao === 'aprovar' &&
+              (acaoTransicao === 'aprovar' || acaoTransicao === 'publicar') &&
               statusNovoTransicao === 'aprovado') ||
             (acaoAutoritativa === 'retirar' &&
               ((acaoTransicao === 'retirar' && statusNovoTransicao === 'retirado') ||

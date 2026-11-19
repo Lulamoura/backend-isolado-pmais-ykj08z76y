@@ -557,9 +557,10 @@ function invokeTransition(auth, id, body) {
   return response
 }
 
-function invokeOutbox(auth, origin) {
+function invokeOutbox(auth, origin, body) {
   let response = null
   const effectiveOrigin = arguments.length >= 2 ? origin : previewAppOrigin
+  const requestBody = body || { limite: 10 }
   const e = {
     auth,
     request: {
@@ -567,7 +568,7 @@ function invokeOutbox(auth, origin) {
         get: (name) => (name === 'Origin' ? effectiveOrigin || '' : ''),
       },
     },
-    requestInfo: () => ({ body: { limite: 10 } }),
+    requestInfo: () => ({ body: requestBody }),
     json(status, payload) {
       response = { status, payload }
       return response
@@ -991,6 +992,330 @@ assert.equal(directionDraft.payload.caso.revisao, 4)
 assert.equal(sensitiveOpen.get('entrevista_respostas').length, 4)
 assert.equal(outbox.length, 0)
 
+const publicationAnswers = [
+  'Publicar somente após confirmação executiva.',
+  'Não se aplica a contratos já assinados.',
+  'A direção registra a revisão e o próximo responsável.',
+  'A orientação está pronta para publicação governada.',
+]
+function publicationCase(id) {
+  return new MockRecord('com_nexo_curadoria_casos', id, {
+    fingerprint: `fingerprint-${id}`,
+    revisao: 5,
+    status: 'aprovado',
+    fonte_principal: 'whatsapp_uazapi',
+    fontes: ['whatsapp_uazapi'],
+    empresa_nome: 'Cliente governado',
+    assunto_chave: 'politica_comercial',
+    titulo: 'Orientação sensível aprovada',
+    resumo_factual: 'A direção avaliou os fatos consolidados.',
+    motivo_curadoria: 'Matéria sensível sujeita à decisão executiva.',
+    regra_candidata: publicationAnswers[0],
+    entrevista_respostas: publicationAnswers,
+    entrevista_etapa: 4,
+    evidencia_contagem: 2,
+    recorrencia_contagem: 2,
+    risco_classe: 'alto',
+    alcada: 'direcao',
+    sensivel_motivos: ['politica_comercial'],
+    confianca: 'media',
+    human_review_required: true,
+    automatic_promotion_allowed: false,
+    conhecimento_status: 'pendente_publicacao',
+    decisao_observacao: 'Fundamento substantivo aprovado pela direção.',
+    validado_por: 'superadmin-1',
+  })
+}
+function pendingLegacyOutbox(id, caseId) {
+  return new MockRecord('com_nexo_curadoria_outbox', id, {
+    caso_id: caseId,
+    caso_revisao: 5,
+    acao: 'publicar',
+    status: 'aguardando_confirmacao',
+    claim_token: '',
+    superseded_by: '',
+    requested_at: '2026-10-01T15:00:00.000Z',
+  })
+}
+
+const publishCase = publicationCase('case-publication-explicit')
+const adjustCase = publicationCase('case-publication-adjust')
+const discardCase = publicationCase('case-publication-discard')
+const legacyPublish = pendingLegacyOutbox('legacy-publish', publishCase.id)
+const legacyAdjust = pendingLegacyOutbox('legacy-adjust', adjustCase.id)
+const legacyDiscard = pendingLegacyOutbox('legacy-discard', discardCase.id)
+cases.push(publishCase, adjustCase, discardCase)
+outbox.push(legacyPublish, legacyAdjust, legacyDiscard)
+
+const managerCannotPublish = invokeTransition(manager, publishCase.id, {
+  acao: 'publicar',
+  expected_revision: 5,
+  regra_candidata: publicationAnswers[0],
+  decisao_observacao: 'Tentativa sem alçada executiva.',
+  confirmacao_publicacao: true,
+})
+assert.equal(managerCannotPublish.status, 403)
+const publishWithoutConfirmation = invokeTransition(superadmin, publishCase.id, {
+  acao: 'publicar',
+  expected_revision: 5,
+  regra_candidata: publicationAnswers[0],
+  decisao_observacao: 'Confirmação ausente.',
+})
+assert.equal(publishWithoutConfirmation.status, 400)
+assert.equal(publishWithoutConfirmation.payload.error, 'CONFIRMACAO_PUBLICACAO_NECESSARIA')
+
+const explicitPublish = invokeTransition(superadmin, publishCase.id, {
+  acao: 'publicar',
+  expected_revision: 5,
+  regra_candidata: publicationAnswers[0],
+  decisao_observacao: 'Publicação confirmada pelo superadministrador.',
+  confirmacao_publicacao: true,
+})
+assert.equal(explicitPublish.status, 200)
+assert.equal(explicitPublish.payload.caso.status, 'aprovado')
+assert.equal(explicitPublish.payload.caso.conhecimento_status, 'pendente_publicacao')
+assert.equal(explicitPublish.payload.caso.revisao, 6)
+assert(explicitPublish.payload.outbox_id)
+assert.equal(legacyPublish.getString('status'), 'supersedido')
+const governedPublicationOutbox = outbox.find((row) => row.id === explicitPublish.payload.outbox_id)
+assert(governedPublicationOutbox)
+assert.equal(governedPublicationOutbox.getString('acao'), 'publicar')
+assert.equal(governedPublicationOutbox.getString('status'), 'pendente')
+assert.equal(governedPublicationOutbox.getInt('caso_revisao'), 6)
+const governedPublicationTransition = transitions.find(
+  (row) => row.id === governedPublicationOutbox.getString('decisao_id'),
+)
+assert.equal(governedPublicationTransition.get('metadados').acao, 'publicar')
+assert.equal(
+  governedPublicationOutbox.get('payload_json').approval.actor_id.includes('superadmin-1'),
+  true,
+)
+assert.equal(
+  governedPublicationOutbox.get('payload_json').rationale,
+  'Fundamento substantivo aprovado pela direção.',
+)
+
+const outboxCountBeforePublicationReplay = outbox.length
+const publicationReplay = invokeTransition(superadmin, publishCase.id, {
+  acao: 'publicar',
+  expected_revision: 5,
+  regra_candidata: publicationAnswers[0],
+  decisao_observacao: 'Publicação confirmada pelo superadministrador.',
+  confirmacao_publicacao: true,
+})
+assert.equal(publicationReplay.status, 200)
+assert.equal(publicationReplay.payload.idempotent_replay, true)
+assert.equal(publicationReplay.payload.outbox_id, explicitPublish.payload.outbox_id)
+assert.equal(outbox.length, outboxCountBeforePublicationReplay)
+const publicationDivergentReplay = invokeTransition(superadmin, publishCase.id, {
+  acao: 'publicar',
+  expected_revision: 5,
+  regra_candidata: publicationAnswers[0],
+  decisao_observacao: 'Texto divergente não pode reutilizar a decisão.',
+  confirmacao_publicacao: true,
+})
+assert.equal(publicationDivergentReplay.status, 409)
+assert.equal(publicationDivergentReplay.payload.error, 'REPLAY_DIVERGENTE')
+const callsBeforeDefaultWorker = gatewayCalls.length
+const governedTransitionIndex = transitions.indexOf(governedPublicationTransition)
+transitions.splice(governedTransitionIndex, 1)
+const defaultWorkerMustIgnoreHumanPublication = invokeOutbox(superadmin)
+transitions.splice(governedTransitionIndex, 0, governedPublicationTransition)
+assert.equal(defaultWorkerMustIgnoreHumanPublication.status, 200)
+assert.equal(defaultWorkerMustIgnoreHumanPublication.payload.processados, 0)
+assert.equal(gatewayCalls.length, callsBeforeDefaultWorker)
+assert.equal(governedPublicationOutbox.getString('status'), 'pendente')
+
+const callsBeforeExplicitPublish = gatewayCalls.length
+const explicitPublishProcess = invokeOutbox(superadmin, previewAppOrigin, {
+  modo: 'publicacao_humana',
+  outbox_ids: [explicitPublish.payload.outbox_id],
+  limite: 1,
+  confirmacao_publicacao: 'PUBLICAR_ORIENTACAO_NEXO',
+})
+assert.equal(explicitPublishProcess.status, 200)
+assert.equal(explicitPublishProcess.payload.processados, 1)
+assert.equal(explicitPublishProcess.payload.falhas, 0)
+assert.equal(gatewayCalls.length, callsBeforeExplicitPublish + 1)
+assert.equal(publishCase.getString('conhecimento_status'), 'ativo')
+const callsBeforeCommittedReplay = gatewayCalls.length
+const committedPublicationReplay = invokeOutbox(superadmin, previewAppOrigin, {
+  modo: 'publicacao_humana',
+  outbox_ids: [explicitPublish.payload.outbox_id],
+  limite: 1,
+  confirmacao_publicacao: 'PUBLICAR_ORIENTACAO_NEXO',
+})
+assert.equal(committedPublicationReplay.status, 200)
+assert.equal(committedPublicationReplay.payload.ok, true)
+assert.equal(committedPublicationReplay.payload.processados, 1)
+assert.equal(committedPublicationReplay.payload.idempotent_replay, true)
+assert.equal(gatewayCalls.length, callsBeforeCommittedReplay)
+publishCase.set('conhecimento_status', 'retirado')
+publishCase.set('revisao', 7)
+const callsBeforeHistoricalReplay = gatewayCalls.length
+const historicalCommittedReplay = invokeOutbox(superadmin, previewAppOrigin, {
+  modo: 'publicacao_humana',
+  outbox_ids: [explicitPublish.payload.outbox_id],
+  limite: 1,
+  confirmacao_publicacao: 'PUBLICAR_ORIENTACAO_NEXO',
+})
+assert.equal(historicalCommittedReplay.status, 200)
+assert.equal(historicalCommittedReplay.payload.idempotent_replay, true)
+assert.equal(historicalCommittedReplay.payload.processados, 1)
+assert.equal(gatewayCalls.length, callsBeforeHistoricalReplay)
+publishCase.set('conhecimento_status', 'ativo')
+publishCase.set('revisao', 6)
+
+const ambiguousCase = publicationCase('case-publication-ambiguous')
+cases.push(ambiguousCase)
+const ambiguousPublication = invokeTransition(superadmin, ambiguousCase.id, {
+  acao: 'publicar',
+  expected_revision: 5,
+  regra_candidata: publicationAnswers[0],
+  decisao_observacao: 'Publicação confirmada pelo superadministrador.',
+  confirmacao_publicacao: true,
+})
+assert.equal(ambiguousPublication.status, 200)
+const ambiguousOutbox = outbox.find((row) => row.id === ambiguousPublication.payload.outbox_id)
+ambiguousOutbox.set('status', 'erro')
+ambiguousOutbox.set('last_error', 'RESPOSTA_REMOTA_INDETERMINADA')
+for (const blockedAction of ['publicar', 'ajustar_publicacao', 'descartar_publicacao']) {
+  const blocked = invokeTransition(superadmin, ambiguousCase.id, {
+    acao: blockedAction,
+    expected_revision: 6,
+    regra_candidata: publicationAnswers[0],
+    decisao_observacao:
+      blockedAction === 'descartar_publicacao'
+        ? 'Descarte bloqueado enquanto o retorno remoto é indeterminado.'
+        : 'Operação bloqueada enquanto o retorno remoto é indeterminado.',
+    ...(blockedAction === 'publicar' ? { confirmacao_publicacao: true } : {}),
+  })
+  assert.equal(blocked.status, 409)
+  assert.equal(blocked.payload.error, 'PUBLICACAO_RESULTADO_INDETERMINADO')
+}
+assert.equal(ambiguousCase.getInt('revisao'), 6)
+assert.equal(ambiguousCase.getString('conhecimento_status'), 'pendente_publicacao')
+const ambiguousRetry = invokeRetry(superadmin, ambiguousOutbox.id, {
+  motivo: 'Reprocessar a mesma chave para reconciliar o retorno remoto.',
+})
+assert.equal(ambiguousRetry.status, 200)
+assert.equal(ambiguousOutbox.getString('status'), 'pendente')
+assert.match(ambiguousOutbox.getString('last_error'), /RESPOSTA_REMOTA_INDETERMINADA/)
+const blockedAfterRetry = invokeTransition(superadmin, ambiguousCase.id, {
+  acao: 'ajustar_publicacao',
+  expected_revision: 6,
+  regra_candidata: publicationAnswers[0],
+  decisao_observacao: 'Ajuste bloqueado até reconciliar o retorno remoto anterior.',
+})
+assert.equal(blockedAfterRetry.status, 409)
+assert.equal(blockedAfterRetry.payload.error, 'PUBLICACAO_RESULTADO_INDETERMINADO')
+
+const managerCannotAdjustPublication = invokeTransition(manager, adjustCase.id, {
+  acao: 'ajustar_publicacao',
+  expected_revision: 5,
+  decisao_observacao: 'Tentativa de ajuste sem alçada executiva.',
+})
+assert.equal(managerCannotAdjustPublication.status, 403)
+const managerCannotDiscardPublication = invokeTransition(manager, discardCase.id, {
+  acao: 'descartar_publicacao',
+  expected_revision: 5,
+  decisao_observacao: 'Tentativa de descarte sem alçada executiva.',
+})
+assert.equal(managerCannotDiscardPublication.status, 403)
+
+const adjustedBeforePublish = invokeTransition(superadmin, adjustCase.id, {
+  acao: 'ajustar_publicacao',
+  expected_revision: 5,
+  regra_candidata: publicationAnswers[0],
+  decisao_observacao: 'Aprovação anterior invalidada para ajuste da orientação.',
+})
+assert.equal(adjustedBeforePublish.status, 200)
+assert.equal(adjustedBeforePublish.payload.caso.status, 'em_entrevista')
+assert.equal(adjustedBeforePublish.payload.caso.conhecimento_status, 'nao_publicado')
+assert.equal(adjustedBeforePublish.payload.caso.revisao, 6)
+assert.deepEqual(adjustedBeforePublish.payload.caso.entrevista_respostas, publicationAnswers)
+assert.equal(legacyAdjust.getString('status'), 'supersedido')
+const adjustTransition = transitions.find((row) => row.getString('caso_id') === adjustCase.id)
+assert.equal(adjustTransition.get('metadados').acao, 'ajustar_publicacao')
+assert.deepEqual(adjustTransition.get('metadados').revisao_preservada, {
+  revisao: 5,
+  status: 'aprovado',
+  conhecimento_status: 'pendente_publicacao',
+  regra_candidata: publicationAnswers[0],
+  entrevista_respostas: publicationAnswers,
+  entrevista_etapa: 4,
+  decisao_observacao: 'Fundamento substantivo aprovado pela direção.',
+  validado_por: 'superadmin-1',
+  approved_at: '',
+})
+const adjustedReplay = invokeTransition(superadmin, adjustCase.id, {
+  acao: 'ajustar_publicacao',
+  expected_revision: 5,
+  regra_candidata: publicationAnswers[0],
+  decisao_observacao: 'Aprovação anterior invalidada para ajuste da orientação.',
+})
+assert.equal(adjustedReplay.status, 200)
+assert.equal(adjustedReplay.payload.idempotent_replay, true)
+assert.equal(adjustedReplay.payload.caso.revisao, 6)
+
+const discardWithoutReason = invokeTransition(superadmin, discardCase.id, {
+  acao: 'descartar_publicacao',
+  expected_revision: 5,
+  decisao_observacao: 'Curto',
+})
+assert.equal(discardWithoutReason.status, 400)
+assert.equal(discardWithoutReason.payload.error, 'JUSTIFICATIVA_DESCARTE_OBRIGATORIA')
+const discardedPublication = invokeTransition(superadmin, discardCase.id, {
+  acao: 'descartar_publicacao',
+  expected_revision: 5,
+  regra_candidata: publicationAnswers[0],
+  decisao_observacao: 'A orientação não deve integrar o conhecimento operacional.',
+})
+assert.equal(discardedPublication.status, 200)
+assert.equal(discardedPublication.payload.caso.status, 'descartado')
+assert.equal(discardedPublication.payload.caso.conhecimento_status, 'nao_publicado')
+assert.equal(discardedPublication.payload.caso.revisao, 6)
+assert.equal(legacyDiscard.getString('status'), 'supersedido')
+assert.equal(
+  transitions.find((row) => row.getString('caso_id') === discardCase.id).getString('motivo'),
+  'A orientação não deve integrar o conhecimento operacional.',
+)
+const discardedReplay = invokeTransition(superadmin, discardCase.id, {
+  acao: 'descartar_publicacao',
+  expected_revision: 5,
+  regra_candidata: publicationAnswers[0],
+  decisao_observacao: 'A orientação não deve integrar o conhecimento operacional.',
+})
+assert.equal(discardedReplay.status, 200)
+assert.equal(discardedReplay.payload.idempotent_replay, true)
+assert.equal(discardedReplay.payload.caso.status, 'descartado')
+assert.equal(
+  outbox.some(
+    (row) =>
+      (row.getString('caso_id') === adjustCase.id || row.getString('caso_id') === discardCase.id) &&
+      row.getString('status') === 'pendente',
+  ),
+  false,
+)
+
+for (let index = outbox.length - 1; index >= 0; index--) {
+  if (
+    [publishCase.id, adjustCase.id, discardCase.id, ambiguousCase.id].includes(
+      outbox[index].getString('caso_id'),
+    )
+  )
+    outbox.splice(index, 1)
+}
+for (let index = transitions.length - 1; index >= 0; index--) {
+  if (
+    [publishCase.id, adjustCase.id, discardCase.id, ambiguousCase.id].includes(
+      transitions[index].getString('caso_id'),
+    )
+  )
+    transitions.splice(index, 1)
+}
+gatewayCalls.splice(callsBeforeExplicitPublish)
+
 const draft = invokeTransition(manager, 'case-management', {
   acao: 'salvar_rascunho',
   expected_revision: 1,
@@ -1024,7 +1349,7 @@ assert.equal(approved.payload.caso.conhecimento_status, 'pendente_publicacao')
 assert.equal(cases[0].getInt('revisao'), 3)
 assert.equal(outbox.length, 1)
 assert.equal(outbox[0].getString('acao'), 'publicar')
-assert.equal(outbox[0].getString('status'), 'pendente')
+assert.equal(outbox[0].getString('status'), 'aguardando_confirmacao')
 assert.equal(outbox[0].getInt('caso_revisao'), 3)
 assert.equal(outbox[0].get('payload_json').regra, 'Preparar um resumo objetivo antes da reunião.')
 assert.equal('evidencia_hashes' in outbox[0].get('payload_json'), false)
@@ -1051,6 +1376,8 @@ assert.equal(
   'hash persistido deve cobrir o payload canônico recursivo',
 )
 
+// Simula somente uma linha legada já confirmada para exercitar o worker histórico.
+outbox[0].set('status', 'pendente')
 const routingOutboxSnapshot = { ...outbox[0].values }
 const routingCaseSnapshot = { ...caseManagement.values }
 const routingCallsStart = gatewayCalls.length
@@ -1419,6 +1746,7 @@ assert.equal(backedOff.payload.processados, 0)
 assert.equal(backedOff.payload.em_backoff, 1)
 assert.equal(gatewayCalls.length, gatewayCallsAfterFailure)
 
+const auditsBeforeOperationalRetry = collections.com_nexo_curadoria_outbox_auditoria.length
 assert.equal(invokeRetry(manager, outbox[1].id, { motivo: 'retry sem alçada' }).status, 403)
 const retried = invokeRetry(superadmin, outbox[1].id, {
   motivo: 'Gateway restabelecido e incidente registrado.',
@@ -1426,9 +1754,12 @@ const retried = invokeRetry(superadmin, outbox[1].id, {
 assert.equal(retried.status, 200)
 assert.equal(outbox[1].getString('status'), 'pendente')
 assert.equal(outbox[1].getInt('tentativas_ciclo'), 0)
-assert.equal(collections.com_nexo_curadoria_outbox_auditoria.length, 1)
 assert.equal(
-  collections.com_nexo_curadoria_outbox_auditoria[0].getString('motivo'),
+  collections.com_nexo_curadoria_outbox_auditoria.length,
+  auditsBeforeOperationalRetry + 1,
+)
+assert.equal(
+  collections.com_nexo_curadoria_outbox_auditoria.at(-1).getString('motivo'),
   'Gateway restabelecido e incidente registrado.',
 )
 gatewayMode = 'success'

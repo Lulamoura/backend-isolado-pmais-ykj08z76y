@@ -98,7 +98,10 @@ export default function NexoCuradoria() {
         </Badge>
       </section>
 
-      <NexoCuradoriaComercialUnificada somenteLeitura={perfilSlug === 'leitura-executiva'} />
+      <NexoCuradoriaComercialUnificada
+        somenteLeitura={perfilSlug === 'leitura-executiva'}
+        podeDecidirPublicacao={perfilSlug === 'superadministrador'}
+      />
 
       {podeVerHistoricoLegado && (
         <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">

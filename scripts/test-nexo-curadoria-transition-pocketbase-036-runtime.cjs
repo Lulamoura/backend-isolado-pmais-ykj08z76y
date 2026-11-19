@@ -27,6 +27,8 @@ const password = 'test-password-12345'
 const caseId = 'case00000000001'
 const futureReviewCaseId = 'case00000000002'
 const dueReviewCaseId = 'case00000000003'
+const adjustPublicationCaseId = 'case00000000004'
+const discardPublicationCaseId = 'case00000000005'
 const fixMigration = '202610012350_nexo_curadoria_outbox_zero_attempt.js'
 const sourceMigrations = [
   '202610012100_nexo_aprendizado_whatsapp_proveniencia.js',
@@ -140,6 +142,45 @@ const seedCaseMigration = `migrate(
     }
     seedRejected('${futureReviewCaseId}', '2030-10-01 12:00:00.000Z')
     seedRejected('${dueReviewCaseId}', '2020-10-01 12:00:00.000Z')
+
+    function seedPendingPublication(id, title) {
+      var pending = new Record(app.findCollectionByNameOrId('com_nexo_curadoria_casos'))
+      pending.id = id
+      pending.set('fingerprint', 'pb036-publication-' + id)
+      pending.set('revisao', 5)
+      pending.set('status', 'aprovado')
+      pending.set('fonte_principal', 'whatsapp')
+      pending.set('fontes', ['whatsapp'])
+      pending.set('escopo_tipo', 'negocio')
+      pending.set('assunto_chave', 'politica_comercial')
+      pending.set('recorrencia_chave', 'pb036-publication-governed')
+      pending.set('titulo', title)
+      pending.set('resumo_factual', 'Caso real para validar decisão de publicação governada.')
+      pending.set('motivo_curadoria', 'Matéria sensível submetida à direção.')
+      pending.set('regra_candidata', 'Publicar somente após confirmação executiva.')
+      pending.set('entrevista_respostas', [
+        'Publicar somente após confirmação executiva.',
+        'Não aplicar a contratos já assinados.',
+        'A direção registra a revisão e o responsável.',
+        'A orientação está pronta para decisão humana.',
+      ])
+      pending.set('entrevista_etapa', 4)
+      pending.set('evidencia_contagem', 2)
+      pending.set('casos_independentes', 2)
+      pending.set('recorrencia_contagem', 2)
+      pending.set('risco_classe', 'alto')
+      pending.set('alcada', 'direcao')
+      pending.set('confianca', 'media')
+      pending.set('human_review_required', true)
+      pending.set('automatic_promotion_allowed', false)
+      pending.set('conhecimento_status', 'pendente_publicacao')
+      pending.set('validado_por', 'user00000000001')
+      pending.set('first_seen_at', '2026-10-01 12:00:00.000Z')
+      pending.set('last_seen_at', '2026-10-01 12:00:00.000Z')
+      app.save(pending)
+    }
+    seedPendingPublication('${adjustPublicationCaseId}', 'Orientação para ajuste antes da publicação')
+    seedPendingPublication('${discardPublicationCaseId}', 'Orientação para descarte antes da publicação')
   },
   function (_) {},
 )
@@ -151,6 +192,29 @@ const stateProbeHook = `routerAdd('GET', '/__test/curadoria-transition-state', f
   var caso = $app.findRecordById('com_nexo_curadoria_casos', '${caseId}')
   var rows = $app.findRecordsByFilter('com_nexo_curadoria_outbox', "id != ''", '-id', 10, 0)
   var outbox = rows.length === 1 ? rows[0] : null
+  function governedCase(id) {
+    var record = $app.findRecordById('com_nexo_curadoria_casos', id)
+    return {
+      revisao: record.getInt('revisao'),
+      status: record.getString('status'),
+      conhecimento_status: record.getString('conhecimento_status'),
+      entrevista_respostas: record.get('entrevista_respostas'),
+    }
+  }
+  var governedTransitions = $app.findRecordsByFilter(
+    'com_nexo_curadoria_transicoes',
+    "caso_id = '${adjustPublicationCaseId}' || caso_id = '${discardPublicationCaseId}'",
+    'caso_id',
+    10,
+    0,
+  )
+  var governedMetadata = {}
+  for (var gti = 0; gti < governedTransitions.length; gti++) {
+    governedMetadata[governedTransitions[gti].getString('caso_id')] = {
+      motivo: governedTransitions[gti].getString('motivo'),
+      metadados: governedTransitions[gti].get('metadados'),
+    }
+  }
   return e.json(200, {
     attempts_field: {
       type: attempts.type(),
@@ -169,6 +233,11 @@ const stateProbeHook = `routerAdd('GET', '/__test/curadoria-transition-state', f
       tentativas: outbox.getInt('tentativas'),
       caso_revisao: outbox.getInt('caso_revisao'),
     } : null,
+    governed_cases: {
+      adjust: governedCase('${adjustPublicationCaseId}'),
+      discard: governedCase('${discardPublicationCaseId}'),
+    },
+    governed_metadata: governedMetadata,
   })
 })
 `
@@ -283,9 +352,13 @@ async function stopServer(server) {
   if (server.exitCode === null) server.kill('SIGKILL')
 }
 
-async function readState(baseUrl) {
+async function readState(baseUrl, includeGoverned = false) {
   const response = await request(`${baseUrl}/__test/curadoria-transition-state`)
   assert.strictEqual(response.status, 200, `state probe failed: ${response.status} ${response.raw}`)
+  if (!includeGoverned) {
+    delete response.body.governed_cases
+    delete response.body.governed_metadata
+  }
   return response.body
 }
 
@@ -380,7 +453,7 @@ async function main() {
         },
         transition_count: 1,
         outbox_count: 1,
-        outbox: { status: 'pendente', tentativas: 0, caso_revisao: 2 },
+        outbox: { status: 'aguardando_confirmacao', tentativas: 0, caso_revisao: 2 },
       },
       replay: { status: 200, ok: true, idempotent_replay: true },
       after_replay: {
@@ -392,9 +465,95 @@ async function main() {
         },
         transition_count: 1,
         outbox_count: 1,
-        outbox: { status: 'pendente', tentativas: 0, caso_revisao: 2 },
+        outbox: { status: 'aguardando_confirmacao', tentativas: 0, caso_revisao: 2 },
       },
     })
+
+    const publishCommand = {
+      acao: 'publicar',
+      expected_revision: 2,
+      regra_candidata: command.regra_candidata,
+      decisao_observacao: 'Publicação humana explicitamente confirmada.',
+      confirmacao_publicacao: true,
+    }
+    const explicitPublication = await request(transitionUrl, options, publishCommand)
+    assert.strictEqual(explicitPublication.status, 200)
+    assert.strictEqual(explicitPublication.body.caso.revisao, 3)
+    assert.strictEqual(explicitPublication.body.caso.status, 'aprovado')
+    assert.strictEqual(explicitPublication.body.caso.conhecimento_status, 'pendente_publicacao')
+    assert(explicitPublication.body.outbox_id)
+    const explicitPublicationReplay = await request(transitionUrl, options, publishCommand)
+    assert.strictEqual(explicitPublicationReplay.status, 200)
+    assert.strictEqual(explicitPublicationReplay.body.idempotent_replay, true)
+    assert.strictEqual(explicitPublicationReplay.body.outbox_id, explicitPublication.body.outbox_id)
+    const divergentPublicationReplay = await request(transitionUrl, options, {
+      ...publishCommand,
+      decisao_observacao: 'Comando divergente não pode reutilizar a publicação.',
+    })
+    assert.strictEqual(divergentPublicationReplay.status, 409)
+    assert.strictEqual(divergentPublicationReplay.body.error, 'REPLAY_DIVERGENTE')
+
+    const adjustObservation = 'Aprovação anterior invalidada para ajuste da orientação.'
+    const adjustPublication = await request(
+      `${baseUrl}/backend/v1/nexo/curadoria/casos/${adjustPublicationCaseId}/transicionar`,
+      options,
+      {
+        acao: 'ajustar_publicacao',
+        expected_revision: 5,
+        regra_candidata: 'Publicar somente após confirmação executiva.',
+        decisao_observacao: adjustObservation,
+      },
+    )
+    assert.strictEqual(adjustPublication.status, 200)
+    assert.strictEqual(adjustPublication.body.caso.revisao, 6)
+    assert.strictEqual(adjustPublication.body.caso.status, 'em_entrevista')
+    assert.strictEqual(adjustPublication.body.caso.conhecimento_status, 'nao_publicado')
+    assert.strictEqual(adjustPublication.body.caso.entrevista_respostas.length, 4)
+
+    const discardObservation = 'A orientação não deve integrar o conhecimento operacional.'
+    const discardPublication = await request(
+      `${baseUrl}/backend/v1/nexo/curadoria/casos/${discardPublicationCaseId}/transicionar`,
+      options,
+      {
+        acao: 'descartar_publicacao',
+        expected_revision: 5,
+        regra_candidata: 'Publicar somente após confirmação executiva.',
+        decisao_observacao: discardObservation,
+      },
+    )
+    assert.strictEqual(discardPublication.status, 200)
+    assert.strictEqual(discardPublication.body.caso.revisao, 6)
+    assert.strictEqual(discardPublication.body.caso.status, 'descartado')
+    assert.strictEqual(discardPublication.body.caso.conhecimento_status, 'nao_publicado')
+
+    const governedState = await readState(baseUrl, true)
+    assert.deepStrictEqual(governedState.governed_cases.adjust.entrevista_respostas, [
+      'Publicar somente após confirmação executiva.',
+      'Não aplicar a contratos já assinados.',
+      'A direção registra a revisão e o responsável.',
+      'A orientação está pronta para decisão humana.',
+    ])
+    assert.strictEqual(
+      governedState.governed_metadata[adjustPublicationCaseId].metadados.acao,
+      'ajustar_publicacao',
+    )
+    assert.strictEqual(
+      governedState.governed_metadata[adjustPublicationCaseId].metadados.revisao_preservada.revisao,
+      5,
+    )
+    assert.strictEqual(
+      governedState.governed_metadata[adjustPublicationCaseId].metadados.revisao_preservada
+        .entrevista_respostas.length,
+      4,
+    )
+    assert.strictEqual(
+      governedState.governed_metadata[discardPublicationCaseId].metadados.acao,
+      'descartar_publicacao',
+    )
+    assert.strictEqual(
+      governedState.governed_metadata[discardPublicationCaseId].motivo,
+      discardObservation,
+    )
 
     const reopenCommand = {
       acao: 'reabrir',
