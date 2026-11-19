@@ -14,6 +14,7 @@ const migrationNames = [
   '202611191310_nexo_curadoria_n7_worker_state.js',
   '202611191320_nexo_curadoria_n7_controls.js',
   '202611191330_nexo_curadoria_n7_worker_state_zero.js',
+  '202611191340_nexo_curadoria_n7_execution_metrics_zero.js',
 ]
 for (const name of migrationNames)
   assert(fs.existsSync(path.join(root, 'pocketbase', 'migrations', name)), `missing ${name}`)
@@ -66,6 +67,40 @@ const assertionMigration = `migrate(function(app) {
   requireField(executions, 'outbox_processed', 'number')
   requireField(executions, 'outbox_failed', 'number')
   requireField(executions, 'outbox_invalidated', 'number')
+  var metricCounters = [
+    'selected_ledger_records',
+    'cases_created',
+    'cases_updated',
+    'evidence_created',
+    'transitions_created',
+    'outbox_created',
+    'outbox_processed',
+    'outbox_failed',
+    'outbox_invalidated',
+    'automatic_cases',
+    'human_exceptions',
+    'human_exceptions_new',
+    'open_human_exceptions_before',
+  ]
+  for (var metricIndex = 0; metricIndex < metricCounters.length; metricIndex++) {
+    var metricField = requireField(executions, metricCounters[metricIndex], 'number')
+    if (metricField.required || String(metricField.min) !== '0' || !metricField.onlyInt)
+      throw new Error('execution metric counter must accept zero: ' + metricCounters[metricIndex])
+  }
+  var zeroMetric = new Record(executions)
+  zeroMetric.set('worker_identity', 'nexo-curadoria-n7')
+  zeroMetric.set('result_code', 'test')
+  zeroMetric.set('execution_scope', 'test')
+  zeroMetric.set('activation_cutoff_created', '2026-11-19 10:10:58.360Z')
+  zeroMetric.set('activation_cutoff_id', '8k78ljeajfeuwxn')
+  zeroMetric.set('ledger_snapshot_hash', '0'.repeat(64))
+  for (var zeroIndex = 0; zeroIndex < metricCounters.length; zeroIndex++)
+    zeroMetric.set(metricCounters[zeroIndex], 0)
+  zeroMetric.set('executed_at', new Date())
+  app.save(zeroMetric)
+  if (zeroMetric.getInt('cases_created') !== 0)
+    throw new Error('execution metric did not persist zero')
+  app.delete(zeroMetric)
 
   var workerState = app.findCollectionByNameOrId('com_nexo_curadoria_worker_estado')
   requirePrivate(workerState)
@@ -78,7 +113,7 @@ const assertionMigration = `migrate(function(app) {
   requireField(workerState, 'lease_owner', 'text')
   requireField(workerState, 'lease_expires_at', 'date')
   var processedRecords = requireField(workerState, 'processed_records', 'number')
-  if (processedRecords.required || Number(processedRecords.min) !== 0 || !processedRecords.onlyInt)
+  if (processedRecords.required || String(processedRecords.min) !== '0' || !processedRecords.onlyInt)
     throw new Error('processed_records must accept the initial zero value')
   var states = app.findRecordsByFilter('com_nexo_curadoria_worker_estado', "worker_identity = 'nexo-curadoria-n7'", '', 2, 0)
   if (states.length !== 0) throw new Error('worker state must not be fabricated before the first governed run')
@@ -108,7 +143,20 @@ const assertionMigration = `migrate(function(app) {
 fs.writeFileSync(path.join(migrationsDirectory, '202611191200_setup.js'), setupMigration)
 for (const name of migrationNames) {
   const source = path.join(root, 'pocketbase', 'migrations', name)
-  fs.copyFileSync(source, path.join(migrationsDirectory, name))
+  let content = fs.readFileSync(source, 'utf8')
+  if (name === '202611191300_nexo_curadoria_n7_execution_metrics.js')
+    content = content
+      .replaceAll('required: false, min: 0, onlyInt: true', 'required: true, min: 0, onlyInt: true')
+      .replace(
+        "name: 'open_human_exceptions_before',\n        required: false",
+        "name: 'open_human_exceptions_before',\n        required: true",
+      )
+  if (name === '202611191310_nexo_curadoria_n7_worker_state.js')
+    content = content.replace(
+      "name: 'processed_records', required: false",
+      "name: 'processed_records', required: true",
+    )
+  fs.writeFileSync(path.join(migrationsDirectory, name), content)
 }
 // Reapply the same migration bodies under later versions to prove idempotent compatibility.
 for (let index = 0; index < migrationNames.length; index += 1) {

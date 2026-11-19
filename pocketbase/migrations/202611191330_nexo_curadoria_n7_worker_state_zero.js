@@ -4,7 +4,7 @@ migrate(
     var field = collection.fields.getByName('processed_records')
     if (!field || field.type() !== 'number')
       throw new Error('incompatible field com_nexo_curadoria_worker_estado.processed_records: type')
-    if (Number(field.min) !== 0 || !field.onlyInt)
+    if (String(field.min) !== '0' || !field.onlyInt)
       throw new Error(
         'incompatible field com_nexo_curadoria_worker_estado.processed_records: bounds',
       )

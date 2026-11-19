@@ -56,39 +56,45 @@ migrate(
     addOrValidate(new TextField({ name: 'activation_cutoff_id', required: true, max: 15 }))
     addOrValidate(new TextField({ name: 'ledger_snapshot_hash', required: true, max: 64 }))
     addOrValidate(
-      new NumberField({ name: 'selected_ledger_records', required: true, min: 0, onlyInt: true }),
-    )
-    addOrValidate(new NumberField({ name: 'cases_created', required: true, min: 0, onlyInt: true }))
-    addOrValidate(new NumberField({ name: 'cases_updated', required: true, min: 0, onlyInt: true }))
-    addOrValidate(
-      new NumberField({ name: 'evidence_created', required: true, min: 0, onlyInt: true }),
+      new NumberField({ name: 'selected_ledger_records', required: false, min: 0, onlyInt: true }),
     )
     addOrValidate(
-      new NumberField({ name: 'transitions_created', required: true, min: 0, onlyInt: true }),
+      new NumberField({ name: 'cases_created', required: false, min: 0, onlyInt: true }),
     )
     addOrValidate(
-      new NumberField({ name: 'outbox_created', required: true, min: 0, onlyInt: true }),
+      new NumberField({ name: 'cases_updated', required: false, min: 0, onlyInt: true }),
     )
     addOrValidate(
-      new NumberField({ name: 'outbox_processed', required: true, min: 0, onlyInt: true }),
-    )
-    addOrValidate(new NumberField({ name: 'outbox_failed', required: true, min: 0, onlyInt: true }))
-    addOrValidate(
-      new NumberField({ name: 'outbox_invalidated', required: true, min: 0, onlyInt: true }),
+      new NumberField({ name: 'evidence_created', required: false, min: 0, onlyInt: true }),
     )
     addOrValidate(
-      new NumberField({ name: 'automatic_cases', required: true, min: 0, onlyInt: true }),
+      new NumberField({ name: 'transitions_created', required: false, min: 0, onlyInt: true }),
     )
     addOrValidate(
-      new NumberField({ name: 'human_exceptions', required: true, min: 0, onlyInt: true }),
+      new NumberField({ name: 'outbox_created', required: false, min: 0, onlyInt: true }),
     )
     addOrValidate(
-      new NumberField({ name: 'human_exceptions_new', required: true, min: 0, onlyInt: true }),
+      new NumberField({ name: 'outbox_processed', required: false, min: 0, onlyInt: true }),
+    )
+    addOrValidate(
+      new NumberField({ name: 'outbox_failed', required: false, min: 0, onlyInt: true }),
+    )
+    addOrValidate(
+      new NumberField({ name: 'outbox_invalidated', required: false, min: 0, onlyInt: true }),
+    )
+    addOrValidate(
+      new NumberField({ name: 'automatic_cases', required: false, min: 0, onlyInt: true }),
+    )
+    addOrValidate(
+      new NumberField({ name: 'human_exceptions', required: false, min: 0, onlyInt: true }),
+    )
+    addOrValidate(
+      new NumberField({ name: 'human_exceptions_new', required: false, min: 0, onlyInt: true }),
     )
     addOrValidate(
       new NumberField({
         name: 'open_human_exceptions_before',
-        required: true,
+        required: false,
         min: 0,
         onlyInt: true,
       }),
